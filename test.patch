@@ -1,0 +1,162 @@
+diff --git a/backend/ayanavitabackend/app/admin/src/env.ts b/backend/ayanavitabackend/app/admin/src/env.ts
+index 0b2079ea06fed6746d2d4649b966f0479af2e9e0..fad1e28935f27c08457de2e8dad4c4c198c29d6a 100644
+--- a/backend/ayanavitabackend/app/admin/src/env.ts
++++ b/backend/ayanavitabackend/app/admin/src/env.ts
+@@ -1,2 +1,2 @@
+ export const API_BASE =
+-  import.meta.env.VITE_API_BASE || "https://admin.ayanavita.com/api";
++  import.meta.env.VITE_API_BASE || "http://localhost:8090";
+diff --git a/backend/ayanavitabackend/app/api/src/main.ts b/backend/ayanavitabackend/app/api/src/main.ts
+index aeb6a78b1a8b799a2dcf7a3b8fd8020b28bea3a7..0bb67b92130df77c8041c4c19d43695865d4fb46 100644
+--- a/backend/ayanavitabackend/app/api/src/main.ts
++++ b/backend/ayanavitabackend/app/api/src/main.ts
+@@ -5,50 +5,52 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+ import { AppModule } from "./app.module";
+ import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
+ 
+ async function bootstrap() {
+   const app = await NestFactory.create(AppModule, {
+     logger: ["log", "error", "warn", "debug", "verbose"],
+   });
+ 
+   // ✅ CORS – chuẩn cho cả production + admin + dev
+   const allow = new Set<string>([
+     // 🌍 Production main domain
+     "http://ayanavita-germany.com",
+     "https://ayanavita-germany.com",
+ 
+     // 🔐 Admin subdomain
+     "http://admin.ayanavita.com",
+     "https://admin.ayanavita.com",
+ 
+     // 🧪 Dev local
+     "http://localhost:5173",
+     "http://127.0.0.1:5173",
+     "http://localhost:5174",
+     "http://127.0.0.1:5174",
+     "http://localhost:5175",
+     "http://127.0.0.1:5175",
++    "http://localhost:5050",
++    "http://127.0.0.1:5050",
+   ]);
+ 
+   app.enableCors({
+     origin: (origin, callback) => {
+       // Cho phép server-to-server hoặc curl
+       if (!origin) return callback(null, true);
+ 
+       if (allow.has(origin)) {
+         return callback(null, true);
+       }
+ 
+       console.error(`❌ CORS blocked for origin: ${origin}`);
+       return callback(new Error(`CORS blocked for origin: ${origin}`), false);
+     },
+     credentials: true,
+     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+     allowedHeaders: ["Content-Type", "Authorization"],
+     optionsSuccessStatus: 204,
+   });
+ 
+   // ✅ Global Exception Filter
+   app.useGlobalFilters(new AllExceptionsFilter());
+ 
+   // ✅ Graceful shutdown
+   app.enableShutdownHooks();
+diff --git a/docker-compose.yml b/docker-compose.yml
+index a3974b04ca509876d195de4e47c19db95bdc9bb6..151bc811f859b1f62bc8c786bb52f8bac2dc1c81 100644
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -10,83 +10,85 @@ services:
+       MYSQL_PASSWORD: ayanavita_pw
+       TZ: Asia/Ho_Chi_Minh
+     volumes:
+       - mysql_data:/var/lib/mysql
+     ports:
+       - "3306:3306"
+     restart: unless-stopped
+     networks:
+       - aya_net
+ 
+   # =====================
+   # BACKEND (DEV MODE)
+   # =====================
+   backend:
+     image: node:20-alpine
+     container_name: ayanavita-backend
+     working_dir: /app
+     volumes:
+       - ./backend/ayanavitabackend/app/api:/app
+       - /app/node_modules
+     command: sh -c "npm install && npx prisma generate && npm run start:dev"
+     env_file:
+       - ./backend/ayanavitabackend/app/api/.env
+     environment:
+       NODE_ENV: development
+-      PORT: 3000
++      PORT: 8090
+     depends_on:
+       - mysql
+     ports:
+-      - "3000:3000"
++      - "8090:8090"
+     networks:
+       - aya_net
+ 
+   # =====================
+   # FRONTEND (VITE DEV)
+   # =====================
+   frontend:
+     image: node:20-alpine
+     container_name: ayanavita-frontend
+     working_dir: /app
+     volumes:
+-      - ./frontend:/app
++      - ./frontend/landingpageayanavita:/app
+       - /app/node_modules
+-    command: sh -c "npm install && npm run dev -- --host"
++    command: sh -c "npm install && npm run dev"
+     environment:
+       NODE_ENV: development
++      VITE_API_BASE: http://localhost:8090
+     ports:
+-      - "5173:5173"
++      - "5174:5174"
+     networks:
+       - aya_net
+ 
+   # =====================
+   # ADMIN (REACT DEV)
+   # =====================
+   admin:
+     image: node:20-alpine
+     container_name: ayanavita-admin
+     working_dir: /app
+     volumes:
+       - ./backend/ayanavitabackend/app/admin:/app
+       - /app/node_modules
+     command: sh -c "npm install && npm run dev -- --host"
+     environment:
+       NODE_ENV: development
++      VITE_API_BASE: http://localhost:8090
+     ports:
+       - "5050:5173"
+     networks:
+       - aya_net
+ 
+   adminer:
+     image: adminer
+     container_name: ayanavita-adminer
+     ports:
+       - "8081:8080"
+     networks:
+       - aya_net
+ 
+ volumes:
+   mysql_data:
+ 
+ networks:
+   aya_net:
+-    driver: bridge
+\ No newline at end of file
++    driver: bridge

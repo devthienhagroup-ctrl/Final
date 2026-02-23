@@ -36,7 +36,6 @@ export function AuthModal({
         <div>
           <div className="text-xs font-semibold text-slate-500">Tài khoản AYANAVITA</div>
           <h3 className="text-xl font-bold text-slate-900">Đăng nhập / Đăng ký</h3>
-          <p className="mt-1 text-sm text-slate-600">Prototype UI — chưa nối API.</p>
         </div>
         <button
           type="button"

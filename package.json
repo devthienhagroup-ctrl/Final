@@ -10,5 +10,11 @@
     "type": "git",
     "url": "https://github.com/devthienhagroup-ctrl/Ayanavita.git"
   },
-  "private": true
+  "private": true,
+  "dependencies": {
+    "vite": "^7.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.1.4"
+  }
 }

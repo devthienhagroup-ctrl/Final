@@ -1,0 +1,284 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "mysql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+model User {
+  id                 Int      @id @default(autoincrement())
+  email              String   @unique
+  password           String
+  name               String?
+  role               Role     @default(USER)
+  isActive           Boolean  @default(true)
+  hashedRefreshToken String?  @db.Text
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // ✅ ADD
+  enrollments    Enrollment[]
+  lessonProgress LessonProgress[]
+  orders         Order[] // <— opposite for Order.user
+
+  // ✅ CMS (optional relations)
+  cmsSectionVersions CmsSectionVersion[]
+  mediaAssets        MediaAsset[]
+}
+
+model Course {
+  id          Int      @id @default(autoincrement())
+  title       String
+  slug        String   @unique
+  description String?
+  thumbnail   String?
+  price       Int      @default(0)
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lessons     Lesson[]
+  enrollments Enrollment[]
+
+  // ✅ ADD
+  orderItems OrderItem[] // <— opposite for OrderItem.course
+}
+
+model Lesson {
+  id        Int              @id @default(autoincrement())
+  courseId  Int
+  title     String
+  slug      String
+  content   String?          @db.LongText
+  videoUrl  String?
+  order     Int              @default(0)
+  published Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  course    Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  progress  LessonProgress[]
+
+  @@unique([courseId, slug])
+  @@index([courseId, order])
+}
+
+model Enrollment {
+  id       Int @id @default(autoincrement())
+  userId   Int
+  courseId Int
+  orderId  Int
+
+  createdAt DateTime @default(now())
+
+  status     EnrollmentStatus @default(ACTIVE)
+  enrolledAt DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course     Course           @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  order      Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+  @@index([orderId])
+}
+
+model LessonProgress {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  lessonId     Int
+  completed    Boolean  @default(false)
+  lastOpenedAt DateTime @default(now())
+
+  // tiến độ
+  status          ProgressStatus @default(IN_PROGRESS)
+  percent         Int            @default(0) // 0..100
+  lastPositionSec Int            @default(0)
+  completedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([lessonId])
+  @@index([userId])
+}
+
+enum ProgressStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  STAFF
+  USER
+}
+
+
+enum EnrollmentStatus {
+  ACTIVE
+  CANCELED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELED
+  EXPIRED
+}
+
+model Order {
+  id          Int          @id @default(autoincrement())
+  code        String       @unique @db.VarChar(32) // mã đơn
+  userId      Int
+  status      OrderStatus  @default(PENDING)
+  enrollments Enrollment[]
+
+  currency String @default("VND") @db.VarChar(3)
+  subtotal Int    @default(0)
+  discount Int    @default(0)
+  total    Int    @default(0)
+
+  paidAt     DateTime?
+  canceledAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items OrderItem[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model OrderItem {
+  id       Int @id @default(autoincrement())
+  orderId  Int
+  courseId Int
+
+  price       Int    @default(0)
+  courseTitle String @db.VarChar(255) // snapshot (khuyến nghị)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, courseId])
+  @@index([courseId])
+}
+
+// ===================== CMS (Landing / Public Pages) =====================
+
+enum CmsStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum CmsLocale {
+  vi
+  en
+  de
+}
+
+model CmsPage {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique @db.VarChar(80) // "landing"
+  title     String   @db.VarChar(255)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sections CmsSection[]
+}
+
+model CmsSection {
+  id        Int      @id @default(autoincrement())
+  pageId    Int
+  key       String   @db.VarChar(50) // "hero" | "about" | "cards" | ...
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  page     CmsPage             @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  locales  CmsSectionLocale[]
+  versions CmsSectionVersion[]
+
+  @@unique([pageId, key])
+  @@index([pageId, sortOrder])
+}
+
+model CmsSectionLocale {
+  id        Int       @id @default(autoincrement())
+  sectionId Int
+  locale    CmsLocale
+  status    CmsStatus @default(DRAFT)
+
+  draftData     Json?
+  publishedData Json?
+  publishedAt   DateTime?
+
+  updatedAt DateTime @updatedAt
+
+  section CmsSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId, locale])
+  @@index([locale, status])
+}
+
+model CmsSectionVersion {
+  id        Int       @id @default(autoincrement())
+  sectionId Int
+  locale    CmsLocale
+  status    CmsStatus // snapshot loại gì (draft/published)
+  data      Json
+  note      String?   @db.VarChar(255)
+  createdBy Int?
+  createdAt DateTime  @default(now())
+
+  section CmsSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  user    User?      @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([sectionId, locale, createdAt])
+  @@index([createdBy])
+}
+
+model MediaAsset {
+  id       Int     @id @default(autoincrement())
+  url      String  @db.Text
+  filename String  @db.VarChar(255)
+  mimeType String  @db.VarChar(100)
+  size     Int
+  width    Int?
+  height   Int?
+  alt      String? @db.VarChar(255)
+  tags     String? @db.Text
+
+  createdBy Int?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([createdBy, createdAt])
+}
+
+model PublicLead {
+  id        Int      @id @default(autoincrement())
+  type      String   @db.VarChar(30) // "book" | "talk"
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+}
+
+

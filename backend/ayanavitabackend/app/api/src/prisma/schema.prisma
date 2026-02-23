@@ -1,0 +1,38 @@
+enum BlogTag {
+  skincare
+  massage
+  wellness
+  franchise
+}
+
+model BlogPost {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  excerpt     String?  @db.Text
+  coverImage  String?  @db.Text
+  tag         BlogTag
+  authorName  String
+  contentMd   String   @db.LongText // Markdown (đơn giản, đúng LMS)
+  views       Int      @default(0)
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  savedBy     BlogSaved[]
+
+  @@index([tag, publishedAt])
+}
+
+model BlogSaved {
+  id        String   @id @default(cuid())
+  userId    Int
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId])
+}

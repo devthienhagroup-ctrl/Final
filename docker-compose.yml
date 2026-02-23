@@ -59,6 +59,26 @@ services:
     networks:
       - aya_net
 
+
+
+  frontend-final:
+    image: node:20-alpine
+    container_name: ayanavita-frontend-final
+    working_dir: /app
+    volumes:
+      - ./Home/ayanavita-fontend-final:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5176"
+    environment:
+      NODE_ENV: development
+      VITE_API_URL: http://backend:8090
+    depends_on:
+      - backend
+    ports:
+      - "5176:5176"
+    networks:
+      - aya_net
+
   # =====================
   # ADMIN (REACT DEV)
   # =====================

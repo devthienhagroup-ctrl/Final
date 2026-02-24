@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { spaAdminApi, type Appointment, type Branch, type ServiceReview, type SpaService, type Specialist } from '../../api/spaAdmin.api'
 import { AlertJs } from '../../utils/alertJs'
 import './AdminSpaPage.css'
@@ -8,6 +7,7 @@ import { ReviewsTab } from './tabs/ReviewsTab'
 import { ServicesTab } from './tabs/ServicesTab'
 import { SpecialistsTab } from './tabs/SpecialistsTab'
 import type { BranchForm, RelationForm, ReviewForm, ServiceForm, SpecialistForm } from './tabs/types'
+import { useAuth } from '../../state/auth.store'
 
 type TabKey = 'branches' | 'services' | 'specialists' | 'reviews'
 
@@ -15,6 +15,27 @@ const defaultServiceForm: ServiceForm = { code: '', name: '', description: '', c
 const defaultSpecialistForm: SpecialistForm = { code: '', name: '', level: 'SENIOR', bio: '' }
 const defaultReviewForm: ReviewForm = { serviceId: 0, stars: 5, comment: '', customerName: '' }
 const defaultBranchForm: BranchForm = { code: '', name: '', address: '', phone: '', isActive: true }
+
+
+const normalizeBranchCode = (name: string) => {
+  const base = name
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/đ/gi, 'd')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+
+  return base || 'BRANCH'
+}
+
+const isValidPhoneNumber = (phone: string) => {
+  const cleaned = phone.trim()
+  if (!cleaned) return true
+  if (!/^\+?[\d\s().-]+$/.test(cleaned)) return false
+  const digitsCount = cleaned.replace(/\D/g, '').length
+  return digitsCount >= 6 && digitsCount <= 20
+}
 
 const getVietnameseError = (error: unknown, fallback: string) => {
   if (typeof error === 'object' && error && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
@@ -26,6 +47,7 @@ const getVietnameseError = (error: unknown, fallback: string) => {
 }
 
 export default function AdminSpaPage() {
+  const { user } = useAuth()
   const [tab, setTab] = useState<TabKey>('branches')
   const [loading, setLoading] = useState(false)
   const [branches, setBranches] = useState<Branch[]>([])
@@ -50,6 +72,13 @@ export default function AdminSpaPage() {
     if (!reviewForm.serviceId) return reviews
     return reviews.filter((item) => item.serviceId === Number(reviewForm.serviceId))
   }, [reviewForm.serviceId, reviews])
+  const displayName = useMemo(() => {
+    if (!user?.email) return 'Admin User'
+    const baseName = user.email.split('@')[0]?.replace(/[._-]+/g, ' ').trim()
+    return baseName ? baseName.replace(/\b\w/g, (char) => char.toUpperCase()) : user.email
+  }, [user?.email])
+  const roleLabel = user?.role === 'ADMIN' ? 'Administrator' : user?.role ?? 'User'
+  const avatarLetter = (displayName[0] || 'A').toUpperCase()
 
   const loadAll = async () => {
     setLoading(true)
@@ -78,13 +107,46 @@ export default function AdminSpaPage() {
   }, [])
 
   const saveBranch = async () => {
+    const normalizedName = (branchForm.name || '').trim()
+    const normalizedAddress = (branchForm.address || '').trim()
+    const normalizedPhone = (branchForm.phone || '').trim()
+    const generatedCode = normalizeBranchCode(normalizedName)
+
+    if (!normalizedName) {
+      await AlertJs.error('Thiếu tên chi nhánh', 'Vui lòng nhập tên chi nhánh trước khi lưu.')
+      return
+    }
+
+    if (normalizedName.length < 2) {
+      await AlertJs.error('Tên chi nhánh chưa hợp lệ', 'Tên chi nhánh cần có ít nhất 2 ký tự.')
+      return
+    }
+
+    if (!normalizedAddress) {
+      await AlertJs.error('Thiếu địa chỉ', 'Vui lòng nhập địa chỉ chi nhánh.')
+      return
+    }
+
+    if (!isValidPhoneNumber(normalizedPhone)) {
+      await AlertJs.error('Số điện thoại chưa hợp lệ', 'Vui lòng nhập đúng định dạng số điện thoại quốc tế (không giới hạn quốc gia).')
+      return
+    }
+
+    const payload: BranchForm = {
+      ...branchForm,
+      code: generatedCode,
+      name: normalizedName,
+      address: normalizedAddress,
+      phone: normalizedPhone,
+    }
+
     try {
-      if (editingBranch) await spaAdminApi.updateBranch(editingBranch.id, branchForm)
-      else await spaAdminApi.createBranch(branchForm)
+      if (editingBranch) await spaAdminApi.updateBranch(editingBranch.id, payload)
+      else await spaAdminApi.createBranch(payload)
       setEditingBranch(null)
       setBranchForm(defaultBranchForm)
       await loadAll()
-      await AlertJs.success('Đã lưu chi nhánh thành công')
+      await AlertJs.success('Đã lưu chi nhánh thành công', `Mã chi nhánh: ${generatedCode}. Dữ liệu đã được đồng bộ lên hệ thống.`)
     } catch (error) {
       await AlertJs.error('Lưu chi nhánh thất bại', getVietnameseError(error, 'Vui lòng kiểm tra lại thông tin chi nhánh.'))
     }
@@ -115,9 +177,12 @@ export default function AdminSpaPage() {
           <h1>Spa Admin Dashboard</h1>
           <p>Bảng điều khiển chuẩn hoá vận hành theo phong cách hiện đại, rõ dữ liệu, dễ thao tác.</p>
         </div>
-        <div className='admin-row'>
-          <Link className='admin-btn admin-btn-ghost' to='/admin/orders'><i className='fa-solid fa-bag-shopping' />Quản lý đơn hàng</Link>
-          <button className='admin-btn admin-btn-primary' onClick={loadAll}><i className='fa-solid fa-rotate-right' />Làm mới</button>
+        <div className='admin-user-badge' aria-label='Thông tin tài khoản đăng nhập'>
+          <div className='admin-user-avatar'>{avatarLetter}</div>
+          <div className='admin-user-meta'>
+            <strong>{displayName}</strong>
+            <span>{roleLabel}</span>
+          </div>
         </div>
       </header>
 
@@ -157,7 +222,10 @@ export default function AdminSpaPage() {
 
       {loading && <section className='admin-card'>Đang tải dữ liệu...</section>}
 
-      {tab === 'branches' && <BranchesTab loading={loading} branches={branches} branchForm={branchForm} editingBranch={editingBranch} onBranchFormChange={setBranchForm} onSaveBranch={saveBranch} onEditBranch={(branch) => { setEditingBranch(branch); setBranchForm(branch) }} onDeleteBranch={deleteBranch} onCancelEdit={() => { setEditingBranch(null); setBranchForm(defaultBranchForm) }} />}
+      {tab === 'branches' && <BranchesTab loading={loading} branches={branches} branchForm={branchForm} editingBranch={editingBranch} onBranchFormChange={(next) => {
+        const nextName = next.name ?? branchForm.name ?? ''
+        setBranchForm({ ...next, code: normalizeBranchCode(nextName) })
+      }} onSaveBranch={saveBranch} onEditBranch={(branch) => { setEditingBranch(branch); setBranchForm(branch) }} onDeleteBranch={deleteBranch} onCancelEdit={() => { setEditingBranch(null); setBranchForm(defaultBranchForm) }} />}
 
       {tab === 'services' && <ServicesTab loading={loading} services={services} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onUploadImage={async () => {
         if (!selectedImage) return

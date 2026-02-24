@@ -1,8 +1,17 @@
 diff --git a/ayanavita-fontend/src/pages/admin/AdminSpaPage.css b/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
-index 1ad7ee35cac38772879aafdc52170e90e68b2d2a..47ac9951052e9ec25c8cb80518cd8359e3823f60 100644
+index af0e127c87a104fafd6a88500ceab57c0e73b847..afda0a2b1ddf256a349708737611aee7c7bcf3b9 100644
 --- a/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
 +++ b/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
-@@ -26,160 +26,232 @@
+@@ -17,50 +17,101 @@
+ .admin-page {
+   padding: 30px 40px;
+   font-family: Arial, Helvetica, -apple-system, BlinkMacSystemFont,
+   "Segoe UI", Roboto, sans-serif;
+   color: var(--ad-text);
+   background: var(--ad-bg);
+ }
+
+ .admin-header {
    margin-top: 10px;
    display: flex;
    justify-content: space-between;
@@ -19,6 +28,57 @@ index 1ad7ee35cac38772879aafdc52170e90e68b2d2a..47ac9951052e9ec25c8cb80518cd8359
  .admin-header p { margin: 0; opacity: .96; }
  .admin-header-kicker { margin: 0 0 6px; font-size: 12px; font-weight: 900; letter-spacing: .08em; opacity: .95; }
 
++.admin-user-badge {
++  display: inline-flex;
++  align-items: center;
++  gap: 12px;
++  padding: 10px 14px;
++  border-radius: 14px;
++  background: rgba(255, 255, 255, 0.18);
++  border: 1px solid rgba(255, 255, 255, 0.38);
++  backdrop-filter: blur(8px);
++  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.2);
++}
++
++.admin-user-avatar {
++  width: 42px;
++  height: 42px;
++  border-radius: 50%;
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(224, 231, 255, 0.95));
++  color: #4338ca;
++  font-size: 18px;
++  font-weight: 900;
++}
++
++.admin-user-meta {
++  display: grid;
++  gap: 2px;
++}
++
++.admin-user-meta strong {
++  font-size: 16px;
++  font-weight: 800;
++  line-height: 1.2;
++}
++
++.admin-user-meta span {
++  display: inline-flex;
++  align-items: center;
++  width: fit-content;
++  font-size: 11px;
++  font-weight: 800;
++  letter-spacing: .08em;
++  text-transform: uppercase;
++  color: #e0e7ff;
++  padding: 2px 8px;
++  border-radius: 999px;
++  border: 1px solid rgba(255, 255, 255, 0.32);
++  background: rgba(15, 23, 42, 0.2);
++}
++
  .admin-overview {
    margin-top: 14px;
    display: grid;
@@ -28,105 +88,25 @@ index 1ad7ee35cac38772879aafdc52170e90e68b2d2a..47ac9951052e9ec25c8cb80518cd8359
 
  .overview-card {
    background: var(--ad-card);
--  border: 1px solid var(--ad-border);
-+  border: none;
+   border: none;
    border-radius: 14px;
    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.07);
--  padding: 12px 14px;
-+  padding: 14px 16px;
+   padding: 14px 16px;
    display: grid;
--  gap: 3px;
-+  gap: 5px;
-+  position: relative;
-+  overflow: hidden;
-+}
-+.overview-card:nth-child(1) { color: #4f46e5; }
-+.overview-card:nth-child(2) { color: #0891b2; }
-+.overview-card:nth-child(3) { color: #16a34a; }
-+.overview-card:nth-child(4) { color: #d97706; }
-+.overview-card span { color: currentColor; font-weight: 800; font-size: 18px; display: inline-flex; align-items: center; line-height: 1.15; }
-+.overview-card strong { font-size: 40px; color: #0f172a; line-height: 1.1; font-weight: 800; }
-+.overview-card small { color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; font-weight: 500; }
-+.overview-icon {
-+  position: absolute;
-+  right: 14px;
-+  bottom: 10px;
-+  font-size: 32px;
-+  color: color-mix(in srgb, currentColor 85%, white 15%);
-+  opacity: 0.2;
+   gap: 5px;
+   position: relative;
+   overflow: hidden;
  }
--.overview-card:nth-child(1) { border-top: 4px solid #4f46e5; }
--.overview-card:nth-child(2) { border-top: 4px solid #06b6d4; }
--.overview-card:nth-child(3) { border-top: 4px solid #22c55e; }
--.overview-card:nth-child(4) { border-top: 4px solid #f59e0b; }
--.overview-card span { color: var(--ad-muted); font-weight: 800; font-size: 13px; display: inline-flex; align-items: center; gap: 8px; }
--.overview-card strong { font-size: 24px; color: #0f172a; line-height: 1.2; }
--.overview-card small { color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
- .admin-tabs {
-   display: flex;
-   gap: 8px;
-   flex-wrap: wrap;
-   margin: 14px 0;
- }
-
- .admin-tab {
-   border: 1px solid rgba(148, 163, 184, 0.45);
-   background: #fff;
-   color: #334155;
-   font-family: Arial, Helvetica, -apple-system, BlinkMacSystemFont,
-   "Segoe UI", Roboto, sans-serif;
-   border-radius: 999px;
-   padding: 9px 14px;
-   font-weight: 800;
-   cursor: pointer;
-   transition: all .2s ease;
-   display: inline-flex;
-   align-items: center;
-   gap: 8px;
-   white-space: nowrap;
- }
- .admin-tab:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(79, 70, 229, 0.17); }
- .admin-tab.active {
--  background: linear-gradient(135deg, #4f46e5, #7c3aed);
-+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
-   border-color: transparent;
--  color: #fff;
-+  color: #1f2937;
-+  box-shadow: 0 10px 20px rgba(245, 158, 11, 0.32);
- }
-
- .admin-grid { display: grid; gap: 14px; grid-template-columns: minmax(320px, 1fr) minmax(520px, 1.65fr); }
-
- .admin-card {
-   background: var(--ad-card);
-   border: 1px solid var(--ad-border);
-   border-radius: 14px;
-   box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06);
-   padding: 14px;
- }
- .admin-card-glow { box-shadow: 0 14px 30px rgba(79, 70, 229, .16); }
-
--.admin-card-title { margin: 0 0 10px; font-size: 18px; color: #0f172a; display: inline-flex; align-items: center; gap: 8px; }
--.admin-subtitle { margin: 0 0 8px; color: #334155; display: inline-flex; align-items: center; gap: 7px; }
-+.admin-card-title { margin: 0 0 10px; font-size: 20px; font-weight: 800; color: #0f172a; display: inline-flex; align-items: center; gap: 8px; }
-+.admin-subtitle { margin: 0 0 8px; color: #334155; display: inline-flex; align-items: center; gap: 7px; font-size: 15px; font-weight: 700; }
-
- .admin-form-grid { display: grid; gap: 8px; }
- .admin-field { display: grid; gap: 6px; }
--.admin-label { font-size: 12px; font-weight: 800; color: #475569; display: inline-flex; align-items: center; gap: 6px; }
-+.admin-label { font-size: 13px; font-weight: 700; color: #475569; display: inline-flex; align-items: center; gap: 6px; }
- .admin-helper { color: #64748b; font-size: 12px; }
-
- .admin-input {
-   width: 95%;
-   padding: 10px 11px;
-   border-radius: 12px;
-   border: 1px solid #d8deea;
-   background: linear-gradient(180deg, #fff, #fafaff);
--  font-size: 14px;
-+  font-size: 15px;
-+  font-weight: 500;
+ .overview-card:nth-child(1) { color: #4f46e5; }
+ .overview-card:nth-child(2) { color: #0891b2; }
+ .overview-card:nth-child(3) { color: #16a34a; }
+ .overview-card:nth-child(4) { color: #d97706; }
+ .overview-card span { color: currentColor; font-weight: 800; font-size: 18px; display: inline-flex; align-items: center; line-height: 1.15; }
+ .overview-card strong { font-size: 40px; color: #0f172a; line-height: 1.1; font-weight: 800; }
+ .overview-card small { color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; font-weight: 500; }
+@@ -132,50 +183,51 @@
+   font-size: 15px;
+   font-weight: 500;
  }
  .admin-input:focus { outline: 2px solid #ddd6fe; border-color: #a78bfa; }
 
@@ -137,6 +117,8 @@ index 1ad7ee35cac38772879aafdc52170e90e68b2d2a..47ac9951052e9ec25c8cb80518cd8359
    padding: 8px 12px;
    border: 1px solid transparent;
    font-weight: 800;
+   font-family: Arial, Helvetica, -apple-system, BlinkMacSystemFont,
+   "Segoe UI", Roboto, sans-serif;
    cursor: pointer;
    transition: transform .15s ease;
    display: inline-flex;
@@ -148,118 +130,202 @@ index 1ad7ee35cac38772879aafdc52170e90e68b2d2a..47ac9951052e9ec25c8cb80518cd8359
  .admin-btn-primary { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; }
  .admin-btn-ghost { background: #fff; border-color: #cfd7e4; color: #1f2937; }
  .admin-btn-danger { background: linear-gradient(135deg, #e11d48, #ef4444); color: #fff; }
++.admin-btn-save { background: linear-gradient(135deg, #0ea5e9, #2563eb); color: #fff; box-shadow: 0 8px 18px rgba(37, 99, 235, 0.28); }
 
  .admin-table-wrap { overflow: auto; border: 1px solid #e5e7ff; border-radius: 12px; }
  .admin-table { width: 100%; border-collapse: collapse; min-width: 780px; background: #fff; table-layout: auto; }
-+.admin-table thead tr { background: linear-gradient(135deg, #eef2ff, #fdf2f8); }
+ .admin-table thead tr { background: linear-gradient(135deg, #eef2ff, #fdf2f8); }
  .admin-table th {
    text-align: left;
--  padding: 10px;
--  background: linear-gradient(135deg, #eef2ff, #fdf2f8);
-+  padding: 11px 10px;
-+  background: transparent;
+   padding: 11px 10px;
+   background: transparent;
    color: #475569;
    font-size: 12px;
    text-transform: uppercase;
    letter-spacing: .04em;
    white-space: nowrap;
  }
--.admin-table td { padding: 10px; border-top: 1px solid #f1f5f9; vertical-align: middle; font-size: 14px; }
-+.admin-table td { padding: 10px; border-top: 1px solid #f1f5f9; vertical-align: middle; font-size: 14px; font-weight: 500; }
+ .admin-table td { padding: 10px; border-top: 1px solid #f1f5f9; vertical-align: middle; font-size: 14px; font-weight: 500; }
  .admin-table tbody tr:hover { background: #fafafe; }
  .td-strong { font-weight: 700; color: #111827; }
 
  .admin-divider { border: none; border-top: 1px solid var(--ad-border); margin: 14px 0; }
--.admin-checkbox { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: #334155; }
-+.admin-checkbox {
-+  display: inline-flex;
-+  align-items: center;
-+  gap: 10px;
-+  font-weight: 600;
-+  color: #334155;
-+  margin-top: 2px;
-+  cursor: pointer;
-+}
-+.admin-checkbox input {
-+  position: absolute;
-+  opacity: 0;
-+  width: 0;
-+  height: 0;
-+}
-+.admin-checkbox-slider {
-+  width: 44px;
-+  height: 24px;
-+  border-radius: 99px;
-+  background: #cbd5e1;
-+  position: relative;
-+  transition: all .2s ease;
-+}
-+.admin-checkbox-slider::after {
-+  content: '';
-+  position: absolute;
-+  width: 18px;
-+  height: 18px;
-+  border-radius: 50%;
-+  background: #fff;
-+  top: 3px;
-+  left: 3px;
-+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.2);
-+  transition: all .2s ease;
-+}
-+.admin-checkbox input:checked + .admin-checkbox-slider { background: #22c55e; }
-+.admin-checkbox input:checked + .admin-checkbox-slider::after { transform: translateX(20px); }
-+.admin-checkbox-label { font-size: 14px; font-weight: 700; }
- .admin-badge-wrap { display: flex; gap: 6px; flex-wrap: wrap; }
-
-+.admin-action-row {
-+  display: inline-flex;
-+  align-items: center;
-+  gap: 8px;
-+}
-+
-+.admin-btn-icon {
-+  width: 34px;
-+  height: 34px;
-+  border-radius: 10px;
-+  border: none;
-+  color: #fff;
-+  display: inline-flex;
-+  align-items: center;
-+  justify-content: center;
-+  cursor: pointer;
-+  transition: transform .15s ease, box-shadow .15s ease;
-+}
-+.admin-btn-icon:hover { transform: translateY(-1px); }
-+.admin-btn-icon-edit { background: linear-gradient(135deg, #0ea5e9, #2563eb); box-shadow: 0 8px 18px rgba(37, 99, 235, .25); }
-+.admin-btn-icon-delete { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 8px 18px rgba(220, 38, 38, .24); }
-+
- .admin-badge {
+ .admin-checkbox {
    display: inline-flex;
    align-items: center;
-   padding: 3px 9px;
-   border-radius: 999px;
-   font-size: 12px;
-   font-weight: 800;
-   border: 1px solid transparent;
-   white-space: nowrap;
- }
- .admin-badge-green { background: #eafbf0; color: #0f8a3b; border-color: #b7efc8; }
- .admin-badge-red { background: #fff1f2; color: #c02636; border-color: #fecdd3; }
- .admin-badge-purple { background: #f3e8ff; color: #7e22ce; border-color: #e9d5ff; }
- .admin-badge-blue { background: #e0f2fe; color: #0369a1; border-color: #bae6fd; }
- .admin-badge-yellow { background: #fff7ed; color: #b45309; border-color: #fed7aa; }
- .admin-badge-orange { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
- .admin-badge-pastel { background: #fdf2f8; color: #be185d; border-color: #fbcfe8; }
-
- @media (max-width: 1100px) {
-   .admin-overview { grid-template-columns: repeat(2, minmax(170px, 1fr)); }
-   .admin-grid { grid-template-columns: 1fr; }
- }
+   gap: 10px;
+   font-weight: 600;
+   color: #334155;
 diff --git a/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx b/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
-index fffe3f63e83fc2c2df548f44b1e9a344f37be61e..36ada8b357a178fedba500cb36fe056e139cad29 100644
+index 36ada8b357a178fedba500cb36fe056e139cad29..e3bad161de70aaf1fc6cb79d096593807d1d851f 100644
 --- a/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
 +++ b/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
-@@ -100,54 +100,74 @@ export default function AdminSpaPage() {
+@@ -1,185 +1,253 @@
+ import { useEffect, useMemo, useState } from 'react'
+-import { Link } from 'react-router-dom'
+ import { spaAdminApi, type Appointment, type Branch, type ServiceReview, type SpaService, type Specialist } from '../../api/spaAdmin.api'
+ import { AlertJs } from '../../utils/alertJs'
+ import './AdminSpaPage.css'
+ import { BranchesTab } from './tabs/BranchesTab'
+ import { ReviewsTab } from './tabs/ReviewsTab'
+ import { ServicesTab } from './tabs/ServicesTab'
+ import { SpecialistsTab } from './tabs/SpecialistsTab'
+ import type { BranchForm, RelationForm, ReviewForm, ServiceForm, SpecialistForm } from './tabs/types'
++import { useAuth } from '../../state/auth.store'
+
+ type TabKey = 'branches' | 'services' | 'specialists' | 'reviews'
+
+ const defaultServiceForm: ServiceForm = { code: '', name: '', description: '', category: 'health', goals: '', durationMin: 60, price: 0, icon: '👏', imageUrl: '', tag: 'Spa' }
+ const defaultSpecialistForm: SpecialistForm = { code: '', name: '', level: 'SENIOR', bio: '' }
+ const defaultReviewForm: ReviewForm = { serviceId: 0, stars: 5, comment: '', customerName: '' }
+ const defaultBranchForm: BranchForm = { code: '', name: '', address: '', phone: '', isActive: true }
+
++
++const normalizeBranchCode = (name: string) => {
++  const base = name
++    .normalize('NFD')
++    .replace(/[̀-ͯ]/g, '')
++    .replace(/đ/gi, 'd')
++    .toUpperCase()
++    .replace(/[^A-Z0-9]+/g, '_')
++    .replace(/^_+|_+$/g, '')
++
++  return base || 'BRANCH'
++}
++
++const isValidPhoneNumber = (phone: string) => {
++  const cleaned = phone.trim()
++  if (!cleaned) return true
++  if (!/^\+?[\d\s().-]+$/.test(cleaned)) return false
++  const digitsCount = cleaned.replace(/\D/g, '').length
++  return digitsCount >= 6 && digitsCount <= 20
++}
++
+ const getVietnameseError = (error: unknown, fallback: string) => {
+   if (typeof error === 'object' && error && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
+     const message = (error as { message: string }).message
+     if (message.includes('Unique constraint')) return 'Dữ liệu bị trùng. Vui lòng kiểm tra lại mã hoặc tên.'
+     return message
+   }
+   return fallback
+ }
+
+ export default function AdminSpaPage() {
++  const { user } = useAuth()
+   const [tab, setTab] = useState<TabKey>('branches')
+   const [loading, setLoading] = useState(false)
+   const [branches, setBranches] = useState<Branch[]>([])
+   const [services, setServices] = useState<SpaService[]>([])
+   const [specialists, setSpecialists] = useState<Specialist[]>([])
+   const [reviews, setReviews] = useState<ServiceReview[]>([])
+   const [appointments, setAppointments] = useState<Appointment[]>([])
+   const [selectedImage, setSelectedImage] = useState<File | null>(null)
+   const [uploadedImage, setUploadedImage] = useState<{ url: string; fileName: string } | null>(null)
+
+   const [branchForm, setBranchForm] = useState<BranchForm>(defaultBranchForm)
+   const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
+   const [serviceForm, setServiceForm] = useState<ServiceForm>(defaultServiceForm)
+   const [editingService, setEditingService] = useState<SpaService | null>(null)
+   const [specialistForm, setSpecialistForm] = useState<SpecialistForm>(defaultSpecialistForm)
+   const [editingSpecialist, setEditingSpecialist] = useState<Specialist | null>(null)
+   const [reviewForm, setReviewForm] = useState<ReviewForm>(defaultReviewForm)
+   const [relationForm, setRelationForm] = useState<RelationForm>({ branchId: 0, serviceId: 0, specialistId: 0 })
+
+   const activeBranches = useMemo(() => branches.filter((item) => item.isActive), [branches])
+   const selectedServiceReviews = useMemo(() => {
+     if (!reviewForm.serviceId) return reviews
+     return reviews.filter((item) => item.serviceId === Number(reviewForm.serviceId))
+   }, [reviewForm.serviceId, reviews])
++  const displayName = useMemo(() => {
++    if (!user?.email) return 'Admin User'
++    const baseName = user.email.split('@')[0]?.replace(/[._-]+/g, ' ').trim()
++    return baseName ? baseName.replace(/\b\w/g, (char) => char.toUpperCase()) : user.email
++  }, [user?.email])
++  const roleLabel = user?.role === 'ADMIN' ? 'Administrator' : user?.role ?? 'User'
++  const avatarLetter = (displayName[0] || 'A').toUpperCase()
+
+   const loadAll = async () => {
+     setLoading(true)
+     try {
+       const [b, s, sp, r, a] = await Promise.all([
+         spaAdminApi.branches(true),
+         spaAdminApi.services(),
+         spaAdminApi.specialists(),
+         spaAdminApi.reviews(),
+         spaAdminApi.appointments(),
+       ])
+       setBranches(b)
+       setServices(s)
+       setSpecialists(sp)
+       setReviews(r)
+       setAppointments(a)
+     } catch (error) {
+       await AlertJs.error('Không thể tải dữ liệu', getVietnameseError(error, 'Hệ thống tạm thời gián đoạn, vui lòng thử lại.'))
+     } finally {
+       setLoading(false)
+     }
+   }
+
+   useEffect(() => {
+     loadAll()
+   }, [])
+
+   const saveBranch = async () => {
++    const normalizedName = (branchForm.name || '').trim()
++    const normalizedAddress = (branchForm.address || '').trim()
++    const normalizedPhone = (branchForm.phone || '').trim()
++    const generatedCode = normalizeBranchCode(normalizedName)
++
++    if (!normalizedName) {
++      await AlertJs.error('Thiếu tên chi nhánh', 'Vui lòng nhập tên chi nhánh trước khi lưu.')
++      return
++    }
++
++    if (normalizedName.length < 2) {
++      await AlertJs.error('Tên chi nhánh chưa hợp lệ', 'Tên chi nhánh cần có ít nhất 2 ký tự.')
++      return
++    }
++
++    if (!normalizedAddress) {
++      await AlertJs.error('Thiếu địa chỉ', 'Vui lòng nhập địa chỉ chi nhánh.')
++      return
++    }
++
++    if (!isValidPhoneNumber(normalizedPhone)) {
++      await AlertJs.error('Số điện thoại chưa hợp lệ', 'Vui lòng nhập đúng định dạng số điện thoại quốc tế (không giới hạn quốc gia).')
++      return
++    }
++
++    const payload: BranchForm = {
++      ...branchForm,
++      code: generatedCode,
++      name: normalizedName,
++      address: normalizedAddress,
++      phone: normalizedPhone,
++    }
++
+     try {
+-      if (editingBranch) await spaAdminApi.updateBranch(editingBranch.id, branchForm)
+-      else await spaAdminApi.createBranch(branchForm)
++      if (editingBranch) await spaAdminApi.updateBranch(editingBranch.id, payload)
++      else await spaAdminApi.createBranch(payload)
+       setEditingBranch(null)
+       setBranchForm(defaultBranchForm)
+       await loadAll()
+-      await AlertJs.success('Đã lưu chi nhánh thành công')
++      await AlertJs.success('Đã lưu chi nhánh thành công', `Mã chi nhánh: ${generatedCode}. Dữ liệu đã được đồng bộ lên hệ thống.`)
+     } catch (error) {
+       await AlertJs.error('Lưu chi nhánh thất bại', getVietnameseError(error, 'Vui lòng kiểm tra lại thông tin chi nhánh.'))
+     }
+   }
+
+   const deleteBranch = async (branch: Branch) => {
+     const accepted = await AlertJs.confirm(`Bạn muốn xóa hoặc tắt active cho chi nhánh ${branch.name}?`)
+     if (!accepted) return
+
+     try {
+       const response = await spaAdminApi.deleteBranch(branch.id)
+       await loadAll()
        if (response?.softDeleted) {
          await AlertJs.success('Không thể xóa cứng', 'Chi nhánh đang liên kết dữ liệu nên hệ thống đã chuyển sang trạng thái không hoạt động.')
        } else {
@@ -278,41 +344,43 @@ index fffe3f63e83fc2c2df548f44b1e9a344f37be61e..36ada8b357a178fedba500cb36fe056e
            <h1>Spa Admin Dashboard</h1>
            <p>Bảng điều khiển chuẩn hoá vận hành theo phong cách hiện đại, rõ dữ liệu, dễ thao tác.</p>
          </div>
-         <div className='admin-row'>
-           <Link className='admin-btn admin-btn-ghost' to='/admin/orders'><i className='fa-solid fa-bag-shopping' />Quản lý đơn hàng</Link>
-           <button className='admin-btn admin-btn-primary' onClick={loadAll}><i className='fa-solid fa-rotate-right' />Làm mới</button>
+-        <div className='admin-row'>
+-          <Link className='admin-btn admin-btn-ghost' to='/admin/orders'><i className='fa-solid fa-bag-shopping' />Quản lý đơn hàng</Link>
+-          <button className='admin-btn admin-btn-primary' onClick={loadAll}><i className='fa-solid fa-rotate-right' />Làm mới</button>
++        <div className='admin-user-badge' aria-label='Thông tin tài khoản đăng nhập'>
++          <div className='admin-user-avatar'>{avatarLetter}</div>
++          <div className='admin-user-meta'>
++            <strong>{displayName}</strong>
++            <span>{roleLabel}</span>
++          </div>
          </div>
        </header>
 
        <section className='admin-overview'>
--        <article className='overview-card'><span><i className='fa-solid fa-building' />Chi nhánh</span><strong>{branches.length}</strong><small>Đang active: {activeBranches.length}</small></article>
--        <article className='overview-card'><span><i className='fa-solid fa-spa' />Dịch vụ</span><strong>{services.length}</strong><small>Spa catalog</small></article>
--        <article className='overview-card'><span><i className='fa-solid fa-user-nurse' />Chuyên viên</span><strong>{specialists.length}</strong><small>Đủ năng lực vận hành</small></article>
--        <article className='overview-card'><span><i className='fa-solid fa-calendar-check' />Lịch hẹn</span><strong>{appointments.length}</strong><small>Reviews: {reviews.length}</small></article>
-+        <article className='overview-card'>
-+          <span>Chi nhánh</span>
-+          <strong>{branches.length}</strong>
-+          <small>Đang active: {activeBranches.length}</small>
-+          <i className='overview-icon fa-solid fa-building' />
-+        </article>
-+        <article className='overview-card'>
-+          <span>Dịch vụ</span>
-+          <strong>{services.length}</strong>
-+          <small>Spa catalog</small>
-+          <i className='overview-icon fa-solid fa-spa' />
-+        </article>
-+        <article className='overview-card'>
-+          <span>Chuyên viên</span>
-+          <strong>{specialists.length}</strong>
-+          <small>Đủ năng lực vận hành</small>
-+          <i className='overview-icon fa-solid fa-user-nurse' />
-+        </article>
-+        <article className='overview-card'>
-+          <span>Lịch hẹn</span>
-+          <strong>{appointments.length}</strong>
-+          <small>Reviews: {reviews.length}</small>
-+          <i className='overview-icon fa-solid fa-calendar-check' />
-+        </article>
+         <article className='overview-card'>
+           <span>Chi nhánh</span>
+           <strong>{branches.length}</strong>
+           <small>Đang active: {activeBranches.length}</small>
+           <i className='overview-icon fa-solid fa-building' />
+         </article>
+         <article className='overview-card'>
+           <span>Dịch vụ</span>
+           <strong>{services.length}</strong>
+           <small>Spa catalog</small>
+           <i className='overview-icon fa-solid fa-spa' />
+         </article>
+         <article className='overview-card'>
+           <span>Chuyên viên</span>
+           <strong>{specialists.length}</strong>
+           <small>Đủ năng lực vận hành</small>
+           <i className='overview-icon fa-solid fa-user-nurse' />
+         </article>
+         <article className='overview-card'>
+           <span>Lịch hẹn</span>
+           <strong>{appointments.length}</strong>
+           <small>Reviews: {reviews.length}</small>
+           <i className='overview-icon fa-solid fa-calendar-check' />
+         </article>
        </section>
 
        <nav className='admin-tabs'>
@@ -324,7 +392,11 @@ index fffe3f63e83fc2c2df548f44b1e9a344f37be61e..36ada8b357a178fedba500cb36fe056e
 
        {loading && <section className='admin-card'>Đang tải dữ liệu...</section>}
 
-       {tab === 'branches' && <BranchesTab loading={loading} branches={branches} branchForm={branchForm} editingBranch={editingBranch} onBranchFormChange={setBranchForm} onSaveBranch={saveBranch} onEditBranch={(branch) => { setEditingBranch(branch); setBranchForm(branch) }} onDeleteBranch={deleteBranch} onCancelEdit={() => { setEditingBranch(null); setBranchForm(defaultBranchForm) }} />}
+-      {tab === 'branches' && <BranchesTab loading={loading} branches={branches} branchForm={branchForm} editingBranch={editingBranch} onBranchFormChange={setBranchForm} onSaveBranch={saveBranch} onEditBranch={(branch) => { setEditingBranch(branch); setBranchForm(branch) }} onDeleteBranch={deleteBranch} onCancelEdit={() => { setEditingBranch(null); setBranchForm(defaultBranchForm) }} />}
++      {tab === 'branches' && <BranchesTab loading={loading} branches={branches} branchForm={branchForm} editingBranch={editingBranch} onBranchFormChange={(next) => {
++        const nextName = next.name ?? branchForm.name ?? ''
++        setBranchForm({ ...next, code: normalizeBranchCode(nextName) })
++      }} onSaveBranch={saveBranch} onEditBranch={(branch) => { setEditingBranch(branch); setBranchForm(branch) }} onDeleteBranch={deleteBranch} onCancelEdit={() => { setEditingBranch(null); setBranchForm(defaultBranchForm) }} />}
 
        {tab === 'services' && <ServicesTab loading={loading} services={services} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onUploadImage={async () => {
          if (!selectedImage) return
@@ -338,21 +410,39 @@ index fffe3f63e83fc2c2df548f44b1e9a344f37be61e..36ada8b357a178fedba500cb36fe056e
          }
        }} onDeleteCloudImage={async () => {
          if (!uploadedImage) return
+         try {
+           await spaAdminApi.deleteCloudImage({ fileName: uploadedImage.fileName })
+           setUploadedImage(null)
+           setServiceForm((prev) => ({ ...prev, imageUrl: '' }))
+           await AlertJs.success('Đã xóa ảnh cloud')
+         } catch (error) {
+           await AlertJs.error('Xóa ảnh thất bại', getVietnameseError(error, 'Không thể xóa ảnh cloud.'))
+         }
+       }} onSaveService={async () => {
+         const payload = { ...serviceForm, goals: serviceForm.goals.split(',').map((item) => item.trim()).filter(Boolean) }
+         try {
+           if (editingService) await spaAdminApi.updateService(editingService.id, payload)
 diff --git a/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
-index c737a4671cf46707b22b25d141c3b59f56bf8c1f..c487c863d8a236bd44c9b39183f8bf6031a5deaf 100644
+index c487c863d8a236bd44c9b39183f8bf6031a5deaf..f484d092bc095a951fd2f5efd5e7c1094bc0bb37 100644
 --- a/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
 +++ b/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
-@@ -2,75 +2,80 @@ import type { BranchesTabProps } from './types'
+@@ -1,58 +1,65 @@
+ import type { BranchesTabProps } from './types'
 
  export function BranchesTab({ branches, branchForm, editingBranch, onBranchFormChange, onSaveBranch, onEditBranch, onDeleteBranch, onCancelEdit }: BranchesTabProps) {
++  const isEditing = Boolean(editingBranch)
++
    return (
      <div className='admin-grid'>
        <section className='admin-card admin-card-glow'>
-         <h3 className='admin-card-title'><i className='fa-solid fa-building' /> {editingBranch ? 'Cập nhật chi nhánh' : 'Tạo chi nhánh mới'}</h3>
+-        <h3 className='admin-card-title'><i className='fa-solid fa-building' /> {editingBranch ? 'Cập nhật chi nhánh' : 'Tạo chi nhánh mới'}</h3>
++        <h3 className='admin-card-title'><i className='fa-solid fa-building' /> {isEditing ? 'Cập nhật chi nhánh' : 'Tạo chi nhánh mới'}</h3>
          <div className='admin-form-grid'>
            <label className='admin-field'>
              <span className='admin-label'><i className='fa-solid fa-id-card' /> Mã chi nhánh</span>
-             <input className='admin-input' placeholder='VD: DE_BERLIN' value={branchForm.code || ''} onChange={(e) => onBranchFormChange({ ...branchForm, code: e.target.value })} />
+-            <input className='admin-input' placeholder='VD: DE_BERLIN' value={branchForm.code || ''} onChange={(e) => onBranchFormChange({ ...branchForm, code: e.target.value })} />
++            <input className='admin-input' placeholder='Tự động sinh từ tên chi nhánh' value={branchForm.code || ''} readOnly />
++            <small className='admin-helper'>Mã được tự động tạo từ tên chi nhánh để đảm bảo chuẩn dữ liệu.</small>
            </label>
            <label className='admin-field'>
              <span className='admin-label'><i className='fa-solid fa-tag' /> Tên chi nhánh</span>
@@ -365,18 +455,22 @@ index c737a4671cf46707b22b25d141c3b59f56bf8c1f..c487c863d8a236bd44c9b39183f8bf60
            <label className='admin-field'>
              <span className='admin-label'><i className='fa-solid fa-phone' /> Số điện thoại</span>
              <input className='admin-input' placeholder='+49 ...' value={branchForm.phone || ''} onChange={(e) => onBranchFormChange({ ...branchForm, phone: e.target.value })} />
++            <small className='admin-helper'>Hỗ trợ định dạng số quốc tế (không giới hạn theo từng quốc gia).</small>
            </label>
            <label className='admin-checkbox'>
              <input type='checkbox' checked={Boolean(branchForm.isActive ?? true)} onChange={(e) => onBranchFormChange({ ...branchForm, isActive: e.target.checked })} />
--            <i className='fa-solid fa-circle-check' /> Hoạt động (Active)
-+            <span className='admin-checkbox-slider' />
-+            <span className='admin-checkbox-label'>Hoạt động (Active)</span>
+             <span className='admin-checkbox-slider' />
+             <span className='admin-checkbox-label'>Hoạt động (Active)</span>
            </label>
          </div>
          <div className='admin-row'>
--          <button className='admin-btn admin-btn-primary' onClick={onSaveBranch}>{editingBranch ? 'Lưu thay đổi' : 'Thêm chi nhánh'}</button>
-+          <button className='admin-btn admin-btn-primary' onClick={onSaveBranch}><i className='fa-solid fa-plus' />{editingBranch ? 'Lưu thay đổi' : 'Thêm chi nhánh'}</button>
-           {editingBranch && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>Hủy</button>}
+-          <button className='admin-btn admin-btn-primary' onClick={onSaveBranch}><i className='fa-solid fa-plus' />{editingBranch ? 'Lưu thay đổi' : 'Thêm chi nhánh'}</button>
+-          {editingBranch && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>Hủy</button>}
++          <button className={`admin-btn ${isEditing ? 'admin-btn-save' : 'admin-btn-primary'}`} onClick={onSaveBranch}>
++            <i className={`fa-solid ${isEditing ? 'fa-floppy-disk' : 'fa-plus'}`} />
++            {isEditing ? 'Lưu thay đổi' : 'Thêm chi nhánh'}
++          </button>
++          {isEditing && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>Hủy</button>}
          </div>
        </section>
 
@@ -402,30 +496,3 @@ index c737a4671cf46707b22b25d141c3b59f56bf8c1f..c487c863d8a236bd44c9b39183f8bf60
                    <td>{branch.address}</td>
                    <td>{branch.phone || '-'}</td>
                    <td>
-                     <span className={`admin-badge ${branch.isActive ? 'admin-badge-green' : 'admin-badge-red'}`}>
--                      {branch.isActive ? 'Đang hoạt động' : 'Tạm dừng'}
-+                      <i className={`fa-solid ${branch.isActive ? 'fa-circle-check' : 'fa-circle-xmark'}`} />
-                     </span>
-                   </td>
-                   <td>
--                    <div className='admin-row'>
--                      <button className='admin-btn admin-btn-ghost' onClick={() => onEditBranch(branch)}>Sửa</button>
--                      <button className='admin-btn admin-btn-danger' onClick={() => onDeleteBranch(branch)}>Xóa / Tắt</button>
-+                    <div className='admin-action-row'>
-+                      <button className='admin-btn-icon admin-btn-icon-edit' onClick={() => onEditBranch(branch)} aria-label='Sửa chi nhánh'>
-+                        <i className='fa-solid fa-pen-to-square' />
-+                      </button>
-+                      <button className='admin-btn-icon admin-btn-icon-delete' onClick={() => onDeleteBranch(branch)} aria-label='Xóa chi nhánh'>
-+                        <i className='fa-solid fa-trash-can' />
-+                      </button>
-                     </div>
-                   </td>
-                 </tr>
-               ))}
-             </tbody>
-           </table>
-         </div>
-       </section>
-     </div>
-   )
- }

@@ -1,52 +1,754 @@
-diff --git a/backend/ayanavitabackend/app/api/src/app.module.ts b/backend/ayanavitabackend/app/api/src/app.module.ts
-index 9f2a8b14037768f91719a92f91680b8110c06e3b..80f0eb15ecbf9bf0a492db461f8415e1d342d17a 100644
---- a/backend/ayanavitabackend/app/api/src/app.module.ts
-+++ b/backend/ayanavitabackend/app/api/src/app.module.ts
-@@ -1,30 +1,27 @@
- import { Module } from '@nestjs/common'
--import { PrismaModule } from './prisma/prisma.module'
--import { UsersModule } from './users/users.module'
- import { AuthModule } from './auth/auth.module'
-+import { BookingModule } from './booking/booking.module'
-+import { CmsModule } from './cms/cms.module'
- import { CoursesModule } from './courses/courses.module'
--import { LessonsModule } from './lessons/lessons.module'
- import { EnrollmentsModule } from './enrollments/enrollments.module'
-+import { LessonsModule } from './lessons/lessons.module'
- import { OrdersModule } from './orders/orders.module'
-+import { PrismaModule } from './prisma/prisma.module'
- import { ProgressModule } from './progress/progress.module'
--import { CmsModule } from './cms/cms.module'
--
--
--
-+import { UsersModule } from './users/users.module'
+diff --git a/ayanavita-fontend/src/api/spaAdmin.api.ts b/ayanavita-fontend/src/api/spaAdmin.api.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..bcf8e12d2f79e9e37972c58baccd204a2204f6ec
+--- /dev/null
++++ b/ayanavita-fontend/src/api/spaAdmin.api.ts
+@@ -0,0 +1,92 @@
++import { del, get, patch, post, request } from './http'
++
++export type Branch = { id: number; code: string; name: string; address: string; phone?: string }
++export type SpaService = {
++  id: number
++  code: string
++  name: string
++  description?: string
++  category?: string
++  goals: string[]
++  durationMin: number
++  price: number
++  ratingAvg: number
++  icon?: string
++  imageUrl?: string
++  branchIds: number[]
++}
++export type Specialist = {
++  id: number
++  code: string
++  name: string
++  level: string
++  bio?: string
++  branchIds: number[]
++  serviceIds: number[]
++}
++export type ServiceReview = {
++  id: number
++  serviceId: number
++  userId?: number
++  stars: number
++  comment?: string
++  customerName?: string
++  createdAt: string
++}
++export type Appointment = {
++  id: number
++  customerName: string
++  customerPhone: string
++  customerEmail?: string
++  appointmentAt: string
++  status: string
++  note?: string
++  branch?: { id: number; name: string }
++  service?: { id: number; name: string }
++  specialist?: { id: number; name: string }
++}
++
++export const spaAdminApi = {
++  branches: () => get<Branch[]>('/booking/branches', { auth: false }),
++  services: () => get<SpaService[]>('/booking/services', { auth: false }),
++  specialists: () => get<Specialist[]>('/booking/specialists', { auth: false }),
++  reviews: () => get<ServiceReview[]>('/booking/service-reviews', { auth: false }),
++  appointments: () => get<Appointment[]>('/booking/appointments', { auth: false }),
++
++  createBranch: (data: Partial<Branch>) => post('/booking/branches', data, { auth: false }),
++  updateBranch: (id: number, data: Partial<Branch>) => patch(`/booking/branches/${id}`, data, { auth: false }),
++  deleteBranch: (id: number) => del(`/booking/branches/${id}`, { auth: false }),
++
++  createService: (data: any) => post('/booking/services', data, { auth: false }),
++  updateService: (id: number, data: any) => patch(`/booking/services/${id}`, data, { auth: false }),
++  deleteService: (id: number) => del(`/booking/services/${id}`, { auth: false }),
++
++  createSpecialist: (data: any) => post('/booking/specialists', data, { auth: false }),
++  updateSpecialist: (id: number, data: any) => patch(`/booking/specialists/${id}`, data, { auth: false }),
++  deleteSpecialist: (id: number) => del(`/booking/specialists/${id}`, { auth: false }),
++
++  createReview: (data: any) => post('/booking/service-reviews', data, { auth: false }),
++  deleteReview: (id: number) => del(`/booking/service-reviews/${id}`, { auth: false }),
++
++  updateAppointment: (id: number, data: any) => patch(`/booking/appointments/${id}`, data, { auth: false }),
++  deleteAppointment: (id: number) => del(`/booking/appointments/${id}`, { auth: false }),
++
++  syncRelations: (payload: any) => post('/booking/relations/sync', payload, { auth: false }),
++
++  uploadCloudImage: async (file: File) => {
++    const form = new FormData()
++    form.append('file', file)
++    return request<{ url: string; fileName: string; size: number }>('/booking/images/cloud', {
++      method: 'POST',
++      body: form,
++      auth: false,
++    })
++  },
++
++  deleteCloudImage: (input: { fileName?: string; url?: string }) =>
++    request<{ ok: boolean }>('/booking/images/cloud', {
++      method: 'DELETE',
++      body: input,
++      auth: false,
++    }),
++}
+diff --git a/ayanavita-fontend/src/pages/admin/AdminOrdersPage.tsx b/ayanavita-fontend/src/pages/admin/AdminOrdersPage.tsx
+index 25b3f09647eeb0e84856296228da3debb46d4fdb..d20db0a40bc4368d730c0588405b6a8d7efa9291 100644
+--- a/ayanavita-fontend/src/pages/admin/AdminOrdersPage.tsx
++++ b/ayanavita-fontend/src/pages/admin/AdminOrdersPage.tsx
+@@ -81,50 +81,51 @@ export function AdminOrdersPage() {
+     };
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [q]);
 
- @Module({
-   imports: [
-     PrismaModule,
-     UsersModule,
-     AuthModule,
-     CoursesModule,
-     LessonsModule,
-     EnrollmentsModule,
-     ProgressModule,
-     OrdersModule,
-     CmsModule,
--
--
-+    BookingModule,
-   ],
- })
- export class AppModule {}
+   async function onMarkPaid(orderId: number) {
+     setErr(null);
+     setInfo(null);
+     setActing(orderId);
+     try {
+       await ordersApi.markPaid(orderId);
+       setInfo(`Đã mark-paid order #${orderId}. Enrollment ACTIVE sẽ được kích hoạt theo items.`);
+       await load();
+     } catch (e: any) {
+       setErr(e?.message || "Mark paid failed");
+     } finally {
+       setActing(null);
+     }
+   }
+
+   return (
+     <div style={{ maxWidth: 1100, margin: "24px auto", padding: 16 }}>
+       <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+         <h2>Admin Orders</h2>
+         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+           <Link to="/courses">Courses</Link>
++          <Link to="/admin/spa">Admin Spa</Link>
+           <button onClick={() => load()} disabled={loading}>Reload</button>
+         </div>
+       </div>
+
+       <div
+         style={{
+           marginTop: 12,
+           border: "1px solid #e5e7eb",
+           borderRadius: 14,
+           padding: 12,
+           background: "#fff",
+           display: "flex",
+           gap: 10,
+           flexWrap: "wrap",
+           alignItems: "center",
+         }}
+       >
+         <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+           Status
+           <select value={status} onChange={(e) => setStatus(e.target.value as OrderStatus | "ALL")}>
+             <option value="ALL">ALL</option>
+             <option value="PENDING">PENDING</option>
+             <option value="PAID">PAID</option>
+             <option value="CANCELLED">CANCELLED</option>
+           </select>
+diff --git a/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx b/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..b6fecb5ae5bbe2baa865fedaff793e583cfef385
+--- /dev/null
++++ b/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
+@@ -0,0 +1,326 @@
++import { useEffect, useMemo, useState, type CSSProperties } from 'react'
++import { Link } from 'react-router-dom'
++import { spaAdminApi, type Appointment, type Branch, type ServiceReview, type SpaService, type Specialist } from '../../api/spaAdmin.api'
++
++type TabKey = 'branches' | 'services' | 'specialists' | 'reviews'
++
++const cardStyle: CSSProperties = {
++  border: '1px solid #e2e8f0',
++  borderRadius: 14,
++  padding: 14,
++  background: '#fff',
++  boxShadow: '0 3px 12px rgba(15,23,42,0.05)',
++}
++
++export default function AdminSpaPage() {
++  const [tab, setTab] = useState<TabKey>('branches')
++  const [loading, setLoading] = useState(false)
++  const [msg, setMsg] = useState('')
++
++  const [branches, setBranches] = useState<Branch[]>([])
++  const [services, setServices] = useState<SpaService[]>([])
++  const [specialists, setSpecialists] = useState<Specialist[]>([])
++  const [reviews, setReviews] = useState<ServiceReview[]>([])
++  const [appointments, setAppointments] = useState<Appointment[]>([])
++
++  const [branchForm, setBranchForm] = useState<Partial<Branch>>({ code: '', name: '', address: '', phone: '' })
++  const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
++
++  const [serviceForm, setServiceForm] = useState<any>({
++    code: '', name: '', description: '', category: 'health', goals: '', durationMin: 60, price: 0, icon: '👏', imageUrl: '', tag: 'Spa',
++  })
++  const [editingService, setEditingService] = useState<SpaService | null>(null)
++
++  const [specialistForm, setSpecialistForm] = useState<any>({ code: '', name: '', level: 'SENIOR', bio: '' })
++  const [editingSpecialist, setEditingSpecialist] = useState<Specialist | null>(null)
++
++  const [reviewForm, setReviewForm] = useState<any>({ serviceId: 0, stars: 5, comment: '', customerName: '' })
++
++  const [relationForm, setRelationForm] = useState({ branchId: 0, serviceId: 0, specialistId: 0 })
++
++  const [selectedImage, setSelectedImage] = useState<File | null>(null)
++  const [uploadedImage, setUploadedImage] = useState<{ url: string; fileName: string } | null>(null)
++
++  async function loadAll() {
++    setLoading(true)
++    try {
++      const [b, s, sp, r, a] = await Promise.all([
++        spaAdminApi.branches(),
++        spaAdminApi.services(),
++        spaAdminApi.specialists(),
++        spaAdminApi.reviews(),
++        spaAdminApi.appointments(),
++      ])
++      setBranches(b)
++      setServices(s)
++      setSpecialists(sp)
++      setReviews(r)
++      setAppointments(a)
++      setMsg('')
++    } catch (e: any) {
++      setMsg(e?.message || 'Load dữ liệu thất bại')
++    } finally {
++      setLoading(false)
++    }
++  }
++
++  useEffect(() => {
++    loadAll()
++  }, [])
++
++  const selectedServiceReviews = useMemo(() => {
++    if (!reviewForm.serviceId) return reviews
++    return reviews.filter((r) => r.serviceId === Number(reviewForm.serviceId))
++  }, [reviews, reviewForm.serviceId])
++
++  async function handleUploadImage() {
++    if (!selectedImage) return
++    const result = await spaAdminApi.uploadCloudImage(selectedImage)
++    setUploadedImage({ url: result.url, fileName: result.fileName })
++    setServiceForm((p: any) => ({ ...p, imageUrl: result.url }))
++    setMsg('Đã upload ảnh lên cloud thành công')
++  }
++
++  async function handleDeleteCloudImage() {
++    if (!uploadedImage) return
++    await spaAdminApi.deleteCloudImage({ fileName: uploadedImage.fileName })
++    setUploadedImage(null)
++    setServiceForm((p: any) => ({ ...p, imageUrl: '' }))
++    setMsg('Đã xóa ảnh cloud')
++  }
++
++  function resetServiceForm() {
++    setServiceForm({ code: '', name: '', description: '', category: 'health', goals: '', durationMin: 60, price: 0, icon: '👏', imageUrl: '', tag: 'Spa' })
++    setEditingService(null)
++    setUploadedImage(null)
++  }
++
++  return (
++    <div style={{ maxWidth: 1280, margin: '20px auto', padding: 16, fontFamily: 'Inter, system-ui, sans-serif' }}>
++      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
++        <div>
++          <h2 style={{ margin: 0 }}>🌸 Spa Admin Dashboard</h2>
++          <div style={{ color: '#64748b', marginTop: 4 }}>Quản lý chi nhánh, dịch vụ, chuyên viên, review và lịch hẹn</div>
++        </div>
++        <div style={{ display: 'flex', gap: 8 }}>
++          <Link to="/admin/orders">Admin Orders</Link>
++          <button onClick={loadAll}>Reload</button>
++        </div>
++      </div>
++
++      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
++        {[
++          ['branches', `Chi nhánh (${branches.length})`],
++          ['services', `Dịch vụ (${services.length})`],
++          ['specialists', `Chuyên viên + Quan hệ`],
++          ['reviews', `Review + Lịch hẹn`],
++        ].map(([k, label]) => (
++          <button key={k} onClick={() => setTab(k as TabKey)} style={{
++            borderRadius: 999,
++            border: tab === k ? '1px solid #0ea5e9' : '1px solid #cbd5e1',
++            background: tab === k ? '#e0f2fe' : '#fff',
++            padding: '8px 14px',
++            fontWeight: 700,
++          }}>{label}</button>
++        ))}
++      </div>
++
++      {msg && <div style={{ ...cardStyle, marginBottom: 12, background: '#f0fdf4', borderColor: '#bbf7d0' }}>{msg}</div>}
++      {loading && <div style={{ ...cardStyle, marginBottom: 12 }}>Đang tải dữ liệu...</div>}
++
++      {tab === 'branches' && (
++        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 14 }}>
++          <div style={cardStyle}>
++            <h3>{editingBranch ? 'Chỉnh sửa chi nhánh' : 'Thêm chi nhánh mới'}</h3>
++            <input placeholder='Code (vd: HCM_Q7)' value={branchForm.code || ''} onChange={(e) => setBranchForm({ ...branchForm, code: e.target.value })} />
++            <input placeholder='Tên chi nhánh' value={branchForm.name || ''} onChange={(e) => setBranchForm({ ...branchForm, name: e.target.value })} />
++            <input placeholder='Địa chỉ' value={branchForm.address || ''} onChange={(e) => setBranchForm({ ...branchForm, address: e.target.value })} />
++            <input placeholder='Số điện thoại' value={branchForm.phone || ''} onChange={(e) => setBranchForm({ ...branchForm, phone: e.target.value })} />
++            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
++              <button onClick={async () => {
++                if (editingBranch) await spaAdminApi.updateBranch(editingBranch.id, branchForm)
++                else await spaAdminApi.createBranch(branchForm)
++                setBranchForm({ code: '', name: '', address: '', phone: '' })
++                setEditingBranch(null)
++                await loadAll()
++              }}>{editingBranch ? 'Lưu chỉnh sửa' : 'Thêm mới'}</button>
++              {editingBranch && <button onClick={() => { setEditingBranch(null); setBranchForm({ code: '', name: '', address: '', phone: '' }) }}>Hủy</button>}
++            </div>
++          </div>
++
++          <div style={cardStyle}>
++            <h3>Danh sách chi nhánh</h3>
++            <table width="100%"><thead><tr><th align='left'>Tên</th><th align='left'>Địa chỉ</th><th>Thao tác</th></tr></thead><tbody>
++              {branches.map((b) => (
++                <tr key={b.id}>
++                  <td>{b.name}</td><td>{b.address}</td>
++                  <td style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
++                    <button onClick={() => { setEditingBranch(b); setBranchForm(b) }}>Chỉnh sửa</button>
++                    <button onClick={() => alert(`Chi tiết: ${b.name}\n${b.address}\n${b.phone || ''}`)}>Xem chi tiết</button>
++                    <button onClick={async () => { await spaAdminApi.deleteBranch(b.id); await loadAll() }}>Xóa</button>
++                  </td>
++                </tr>
++              ))}
++            </tbody></table>
++          </div>
++        </div>
++      )}
++
++      {tab === 'services' && (
++        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 14 }}>
++          <div style={cardStyle}>
++            <h3>{editingService ? 'Chỉnh sửa dịch vụ' : 'Thêm dịch vụ mới'}</h3>
++            <input placeholder='Code' value={serviceForm.code} onChange={(e) => setServiceForm({ ...serviceForm, code: e.target.value })} />
++            <input placeholder='Tên dịch vụ (hỗ trợ tiếng Việt + emoji 👏🤗)' value={serviceForm.name} onChange={(e) => setServiceForm({ ...serviceForm, name: e.target.value })} />
++            <input placeholder='Mục tiêu, cách nhau dấu phẩy' value={serviceForm.goals} onChange={(e) => setServiceForm({ ...serviceForm, goals: e.target.value })} />
++            <input placeholder='Mô tả' value={serviceForm.description} onChange={(e) => setServiceForm({ ...serviceForm, description: e.target.value })} />
++            <input placeholder='Icon' value={serviceForm.icon} onChange={(e) => setServiceForm({ ...serviceForm, icon: e.target.value })} />
++            <input type='number' placeholder='Thời gian (phút)' value={serviceForm.durationMin} onChange={(e) => setServiceForm({ ...serviceForm, durationMin: Number(e.target.value) })} />
++            <input type='number' placeholder='Giá' value={serviceForm.price} onChange={(e) => setServiceForm({ ...serviceForm, price: Number(e.target.value) })} />
++            <input placeholder='Image URL' value={serviceForm.imageUrl} onChange={(e) => setServiceForm({ ...serviceForm, imageUrl: e.target.value })} />
++            <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
++              <input type='file' accept='image/*' onChange={(e) => setSelectedImage(e.target.files?.[0] || null)} />
++              <button onClick={handleUploadImage}>Upload cloud</button>
++              <button onClick={handleDeleteCloudImage} disabled={!uploadedImage}>Xóa ảnh cloud</button>
++            </div>
++            {serviceForm.imageUrl && <img src={serviceForm.imageUrl} style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 10, marginTop: 8 }} />}
++            <button style={{ marginTop: 10 }} onClick={async () => {
++              const payload = {
++                ...serviceForm,
++                goals: String(serviceForm.goals || '').split(',').map((x) => x.trim()).filter(Boolean),
++              }
++              if (editingService) await spaAdminApi.updateService(editingService.id, payload)
++              else await spaAdminApi.createService(payload)
++              resetServiceForm()
++              await loadAll()
++            }}>{editingService ? 'Lưu chỉnh sửa' : 'Thêm dịch vụ'}</button>
++          </div>
++
++          <div style={cardStyle}>
++            <h3>Danh sách dịch vụ</h3>
++            {services.map((s) => (
++              <div key={s.id} style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 10, marginBottom: 10 }}>
++                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
++                  <b>{s.name}</b>
++                  <span>{s.durationMin} phút • {s.price.toLocaleString('vi-VN')}đ</span>
++                </div>
++                <div style={{ color: '#64748b', marginTop: 4 }}>Mục tiêu: {s.goals?.join(', ') || '-'}</div>
++                <div style={{ marginTop: 6, display: 'flex', gap: 6 }}>
++                  <button onClick={() => {
++                    setEditingService(s)
++                    setServiceForm({ ...s, goals: s.goals?.join(', ') || '' })
++                  }}>Chỉnh sửa</button>
++                  <button onClick={() => alert(`Chi tiết\n${s.name}\n${s.description || '-'}\nIcon: ${s.icon || '-'}`)}>Xem chi tiết</button>
++                  <button onClick={async () => { await spaAdminApi.deleteService(s.id); await loadAll() }}>Xóa</button>
++                </div>
++              </div>
++            ))}
++          </div>
++        </div>
++      )}
++
++      {tab === 'specialists' && (
++        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 14 }}>
++          <div style={cardStyle}>
++            <h3>{editingSpecialist ? 'Chỉnh sửa chuyên viên' : 'Thêm chuyên viên'}</h3>
++            <input placeholder='Code' value={specialistForm.code} onChange={(e) => setSpecialistForm({ ...specialistForm, code: e.target.value })} />
++            <input placeholder='Tên chuyên viên' value={specialistForm.name} onChange={(e) => setSpecialistForm({ ...specialistForm, name: e.target.value })} />
++            <select value={specialistForm.level} onChange={(e) => setSpecialistForm({ ...specialistForm, level: e.target.value })}>
++              <option value='THERAPIST'>THERAPIST</option><option value='SENIOR'>SENIOR</option><option value='EXPERT'>EXPERT</option>
++            </select>
++            <input placeholder='Bio' value={specialistForm.bio} onChange={(e) => setSpecialistForm({ ...specialistForm, bio: e.target.value })} />
++            <button style={{ marginTop: 8 }} onClick={async () => {
++              if (editingSpecialist) await spaAdminApi.updateSpecialist(editingSpecialist.id, specialistForm)
++              else await spaAdminApi.createSpecialist(specialistForm)
++              setEditingSpecialist(null)
++              setSpecialistForm({ code: '', name: '', level: 'SENIOR', bio: '' })
++              await loadAll()
++            }}>{editingSpecialist ? 'Lưu chỉnh sửa' : 'Thêm chuyên viên'}</button>
++
++            <hr style={{ margin: '16px 0' }} />
++            <h4>Gán quan hệ N-N</h4>
++            <select value={relationForm.branchId} onChange={(e) => setRelationForm({ ...relationForm, branchId: Number(e.target.value) })}>
++              <option value={0}>Chọn chi nhánh</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
++            </select>
++            <select value={relationForm.serviceId} onChange={(e) => setRelationForm({ ...relationForm, serviceId: Number(e.target.value) })}>
++              <option value={0}>Chọn dịch vụ</option>{services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
++            </select>
++            <select value={relationForm.specialistId} onChange={(e) => setRelationForm({ ...relationForm, specialistId: Number(e.target.value) })}>
++              <option value={0}>Chọn chuyên viên</option>{specialists.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
++            </select>
++            <button onClick={async () => {
++              if (!relationForm.branchId || !relationForm.serviceId || !relationForm.specialistId) return
++              await spaAdminApi.syncRelations({
++                branchService: [{ branchId: relationForm.branchId, serviceId: relationForm.serviceId }],
++                serviceSpecialist: [{ serviceId: relationForm.serviceId, specialistId: relationForm.specialistId }],
++                branchSpecialist: [{ branchId: relationForm.branchId, specialistId: relationForm.specialistId }],
++              })
++              await loadAll()
++            }}>Lưu quan hệ</button>
++          </div>
++
++          <div style={cardStyle}>
++            <h3>Danh sách chuyên viên</h3>
++            {specialists.map((s) => (
++              <div key={s.id} style={{ borderBottom: '1px solid #e2e8f0', padding: '8px 0' }}>
++                <div><b>{s.name}</b> ({s.level})</div>
++                <div style={{ color: '#64748b', fontSize: 13 }}>Chi nhánh: {s.branchIds.join(', ') || '-'} • Dịch vụ: {s.serviceIds.join(', ') || '-'}</div>
++                <div style={{ marginTop: 6, display: 'flex', gap: 6 }}>
++                  <button onClick={() => { setEditingSpecialist(s); setSpecialistForm(s) }}>Chỉnh sửa</button>
++                  <button onClick={() => alert(`Bio: ${s.bio || '-'}`)}>Xem chi tiết</button>
++                  <button onClick={async () => { await spaAdminApi.deleteSpecialist(s.id); await loadAll() }}>Xóa</button>
++                </div>
++              </div>
++            ))}
++          </div>
++        </div>
++      )}
++
++      {tab === 'reviews' && (
++        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 14 }}>
++          <div style={cardStyle}>
++            <h3>Thêm review</h3>
++            <select value={reviewForm.serviceId} onChange={(e) => setReviewForm({ ...reviewForm, serviceId: Number(e.target.value) })}>
++              <option value={0}>Chọn dịch vụ</option>
++              {services.map((s) => <option value={s.id} key={s.id}>{s.name}</option>)}
++            </select>
++            <select value={reviewForm.stars} onChange={(e) => setReviewForm({ ...reviewForm, stars: Number(e.target.value) })}>
++              {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} sao</option>)}
++            </select>
++            <input placeholder='Tên khách hàng' value={reviewForm.customerName} onChange={(e) => setReviewForm({ ...reviewForm, customerName: e.target.value })} />
++            <input placeholder='Comment tiếng Việt + emoji 🤗👏' value={reviewForm.comment} onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })} />
++            <button onClick={async () => { await spaAdminApi.createReview(reviewForm); setReviewForm({ serviceId: 0, stars: 5, comment: '', customerName: '' }); await loadAll() }}>Thêm review</button>
++
++            <hr style={{ margin: '16px 0' }} />
++            <h3>Lịch hẹn ({appointments.length})</h3>
++            {appointments.slice(0, 10).map((a) => (
++              <div key={a.id} style={{ borderBottom: '1px solid #e2e8f0', padding: '8px 0' }}>
++                <div><b>{a.customerName}</b> • {a.branch?.name} • {a.service?.name}</div>
++                <div style={{ fontSize: 13, color: '#64748b' }}>{new Date(a.appointmentAt).toLocaleString('vi-VN')} • {a.status}</div>
++                <div style={{ marginTop: 6, display: 'flex', gap: 6 }}>
++                  <button onClick={async () => { await spaAdminApi.updateAppointment(a.id, { status: a.status === 'PENDING' ? 'CONFIRMED' : 'PENDING' }); await loadAll() }}>Đổi trạng thái</button>
++                  <button onClick={() => alert(`Ghi chú: ${a.note || '-'}\nSĐT: ${a.customerPhone}`)}>Chi tiết</button>
++                  <button onClick={async () => { await spaAdminApi.deleteAppointment(a.id); await loadAll() }}>Xóa</button>
++                </div>
++              </div>
++            ))}
++          </div>
++
++          <div style={cardStyle}>
++            <h3>Danh sách review ({selectedServiceReviews.length})</h3>
++            {selectedServiceReviews.map((r) => (
++              <div key={r.id} style={{ borderBottom: '1px solid #e2e8f0', padding: '8px 0' }}>
++                <div><b>{'⭐'.repeat(r.stars)}</b> • serviceId: {r.serviceId}</div>
++                <div style={{ color: '#334155' }}>{r.comment}</div>
++                <div style={{ color: '#64748b', fontSize: 13 }}>{r.customerName || 'Ẩn danh'} • {new Date(r.createdAt).toLocaleString('vi-VN')}</div>
++                <button style={{ marginTop: 6 }} onClick={async () => { await spaAdminApi.deleteReview(r.id); await loadAll() }}>Xóa review</button>
++              </div>
++            ))}
++          </div>
++        </div>
++      )}
++
++      <style>{`input,select,button{padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;margin:4px 0} button{cursor:pointer}`}</style>
++    </div>
++  )
++}
+diff --git a/ayanavita-fontend/src/routes/AppRoutes.tsx b/ayanavita-fontend/src/routes/AppRoutes.tsx
+index 1c8dcdadb2501b7fa9c80f3bcfb6acf8913f8a86..9bdd0f2c03287dae424f7298b7fb012da78f68b6 100644
+--- a/ayanavita-fontend/src/routes/AppRoutes.tsx
++++ b/ayanavita-fontend/src/routes/AppRoutes.tsx
+@@ -1,40 +1,41 @@
+ import React from "react";
+ import { Navigate, Route, Routes } from "react-router-dom";
+
+ import { RequireAuth } from "../components/RequireAuth";
+ import { RequireRole } from "../auth/RequireRole";
+
+
+ import { RegisterPage } from "../pages/RegisterPage";
+ import { CoursesPage } from "../pages/CoursesPage";
+ import { CourseDetailPage } from "../pages/CourseDetailPage";
+ import { LessonPage } from "../pages/LessonPage";
+ import { MyCoursesPage } from "../pages/MyCoursesPage";
+ import { MyOrdersPage } from "../pages/MyOrdersPage";
+ import { LessonDetailPage } from "../pages/LessonDetailPage";
+ import { AdminOrdersPage } from "../pages/admin/AdminOrdersPage";
++import AdminSpaPage from "../pages/admin/AdminSpaPage";
+ import LoginPage from "../pages/LoginPage";
+
+ export function AppRoutes() {
+   return (
+     <Routes>
+       {/* Public */}
+       <Route path="/login" element={<LoginPage />} />
+       <Route path="/register" element={<RegisterPage />} />
+       <Route path="/lessons/:id" element={<LessonDetailPage />} />
+
+       {/* Default */}
+       <Route path="/" element={<Navigate to="/courses" replace />} />
+
+       {/* Protected */}
+       <Route
+         path="/courses"
+         element={
+           <RequireAuth>
+             <CoursesPage />
+           </RequireAuth>
+         }
+       />
+       <Route
+         path="/courses/:id"
+         element={
+@@ -58,30 +59,41 @@ export function AppRoutes() {
+             <MyCoursesPage />
+           </RequireAuth>
+         }
+       />
+       <Route
+         path="/me/orders"
+         element={
+           <RequireAuth>
+             <MyOrdersPage />
+           </RequireAuth>
+         }
+       />
+
+       {/* Admin */}
+       <Route
+         path="/admin/orders"
+         element={
+           <RequireAuth>
+             <RequireRole role="ADMIN">
+               <AdminOrdersPage />
+             </RequireRole>
+           </RequireAuth>
+         }
+       />
+
++      <Route
++        path="/admin/spa"
++        element={
++          <RequireAuth>
++            <RequireRole role="ADMIN">
++              <AdminSpaPage />
++            </RequireRole>
++          </RequireAuth>
++        }
++      />
++
+       {/* 404 */}
+       <Route path="*" element={<div style={{ padding: 16 }}>404</div>} />
+     </Routes>
+   );
+ }
+diff --git a/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts b/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
+index 0bac25897a5e359f91c91a709a1e2e57efc49599..f4971a57143a8a91438e0dbadbbeb32ac99979b3 100644
+--- a/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
+@@ -1,74 +1,163 @@
+ import {
+   BadRequestException,
+   Body,
+   Controller,
+   Delete,
+   Get,
+   Param,
++  ParseIntPipe,
++  Patch,
+   Post,
+   Query,
+   UploadedFile,
+   UseInterceptors,
+ } from '@nestjs/common'
+ import { FileInterceptor } from '@nestjs/platform-express'
+ import { memoryStorage } from 'multer'
+ import { BookingService } from './booking.service'
+ import { BookingFilterQueryDto } from './dto/booking-query.dto'
+ import { CreateAppointmentDto } from './dto/create-appointment.dto'
+
+ @Controller('booking')
+ export class BookingController {
+   constructor(private readonly booking: BookingService) {}
+
+   @Get('services-page')
+   servicesPage() {
+     return this.booking.listServicesCatalog()
+   }
+
+   @Post('images/temp')
+   @UseInterceptors(
+     FileInterceptor('file', {
+       storage: memoryStorage(),
+       limits: { fileSize: 5 * 1024 * 1024 },
+     }),
+   )
+   uploadTempImage(@UploadedFile() file?: any) {
+     if (!file) throw new BadRequestException('file is required')
+     return this.booking.saveTempImage(file)
+   }
+
++  @Post('images/cloud')
++  @UseInterceptors(
++    FileInterceptor('file', {
++      storage: memoryStorage(),
++      limits: { fileSize: 10 * 1024 * 1024 },
++    }),
++  )
++  uploadCloudImage(@UploadedFile() file?: any) {
++    if (!file) throw new BadRequestException('file is required')
++    return this.booking.uploadImageToCloud(file)
++  }
++
+   @Delete('images/temp/:fileName')
+   deleteTempImage(@Param('fileName') fileName: string) {
+     return this.booking.deleteTempImage(fileName)
+   }
+
++  @Delete('images/cloud')
++  deleteCloudImage(@Body() input: { fileName?: string; url?: string }) {
++    return this.booking.deleteCloudImage(input)
++  }
++
+   @Get('branches')
+   branches() {
+     return this.booking.listBranches()
+   }
+
++  @Post('branches')
++  createBranch(@Body() data: any) {
++    return this.booking.createBranch(data)
++  }
++
++  @Patch('branches/:id')
++  updateBranch(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
++    return this.booking.updateBranch(id, data)
++  }
++
++  @Delete('branches/:id')
++  deleteBranch(@Param('id', ParseIntPipe) id: number) {
++    return this.booking.deleteBranch(id)
++  }
++
+   @Get('services')
+   services(@Query() query: BookingFilterQueryDto) {
+     return this.booking.listServices(query.branchId)
+   }
+
++  @Post('services')
++  createService(@Body() data: any) {
++    return this.booking.createService(data)
++  }
++
++  @Patch('services/:id')
++  updateService(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
++    return this.booking.updateService(id, data)
++  }
++
++  @Delete('services/:id')
++  deleteService(@Param('id', ParseIntPipe) id: number) {
++    return this.booking.deleteService(id)
++  }
++
+   @Get('specialists')
+   specialists(@Query() query: BookingFilterQueryDto) {
+     return this.booking.listSpecialists(query.branchId, query.serviceId)
+   }
+
++  @Post('specialists')
++  createSpecialist(@Body() data: any) {
++    return this.booking.createSpecialist(data)
++  }
++
++  @Patch('specialists/:id')
++  updateSpecialist(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
++    return this.booking.updateSpecialist(id, data)
++  }
++
++  @Delete('specialists/:id')
++  deleteSpecialist(@Param('id', ParseIntPipe) id: number) {
++    return this.booking.deleteSpecialist(id)
++  }
++
+   @Get('appointments')
+   appointments(@Query() query: BookingFilterQueryDto) {
+     return this.booking.listAppointments(query.userId)
+   }
+
++  @Patch('appointments/:id')
++  updateAppointment(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
++    return this.booking.updateAppointment(id, data)
++  }
++
++  @Delete('appointments/:id')
++  deleteAppointment(@Param('id', ParseIntPipe) id: number) {
++    return this.booking.deleteAppointment(id)
++  }
++
+   @Get('service-reviews')
+   serviceReviews(@Query() query: BookingFilterQueryDto) {
+     return this.booking.listServiceReviews(query.serviceId)
+   }
+
++  @Post('service-reviews')
++  createServiceReview(@Body() data: any) {
++    return this.booking.createServiceReview(data)
++  }
++
++  @Delete('service-reviews/:id')
++  deleteServiceReview(@Param('id', ParseIntPipe) id: number) {
++    return this.booking.deleteServiceReview(id)
++  }
++
++  @Post('relations/sync')
++  syncRelations(@Body() payload: any) {
++    return this.booking.upsertRelations(payload)
++  }
++
+   @Post('appointments')
+   createAppointment(@Body() dto: CreateAppointmentDto) {
+     return this.booking.createAppointment(dto)
+   }
+ }
 diff --git a/backend/ayanavitabackend/app/api/src/booking/booking.service.ts b/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
-index 00d3edeb895d1c8172b90a26b412fd7e192391f3..3b8db8c2864b5f737a447880bd57da62af78002a 100644
+index 3b8db8c2864b5f737a447880bd57da62af78002a..ded0775eb0b72b5697ee0dad1b6127428218666b 100644
 --- a/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
 +++ b/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
-@@ -1,43 +1,47 @@
+@@ -1,64 +1,146 @@
  import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
-+import { Prisma } from '@prisma/client'
+ import { Prisma } from '@prisma/client'
  import { promises as fs } from 'fs'
++import { createHash, createHmac } from 'crypto'
  import { extname, join } from 'path'
  import { PrismaService } from '../prisma/prisma.service'
  import { CreateAppointmentDto } from './dto/create-appointment.dto'
@@ -63,9 +765,15 @@ index 00d3edeb895d1c8172b90a26b412fd7e192391f3..3b8db8c2864b5f737a447880bd57da62
  export class BookingService {
    constructor(private readonly prisma: PrismaService) {}
 
-+  private toStringArray(value: Prisma.JsonValue | null | undefined): string[] {
-+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
-+  }
++  private readonly s3Bucket = process.env.CLOUDFLY_BUCKET || 'ayanavita-public'
++  private readonly s3Region = process.env.CLOUDFLY_REGION || 'auto'
++  private readonly s3Endpoint = process.env.CLOUDFLY_ENDPOINT || 'https://s3.cloudfly.vn'
++  private readonly s3AccessKey = process.env.CLOUDFLY_ACCESS_KEY || '56f8Erg7KoBiIedMrvbe0cBNjy3OIPKHdX0vAW4N'
++  private readonly s3SecretKey = process.env.CLOUDFLY_SECRET_KEY || '67NZA2R2X53AYJU5I036'
++
+   private toStringArray(value: Prisma.JsonValue | null | undefined): string[] {
+     return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+   }
 
    private readonly tempImageDir = join(process.cwd(), 'temp-images')
 
@@ -83,6 +791,81 @@ index 00d3edeb895d1c8172b90a26b412fd7e192391f3..3b8db8c2864b5f737a447880bd57da62
      }
    }
 
++  private hmac(key: Buffer | string, value: string) {
++    return createHmac('sha256', key).update(value, 'utf8').digest()
++  }
++
++  private async signedS3Request(method: 'PUT' | 'DELETE', key: string, file?: any) {
++    const endpointHost = new URL(this.s3Endpoint).host
++    const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '')
++    const dateStamp = amzDate.slice(0, 8)
++    const payloadHash = method === 'PUT' && file
++      ? createHash('sha256').update(file.buffer).digest('hex')
++      : createHash('sha256').update('').digest('hex')
++
++    const canonicalHeaders = `host:${endpointHost}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`
++    const signedHeaders = 'host;x-amz-content-sha256;x-amz-date'
++    const canonicalRequest = [method, `/${this.s3Bucket}/${key}`, '', canonicalHeaders, signedHeaders, payloadHash].join('\n')
++    const credentialScope = `${dateStamp}/${this.s3Region}/s3/aws4_request`
++    const stringToSign = [
++      'AWS4-HMAC-SHA256',
++      amzDate,
++      credentialScope,
++      createHash('sha256').update(canonicalRequest).digest('hex'),
++    ].join('\n')
++
++    const kDate = this.hmac(`AWS4${this.s3SecretKey}`, dateStamp)
++    const kRegion = this.hmac(kDate, this.s3Region)
++    const kService = this.hmac(kRegion, 's3')
++    const kSigning = this.hmac(kService, 'aws4_request')
++    const signature = createHmac('sha256', kSigning).update(stringToSign, 'utf8').digest('hex')
++
++    const authorization = `AWS4-HMAC-SHA256 Credential=${this.s3AccessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`
++    const uploadUrl = `${this.s3Endpoint.replace(/\/$/, '')}/${this.s3Bucket}/${key}`
++
++    const headers: Record<string, string> = {
++      Authorization: authorization,
++      'x-amz-date': amzDate,
++      'x-amz-content-sha256': payloadHash,
++    }
++
++    if (method === 'PUT' && file) {
++      headers['content-type'] = file.mimetype || 'image/jpeg'
++    }
++
++    const res = await fetch(uploadUrl, {
++      method,
++      headers,
++      body: method === 'PUT' ? file?.buffer : undefined,
++    })
++
++    if (!res.ok) {
++      const text = await res.text()
++      throw new BadRequestException(`Cloud ${method} failed: ${text || res.status}`)
++    }
++
++    return uploadUrl
++  }
++
++  async uploadImageToCloud(file: any): Promise<TempImageResponseDto> {
++    const safeExt = extname(file.originalname || '').slice(0, 10) || '.jpg'
++    const key = `spa/${Date.now()}-${Math.random().toString(36).slice(2)}${safeExt}`
++    const uploadUrl = await this.signedS3Request('PUT', key, file)
++
++    return {
++      fileName: key,
++      url: `${process.env.CLOUDFLY_PUBLIC_URL || uploadUrl}`,
++      size: file.size,
++    }
++  }
++
++  async deleteCloudImage(input: { fileName?: string; url?: string }) {
++    const key = input.fileName || input.url?.split(`/${this.s3Bucket}/`)[1] || input.url?.split('.s3.cloudfly.vn/')[1]
++    if (!key) throw new BadRequestException('fileName or url is required')
++    await this.signedS3Request('DELETE', decodeURIComponent(key))
++    return { ok: true }
++  }
++
    async deleteTempImage(fileName: string) {
      if (!/^[a-zA-Z0-9._-]+$/.test(fileName)) {
        throw new BadRequestException('Invalid file name')
@@ -91,7 +874,11 @@ index 00d3edeb895d1c8172b90a26b412fd7e192391f3..3b8db8c2864b5f737a447880bd57da62
      const filePath = join(this.tempImageDir, fileName)
      try {
        await fs.unlink(filePath)
-@@ -49,51 +53,51 @@ export class BookingService {
+       return { ok: true }
+     } catch {
+       return { ok: false }
+     }
+   }
 
    async listServicesCatalog(): Promise<ServiceCatalogItemDto[]> {
      const rows = await this.prisma.service.findMany({
@@ -104,96 +891,131 @@ index 00d3edeb895d1c8172b90a26b412fd7e192391f3..3b8db8c2864b5f737a447880bd57da62
          goals: true,
          durationMin: true,
          price: true,
-         ratingAvg: true,
-         bookedCount: true,
-         imageUrl: true,
-         tag: true,
+@@ -246,26 +328,127 @@ export class BookingService {
+       }
+     }
+
+     const created = await this.prisma.appointment.create({
+       data: {
+         code: `APM-${Date.now()}`,
+         customerName: dto.customerName,
+         customerPhone: dto.customerPhone,
+         customerEmail: dto.customerEmail,
+         appointmentAt,
+         note: dto.note,
+         branchId: dto.branchId,
+         serviceId: dto.serviceId,
+         specialistId: dto.specialistId,
+         userId: dto.userId,
        },
-       orderBy: { id: 'asc' },
+       include: {
+         branch: { select: { id: true, name: true } },
+         service: { select: { id: true, name: true, durationMin: true, price: true } },
+         specialist: { select: { id: true, name: true, level: true } },
+       },
      })
 
-     return rows.map((s) => ({
-       id: s.code,
-       dbId: s.id,
-       name: s.name,
-       cat: s.category ?? 'health',
--      goal: Array.isArray(s.goals) ? s.goals : [],
-+      goal: this.toStringArray(s.goals),
-       duration: s.durationMin,
-       price: s.price,
-       rating: s.ratingAvg,
-       booked: s.bookedCount,
-       img: s.imageUrl,
-       tag: s.tag ?? 'Spa',
-     }))
+     return created
    }
-
-   async listBranches(): Promise<BranchResponseDto[]> {
-     const rows = await this.prisma.branch.findMany({
-       where: { isActive: true },
-       select: { id: true, code: true, name: true, address: true, phone: true },
-       orderBy: { id: 'asc' },
-     })
-
-     return rows.map((b) => ({
-       id: b.id,
-       code: b.code,
-       name: b.name,
-       address: b.address,
-       phone: b.phone,
-     }))
-   }
-
-@@ -107,51 +111,51 @@ export class BookingService {
-         id: true,
-         code: true,
-         name: true,
-         description: true,
-         category: true,
-         goals: true,
-         durationMin: true,
-         price: true,
-         ratingAvg: true,
-         bookedCount: true,
-         tag: true,
-         icon: true,
-         imageUrl: true,
-         heroImageUrl: true,
-         branches: { select: { branchId: true } },
-       },
-       orderBy: { id: 'asc' },
-     })
-
-     return rows.map((s) => ({
-       id: s.id,
-       code: s.code,
-       name: s.name,
-       description: s.description,
-       category: s.category,
--      goals: Array.isArray(s.goals) ? (s.goals as string[]) : [],
-+      goals: this.toStringArray(s.goals),
-       durationMin: s.durationMin,
-       price: s.price,
-       ratingAvg: s.ratingAvg,
-       bookedCount: s.bookedCount,
-       tag: s.tag,
-       icon: s.icon,
-       imageUrl: s.imageUrl,
-       heroImageUrl: s.heroImageUrl,
-       branchIds: s.branches.map((b) => b.branchId),
-     }))
-   }
-
-   async listSpecialists(branchId?: number, serviceId?: number): Promise<SpecialistResponseDto[]> {
-     const rows = await this.prisma.specialist.findMany({
-       where: {
-         isActive: true,
-         ...(branchId ? { branches: { some: { branchId } } } : {}),
-         ...(serviceId ? { services: { some: { serviceId } } } : {}),
-       },
-       select: {
-         id: true,
-         code: true,
-         name: true,
-         level: true,
-         bio: true,
++
++  async updateAppointment(id: number, data: any) {
++    return this.prisma.appointment.update({ where: { id }, data })
++  }
++
++  async deleteAppointment(id: number) {
++    await this.prisma.appointment.delete({ where: { id } })
++    return { ok: true }
++  }
++
++  async createService(data: any) {
++    return this.prisma.service.create({ data })
++  }
++
++  async updateService(id: number, data: any) {
++    return this.prisma.service.update({ where: { id }, data })
++  }
++
++  async deleteService(id: number) {
++    await this.prisma.service.delete({ where: { id } })
++    return { ok: true }
++  }
++
++  async createBranch(data: any) {
++    return this.prisma.branch.create({ data })
++  }
++
++  async updateBranch(id: number, data: any) {
++    return this.prisma.branch.update({ where: { id }, data })
++  }
++
++  async deleteBranch(id: number) {
++    await this.prisma.branch.delete({ where: { id } })
++    return { ok: true }
++  }
++
++  async createSpecialist(data: any) {
++    return this.prisma.specialist.create({ data })
++  }
++
++  async updateSpecialist(id: number, data: any) {
++    return this.prisma.specialist.update({ where: { id }, data })
++  }
++
++  async deleteSpecialist(id: number) {
++    await this.prisma.specialist.delete({ where: { id } })
++    return { ok: true }
++  }
++
++  async createServiceReview(data: any) {
++    const created = await this.prisma.serviceReview.create({ data })
++    const stats = await this.prisma.serviceReview.aggregate({
++      where: { serviceId: created.serviceId },
++      _avg: { stars: true },
++      _count: { id: true },
++    })
++    await this.prisma.service.update({
++      where: { id: created.serviceId },
++      data: {
++        ratingAvg: stats._avg.stars ?? 5,
++      },
++    })
++    return created
++  }
++
++  async deleteServiceReview(id: number) {
++    await this.prisma.serviceReview.delete({ where: { id } })
++    return { ok: true }
++  }
++
++  async upsertRelations(payload: {
++    branchService?: Array<{ branchId: number; serviceId: number }>
++    serviceSpecialist?: Array<{ serviceId: number; specialistId: number }>
++    branchSpecialist?: Array<{ branchId: number; specialistId: number }>
++  }) {
++    const { branchService = [], serviceSpecialist = [], branchSpecialist = [] } = payload
++
++    for (const item of branchService) {
++      await this.prisma.branchService.upsert({
++        where: { branchId_serviceId: item },
++        update: {},
++        create: item,
++      })
++    }
++    for (const item of serviceSpecialist) {
++      await this.prisma.serviceSpecialist.upsert({
++        where: { serviceId_specialistId: item },
++        update: {},
++        create: item,
++      })
++    }
++    for (const item of branchSpecialist) {
++      await this.prisma.branchSpecialist.upsert({
++        where: { branchId_specialistId: item },
++        update: {},
++        create: item,
++      })
++    }
++
++    return { ok: true, branchService: branchService.length, serviceSpecialist: serviceSpecialist.length, branchSpecialist: branchSpecialist.length }
++  }
+ }

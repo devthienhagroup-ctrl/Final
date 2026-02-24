@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
 import { promises as fs } from 'fs'
+import { createHash, createHmac } from 'crypto'
 import { extname, join } from 'path'
 import { PrismaService } from '../prisma/prisma.service'
 import { CreateAppointmentDto } from './dto/create-appointment.dto'
@@ -16,6 +17,12 @@ import {
 @Injectable()
 export class BookingService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private readonly s3Bucket = process.env.CLOUDFLY_BUCKET || 'ayanavita-public'
+  private readonly s3Region = process.env.CLOUDFLY_REGION || 'auto'
+  private readonly s3Endpoint = process.env.CLOUDFLY_ENDPOINT || 'https://s3.cloudfly.vn'
+  private readonly s3AccessKey = process.env.CLOUDFLY_ACCESS_KEY || '56f8Erg7KoBiIedMrvbe0cBNjy3OIPKHdX0vAW4N'
+  private readonly s3SecretKey = process.env.CLOUDFLY_SECRET_KEY || '67NZA2R2X53AYJU5I036'
 
   private toStringArray(value: Prisma.JsonValue | null | undefined): string[] {
     return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
@@ -35,6 +42,81 @@ export class BookingService {
       url: `/booking-temp-images/${fileName}`,
       size: file.size,
     }
+  }
+
+  private hmac(key: Buffer | string, value: string) {
+    return createHmac('sha256', key).update(value, 'utf8').digest()
+  }
+
+  private async signedS3Request(method: 'PUT' | 'DELETE', key: string, file?: any) {
+    const endpointHost = new URL(this.s3Endpoint).host
+    const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '')
+    const dateStamp = amzDate.slice(0, 8)
+    const payloadHash = method === 'PUT' && file
+      ? createHash('sha256').update(file.buffer).digest('hex')
+      : createHash('sha256').update('').digest('hex')
+
+    const canonicalHeaders = `host:${endpointHost}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`
+    const signedHeaders = 'host;x-amz-content-sha256;x-amz-date'
+    const canonicalRequest = [method, `/${this.s3Bucket}/${key}`, '', canonicalHeaders, signedHeaders, payloadHash].join('\n')
+    const credentialScope = `${dateStamp}/${this.s3Region}/s3/aws4_request`
+    const stringToSign = [
+      'AWS4-HMAC-SHA256',
+      amzDate,
+      credentialScope,
+      createHash('sha256').update(canonicalRequest).digest('hex'),
+    ].join('\n')
+
+    const kDate = this.hmac(`AWS4${this.s3SecretKey}`, dateStamp)
+    const kRegion = this.hmac(kDate, this.s3Region)
+    const kService = this.hmac(kRegion, 's3')
+    const kSigning = this.hmac(kService, 'aws4_request')
+    const signature = createHmac('sha256', kSigning).update(stringToSign, 'utf8').digest('hex')
+
+    const authorization = `AWS4-HMAC-SHA256 Credential=${this.s3AccessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`
+    const uploadUrl = `${this.s3Endpoint.replace(/\/$/, '')}/${this.s3Bucket}/${key}`
+
+    const headers: Record<string, string> = {
+      Authorization: authorization,
+      'x-amz-date': amzDate,
+      'x-amz-content-sha256': payloadHash,
+    }
+
+    if (method === 'PUT' && file) {
+      headers['content-type'] = file.mimetype || 'image/jpeg'
+    }
+
+    const res = await fetch(uploadUrl, {
+      method,
+      headers,
+      body: method === 'PUT' ? file?.buffer : undefined,
+    })
+
+    if (!res.ok) {
+      const text = await res.text()
+      throw new BadRequestException(`Cloud ${method} failed: ${text || res.status}`)
+    }
+
+    return uploadUrl
+  }
+
+  async uploadImageToCloud(file: any): Promise<TempImageResponseDto> {
+    const safeExt = extname(file.originalname || '').slice(0, 10) || '.jpg'
+    const key = `spa/${Date.now()}-${Math.random().toString(36).slice(2)}${safeExt}`
+    const uploadUrl = await this.signedS3Request('PUT', key, file)
+
+    return {
+      fileName: key,
+      url: `${process.env.CLOUDFLY_PUBLIC_URL || uploadUrl}`,
+      size: file.size,
+    }
+  }
+
+  async deleteCloudImage(input: { fileName?: string; url?: string }) {
+    const key = input.fileName || input.url?.split(`/${this.s3Bucket}/`)[1] || input.url?.split('.s3.cloudfly.vn/')[1]
+    if (!key) throw new BadRequestException('fileName or url is required')
+    await this.signedS3Request('DELETE', decodeURIComponent(key))
+    return { ok: true }
   }
 
   async deleteTempImage(fileName: string) {
@@ -267,5 +349,106 @@ export class BookingService {
     })
 
     return created
+  }
+
+  async updateAppointment(id: number, data: any) {
+    return this.prisma.appointment.update({ where: { id }, data })
+  }
+
+  async deleteAppointment(id: number) {
+    await this.prisma.appointment.delete({ where: { id } })
+    return { ok: true }
+  }
+
+  async createService(data: any) {
+    return this.prisma.service.create({ data })
+  }
+
+  async updateService(id: number, data: any) {
+    return this.prisma.service.update({ where: { id }, data })
+  }
+
+  async deleteService(id: number) {
+    await this.prisma.service.delete({ where: { id } })
+    return { ok: true }
+  }
+
+  async createBranch(data: any) {
+    return this.prisma.branch.create({ data })
+  }
+
+  async updateBranch(id: number, data: any) {
+    return this.prisma.branch.update({ where: { id }, data })
+  }
+
+  async deleteBranch(id: number) {
+    await this.prisma.branch.delete({ where: { id } })
+    return { ok: true }
+  }
+
+  async createSpecialist(data: any) {
+    return this.prisma.specialist.create({ data })
+  }
+
+  async updateSpecialist(id: number, data: any) {
+    return this.prisma.specialist.update({ where: { id }, data })
+  }
+
+  async deleteSpecialist(id: number) {
+    await this.prisma.specialist.delete({ where: { id } })
+    return { ok: true }
+  }
+
+  async createServiceReview(data: any) {
+    const created = await this.prisma.serviceReview.create({ data })
+    const stats = await this.prisma.serviceReview.aggregate({
+      where: { serviceId: created.serviceId },
+      _avg: { stars: true },
+      _count: { id: true },
+    })
+    await this.prisma.service.update({
+      where: { id: created.serviceId },
+      data: {
+        ratingAvg: stats._avg.stars ?? 5,
+      },
+    })
+    return created
+  }
+
+  async deleteServiceReview(id: number) {
+    await this.prisma.serviceReview.delete({ where: { id } })
+    return { ok: true }
+  }
+
+  async upsertRelations(payload: {
+    branchService?: Array<{ branchId: number; serviceId: number }>
+    serviceSpecialist?: Array<{ serviceId: number; specialistId: number }>
+    branchSpecialist?: Array<{ branchId: number; specialistId: number }>
+  }) {
+    const { branchService = [], serviceSpecialist = [], branchSpecialist = [] } = payload
+
+    for (const item of branchService) {
+      await this.prisma.branchService.upsert({
+        where: { branchId_serviceId: item },
+        update: {},
+        create: item,
+      })
+    }
+    for (const item of serviceSpecialist) {
+      await this.prisma.serviceSpecialist.upsert({
+        where: { serviceId_specialistId: item },
+        update: {},
+        create: item,
+      })
+    }
+    for (const item of branchSpecialist) {
+      await this.prisma.branchSpecialist.upsert({
+        where: { branchId_specialistId: item },
+        update: {},
+        create: item,
+      })
+    }
+
+    return { ok: true, branchService: branchService.length, serviceSpecialist: serviceSpecialist.length, branchSpecialist: branchSpecialist.length }
   }
 }

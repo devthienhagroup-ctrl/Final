@@ -103,6 +103,7 @@ export function AdminOrdersPage() {
         <h2>Admin Orders</h2>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <Link to="/courses">Courses</Link>
+          <Link to="/admin/spa">Admin Spa</Link>
           <button onClick={() => load()} disabled={loading}>Reload</button>
         </div>
       </div>

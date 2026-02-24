@@ -147,47 +147,92 @@ export class AuthService {
   private async sendSmtpViaGmail(params: { user: string; pass: string; to: string; subject: string; body: string }) {
     const { user, pass, to, subject, body } = params
 
-    await new Promise<void>((resolve, reject) => {
-      const socket = tls.connect(465, 'smtp.gmail.com', { servername: 'smtp.gmail.com' }, () => {
-        const authUser = Buffer.from(user).toString('base64')
-        const authPass = Buffer.from(pass).toString('base64')
-        const lines = [
-          'EHLO ayanavita.local',
-          'AUTH LOGIN',
-          authUser,
-          authPass,
-          `MAIL FROM:<${user}>`,
-          `RCPT TO:<${to}>`,
-          'DATA',
-          `Subject: ${subject}`,
-          `From: AYANAVITA <${user}>`,
-          `To: ${to}`,
-          'Content-Type: text/plain; charset=UTF-8',
-          '',
-          body,
-          '.',
-          'QUIT',
-        ]
-        socket.write(lines.join('\r\n') + '\r\n')
+    const readSmtpResponse = (socket: tls.TLSSocket) =>
+      new Promise<string>((resolve, reject) => {
+        let buffer = ''
+
+        const cleanup = () => {
+          socket.off('data', onData)
+          socket.off('error', onError)
+          socket.off('close', onClose)
+        }
+
+        const onError = (err: Error) => {
+          cleanup()
+          reject(err)
+        }
+
+        const onClose = () => {
+          cleanup()
+          reject(new Error('SMTP connection closed unexpectedly'))
+        }
+
+        const onData = (chunk: Buffer) => {
+          buffer += chunk.toString('utf8')
+          const normalized = buffer.replace(/\r\n/g, '\n')
+          const lines = normalized.split('\n').filter(Boolean)
+          if (lines.length === 0) return
+
+          const lastLine = lines[lines.length - 1]
+          if (!/^\d{3} /.test(lastLine)) return
+
+          cleanup()
+          resolve(normalized.trim())
+        }
+
+        socket.on('data', onData)
+        socket.once('error', onError)
+        socket.once('close', onClose)
       })
 
-      let data = ''
-      socket.on('data', (chunk) => {
-        data += chunk.toString('utf8')
-      })
-      socket.on('error', reject)
-      socket.on('end', () => {
-        if (data.includes(' 535 ') || data.includes('\n535-') || data.includes('\n535 ')) {
-          reject(new Error('SMTP auth failed'))
-          return
-        }
-        if (!data.includes('\n250 ') && !data.startsWith('250')) {
-          reject(new Error(`SMTP send failed: ${data}`))
-          return
-        }
-        resolve()
-      })
+    const sendCommand = async (socket: tls.TLSSocket, command: string, expectedCodes: number[]) => {
+      socket.write(`${command}\r\n`)
+      const response = await readSmtpResponse(socket)
+      const code = Number(response.slice(0, 3))
+      if (!expectedCodes.includes(code)) {
+        throw new Error(`SMTP command failed (${command}): ${response}`)
+      }
+      return response
+    }
+
+    const socket = await new Promise<tls.TLSSocket>((resolve, reject) => {
+      const client = tls.connect(465, 'smtp.gmail.com', { servername: 'smtp.gmail.com' }, () => resolve(client))
+      client.once('error', reject)
     })
+
+    try {
+      const greeting = await readSmtpResponse(socket)
+      if (!greeting.startsWith('220')) {
+        throw new Error(`SMTP greeting failed: ${greeting}`)
+      }
+
+      await sendCommand(socket, 'EHLO ayanavita.local', [250])
+      await sendCommand(socket, 'AUTH LOGIN', [334])
+      await sendCommand(socket, Buffer.from(user).toString('base64'), [334])
+      await sendCommand(socket, Buffer.from(pass).toString('base64'), [235])
+      await sendCommand(socket, `MAIL FROM:<${user}>`, [250])
+      await sendCommand(socket, `RCPT TO:<${to}>`, [250, 251])
+      await sendCommand(socket, 'DATA', [354])
+
+      const message = [
+        `Subject: ${subject}`,
+        `From: AYANAVITA <${user}>`,
+        `To: ${to}`,
+        'Content-Type: text/plain; charset=UTF-8',
+        '',
+        body,
+        '.',
+      ].join('\r\n')
+      socket.write(`${message}\r\n`)
+      const dataResponse = await readSmtpResponse(socket)
+      if (!dataResponse.startsWith('250')) {
+        throw new Error(`SMTP send failed: ${dataResponse}`)
+      }
+
+      await sendCommand(socket, 'QUIT', [221])
+    } finally {
+      socket.end()
+    }
   }
 
   private issueTokens(userId: number, email: string, role: string) {

@@ -167,10 +167,10 @@ export class BookingService {
     }))
   }
 
-  async listBranches(): Promise<BranchResponseDto[]> {
+  async listBranches(includeInactive = false): Promise<BranchResponseDto[]> {
     const rows = await this.prisma.branch.findMany({
-      where: { isActive: true },
-      select: { id: true, code: true, name: true, address: true, phone: true },
+      where: includeInactive ? {} : { isActive: true },
+      select: { id: true, code: true, name: true, address: true, phone: true, isActive: true },
       orderBy: { id: 'asc' },
     })
 
@@ -180,6 +180,7 @@ export class BookingService {
       name: b.name,
       address: b.address,
       phone: b.phone,
+      isActive: b.isActive,
     }))
   }
 
@@ -382,8 +383,24 @@ export class BookingService {
   }
 
   async deleteBranch(id: number) {
+    const [branchServiceCount, branchSpecialistCount, appointmentCount] = await Promise.all([
+      this.prisma.branchService.count({ where: { branchId: id } }),
+      this.prisma.branchSpecialist.count({ where: { branchId: id } }),
+      this.prisma.appointment.count({ where: { branchId: id } }),
+    ])
+
+    const linkedCount = branchServiceCount + branchSpecialistCount + appointmentCount
+    if (linkedCount > 0) {
+      await this.prisma.branch.update({ where: { id }, data: { isActive: false } })
+      return {
+        ok: true,
+        softDeleted: true,
+        message: 'Chi nhánh đang có liên kết dữ liệu. Hệ thống đã tự động chuyển trạng thái sang không hoạt động.',
+      }
+    }
+
     await this.prisma.branch.delete({ where: { id } })
-    return { ok: true }
+    return { ok: true, softDeleted: false }
   }
 
   async createSpecialist(data: any) {

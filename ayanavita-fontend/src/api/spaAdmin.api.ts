@@ -1,6 +1,6 @@
 import { del, get, patch, post, request } from './http'
 
-export type Branch = { id: number; code: string; name: string; address: string; phone?: string }
+export type Branch = { id: number; code: string; name: string; address: string; phone?: string; isActive: boolean }
 export type SpaService = {
   id: number
   code: string
@@ -47,7 +47,7 @@ export type Appointment = {
 }
 
 export const spaAdminApi = {
-  branches: () => get<Branch[]>('/booking/branches', { auth: false }),
+  branches: (includeInactive = false) => get<Branch[]>(`/booking/branches${includeInactive ? '?includeInactive=true' : ''}`, { auth: false }),
   services: () => get<SpaService[]>('/booking/services', { auth: false }),
   specialists: () => get<Specialist[]>('/booking/specialists', { auth: false }),
   reviews: () => get<ServiceReview[]>('/booking/service-reviews', { auth: false }),

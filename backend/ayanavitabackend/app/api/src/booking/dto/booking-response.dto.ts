@@ -4,6 +4,7 @@ export class BranchResponseDto {
   name!: string
   address!: string
   phone?: string | null
+  isActive!: boolean
 }
 
 export class ServiceCatalogItemDto {

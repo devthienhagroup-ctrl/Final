@@ -62,8 +62,8 @@ export class BookingController {
   }
 
   @Get('branches')
-  branches() {
-    return this.booking.listBranches()
+  branches(@Query('includeInactive') includeInactive?: string) {
+    return this.booking.listBranches(includeInactive === 'true')
   }
 
   @Post('branches')

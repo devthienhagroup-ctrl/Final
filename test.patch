@@ -1,110 +1,67 @@
 diff --git a/ayanavita-fontend/src/pages/admin/AdminSpaPage.css b/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
-index c49aafa93876b8c19161f551c3374e15ea29f692..55371fa3ef37fc750d04655ff55241352338028d 100644
+index 1ad7ee35cac38772879aafdc52170e90e68b2d2a..47ac9951052e9ec25c8cb80518cd8359e3823f60 100644
 --- a/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
 +++ b/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
-@@ -1,184 +1,184 @@
-+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css');
-+
- :root {
--  --ad-bg: radial-gradient(circle at 10% 20%, #f4f9ff 0%, #f8f5ff 40%, #fdf7fb 100%);
--  --ad-card: rgba(255, 255, 255, 0.92);
--  --ad-text: #1e293b;
--  --ad-muted: #64748b;
--  --ad-border: #e5e7eb;
--  --ad-primary: #465fff;
--  --ad-primary-soft: #eef1ff;
--  --ad-danger: #dc3545;
-+  --ad-bg:
-+    radial-gradient(1200px 700px at 0% 0%, rgba(79, 70, 229, 0.12), transparent 55%),
-+    radial-gradient(900px 600px at 100% 10%, rgba(245, 158, 11, 0.12), transparent 55%),
-+    linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
-+  --ad-card: rgba(255, 255, 255, 0.95);
-+  --ad-text: #0f172a;
-+  --ad-muted: #475569;
-+  --ad-border: rgba(148, 163, 184, 0.34);
-+  --ad-primary: #4f46e5;
-+  --ad-primary-soft: #eef2ff;
-+  --ad-danger: #e11d48;
- }
-
- .admin-page {
--  max-width: 1340px;
--  margin: 16px auto 28px;
--  padding: 0 16px 16px;
-+  max-width: 1360px;
-+  margin: 16px auto 30px;
-+  padding: 0 16px 18px;
-   font-family: 'Inter', system-ui, sans-serif;
-   color: var(--ad-text);
-   background: var(--ad-bg);
- }
-
- .admin-header {
+@@ -26,160 +26,232 @@
    margin-top: 10px;
    display: flex;
    justify-content: space-between;
    align-items: center;
--  gap: 12px;
--  background: linear-gradient(130deg, #3b5bdb, #6f42c1, #db4cb2);
--  background-size: 200% 200%;
--  animation: gradientShift 8s ease infinite;
--  border-radius: 16px;
-+  gap: 14px;
-+  background: linear-gradient(130deg, #4f46e5, #7c3aed 60%, #ec4899 120%);
-+  border-radius: 18px;
+   gap: 14px;
+   background: linear-gradient(130deg, #4f46e5, #7c3aed 60%, #ec4899 120%);
+   border-radius: 18px;
    color: #fff;
--  padding: 20px;
--  box-shadow: 0 16px 40px rgba(99, 102, 241, .3);
--}
--
--@keyframes gradientShift {
--  0% { background-position: 0% 50%; }
--  50% { background-position: 100% 50%; }
--  100% { background-position: 0% 50%; }
-+  padding: 22px;
-+  box-shadow: 0 18px 44px rgba(79, 70, 229, 0.3);
+   padding: 22px;
+   box-shadow: 0 18px 44px rgba(79, 70, 229, 0.3);
  }
 
  .admin-header h1 { margin: 0 0 6px; font-size: 30px; }
--.admin-header p { margin: 0; opacity: .95; }
--.admin-header-kicker { margin: 0 0 6px; font-size: 12px; font-weight: 800; letter-spacing: .08em; opacity: .95; }
-+.admin-header p { margin: 0; opacity: .96; }
-+.admin-header-kicker { margin: 0 0 6px; font-size: 12px; font-weight: 900; letter-spacing: .08em; opacity: .95; }
+ .admin-header p { margin: 0; opacity: .96; }
+ .admin-header-kicker { margin: 0 0 6px; font-size: 12px; font-weight: 900; letter-spacing: .08em; opacity: .95; }
 
  .admin-overview {
    margin-top: 14px;
    display: grid;
--  grid-template-columns: repeat(4, minmax(180px, 1fr));
-+  grid-template-columns: repeat(4, minmax(190px, 1fr));
+   grid-template-columns: repeat(4, minmax(190px, 1fr));
    gap: 10px;
  }
 
  .overview-card {
    background: var(--ad-card);
--  border: 1px solid #e9ddff;
-+  border: 1px solid var(--ad-border);
+-  border: 1px solid var(--ad-border);
++  border: none;
    border-radius: 14px;
--  backdrop-filter: blur(6px);
--  box-shadow: 0 10px 25px rgba(15, 23, 42, .08);
--  padding: 13px 14px;
-+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.07);
-+  padding: 12px 14px;
+   box-shadow: 0 10px 26px rgba(15, 23, 42, 0.07);
+-  padding: 12px 14px;
++  padding: 14px 16px;
    display: grid;
--  gap: 2px;
-+  gap: 3px;
+-  gap: 3px;
++  gap: 5px;
++  position: relative;
++  overflow: hidden;
++}
++.overview-card:nth-child(1) { color: #4f46e5; }
++.overview-card:nth-child(2) { color: #0891b2; }
++.overview-card:nth-child(3) { color: #16a34a; }
++.overview-card:nth-child(4) { color: #d97706; }
++.overview-card span { color: currentColor; font-weight: 800; font-size: 18px; display: inline-flex; align-items: center; line-height: 1.15; }
++.overview-card strong { font-size: 40px; color: #0f172a; line-height: 1.1; font-weight: 800; }
++.overview-card small { color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; font-weight: 500; }
++.overview-icon {
++  position: absolute;
++  right: 14px;
++  bottom: 10px;
++  font-size: 32px;
++  color: color-mix(in srgb, currentColor 85%, white 15%);
++  opacity: 0.2;
  }
--.overview-card:nth-child(1) { border-top: 4px solid #6366f1; }
-+.overview-card:nth-child(1) { border-top: 4px solid #4f46e5; }
- .overview-card:nth-child(2) { border-top: 4px solid #06b6d4; }
- .overview-card:nth-child(3) { border-top: 4px solid #22c55e; }
--.overview-card:nth-child(4) { border-top: 4px solid #f97316; }
--.overview-card span { color: var(--ad-muted); font-weight: 600; font-size: 13px; }
--.overview-card strong { font-size: 26px; color: #0f172a; }
--.overview-card small { color: #94a3b8; }
-+.overview-card:nth-child(4) { border-top: 4px solid #f59e0b; }
-+.overview-card span { color: var(--ad-muted); font-weight: 800; font-size: 13px; display: inline-flex; align-items: center; gap: 8px; }
-+.overview-card strong { font-size: 24px; color: #0f172a; line-height: 1.2; }
-+.overview-card small { color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+-.overview-card:nth-child(1) { border-top: 4px solid #4f46e5; }
+-.overview-card:nth-child(2) { border-top: 4px solid #06b6d4; }
+-.overview-card:nth-child(3) { border-top: 4px solid #22c55e; }
+-.overview-card:nth-child(4) { border-top: 4px solid #f59e0b; }
+-.overview-card span { color: var(--ad-muted); font-weight: 800; font-size: 13px; display: inline-flex; align-items: center; gap: 8px; }
+-.overview-card strong { font-size: 24px; color: #0f172a; line-height: 1.2; }
+-.overview-card small { color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
  .admin-tabs {
    display: flex;
@@ -114,132 +71,177 @@ index c49aafa93876b8c19161f551c3374e15ea29f692..55371fa3ef37fc750d04655ff5524135
  }
 
  .admin-tab {
--  border: 1px solid #ddd6fe;
-+  border: 1px solid rgba(148, 163, 184, 0.45);
+   border: 1px solid rgba(148, 163, 184, 0.45);
    background: #fff;
    color: #334155;
+   font-family: Arial, Helvetica, -apple-system, BlinkMacSystemFont,
+   "Segoe UI", Roboto, sans-serif;
    border-radius: 999px;
    padding: 9px 14px;
--  font-weight: 700;
-+  font-weight: 800;
+   font-weight: 800;
    cursor: pointer;
    transition: all .2s ease;
-+  display: inline-flex;
-+  align-items: center;
-+  gap: 8px;
-+  white-space: nowrap;
+   display: inline-flex;
+   align-items: center;
+   gap: 8px;
+   white-space: nowrap;
  }
--.admin-tab:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(99, 102, 241, .18); }
-+.admin-tab:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(79, 70, 229, 0.17); }
+ .admin-tab:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(79, 70, 229, 0.17); }
  .admin-tab.active {
--  background: linear-gradient(135deg, #4f46e5, #a855f7);
-+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+-  background: linear-gradient(135deg, #4f46e5, #7c3aed);
++  background: linear-gradient(135deg, #fbbf24, #f59e0b);
    border-color: transparent;
-   color: #fff;
+-  color: #fff;
++  color: #1f2937;
++  box-shadow: 0 10px 20px rgba(245, 158, 11, 0.32);
  }
 
--.admin-grid {
--  display: grid;
--  gap: 14px;
--  grid-template-columns: minmax(320px, 1fr) minmax(500px, 1.6fr);
--}
-+.admin-grid { display: grid; gap: 14px; grid-template-columns: minmax(320px, 1fr) minmax(520px, 1.65fr); }
+ .admin-grid { display: grid; gap: 14px; grid-template-columns: minmax(320px, 1fr) minmax(520px, 1.65fr); }
 
  .admin-card {
    background: var(--ad-card);
    border: 1px solid var(--ad-border);
    border-radius: 14px;
--  box-shadow: 0 12px 26px rgba(15, 23, 42, .06);
-+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06);
+   box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06);
    padding: 14px;
  }
--.admin-card-glow { box-shadow: 0 14px 30px rgba(79, 70, 229, .15); }
-+.admin-card-glow { box-shadow: 0 14px 30px rgba(79, 70, 229, .16); }
+ .admin-card-glow { box-shadow: 0 14px 30px rgba(79, 70, 229, .16); }
 
--.admin-card-title { margin: 0 0 10px; font-size: 18px; color: #0f172a; }
--.admin-subtitle { margin: 0 0 8px; color: #334155; }
-+.admin-card-title { margin: 0 0 10px; font-size: 18px; color: #0f172a; display: inline-flex; align-items: center; gap: 8px; }
-+.admin-subtitle { margin: 0 0 8px; color: #334155; display: inline-flex; align-items: center; gap: 7px; }
+-.admin-card-title { margin: 0 0 10px; font-size: 18px; color: #0f172a; display: inline-flex; align-items: center; gap: 8px; }
+-.admin-subtitle { margin: 0 0 8px; color: #334155; display: inline-flex; align-items: center; gap: 7px; }
++.admin-card-title { margin: 0 0 10px; font-size: 20px; font-weight: 800; color: #0f172a; display: inline-flex; align-items: center; gap: 8px; }
++.admin-subtitle { margin: 0 0 8px; color: #334155; display: inline-flex; align-items: center; gap: 7px; font-size: 15px; font-weight: 700; }
 
  .admin-form-grid { display: grid; gap: 8px; }
  .admin-field { display: grid; gap: 6px; }
--.admin-label { font-size: 12px; font-weight: 700; color: #475569; }
-+.admin-label { font-size: 12px; font-weight: 800; color: #475569; display: inline-flex; align-items: center; gap: 6px; }
+-.admin-label { font-size: 12px; font-weight: 800; color: #475569; display: inline-flex; align-items: center; gap: 6px; }
++.admin-label { font-size: 13px; font-weight: 700; color: #475569; display: inline-flex; align-items: center; gap: 6px; }
  .admin-helper { color: #64748b; font-size: 12px; }
 
  .admin-input {
-   width: 100%;
+   width: 95%;
    padding: 10px 11px;
--  border-radius: 10px;
--  border: 1px solid #dbe0ea;
-+  border-radius: 12px;
-+  border: 1px solid #d8deea;
+   border-radius: 12px;
+   border: 1px solid #d8deea;
    background: linear-gradient(180deg, #fff, #fafaff);
-+  font-size: 14px;
+-  font-size: 14px;
++  font-size: 15px;
++  font-weight: 500;
  }
--.admin-input:focus {
--  outline: 2px solid #ddd6fe;
--  border-color: #a78bfa;
--}
-+.admin-input:focus { outline: 2px solid #ddd6fe; border-color: #a78bfa; }
+ .admin-input:focus { outline: 2px solid #ddd6fe; border-color: #a78bfa; }
 
  .admin-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
 
  .admin-btn {
--  border-radius: 10px;
-+  border-radius: 11px;
+   border-radius: 11px;
    padding: 8px 12px;
    border: 1px solid transparent;
--  font-weight: 700;
-+  font-weight: 800;
+   font-weight: 800;
    cursor: pointer;
    transition: transform .15s ease;
-+  display: inline-flex;
-+  align-items: center;
-+  gap: 8px;
-+  white-space: nowrap;
+   display: inline-flex;
+   align-items: center;
+   gap: 8px;
+   white-space: nowrap;
  }
  .admin-btn:hover { transform: translateY(-1px); }
  .admin-btn-primary { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; }
--.admin-btn-ghost { background: #fff; border-color: #d0d7e2; color: #1f2937; }
-+.admin-btn-ghost { background: #fff; border-color: #cfd7e4; color: #1f2937; }
+ .admin-btn-ghost { background: #fff; border-color: #cfd7e4; color: #1f2937; }
  .admin-btn-danger { background: linear-gradient(135deg, #e11d48, #ef4444); color: #fff; }
 
--.admin-table-wrap { overflow: auto; border: 1px solid #ede9fe; border-radius: 12px; }
--.admin-table { width: 100%; border-collapse: collapse; min-width: 760px; background: #fff; }
-+.admin-table-wrap { overflow: auto; border: 1px solid #e5e7ff; border-radius: 12px; }
-+.admin-table { width: 100%; border-collapse: collapse; min-width: 780px; background: #fff; table-layout: auto; }
+ .admin-table-wrap { overflow: auto; border: 1px solid #e5e7ff; border-radius: 12px; }
+ .admin-table { width: 100%; border-collapse: collapse; min-width: 780px; background: #fff; table-layout: auto; }
++.admin-table thead tr { background: linear-gradient(135deg, #eef2ff, #fdf2f8); }
  .admin-table th {
    text-align: left;
-   padding: 10px;
--  background: linear-gradient(135deg, #f5f3ff, #fdf2f8);
-+  background: linear-gradient(135deg, #eef2ff, #fdf2f8);
+-  padding: 10px;
+-  background: linear-gradient(135deg, #eef2ff, #fdf2f8);
++  padding: 11px 10px;
++  background: transparent;
    color: #475569;
    font-size: 12px;
    text-transform: uppercase;
    letter-spacing: .04em;
-+  white-space: nowrap;
+   white-space: nowrap;
  }
--.admin-table td { padding: 10px; border-top: 1px solid #f1f5f9; vertical-align: top; }
-+.admin-table td { padding: 10px; border-top: 1px solid #f1f5f9; vertical-align: middle; font-size: 14px; }
+-.admin-table td { padding: 10px; border-top: 1px solid #f1f5f9; vertical-align: middle; font-size: 14px; }
++.admin-table td { padding: 10px; border-top: 1px solid #f1f5f9; vertical-align: middle; font-size: 14px; font-weight: 500; }
  .admin-table tbody tr:hover { background: #fafafe; }
  .td-strong { font-weight: 700; color: #111827; }
 
  .admin-divider { border: none; border-top: 1px solid var(--ad-border); margin: 14px 0; }
--.admin-checkbox { display: flex; align-items: center; gap: 8px; font-weight: 600; color: #334155; }
-+.admin-checkbox { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: #334155; }
+-.admin-checkbox { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: #334155; }
++.admin-checkbox {
++  display: inline-flex;
++  align-items: center;
++  gap: 10px;
++  font-weight: 600;
++  color: #334155;
++  margin-top: 2px;
++  cursor: pointer;
++}
++.admin-checkbox input {
++  position: absolute;
++  opacity: 0;
++  width: 0;
++  height: 0;
++}
++.admin-checkbox-slider {
++  width: 44px;
++  height: 24px;
++  border-radius: 99px;
++  background: #cbd5e1;
++  position: relative;
++  transition: all .2s ease;
++}
++.admin-checkbox-slider::after {
++  content: '';
++  position: absolute;
++  width: 18px;
++  height: 18px;
++  border-radius: 50%;
++  background: #fff;
++  top: 3px;
++  left: 3px;
++  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.2);
++  transition: all .2s ease;
++}
++.admin-checkbox input:checked + .admin-checkbox-slider { background: #22c55e; }
++.admin-checkbox input:checked + .admin-checkbox-slider::after { transform: translateX(20px); }
++.admin-checkbox-label { font-size: 14px; font-weight: 700; }
  .admin-badge-wrap { display: flex; gap: 6px; flex-wrap: wrap; }
 
++.admin-action-row {
++  display: inline-flex;
++  align-items: center;
++  gap: 8px;
++}
++
++.admin-btn-icon {
++  width: 34px;
++  height: 34px;
++  border-radius: 10px;
++  border: none;
++  color: #fff;
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  cursor: pointer;
++  transition: transform .15s ease, box-shadow .15s ease;
++}
++.admin-btn-icon:hover { transform: translateY(-1px); }
++.admin-btn-icon-edit { background: linear-gradient(135deg, #0ea5e9, #2563eb); box-shadow: 0 8px 18px rgba(37, 99, 235, .25); }
++.admin-btn-icon-delete { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 8px 18px rgba(220, 38, 38, .24); }
++
  .admin-badge {
    display: inline-flex;
    align-items: center;
    padding: 3px 9px;
    border-radius: 999px;
    font-size: 12px;
--  font-weight: 700;
-+  font-weight: 800;
+   font-weight: 800;
    border: 1px solid transparent;
-+  white-space: nowrap;
+   white-space: nowrap;
  }
  .admin-badge-green { background: #eafbf0; color: #0f8a3b; border-color: #b7efc8; }
  .admin-badge-red { background: #fff1f2; color: #c02636; border-color: #fecdd3; }
@@ -250,21 +252,14 @@ index c49aafa93876b8c19161f551c3374e15ea29f692..55371fa3ef37fc750d04655ff5524135
  .admin-badge-pastel { background: #fdf2f8; color: #be185d; border-color: #fbcfe8; }
 
  @media (max-width: 1100px) {
--  .admin-overview { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
-+  .admin-overview { grid-template-columns: repeat(2, minmax(170px, 1fr)); }
+   .admin-overview { grid-template-columns: repeat(2, minmax(170px, 1fr)); }
    .admin-grid { grid-template-columns: 1fr; }
  }
 diff --git a/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx b/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
-index 643502e9c700e028c08a4e0f5457f0163b3d9e9a..fffe3f63e83fc2c2df548f44b1e9a344f37be61e 100644
+index fffe3f63e83fc2c2df548f44b1e9a344f37be61e..36ada8b357a178fedba500cb36fe056e139cad29 100644
 --- a/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
 +++ b/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
-@@ -94,67 +94,67 @@ export default function AdminSpaPage() {
-     const accepted = await AlertJs.confirm(`Bạn muốn xóa hoặc tắt active cho chi nhánh ${branch.name}?`)
-     if (!accepted) return
-
-     try {
-       const response = await spaAdminApi.deleteBranch(branch.id)
-       await loadAll()
+@@ -100,54 +100,74 @@ export default function AdminSpaPage() {
        if (response?.softDeleted) {
          await AlertJs.success('Không thể xóa cứng', 'Chi nhánh đang liên kết dữ liệu nên hệ thống đã chuyển sang trạng thái không hoạt động.')
        } else {
@@ -284,33 +279,47 @@ index 643502e9c700e028c08a4e0f5457f0163b3d9e9a..fffe3f63e83fc2c2df548f44b1e9a344
            <p>Bảng điều khiển chuẩn hoá vận hành theo phong cách hiện đại, rõ dữ liệu, dễ thao tác.</p>
          </div>
          <div className='admin-row'>
--          <Link className='admin-btn admin-btn-ghost' to='/admin/orders'>Quản lý đơn hàng</Link>
--          <button className='admin-btn admin-btn-primary' onClick={loadAll}>Làm mới</button>
-+          <Link className='admin-btn admin-btn-ghost' to='/admin/orders'><i className='fa-solid fa-bag-shopping' />Quản lý đơn hàng</Link>
-+          <button className='admin-btn admin-btn-primary' onClick={loadAll}><i className='fa-solid fa-rotate-right' />Làm mới</button>
+           <Link className='admin-btn admin-btn-ghost' to='/admin/orders'><i className='fa-solid fa-bag-shopping' />Quản lý đơn hàng</Link>
+           <button className='admin-btn admin-btn-primary' onClick={loadAll}><i className='fa-solid fa-rotate-right' />Làm mới</button>
          </div>
        </header>
 
        <section className='admin-overview'>
--        <article className='overview-card'><span>Chi nhánh</span><strong>{branches.length}</strong><small>Đang active: {activeBranches.length}</small></article>
--        <article className='overview-card'><span>Dịch vụ</span><strong>{services.length}</strong><small>Spa catalog</small></article>
--        <article className='overview-card'><span>Chuyên viên</span><strong>{specialists.length}</strong><small>Đủ năng lực vận hành</small></article>
--        <article className='overview-card'><span>Lịch hẹn</span><strong>{appointments.length}</strong><small>Reviews: {reviews.length}</small></article>
-+        <article className='overview-card'><span><i className='fa-solid fa-building' />Chi nhánh</span><strong>{branches.length}</strong><small>Đang active: {activeBranches.length}</small></article>
-+        <article className='overview-card'><span><i className='fa-solid fa-spa' />Dịch vụ</span><strong>{services.length}</strong><small>Spa catalog</small></article>
-+        <article className='overview-card'><span><i className='fa-solid fa-user-nurse' />Chuyên viên</span><strong>{specialists.length}</strong><small>Đủ năng lực vận hành</small></article>
-+        <article className='overview-card'><span><i className='fa-solid fa-calendar-check' />Lịch hẹn</span><strong>{appointments.length}</strong><small>Reviews: {reviews.length}</small></article>
+-        <article className='overview-card'><span><i className='fa-solid fa-building' />Chi nhánh</span><strong>{branches.length}</strong><small>Đang active: {activeBranches.length}</small></article>
+-        <article className='overview-card'><span><i className='fa-solid fa-spa' />Dịch vụ</span><strong>{services.length}</strong><small>Spa catalog</small></article>
+-        <article className='overview-card'><span><i className='fa-solid fa-user-nurse' />Chuyên viên</span><strong>{specialists.length}</strong><small>Đủ năng lực vận hành</small></article>
+-        <article className='overview-card'><span><i className='fa-solid fa-calendar-check' />Lịch hẹn</span><strong>{appointments.length}</strong><small>Reviews: {reviews.length}</small></article>
++        <article className='overview-card'>
++          <span>Chi nhánh</span>
++          <strong>{branches.length}</strong>
++          <small>Đang active: {activeBranches.length}</small>
++          <i className='overview-icon fa-solid fa-building' />
++        </article>
++        <article className='overview-card'>
++          <span>Dịch vụ</span>
++          <strong>{services.length}</strong>
++          <small>Spa catalog</small>
++          <i className='overview-icon fa-solid fa-spa' />
++        </article>
++        <article className='overview-card'>
++          <span>Chuyên viên</span>
++          <strong>{specialists.length}</strong>
++          <small>Đủ năng lực vận hành</small>
++          <i className='overview-icon fa-solid fa-user-nurse' />
++        </article>
++        <article className='overview-card'>
++          <span>Lịch hẹn</span>
++          <strong>{appointments.length}</strong>
++          <small>Reviews: {reviews.length}</small>
++          <i className='overview-icon fa-solid fa-calendar-check' />
++        </article>
        </section>
 
        <nav className='admin-tabs'>
--        <button className={`admin-tab ${tab === 'branches' ? 'active' : ''}`} onClick={() => setTab('branches')}>Chi nhánh ({branches.length})</button>
--        <button className={`admin-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => setTab('services')}>Dịch vụ ({services.length})</button>
--        <button className={`admin-tab ${tab === 'specialists' ? 'active' : ''}`} onClick={() => setTab('specialists')}>Chuyên viên + Quan hệ</button>
--        <button className={`admin-tab ${tab === 'reviews' ? 'active' : ''}`} onClick={() => setTab('reviews')}>Review + Lịch hẹn</button>
-+        <button className={`admin-tab ${tab === 'branches' ? 'active' : ''}`} onClick={() => setTab('branches')}><i className='fa-solid fa-building-circle-check' />Chi nhánh ({branches.length})</button>
-+        <button className={`admin-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => setTab('services')}><i className='fa-solid fa-leaf' />Dịch vụ ({services.length})</button>
-+        <button className={`admin-tab ${tab === 'specialists' ? 'active' : ''}`} onClick={() => setTab('specialists')}><i className='fa-solid fa-people-group' />Chuyên viên + Quan hệ</button>
-+        <button className={`admin-tab ${tab === 'reviews' ? 'active' : ''}`} onClick={() => setTab('reviews')}><i className='fa-solid fa-star-half-stroke' />Review + Lịch hẹn</button>
+         <button className={`admin-tab ${tab === 'branches' ? 'active' : ''}`} onClick={() => setTab('branches')}><i className='fa-solid fa-building-circle-check' />Chi nhánh ({branches.length})</button>
+         <button className={`admin-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => setTab('services')}><i className='fa-solid fa-leaf' />Dịch vụ ({services.length})</button>
+         <button className={`admin-tab ${tab === 'specialists' ? 'active' : ''}`} onClick={() => setTab('specialists')}><i className='fa-solid fa-people-group' />Chuyên viên + Quan hệ</button>
+         <button className={`admin-tab ${tab === 'reviews' ? 'active' : ''}`} onClick={() => setTab('reviews')}><i className='fa-solid fa-star-half-stroke' />Review + Lịch hẹn</button>
        </nav>
 
        {loading && <section className='admin-card'>Đang tải dữ liệu...</section>}
@@ -329,62 +338,50 @@ index 643502e9c700e028c08a4e0f5457f0163b3d9e9a..fffe3f63e83fc2c2df548f44b1e9a344
          }
        }} onDeleteCloudImage={async () => {
          if (!uploadedImage) return
-         try {
-           await spaAdminApi.deleteCloudImage({ fileName: uploadedImage.fileName })
-           setUploadedImage(null)
-           setServiceForm((prev) => ({ ...prev, imageUrl: '' }))
-           await AlertJs.success('Đã xóa ảnh cloud')
-         } catch (error) {
-           await AlertJs.error('Xóa ảnh thất bại', getVietnameseError(error, 'Không thể xóa ảnh cloud.'))
 diff --git a/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
-index d0defb8a0142a9487f9d9362c08abb1218861a34..c737a4671cf46707b22b25d141c3b59f56bf8c1f 100644
+index c737a4671cf46707b22b25d141c3b59f56bf8c1f..c487c863d8a236bd44c9b39183f8bf6031a5deaf 100644
 --- a/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
 +++ b/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
-@@ -1,62 +1,62 @@
- import type { BranchesTabProps } from './types'
+@@ -2,75 +2,80 @@ import type { BranchesTabProps } from './types'
 
  export function BranchesTab({ branches, branchForm, editingBranch, onBranchFormChange, onSaveBranch, onEditBranch, onDeleteBranch, onCancelEdit }: BranchesTabProps) {
    return (
      <div className='admin-grid'>
        <section className='admin-card admin-card-glow'>
--        <h3 className='admin-card-title'>🏢 {editingBranch ? 'Cập nhật chi nhánh' : 'Tạo chi nhánh mới'}</h3>
-+        <h3 className='admin-card-title'><i className='fa-solid fa-building' /> {editingBranch ? 'Cập nhật chi nhánh' : 'Tạo chi nhánh mới'}</h3>
+         <h3 className='admin-card-title'><i className='fa-solid fa-building' /> {editingBranch ? 'Cập nhật chi nhánh' : 'Tạo chi nhánh mới'}</h3>
          <div className='admin-form-grid'>
            <label className='admin-field'>
--            <span className='admin-label'>🆔 Mã chi nhánh</span>
-+            <span className='admin-label'><i className='fa-solid fa-id-card' /> Mã chi nhánh</span>
+             <span className='admin-label'><i className='fa-solid fa-id-card' /> Mã chi nhánh</span>
              <input className='admin-input' placeholder='VD: DE_BERLIN' value={branchForm.code || ''} onChange={(e) => onBranchFormChange({ ...branchForm, code: e.target.value })} />
            </label>
            <label className='admin-field'>
--            <span className='admin-label'>🏷️ Tên chi nhánh</span>
-+            <span className='admin-label'><i className='fa-solid fa-tag' /> Tên chi nhánh</span>
+             <span className='admin-label'><i className='fa-solid fa-tag' /> Tên chi nhánh</span>
              <input className='admin-input' placeholder='Nhập tên chi nhánh' value={branchForm.name || ''} onChange={(e) => onBranchFormChange({ ...branchForm, name: e.target.value })} />
            </label>
            <label className='admin-field'>
--            <span className='admin-label'>📍 Địa chỉ</span>
-+            <span className='admin-label'><i className='fa-solid fa-location-dot' /> Địa chỉ</span>
+             <span className='admin-label'><i className='fa-solid fa-location-dot' /> Địa chỉ</span>
              <input className='admin-input' placeholder='Nhập địa chỉ đầy đủ' value={branchForm.address || ''} onChange={(e) => onBranchFormChange({ ...branchForm, address: e.target.value })} />
            </label>
            <label className='admin-field'>
--            <span className='admin-label'>📞 Số điện thoại</span>
-+            <span className='admin-label'><i className='fa-solid fa-phone' /> Số điện thoại</span>
+             <span className='admin-label'><i className='fa-solid fa-phone' /> Số điện thoại</span>
              <input className='admin-input' placeholder='+49 ...' value={branchForm.phone || ''} onChange={(e) => onBranchFormChange({ ...branchForm, phone: e.target.value })} />
            </label>
            <label className='admin-checkbox'>
              <input type='checkbox' checked={Boolean(branchForm.isActive ?? true)} onChange={(e) => onBranchFormChange({ ...branchForm, isActive: e.target.checked })} />
--            ✅ Hoạt động (Active)
-+            <i className='fa-solid fa-circle-check' /> Hoạt động (Active)
+-            <i className='fa-solid fa-circle-check' /> Hoạt động (Active)
++            <span className='admin-checkbox-slider' />
++            <span className='admin-checkbox-label'>Hoạt động (Active)</span>
            </label>
          </div>
          <div className='admin-row'>
-           <button className='admin-btn admin-btn-primary' onClick={onSaveBranch}>{editingBranch ? 'Lưu thay đổi' : 'Thêm chi nhánh'}</button>
+-          <button className='admin-btn admin-btn-primary' onClick={onSaveBranch}>{editingBranch ? 'Lưu thay đổi' : 'Thêm chi nhánh'}</button>
++          <button className='admin-btn admin-btn-primary' onClick={onSaveBranch}><i className='fa-solid fa-plus' />{editingBranch ? 'Lưu thay đổi' : 'Thêm chi nhánh'}</button>
            {editingBranch && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>Hủy</button>}
          </div>
        </section>
 
        <section className='admin-card'>
--        <h3 className='admin-card-title'>📋 Danh sách chi nhánh</h3>
-+        <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> Danh sách chi nhánh</h3>
+         <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> Danh sách chi nhánh</h3>
          <div className='admin-table-wrap'>
            <table className='admin-table'>
              <thead>
@@ -406,94 +403,23 @@ index d0defb8a0142a9487f9d9362c08abb1218861a34..c737a4671cf46707b22b25d141c3b59f
                    <td>{branch.phone || '-'}</td>
                    <td>
                      <span className={`admin-badge ${branch.isActive ? 'admin-badge-green' : 'admin-badge-red'}`}>
-                       {branch.isActive ? 'Đang hoạt động' : 'Tạm dừng'}
+-                      {branch.isActive ? 'Đang hoạt động' : 'Tạm dừng'}
++                      <i className={`fa-solid ${branch.isActive ? 'fa-circle-check' : 'fa-circle-xmark'}`} />
                      </span>
                    </td>
                    <td>
-diff --git a/ayanavita-fontend/src/pages/admin/tabs/ReviewsTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/ReviewsTab.tsx
-index fc294dfc427cbf9622bd5f9585d9b3c60c258b29..ed1f315472ef1ab92a257a0bbde78e954930d410 100644
---- a/ayanavita-fontend/src/pages/admin/tabs/ReviewsTab.tsx
-+++ b/ayanavita-fontend/src/pages/admin/tabs/ReviewsTab.tsx
-@@ -1,80 +1,80 @@
- import type { ReviewsTabProps } from './types'
-
- export function ReviewsTab({ services, appointments, selectedServiceReviews, reviewForm, onReviewFormChange, onCreateReview, onDeleteReview, onToggleAppointmentStatus, onShowAppointmentDetail, onDeleteAppointment }: ReviewsTabProps) {
-   return (
-     <div className='admin-grid'>
-       <section className='admin-card admin-card-glow'>
--        <h3 className='admin-card-title'>⭐ Thêm review</h3>
-+        <h3 className='admin-card-title'><i className='fa-solid fa-star' /> Thêm review</h3>
-         <div className='admin-form-grid'>
--          <label className='admin-field'><span className='admin-label'>🧴 Dịch vụ</span><select className='admin-input' value={reviewForm.serviceId} onChange={(e) => onReviewFormChange({ ...reviewForm, serviceId: Number(e.target.value) })}><option value={0}>Chọn dịch vụ</option>{services.map((s) => <option value={s.id} key={s.id}>{s.name}</option>)}</select></label>
--          <label className='admin-field'><span className='admin-label'>🌟 Số sao</span><select className='admin-input' value={reviewForm.stars} onChange={(e) => onReviewFormChange({ ...reviewForm, stars: Number(e.target.value) })}>{[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} sao</option>)}</select></label>
--          <label className='admin-field'><span className='admin-label'>👤 Tên khách hàng</span><input className='admin-input' placeholder='Nhập tên khách hàng' value={reviewForm.customerName} onChange={(e) => onReviewFormChange({ ...reviewForm, customerName: e.target.value })} /></label>
--          <label className='admin-field'><span className='admin-label'>💬 Nội dung review</span><input className='admin-input' placeholder='Nội dung tiếng Việt thân thiện' value={reviewForm.comment} onChange={(e) => onReviewFormChange({ ...reviewForm, comment: e.target.value })} /></label>
-+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-spa' /> Dịch vụ</span><select className='admin-input' value={reviewForm.serviceId} onChange={(e) => onReviewFormChange({ ...reviewForm, serviceId: Number(e.target.value) })}><option value={0}>Chọn dịch vụ</option>{services.map((s) => <option value={s.id} key={s.id}>{s.name}</option>)}</select></label>
-+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-star-half-stroke' /> Số sao</span><select className='admin-input' value={reviewForm.stars} onChange={(e) => onReviewFormChange({ ...reviewForm, stars: Number(e.target.value) })}>{[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} sao</option>)}</select></label>
-+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-user' /> Tên khách hàng</span><input className='admin-input' placeholder='Nhập tên khách hàng' value={reviewForm.customerName} onChange={(e) => onReviewFormChange({ ...reviewForm, customerName: e.target.value })} /></label>
-+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-comment-dots' /> Nội dung review</span><input className='admin-input' placeholder='Nội dung tiếng Việt thân thiện' value={reviewForm.comment} onChange={(e) => onReviewFormChange({ ...reviewForm, comment: e.target.value })} /></label>
-         </div>
-         <button className='admin-btn admin-btn-primary' onClick={onCreateReview}>Thêm review</button>
-
-         <hr className='admin-divider' />
--        <h3 className='admin-card-title'>📅 Lịch hẹn ({appointments.length})</h3>
-+        <h3 className='admin-card-title'><i className='fa-solid fa-calendar-days' /> Lịch hẹn ({appointments.length})</h3>
-         <div className='admin-table-wrap'>
-           <table className='admin-table'>
-             <thead>
-               <tr>
-                 <th>Khách hàng</th>
-                 <th>Chi nhánh</th>
-                 <th>Dịch vụ</th>
-                 <th>Trạng thái</th>
-                 <th>Thao tác</th>
-               </tr>
-             </thead>
-             <tbody>
-               {appointments.slice(0, 10).map((appointment) => (
-                 <tr key={appointment.id}>
-                   <td className='td-strong'>{appointment.customerName}</td>
-                   <td>{appointment.branch?.name || '-'}</td>
-                   <td>{appointment.service?.name || '-'}</td>
-                   <td>
-                     <span className={`admin-badge ${appointment.status === 'CONFIRMED' ? 'admin-badge-green' : 'admin-badge-orange'}`}>
-                       {appointment.status}
-                     </span>
-                   </td>
-                   <td>
-                     <div className='admin-row'>
-                       <button className='admin-btn admin-btn-ghost' onClick={() => onToggleAppointmentStatus(appointment)}>Đổi trạng thái</button>
-                       <button className='admin-btn admin-btn-ghost' onClick={() => onShowAppointmentDetail(appointment)}>Chi tiết</button>
-                       <button className='admin-btn admin-btn-danger' onClick={() => onDeleteAppointment(appointment)}>Xóa</button>
+-                    <div className='admin-row'>
+-                      <button className='admin-btn admin-btn-ghost' onClick={() => onEditBranch(branch)}>Sửa</button>
+-                      <button className='admin-btn admin-btn-danger' onClick={() => onDeleteBranch(branch)}>Xóa / Tắt</button>
++                    <div className='admin-action-row'>
++                      <button className='admin-btn-icon admin-btn-icon-edit' onClick={() => onEditBranch(branch)} aria-label='Sửa chi nhánh'>
++                        <i className='fa-solid fa-pen-to-square' />
++                      </button>
++                      <button className='admin-btn-icon admin-btn-icon-delete' onClick={() => onDeleteBranch(branch)} aria-label='Xóa chi nhánh'>
++                        <i className='fa-solid fa-trash-can' />
++                      </button>
                      </div>
                    </td>
-                 </tr>
-               ))}
-             </tbody>
-           </table>
-         </div>
-       </section>
-
-       <section className='admin-card'>
--        <h3 className='admin-card-title'>🗂️ Danh sách review ({selectedServiceReviews.length})</h3>
-+        <h3 className='admin-card-title'><i className='fa-solid fa-folder-open' /> Danh sách review ({selectedServiceReviews.length})</h3>
-         <div className='admin-table-wrap'>
-           <table className='admin-table'>
-             <thead>
-               <tr>
-                 <th>Dịch vụ</th>
-                 <th>Đánh giá</th>
-                 <th>Nội dung</th>
-                 <th>Thao tác</th>
-               </tr>
-             </thead>
-             <tbody>
-               {selectedServiceReviews.map((review) => (
-                 <tr key={review.id}>
-                   <td>#{review.serviceId}</td>
-                   <td><span className='admin-badge admin-badge-yellow'>{'⭐'.repeat(review.stars)}</span></td>
-                   <td>{review.comment || '-'}</td>
-                   <td><button className='admin-btn admin-btn-danger' onClick={() => onDeleteReview(review)}>Xóa review</button></td>
                  </tr>
                ))}
              </tbody>
@@ -502,146 +428,4 @@ index fc294dfc427cbf9622bd5f9585d9b3c60c258b29..ed1f315472ef1ab92a257a0bbde78e95
        </section>
      </div>
    )
-diff --git a/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
-index 63f8207a56112f39724e92a8b7b7c59bc798433b..6c80a899a20d6642d8b53f3b7343c74471b1fdbb 100644
---- a/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
-+++ b/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
-@@ -1,55 +1,55 @@
- import type { ServicesTabProps } from './types'
-
- export function ServicesTab({ services, serviceForm, editingService, selectedImageName, onServiceFormChange, onSelectImage, onUploadImage, onDeleteCloudImage, onSaveService, onEditService, onDeleteService, onShowServiceDetail, onCancelEdit }: ServicesTabProps) {
-   return (
-     <div className='admin-grid'>
-       <section className='admin-card admin-card-glow'>
--        <h3 className='admin-card-title'>🧴 {editingService ? 'Cập nhật dịch vụ' : 'Tạo dịch vụ mới'}</h3>
-+        <h3 className='admin-card-title'><i className='fa-solid fa-spa' /> {editingService ? 'Cập nhật dịch vụ' : 'Tạo dịch vụ mới'}</h3>
-         <div className='admin-form-grid'>
--          <label className='admin-field'><span className='admin-label'>🆔 Mã dịch vụ</span><input className='admin-input' placeholder='SERVICE_CODE' value={serviceForm.code} onChange={(e) => onServiceFormChange({ ...serviceForm, code: e.target.value })} /></label>
--          <label className='admin-field'><span className='admin-label'>✨ Tên dịch vụ</span><input className='admin-input' placeholder='Tên dịch vụ nổi bật' value={serviceForm.name} onChange={(e) => onServiceFormChange({ ...serviceForm, name: e.target.value })} /></label>
--          <label className='admin-field'><span className='admin-label'>🎯 Mục tiêu</span><input className='admin-input' placeholder='Relax, Detox,...' value={serviceForm.goals} onChange={(e) => onServiceFormChange({ ...serviceForm, goals: e.target.value })} /></label>
--          <label className='admin-field'><span className='admin-label'>⏱️ Thời lượng (phút)</span><input className='admin-input' type='number' placeholder='60' value={serviceForm.durationMin} onChange={(e) => onServiceFormChange({ ...serviceForm, durationMin: Number(e.target.value) })} /></label>
--          <label className='admin-field'><span className='admin-label'>💶 Giá</span><input className='admin-input' type='number' placeholder='1000000' value={serviceForm.price} onChange={(e) => onServiceFormChange({ ...serviceForm, price: Number(e.target.value) })} /></label>
--          <label className='admin-field'><span className='admin-label'>📝 Mô tả</span><textarea className='admin-input' placeholder='Mô tả dịch vụ chi tiết' value={serviceForm.description} onChange={(e) => onServiceFormChange({ ...serviceForm, description: e.target.value })} /></label>
--          <label className='admin-field'><span className='admin-label'>🖼️ Image URL</span><input className='admin-input' placeholder='https://...' value={serviceForm.imageUrl} onChange={(e) => onServiceFormChange({ ...serviceForm, imageUrl: e.target.value })} /></label>
--          <label className='admin-field'><span className='admin-label'>📁 Upload ảnh</span><input type='file' accept='image/*' onChange={(e) => onSelectImage(e.target.files?.[0] || null)} /></label>
-+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-id-card' /> Mã dịch vụ</span><input className='admin-input' placeholder='SERVICE_CODE' value={serviceForm.code} onChange={(e) => onServiceFormChange({ ...serviceForm, code: e.target.value })} /></label>
-+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-sparkles' /> Tên dịch vụ</span><input className='admin-input' placeholder='Tên dịch vụ nổi bật' value={serviceForm.name} onChange={(e) => onServiceFormChange({ ...serviceForm, name: e.target.value })} /></label>
-+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-bullseye' /> Mục tiêu</span><input className='admin-input' placeholder='Relax, Detox,...' value={serviceForm.goals} onChange={(e) => onServiceFormChange({ ...serviceForm, goals: e.target.value })} /></label>
-+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-clock' /> Thời lượng (phút)</span><input className='admin-input' type='number' placeholder='60' value={serviceForm.durationMin} onChange={(e) => onServiceFormChange({ ...serviceForm, durationMin: Number(e.target.value) })} /></label>
-+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-coins' /> Giá</span><input className='admin-input' type='number' placeholder='1000000' value={serviceForm.price} onChange={(e) => onServiceFormChange({ ...serviceForm, price: Number(e.target.value) })} /></label>
-+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-pen-to-square' /> Mô tả</span><textarea className='admin-input' placeholder='Mô tả dịch vụ chi tiết' value={serviceForm.description} onChange={(e) => onServiceFormChange({ ...serviceForm, description: e.target.value })} /></label>
-+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-image' /> Image URL</span><input className='admin-input' placeholder='https://...' value={serviceForm.imageUrl} onChange={(e) => onServiceFormChange({ ...serviceForm, imageUrl: e.target.value })} /></label>
-+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-cloud-arrow-up' /> Upload ảnh</span><input type='file' accept='image/*' onChange={(e) => onSelectImage(e.target.files?.[0] || null)} /></label>
-           {selectedImageName && <span className='admin-helper'>Đã chọn: {selectedImageName}</span>}
-         </div>
-         <div className='admin-row'>
--          <button className='admin-btn admin-btn-ghost' onClick={onUploadImage}>Upload cloud</button>
--          <button className='admin-btn admin-btn-ghost' onClick={onDeleteCloudImage}>Xóa ảnh cloud</button>
-+          <button className='admin-btn admin-btn-ghost' onClick={onUploadImage}><i className='fa-solid fa-cloud-arrow-up' />Upload cloud</button>
-+          <button className='admin-btn admin-btn-ghost' onClick={onDeleteCloudImage}><i className='fa-solid fa-trash-can' />Xóa ảnh cloud</button>
-         </div>
-         <div className='admin-row'>
-           <button className='admin-btn admin-btn-primary' onClick={onSaveService}>{editingService ? 'Lưu thay đổi' : 'Thêm dịch vụ'}</button>
-           {editingService && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>Hủy</button>}
-         </div>
-       </section>
-
-       <section className='admin-card'>
--        <h3 className='admin-card-title'>📋 Danh sách dịch vụ</h3>
-+        <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> Danh sách dịch vụ</h3>
-         <div className='admin-table-wrap'>
-           <table className='admin-table'>
-             <thead>
-               <tr>
-                 <th>Tên dịch vụ</th>
-                 <th>Code</th>
-                 <th>Thời lượng</th>
-                 <th>Giá</th>
-                 <th>Mục tiêu</th>
-                 <th>Thao tác</th>
-               </tr>
-             </thead>
-             <tbody>
-               {services.map((service) => (
-                 <tr key={service.id}>
-                   <td className='td-strong'>{service.name}</td>
-                   <td><span className='admin-badge admin-badge-purple'>{service.code}</span></td>
-                   <td>{service.durationMin} phút</td>
-                   <td><span className='admin-badge admin-badge-blue'>{service.price.toLocaleString('vi-VN')}đ</span></td>
-                   <td>
-                     <div className='admin-badge-wrap'>
-                       {(service.goals || []).slice(0, 3).map((goal) => <span key={goal} className='admin-badge admin-badge-pastel'>{goal}</span>)}
-                     </div>
-                   </td>
-                   <td>
-diff --git a/ayanavita-fontend/src/pages/admin/tabs/SpecialistsTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/SpecialistsTab.tsx
-index bb9263f6d010950cb92cd7c06cf0fade81c4b36f..cb280d185f45d1454baa36d92695a0a8fc9d789f 100644
---- a/ayanavita-fontend/src/pages/admin/tabs/SpecialistsTab.tsx
-+++ b/ayanavita-fontend/src/pages/admin/tabs/SpecialistsTab.tsx
-@@ -1,55 +1,55 @@
- import type { SpecialistsTabProps } from './types'
-
- export function SpecialistsTab({ branches, services, specialists, specialistForm, relationForm, editingSpecialist, onSpecialistFormChange, onRelationFormChange, onSaveSpecialist, onEditSpecialist, onDeleteSpecialist, onShowSpecialistDetail, onSaveRelation, onCancelEdit }: SpecialistsTabProps) {
-   return (
-     <div className='admin-grid'>
-       <section className='admin-card admin-card-glow'>
--        <h3 className='admin-card-title'>👩‍⚕️ {editingSpecialist ? 'Cập nhật chuyên viên' : 'Thêm chuyên viên'}</h3>
-+        <h3 className='admin-card-title'><i className='fa-solid fa-user-nurse' /> {editingSpecialist ? 'Cập nhật chuyên viên' : 'Thêm chuyên viên'}</h3>
-         <div className='admin-form-grid'>
--          <label className='admin-field'><span className='admin-label'>🆔 Code</span><input className='admin-input' placeholder='SPEC_001' value={specialistForm.code} onChange={(e) => onSpecialistFormChange({ ...specialistForm, code: e.target.value })} /></label>
--          <label className='admin-field'><span className='admin-label'>🧑‍💼 Tên chuyên viên</span><input className='admin-input' placeholder='Tên chuyên viên' value={specialistForm.name} onChange={(e) => onSpecialistFormChange({ ...specialistForm, name: e.target.value })} /></label>
--          <label className='admin-field'><span className='admin-label'>🏅 Cấp độ</span><select className='admin-input' value={specialistForm.level} onChange={(e) => onSpecialistFormChange({ ...specialistForm, level: e.target.value })}><option value='THERAPIST'>THERAPIST</option><option value='SENIOR'>SENIOR</option><option value='EXPERT'>EXPERT</option></select></label>
--          <label className='admin-field'><span className='admin-label'>📝 Bio</span><textarea className='admin-input' placeholder='Mô tả năng lực chuyên viên' value={specialistForm.bio} onChange={(e) => onSpecialistFormChange({ ...specialistForm, bio: e.target.value })} /></label>
-+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-id-card' /> Code</span><input className='admin-input' placeholder='SPEC_001' value={specialistForm.code} onChange={(e) => onSpecialistFormChange({ ...specialistForm, code: e.target.value })} /></label>
-+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-user' /> Tên chuyên viên</span><input className='admin-input' placeholder='Tên chuyên viên' value={specialistForm.name} onChange={(e) => onSpecialistFormChange({ ...specialistForm, name: e.target.value })} /></label>
-+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-medal' /> Cấp độ</span><select className='admin-input' value={specialistForm.level} onChange={(e) => onSpecialistFormChange({ ...specialistForm, level: e.target.value })}><option value='THERAPIST'>THERAPIST</option><option value='SENIOR'>SENIOR</option><option value='EXPERT'>EXPERT</option></select></label>
-+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-address-card' /> Bio</span><textarea className='admin-input' placeholder='Mô tả năng lực chuyên viên' value={specialistForm.bio} onChange={(e) => onSpecialistFormChange({ ...specialistForm, bio: e.target.value })} /></label>
-         </div>
-         <div className='admin-row'>
-           <button className='admin-btn admin-btn-primary' onClick={onSaveSpecialist}>{editingSpecialist ? 'Lưu thay đổi' : 'Thêm chuyên viên'}</button>
-           {editingSpecialist && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>Hủy</button>}
-         </div>
-
-         <hr className='admin-divider' />
--        <h4 className='admin-subtitle'>🔗 Gán quan hệ N-N</h4>
-+        <h4 className='admin-subtitle'><i className='fa-solid fa-link' /> Gán quan hệ N-N</h4>
-         <div className='admin-form-grid'>
--          <label className='admin-field'><span className='admin-label'>🏢 Chi nhánh</span><select className='admin-input' value={relationForm.branchId} onChange={(e) => onRelationFormChange({ ...relationForm, branchId: Number(e.target.value) })}><option value={0}>Chọn chi nhánh</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
--          <label className='admin-field'><span className='admin-label'>🧴 Dịch vụ</span><select className='admin-input' value={relationForm.serviceId} onChange={(e) => onRelationFormChange({ ...relationForm, serviceId: Number(e.target.value) })}><option value={0}>Chọn dịch vụ</option>{services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
--          <label className='admin-field'><span className='admin-label'>👤 Chuyên viên</span><select className='admin-input' value={relationForm.specialistId} onChange={(e) => onRelationFormChange({ ...relationForm, specialistId: Number(e.target.value) })}><option value={0}>Chọn chuyên viên</option>{specialists.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-building' /> Chi nhánh</span><select className='admin-input' value={relationForm.branchId} onChange={(e) => onRelationFormChange({ ...relationForm, branchId: Number(e.target.value) })}><option value={0}>Chọn chi nhánh</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
-+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-spa' /> Dịch vụ</span><select className='admin-input' value={relationForm.serviceId} onChange={(e) => onRelationFormChange({ ...relationForm, serviceId: Number(e.target.value) })}><option value={0}>Chọn dịch vụ</option>{services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-user-nurse' /> Chuyên viên</span><select className='admin-input' value={relationForm.specialistId} onChange={(e) => onRelationFormChange({ ...relationForm, specialistId: Number(e.target.value) })}><option value={0}>Chọn chuyên viên</option>{specialists.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-         </div>
--        <button className='admin-btn admin-btn-ghost' onClick={onSaveRelation}>Lưu quan hệ</button>
-+        <button className='admin-btn admin-btn-ghost' onClick={onSaveRelation}><i className='fa-solid fa-floppy-disk' />Lưu quan hệ</button>
-       </section>
-
-       <section className='admin-card'>
--        <h3 className='admin-card-title'>📋 Danh sách chuyên viên</h3>
-+        <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> Danh sách chuyên viên</h3>
-         <div className='admin-table-wrap'>
-           <table className='admin-table'>
-             <thead>
-               <tr>
-                 <th>Tên</th>
-                 <th>Cấp độ</th>
-                 <th>Chi nhánh</th>
-                 <th>Dịch vụ</th>
-                 <th>Thao tác</th>
-               </tr>
-             </thead>
-             <tbody>
-               {specialists.map((item) => (
-                 <tr key={item.id}>
-                   <td className='td-strong'>{item.name}</td>
-                   <td><span className={`admin-badge ${item.level === 'EXPERT' ? 'admin-badge-purple' : item.level === 'SENIOR' ? 'admin-badge-blue' : 'admin-badge-pastel'}`}>{item.level}</span></td>
-                   <td>{item.branchIds.join(', ') || '-'}</td>
-                   <td>{item.serviceIds.join(', ') || '-'}</td>
-                   <td>
-                     <div className='admin-row'>
-                       <button className='admin-btn admin-btn-ghost' onClick={() => onEditSpecialist(item)}>Sửa</button>
-                       <button className='admin-btn admin-btn-ghost' onClick={() => onShowSpecialistDetail(item)}>Chi tiết</button>
-                       <button className='admin-btn admin-btn-danger' onClick={() => onDeleteSpecialist(item)}>Xóa</button>
-                     </div>
-                   </td>
+ }

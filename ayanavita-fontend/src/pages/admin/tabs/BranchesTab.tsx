@@ -24,11 +24,12 @@ export function BranchesTab({ branches, branchForm, editingBranch, onBranchFormC
           </label>
           <label className='admin-checkbox'>
             <input type='checkbox' checked={Boolean(branchForm.isActive ?? true)} onChange={(e) => onBranchFormChange({ ...branchForm, isActive: e.target.checked })} />
-            <i className='fa-solid fa-circle-check' /> Hoạt động (Active)
+            <span className='admin-checkbox-slider' />
+            <span className='admin-checkbox-label'>Hoạt động (Active)</span>
           </label>
         </div>
         <div className='admin-row'>
-          <button className='admin-btn admin-btn-primary' onClick={onSaveBranch}>{editingBranch ? 'Lưu thay đổi' : 'Thêm chi nhánh'}</button>
+          <button className='admin-btn admin-btn-primary' onClick={onSaveBranch}><i className='fa-solid fa-plus' />{editingBranch ? 'Lưu thay đổi' : 'Thêm chi nhánh'}</button>
           {editingBranch && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>Hủy</button>}
         </div>
       </section>
@@ -56,13 +57,17 @@ export function BranchesTab({ branches, branchForm, editingBranch, onBranchFormC
                   <td>{branch.phone || '-'}</td>
                   <td>
                     <span className={`admin-badge ${branch.isActive ? 'admin-badge-green' : 'admin-badge-red'}`}>
-                      {branch.isActive ? 'Đang hoạt động' : 'Tạm dừng'}
+                      <i className={`fa-solid ${branch.isActive ? 'fa-circle-check' : 'fa-circle-xmark'}`} />
                     </span>
                   </td>
                   <td>
-                    <div className='admin-row'>
-                      <button className='admin-btn admin-btn-ghost' onClick={() => onEditBranch(branch)}>Sửa</button>
-                      <button className='admin-btn admin-btn-danger' onClick={() => onDeleteBranch(branch)}>Xóa / Tắt</button>
+                    <div className='admin-action-row'>
+                      <button className='admin-btn-icon admin-btn-icon-edit' onClick={() => onEditBranch(branch)} aria-label='Sửa chi nhánh'>
+                        <i className='fa-solid fa-pen-to-square' />
+                      </button>
+                      <button className='admin-btn-icon admin-btn-icon-delete' onClick={() => onDeleteBranch(branch)} aria-label='Xóa chi nhánh'>
+                        <i className='fa-solid fa-trash-can' />
+                      </button>
                     </div>
                   </td>
                 </tr>

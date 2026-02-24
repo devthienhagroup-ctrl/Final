@@ -122,10 +122,30 @@ export default function AdminSpaPage() {
       </header>
 
       <section className='admin-overview'>
-        <article className='overview-card'><span><i className='fa-solid fa-building' />Chi nhánh</span><strong>{branches.length}</strong><small>Đang active: {activeBranches.length}</small></article>
-        <article className='overview-card'><span><i className='fa-solid fa-spa' />Dịch vụ</span><strong>{services.length}</strong><small>Spa catalog</small></article>
-        <article className='overview-card'><span><i className='fa-solid fa-user-nurse' />Chuyên viên</span><strong>{specialists.length}</strong><small>Đủ năng lực vận hành</small></article>
-        <article className='overview-card'><span><i className='fa-solid fa-calendar-check' />Lịch hẹn</span><strong>{appointments.length}</strong><small>Reviews: {reviews.length}</small></article>
+        <article className='overview-card'>
+          <span>Chi nhánh</span>
+          <strong>{branches.length}</strong>
+          <small>Đang active: {activeBranches.length}</small>
+          <i className='overview-icon fa-solid fa-building' />
+        </article>
+        <article className='overview-card'>
+          <span>Dịch vụ</span>
+          <strong>{services.length}</strong>
+          <small>Spa catalog</small>
+          <i className='overview-icon fa-solid fa-spa' />
+        </article>
+        <article className='overview-card'>
+          <span>Chuyên viên</span>
+          <strong>{specialists.length}</strong>
+          <small>Đủ năng lực vận hành</small>
+          <i className='overview-icon fa-solid fa-user-nurse' />
+        </article>
+        <article className='overview-card'>
+          <span>Lịch hẹn</span>
+          <strong>{appointments.length}</strong>
+          <small>Reviews: {reviews.length}</small>
+          <i className='overview-icon fa-solid fa-calendar-check' />
+        </article>
       </section>
 
       <nav className='admin-tabs'>

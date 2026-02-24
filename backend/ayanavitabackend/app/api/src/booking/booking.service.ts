@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { Prisma } from '@prisma/client'
 import { promises as fs } from 'fs'
 import { extname, join } from 'path'
 import { PrismaService } from '../prisma/prisma.service'
@@ -16,6 +17,9 @@ import {
 export class BookingService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private toStringArray(value: Prisma.JsonValue | null | undefined): string[] {
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+  }
 
   private readonly tempImageDir = join(process.cwd(), 'temp-images')
 
@@ -71,7 +75,7 @@ export class BookingService {
       dbId: s.id,
       name: s.name,
       cat: s.category ?? 'health',
-      goal: Array.isArray(s.goals) ? s.goals : [],
+      goal: this.toStringArray(s.goals),
       duration: s.durationMin,
       price: s.price,
       rating: s.ratingAvg,
@@ -129,7 +133,7 @@ export class BookingService {
       name: s.name,
       description: s.description,
       category: s.category,
-      goals: Array.isArray(s.goals) ? (s.goals as string[]) : [],
+      goals: this.toStringArray(s.goals),
       durationMin: s.durationMin,
       price: s.price,
       ratingAvg: s.ratingAvg,

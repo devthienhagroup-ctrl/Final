@@ -1,8 +1,1113 @@
+diff --git a/Home/ayanavita-fontend-final/src/components/home/AuthModal.tsx b/Home/ayanavita-fontend-final/src/components/home/AuthModal.tsx
+index 39eed37066e4351576413ab73f947b381ea57dee..ac360e769e69a99cbdba9064393e4f3c0ff55eea 100644
+--- a/Home/ayanavita-fontend-final/src/components/home/AuthModal.tsx
++++ b/Home/ayanavita-fontend-final/src/components/home/AuthModal.tsx
+@@ -1,76 +1,90 @@
+ // src/components/home/AuthModal.tsx
+ import React, { useMemo, useRef, useState } from "react";
+ import { Modal } from "../ui/Modal";
+ import { authApi } from "../../api/auth.api";
+
+ type AuthTab = "login" | "register";
+
+ const OTP_LEN = 6;
++const INITIAL_REG = { name: "", phone: "", email: "", pass: "", confirm: "", terms: false };
+
+ export function AuthModal({
+   open,
+   tab,
+   onClose,
+   onSwitchTab,
+   onLoginSuccess,
+   onRegisterSuccess,
+ }: {
+   open: boolean;
+   tab: AuthTab;
+   onClose: () => void;
+   onSwitchTab: (t: AuthTab) => void;
+   onLoginSuccess: () => void;
+   onRegisterSuccess: () => void;
+ }) {
+   const [loginEmail, setLoginEmail] = useState("");
+   const [loginPass, setLoginPass] = useState("");
+-  const [reg, setReg] = useState({ name: "", phone: "", email: "", pass: "", confirm: "", terms: false });
++  const [reg, setReg] = useState(INITIAL_REG);
+   const [otpDigits, setOtpDigits] = useState(Array.from({ length: OTP_LEN }, () => ""));
+   const [otpOpen, setOtpOpen] = useState(false);
+
+   const [loading, setLoading] = useState(false);
+   const [sendingOtp, setSendingOtp] = useState(false);
+   const [error, setError] = useState("");
+   const [info, setInfo] = useState("");
+
+   const otpInputRefs = useRef<Array<HTMLInputElement | null>>([]);
+
+   const emailOk = useMemo(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginEmail), [loginEmail]);
+   const loginPassOk = useMemo(() => loginPass.trim().length > 0, [loginPass]);
+
+   const regEmailOk = useMemo(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(reg.email), [reg.email]);
+   const regPassOk = useMemo(() => reg.pass.length >= 8, [reg.pass]);
+   const regConfirmOk = useMemo(() => reg.pass === reg.confirm, [reg.pass, reg.confirm]);
+   const regBaseOk = useMemo(
+     () => Boolean(reg.name.trim() && reg.phone.trim() && regEmailOk && regPassOk && regConfirmOk && reg.terms),
+     [reg.name, reg.phone, regEmailOk, regPassOk, regConfirmOk, reg.terms],
+   );
+
+   const otpValue = otpDigits.join("");
+   const otpCompleted = otpValue.length === OTP_LEN;
+
++  function resetRegisterState() {
++    setReg(INITIAL_REG);
++    setOtpDigits(Array.from({ length: OTP_LEN }, () => ""));
++    setOtpOpen(false);
++    setError("");
++    setInfo("");
++  }
++
++  function handleCloseAll() {
++    resetRegisterState();
++    onClose();
++  }
++
+   async function handleLogin() {
+     if (!(emailOk && loginPassOk)) return;
+     setError("");
+     setInfo("");
+     setLoading(true);
+     try {
+       const res = await authApi.login({ email: loginEmail.trim(), password: loginPass });
+       if (res?.accessToken) localStorage.setItem("aya_access_token", res.accessToken);
+       if (res?.refreshToken) localStorage.setItem("aya_refresh_token", res.refreshToken);
+       onLoginSuccess();
+     } catch (e: any) {
+       setError(e?.response?.data?.message || "Đăng nhập thất bại");
+     } finally {
+       setLoading(false);
+     }
+   }
+
+   async function sendOtpAndOpenModal() {
+     if (!regBaseOk) {
+       setError("Vui lòng điền đủ thông tin đăng ký và chấp nhận chính sách.");
+       return;
+     }
+
+     setError("");
+     setInfo("");
+@@ -85,94 +99,94 @@ export function AuthModal({
+       setError(e?.response?.data?.message || "Không gửi được OTP");
+     } finally {
+       setSendingOtp(false);
+     }
+   }
+
+   async function handleRegisterWithOtp() {
+     if (!regBaseOk || !otpCompleted) return;
+
+     setError("");
+     setInfo("");
+     setLoading(true);
+     try {
+       const res = await authApi.registerNew({
+         name: reg.name.trim(),
+         phone: reg.phone.trim(),
+         email: reg.email.trim(),
+         password: reg.pass,
+         otp: otpValue,
+         acceptedPolicy: reg.terms,
+       });
+
+       if (res?.accessToken) localStorage.setItem("aya_access_token", res.accessToken);
+       if (res?.refreshToken) localStorage.setItem("aya_refresh_token", res.refreshToken);
+
+-      setOtpOpen(false);
++      resetRegisterState();
+       onRegisterSuccess();
+     } catch (e: any) {
+       setError(e?.response?.data?.message || "OTP không đúng hoặc đã hết hạn");
+     } finally {
+       setLoading(false);
+     }
+   }
+
+   function handleOtpChange(index: number, value: string) {
+     const digit = value.replace(/\D/g, "").slice(-1);
+     setOtpDigits((prev) => {
+       const next = [...prev];
+       next[index] = digit;
+       return next;
+     });
+     if (digit && index < OTP_LEN - 1) otpInputRefs.current[index + 1]?.focus();
+   }
+
+   function handleOtpKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
+     if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
+       otpInputRefs.current[index - 1]?.focus();
+     }
+   }
+
+   function handleOtpPaste(e: React.ClipboardEvent<HTMLInputElement>) {
+     e.preventDefault();
+     const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_LEN);
+     if (!pasted) return;
+     const filled = Array.from({ length: OTP_LEN }, (_, i) => pasted[i] ?? "");
+     setOtpDigits(filled);
+     const nextFocus = Math.min(pasted.length, OTP_LEN - 1);
+     otpInputRefs.current[nextFocus]?.focus();
+   }
+
+   return (
+     <>
+-      <Modal open={open} onClose={onClose} ariaLabel="Đăng nhập / Đăng ký">
++      <Modal open={open && !otpOpen} onClose={handleCloseAll} ariaLabel="Đăng nhập / Đăng ký">
+         <div className="flex items-start justify-between gap-4">
+           <div>
+             <div className="text-xs font-semibold text-slate-500">Tài khoản AYANAVITA</div>
+             <h3 className="text-xl font-bold text-slate-900">Đăng nhập / Đăng ký</h3>
+           </div>
+-          <button type="button" onClick={onClose} className="h-10 w-10 rounded-2xl bg-slate-50 ring-1 ring-slate-200 hover:bg-slate-100" aria-label="Close">✕</button>
++          <button type="button" onClick={handleCloseAll} className="h-10 w-10 rounded-2xl bg-slate-50 ring-1 ring-slate-200 hover:bg-slate-100" aria-label="Close">✕</button>
+         </div>
+
+         <div className="mt-5 flex gap-2">
+           <button type="button" className={`w-1/2 rounded-[14px] px-3 py-2 font-bold text-sm ${tab === "login" ? "bg-slate-900 text-white" : "bg-white ring-1 ring-slate-200"}`} onClick={() => onSwitchTab("login")}>Đăng nhập</button>
+           <button type="button" className={`w-1/2 rounded-[14px] px-3 py-2 font-bold text-sm ${tab === "register" ? "bg-slate-900 text-white" : "bg-white ring-1 ring-slate-200"}`} onClick={() => onSwitchTab("register")}>Đăng ký</button>
+         </div>
+
+         {error ? <div className="mt-3 rounded-xl bg-rose-50 text-rose-700 p-3 text-sm">{error}</div> : null}
+         {info ? <div className="mt-3 rounded-xl bg-emerald-50 text-emerald-700 p-3 text-sm">{info}</div> : null}
+
+         {tab === "login" ? (
+           <form className="mt-5 grid gap-3" onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
+             <div>
+               <label className="form-label">Email *</label>
+               <input value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} type="email" className={`form-input ${loginEmail && !emailOk ? "error" : ""}`} placeholder="email@example.com" />
+             </div>
+             <div>
+               <label className="form-label">Mật khẩu *</label>
+               <input value={loginPass} onChange={(e) => setLoginPass(e.target.value)} type="password" className={`form-input ${loginPass === "" ? "" : !loginPassOk ? "error" : ""}`} placeholder="Nhập mật khẩu" />
+             </div>
+             <button disabled={loading} type="submit" className="rounded-2xl btn-primary px-6 py-3 font-semibold disabled:opacity-60">{loading ? "Đang xử lý..." : "Đăng nhập"}</button>
+           </form>
+         ) : (
+           <form className="mt-5 grid gap-3" onSubmit={(e) => { e.preventDefault(); sendOtpAndOpenModal(); }}>
+             <div className="grid grid-cols-2 gap-3">
+@@ -182,74 +196,86 @@ export function AuthModal({
+
+             <div>
+               <label className="form-label">Email *</label>
+               <input value={reg.email} onChange={(e) => setReg((s) => ({ ...s, email: e.target.value }))} className={`form-input ${reg.email && !regEmailOk ? "error" : ""}`} placeholder="email@example.com" />
+             </div>
+
+             <div className="grid grid-cols-2 gap-3">
+               <div><label className="form-label">Mật khẩu *</label><input value={reg.pass} onChange={(e) => setReg((s) => ({ ...s, pass: e.target.value }))} className={`form-input ${reg.pass && !regPassOk ? "error" : ""}`} type="password" /></div>
+               <div><label className="form-label">Xác nhận *</label><input value={reg.confirm} onChange={(e) => setReg((s) => ({ ...s, confirm: e.target.value }))} className={`form-input ${reg.confirm && !regConfirmOk ? "error" : ""}`} type="password" /></div>
+             </div>
+
+             <label className="flex items-start gap-2 text-sm text-slate-600">
+               <input checked={reg.terms} onChange={(e) => setReg((s) => ({ ...s, terms: e.target.checked }))} type="checkbox" className="h-4 w-4 rounded border-slate-300 mt-1" />
+               <span>Tôi đồng ý với <span className="font-semibold text-indigo-600">Điều khoản</span> và <span className="font-semibold text-indigo-600">Chính sách bảo mật</span></span>
+             </label>
+
+             <button disabled={sendingOtp || !regBaseOk} type="submit" className="rounded-2xl btn-accent px-6 py-3 font-semibold disabled:opacity-60">{sendingOtp ? "Đang gửi OTP..." : "Nhận OTP & tiếp tục"}</button>
+           </form>
+         )}
+       </Modal>
+
+       {otpOpen ? (
+         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 p-4">
+           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
+             <div className="flex items-center justify-between gap-3">
+-              <div>
++              <div className="flex items-center gap-3">
+                 <div className="text-xs font-semibold text-slate-500">Xác nhận OTP</div>
+-                <h4 className="text-xl font-bold text-slate-900">Nhập mã gồm 6 chữ số</h4>
++                <button
++                  type="button"
++                  onClick={() => {
++                    setOtpOpen(false);
++                    setError("");
++                    setInfo("Bạn có thể chỉnh lại thông tin đăng ký trước khi xác nhận OTP.");
++                  }}
++                  className="text-sm font-semibold text-blue-600 hover:underline"
++                >
++                  Quay lại đăng ký
++                </button>
+               </div>
+-              <button type="button" onClick={() => setOtpOpen(false)} className="h-9 w-9 rounded-xl bg-slate-100 hover:bg-slate-200">✕</button>
++              <button type="button" onClick={handleCloseAll} className="h-9 w-9 rounded-xl bg-slate-100 hover:bg-slate-200">✕</button>
+             </div>
+
++            <h4 className="mt-2 text-xl font-bold text-slate-900">Nhập mã gồm 6 chữ số</h4>
++
+             <p className="mt-2 text-sm text-slate-600">Mã đã gửi đến <span className="font-semibold">{reg.email}</span> và có hiệu lực trong 5 phút.</p>
+
+             <div className="mt-5 flex justify-between gap-2">
+               {otpDigits.map((digit, idx) => (
+                 <input
+                   key={idx}
+                   ref={(el) => { otpInputRefs.current[idx] = el; }}
+                   value={digit}
+                   onChange={(e) => handleOtpChange(idx, e.target.value)}
+                   onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                   onPaste={handleOtpPaste}
+                   inputMode="numeric"
+                   maxLength={1}
+                   className="h-12 w-12 rounded-2xl border border-slate-300 text-center text-xl font-bold tracking-widest text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+                 />
+               ))}
+             </div>
+
+-            <div className="mt-5 grid gap-2">
++            <div className="mt-5 flex gap-2">
+               <button
+                 type="button"
+                 onClick={handleRegisterWithOtp}
+                 disabled={loading || !otpCompleted}
+-                className="rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
++                className="w-1/2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+               >
+-                {loading ? "Đang xác nhận..." : "Xác nhận OTP & tạo tài khoản"}
++                {loading ? "Đang xác nhận..." : "Xác nhận"}
+               </button>
+               <button
+                 type="button"
+                 onClick={sendOtpAndOpenModal}
+                 disabled={sendingOtp}
+-                className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-60"
++                className="w-1/2 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-60"
+               >
+                 {sendingOtp ? "Đang gửi lại..." : "Gửi lại OTP"}
+               </button>
+             </div>
+           </div>
+         </div>
+       ) : null}
+     </>
+   );
+ }
+diff --git a/Home/ayanavita-fontend-final/src/components/home/RegisterSection.tsx b/Home/ayanavita-fontend-final/src/components/home/RegisterSection.tsx
+index 8dd3926ac432cee9799d2941710c4e8aa94454dd..7f6817a072548031a96f39f2311e5ec098b74743 100644
+--- a/Home/ayanavita-fontend-final/src/components/home/RegisterSection.tsx
++++ b/Home/ayanavita-fontend-final/src/components/home/RegisterSection.tsx
+@@ -1,237 +1,374 @@
+ // src/components/home/RegisterSection.tsx
+-import React, { useMemo, useState } from "react";
++import React, { useMemo, useRef, useState } from "react";
++import { authApi } from "../../api/auth.api";
+
+-export type RegisterPayload = {
++type RegisterFormState = {
+   fullName: string;
+   phone: string;
+   email: string;
+   password: string;
+-  interest?: string;
++  confirmPassword: string;
++  interest: string;
++  terms: boolean;
++};
++
++const OTP_LEN = 6;
++const INITIAL_FORM: RegisterFormState = {
++  fullName: "",
++  phone: "",
++  email: "",
++  password: "",
++  confirmPassword: "",
++  interest: "",
++  terms: false,
+ };
+
+ export type RegisterSectionProps = {
+-  /** gọi khi đăng ký thành công (prototype) */
+   onRegisterSuccess?: () => void;
+-
+-  /** nếu bạn muốn tự handle submit: nhận payload, return void/Promise */
+-  onSubmit?: (payload: RegisterPayload) => void | Promise<void>;
+ };
+
+-export const RegisterSection: React.FC<RegisterSectionProps> = ({
+-  onRegisterSuccess,
+-  onSubmit,
+-}) => {
+-  const [form, setForm] = useState({
+-    fullName: "",
+-    phone: "",
+-    email: "",
+-    password: "",
+-    confirmPassword: "",
+-    interest: "",
+-    terms: false,
+-  });
++export const RegisterSection: React.FC<RegisterSectionProps> = ({ onRegisterSuccess }) => {
++  const [form, setForm] = useState(INITIAL_FORM);
++  const [otpOpen, setOtpOpen] = useState(false);
++  const [otpDigits, setOtpDigits] = useState(Array.from({ length: OTP_LEN }, () => ""));
++  const [sendingOtp, setSendingOtp] = useState(false);
++  const [verifying, setVerifying] = useState(false);
++  const [error, setError] = useState("");
++  const [info, setInfo] = useState("");
++
++  const otpInputRefs = useRef<Array<HTMLInputElement | null>>([]);
+
+   const errors = useMemo(() => {
+     const e: Record<string, string> = {};
+     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+     const phoneRegex = /(03|05|07|08|09|01[2|6|8|9])+([0-9]{8})\b/;
+
+     if (!form.fullName.trim()) e.fullName = "Vui lòng nhập họ tên";
+     if (!phoneRegex.test(form.phone.replace(/\s/g, ""))) e.phone = "Số điện thoại không hợp lệ";
+     if (!emailRegex.test(form.email)) e.email = "Email không hợp lệ";
+     if (form.password.length < 8) e.password = "Mật khẩu phải có ít nhất 8 ký tự";
+     if (form.password !== form.confirmPassword) e.confirmPassword = "Mật khẩu không khớp";
+     if (!form.terms) e.terms = "Vui lòng đồng ý Điều khoản";
+     return e;
+   }, [form]);
+
+-  const submit = async (ev: React.FormEvent) => {
+-    ev.preventDefault();
++  const otpValue = otpDigits.join("");
++  const otpCompleted = otpValue.length === OTP_LEN;
++
++  function resetFormState() {
++    setForm(INITIAL_FORM);
++    setOtpDigits(Array.from({ length: OTP_LEN }, () => ""));
++    setOtpOpen(false);
++    setError("");
++    setInfo("");
++  }
++
++  async function sendOtp() {
+     if (Object.keys(errors).length) {
+-      window.alert("Form chưa hợp lệ. Kiểm tra các trường bắt buộc.");
++      setError("Form chưa hợp lệ. Vui lòng kiểm tra lại các trường bắt buộc.");
+       return;
+     }
+
+-    const payload: RegisterPayload = {
+-      fullName: form.fullName.trim(),
+-      phone: form.phone.trim(),
+-      email: form.email.trim(),
+-      password: form.password,
+-      interest: form.interest || undefined,
+-    };
++    setError("");
++    setInfo("");
++    setSendingOtp(true);
++    try {
++      await authApi.sendOtp({ email: form.email.trim() });
++      setOtpDigits(Array.from({ length: OTP_LEN }, () => ""));
++      setOtpOpen(true);
++      setInfo("OTP đã gửi qua email, mã có hiệu lực trong 5 phút.");
++      setTimeout(() => otpInputRefs.current[0]?.focus(), 0);
++    } catch (e: any) {
++      setError(e?.response?.data?.message || "Không gửi được OTP");
++    } finally {
++      setSendingOtp(false);
++    }
++  }
++
++  async function handleRegisterWithOtp() {
++    if (!otpCompleted) return;
+
++    setError("");
++    setInfo("");
++    setVerifying(true);
+     try {
+-      if (onSubmit) await onSubmit(payload);
+-      // prototype default behavior
+-      if (!onSubmit) window.alert("Đăng ký thành công (prototype). Sau này nối API.");
++      const res = await authApi.registerNew({
++        name: form.fullName.trim(),
++        phone: form.phone.trim(),
++        email: form.email.trim(),
++        password: form.password,
++        otp: otpValue,
++        acceptedPolicy: form.terms,
++      });
++
++      if (res?.accessToken) localStorage.setItem("aya_access_token", res.accessToken);
++      if (res?.refreshToken) localStorage.setItem("aya_refresh_token", res.refreshToken);
++
++      resetFormState();
+       onRegisterSuccess?.();
+-    } catch (err: any) {
+-      window.alert(err?.message ?? "Đăng ký thất bại");
++    } catch (e: any) {
++      setError(e?.response?.data?.message || "OTP không đúng hoặc đã hết hạn");
++    } finally {
++      setVerifying(false);
++    }
++  }
++
++  function handleOtpChange(index: number, value: string) {
++    const digit = value.replace(/\D/g, "").slice(-1);
++    setOtpDigits((prev) => {
++      const next = [...prev];
++      next[index] = digit;
++      return next;
++    });
++    if (digit && index < OTP_LEN - 1) otpInputRefs.current[index + 1]?.focus();
++  }
++
++  function handleOtpKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
++    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
++      otpInputRefs.current[index - 1]?.focus();
+     }
+-  };
++  }
++
++  function handleOtpPaste(e: React.ClipboardEvent<HTMLInputElement>) {
++    e.preventDefault();
++    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_LEN);
++    if (!pasted) return;
++    const filled = Array.from({ length: OTP_LEN }, (_, i) => pasted[i] ?? "");
++    setOtpDigits(filled);
++    const nextFocus = Math.min(pasted.length, OTP_LEN - 1);
++    otpInputRefs.current[nextFocus]?.focus();
++  }
+
+   return (
+     <section id="register" className="w-full py-12">
+       <div className="mx-auto max-w-6xl px-4">
+         <div className="overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 to-violet-600 shadow-xl">
+           <div className="grid md:grid-cols-2">
+             <div className="p-10 text-white">
+               <h2 className="text-3xl font-extrabold">Đăng ký thành viên AYANAVITA</h2>
+               <p className="mt-4 text-white/90">Nhận ưu đãi đặc biệt khi đăng ký tài khoản mới:</p>
+               <ul className="mt-6 space-y-3 text-white/95">
+                 <li className="flex items-center gap-2"><i className="fa-regular fa-circle-check"></i> Truy cập miễn phí
+                   3 khóa học cơ bản
+                 </li>
+                 <li className="flex items-center gap-2"><i className="fa-regular fa-circle-check"></i> Giảm 20% cho khóa
+                   học đầu tiên
+                 </li>
+                 <li className="flex items-center gap-2"><i className="fa-regular fa-circle-check"></i> Lộ trình học tập cá nhân hóa</li>
+                 <li className="flex items-center gap-2"><i className="fa-regular fa-circle-check"></i> Cộng đồng học viên VIP</li>
+               </ul>
+
+               <div className="mt-8 rounded-2xl bg-white/10 p-5 ring-1 ring-white/10">
+                 <div className="text-sm font-medium">Ưu đãi có hiệu lực trong:</div>
+                 <div className="mt-2 flex gap-2">
+                   {[
+                     { v: "03", l: "Ngày" },
+                     { v: "15", l: "Giờ" },
+                     { v: "42", l: "Phút" },
+                   ].map((x) => (
+                     <div
+                       key={x.l}
+                       className="rounded-lg bg-white/15 px-3 py-2 text-center ring-1 ring-white/10"
+                     >
+                       <div className="text-xl font-extrabold">{x.v}</div>
+                       <div className="text-xs">{x.l}</div>
+                     </div>
+                   ))}
+                 </div>
+               </div>
+             </div>
+
+             <div className="bg-white p-10">
+               <h3 className="text-2xl font-extrabold text-slate-900">Điền thông tin đăng ký</h3>
+
+-              <form className="mt-6" onSubmit={submit}>
+-                <div className="grid grid-cols-2 gap-4">
+-                  <div>
+-                    <label className="text-sm font-semibold text-slate-700">Họ và tên *</label>
++              {error ? <div className="mt-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</div> : null}
++              {info ? <div className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{info}</div> : null}
++
++              {!otpOpen ? (
++                <form className="mt-6" onSubmit={(e) => { e.preventDefault(); sendOtp(); }}>
++                  <div className="grid grid-cols-2 gap-4">
++                    <div>
++                      <label className="text-sm font-semibold text-slate-700">Họ và tên *</label>
++                      <input
++                        className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
++                          errors.fullName ? "border-red-400" : "border-slate-200"
++                        }`}
++                        value={form.fullName}
++                        onChange={(e) => setForm((s) => ({ ...s, fullName: e.target.value }))}
++                        placeholder="Nguyễn Văn A"
++                      />
++                      {errors.fullName ? <div className="mt-1 text-xs text-red-500">{errors.fullName}</div> : null}
++                    </div>
++
++                    <div>
++                      <label className="text-sm font-semibold text-slate-700">Số điện thoại *</label>
++                      <input
++                        className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
++                          errors.phone ? "border-red-400" : "border-slate-200"
++                        }`}
++                        value={form.phone}
++                        onChange={(e) => setForm((s) => ({ ...s, phone: e.target.value }))}
++                        placeholder="0912 345 678"
++                      />
++                      {errors.phone ? <div className="mt-1 text-xs text-red-500">{errors.phone}</div> : null}
++                    </div>
++                  </div>
++
++                  <div className="mt-4">
++                    <label className="text-sm font-semibold text-slate-700">Email *</label>
+                     <input
+                       className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
+-                        errors.fullName ? "border-red-400" : "border-slate-200"
++                        errors.email ? "border-red-400" : "border-slate-200"
+                       }`}
+-                      value={form.fullName}
+-                      onChange={(e) => setForm((s) => ({ ...s, fullName: e.target.value }))}
+-                      placeholder="Nguyễn Văn A"
++                      value={form.email}
++                      onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
++                      placeholder="email@example.com"
+                     />
+-                    {errors.fullName ? <div className="mt-1 text-xs text-red-500">{errors.fullName}</div> : null}
++                    {errors.email ? <div className="mt-1 text-xs text-red-500">{errors.email}</div> : null}
+                   </div>
+
+-                  <div>
+-                    <label className="text-sm font-semibold text-slate-700">Số điện thoại *</label>
++                  <div className="mt-4">
++                    <label className="text-sm font-semibold text-slate-700">Mật khẩu *</label>
+                     <input
++                      type="password"
+                       className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
+-                        errors.phone ? "border-red-400" : "border-slate-200"
++                        errors.password ? "border-red-400" : "border-slate-200"
+                       }`}
+-                      value={form.phone}
+-                      onChange={(e) => setForm((s) => ({ ...s, phone: e.target.value }))}
+-                      placeholder="0912 345 678"
++                      value={form.password}
++                      onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))}
++                      placeholder="Ít nhất 8 ký tự"
+                     />
+-                    {errors.phone ? <div className="mt-1 text-xs text-red-500">{errors.phone}</div> : null}
++                    {errors.password ? <div className="mt-1 text-xs text-red-500">{errors.password}</div> : null}
+                   </div>
+-                </div>
+
+-                <div className="mt-4">
+-                  <label className="text-sm font-semibold text-slate-700">Email *</label>
+-                  <input
+-                    className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
+-                      errors.email ? "border-red-400" : "border-slate-200"
+-                    }`}
+-                    value={form.email}
+-                    onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
+-                    placeholder="email@example.com"
+-                  />
+-                  {errors.email ? <div className="mt-1 text-xs text-red-500">{errors.email}</div> : null}
+-                </div>
++                  <div className="mt-4">
++                    <label className="text-sm font-semibold text-slate-700">Xác nhận mật khẩu *</label>
++                    <input
++                      type="password"
++                      className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
++                        errors.confirmPassword ? "border-red-400" : "border-slate-200"
++                      }`}
++                      value={form.confirmPassword}
++                      onChange={(e) => setForm((s) => ({ ...s, confirmPassword: e.target.value }))}
++                      placeholder="Nhập lại mật khẩu"
++                    />
++                    {errors.confirmPassword ? (
++                      <div className="mt-1 text-xs text-red-500">{errors.confirmPassword}</div>
++                    ) : null}
++                  </div>
+
+-                <div className="mt-4">
+-                  <label className="text-sm font-semibold text-slate-700">Mật khẩu *</label>
+-                  <input
+-                    type="password"
+-                    className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
+-                      errors.password ? "border-red-400" : "border-slate-200"
+-                    }`}
+-                    value={form.password}
+-                    onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))}
+-                    placeholder="Ít nhất 8 ký tự"
+-                  />
+-                  {errors.password ? <div className="mt-1 text-xs text-red-500">{errors.password}</div> : null}
+-                </div>
++                  <div className="mt-4">
++                    <label className="text-sm font-semibold text-slate-700">Bạn quan tâm lĩnh vực nào?</label>
++                    <select
++                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none ring-indigo-100 focus:ring-4"
++                      value={form.interest}
++                      onChange={(e) => setForm((s) => ({ ...s, interest: e.target.value }))}
++                    >
++                      <option value="">Chọn lĩnh vực quan tâm</option>
++                      <option value="tech">Công nghệ thông tin</option>
++                      <option value="business">Kinh doanh & Marketing</option>
++                      <option value="design">Thiết kế & Sáng tạo</option>
++                      <option value="language">Ngoại ngữ</option>
++                      <option value="softskills">Kỹ năng mềm</option>
++                    </select>
++                  </div>
+
+-                <div className="mt-4">
+-                  <label className="text-sm font-semibold text-slate-700">Xác nhận mật khẩu *</label>
+-                  <input
+-                    type="password"
+-                    className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
+-                      errors.confirmPassword ? "border-red-400" : "border-slate-200"
+-                    }`}
+-                    value={form.confirmPassword}
+-                    onChange={(e) => setForm((s) => ({ ...s, confirmPassword: e.target.value }))}
+-                    placeholder="Nhập lại mật khẩu"
+-                  />
+-                  {errors.confirmPassword ? (
+-                    <div className="mt-1 text-xs text-red-500">{errors.confirmPassword}</div>
+-                  ) : null}
+-                </div>
++                  <label className="mt-5 flex items-start gap-2 text-sm text-slate-600">
++                    <input
++                      type="checkbox"
++                      className="mt-1 h-4 w-4 rounded border-slate-300"
++                      checked={form.terms}
++                      onChange={(e) => setForm((s) => ({ ...s, terms: e.target.checked }))}
++                    />
++                    <span>
++                      Tôi đồng ý với <span className="font-semibold text-indigo-600">Điều khoản</span> và{" "}
++                      <span className="font-semibold text-indigo-600">Chính sách bảo mật</span>
++                    </span>
++                  </label>
++                  {errors.terms ? <div className="mt-1 text-xs text-red-500">{errors.terms}</div> : null}
+
+-                <div className="mt-4">
+-                  <label className="text-sm font-semibold text-slate-700">Bạn quan tâm lĩnh vực nào?</label>
+-                  <select
+-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none ring-indigo-100 focus:ring-4"
+-                    value={form.interest}
+-                    onChange={(e) => setForm((s) => ({ ...s, interest: e.target.value }))}
++                  <button
++                    type="submit"
++                    disabled={sendingOtp}
++                    className="mt-6 w-full rounded-2xl bg-gradient-to-r from-amber-300 to-yellow-300 py-4 font-extrabold text-slate-900 shadow hover:opacity-95 disabled:opacity-60"
+                   >
+-                    <option value="">Chọn lĩnh vực quan tâm</option>
+-                    <option value="tech">Công nghệ thông tin</option>
+-                    <option value="business">Kinh doanh & Marketing</option>
+-                    <option value="design">Thiết kế & Sáng tạo</option>
+-                    <option value="language">Ngoại ngữ</option>
+-                    <option value="softskills">Kỹ năng mềm</option>
+-                  </select>
+-                </div>
++                    {sendingOtp ? "Đang gửi OTP..." : "Đăng ký tài khoản miễn phí"}
++                  </button>
+
+-                <label className="mt-5 flex items-start gap-2 text-sm text-slate-600">
+-                  <input
+-                    type="checkbox"
+-                    className="mt-1 h-4 w-4 rounded border-slate-300"
+-                    checked={form.terms}
+-                    onChange={(e) => setForm((s) => ({ ...s, terms: e.target.checked }))}
+-                  />
+-                  <span>
+-                    Tôi đồng ý với <span className="font-semibold text-indigo-600">Điều khoản</span> và{" "}
+-                    <span className="font-semibold text-indigo-600">Chính sách bảo mật</span>
+-                  </span>
+-                </label>
+-                {errors.terms ? <div className="mt-1 text-xs text-red-500">{errors.terms}</div> : null}
+-
+-                <button
+-                  type="submit"
+-                  className="mt-6 w-full rounded-2xl bg-gradient-to-r from-amber-300 to-yellow-300 py-4 font-extrabold text-slate-900 shadow hover:opacity-95"
+-                >
+-                  Đăng ký tài khoản miễn phí
+-                </button>
+-
+-                <div className="mt-4 text-sm text-slate-600">
+-                  Đã có tài khoản?{" "}
+-                  <a href="#top" className="font-semibold text-indigo-600 hover:underline">
+-                    Đăng nhập
+-                  </a>
++                  <div className="mt-4 text-sm text-slate-600">
++                    Đã có tài khoản?{" "}
++                    <a href="#top" className="font-semibold text-indigo-600 hover:underline">
++                      Đăng nhập
++                    </a>
++                  </div>
++                </form>
++              ) : (
++                <div className="mt-6 rounded-3xl border border-slate-200 p-5">
++                  <div className="flex items-center justify-between gap-3">
++                    <div className="flex items-center gap-3">
++                      <div className="text-xs font-semibold text-slate-500">Xác nhận OTP</div>
++                      <button
++                        type="button"
++                        onClick={() => {
++                          setOtpOpen(false);
++                          setError("");
++                          setInfo("Bạn có thể chỉnh lại form đăng ký rồi nhận OTP lại.");
++                        }}
++                        className="text-sm font-semibold text-blue-600 hover:underline"
++                      >
++                        Quay lại đăng ký
++                      </button>
++                    </div>
++                    <button type="button" onClick={resetFormState} className="h-9 w-9 rounded-xl bg-slate-100 hover:bg-slate-200">✕</button>
++                  </div>
++
++                  <h4 className="mt-2 text-xl font-bold text-slate-900">Nhập mã gồm 6 chữ số</h4>
++
++                  <p className="mt-2 text-sm text-slate-600">
++                    Mã đã gửi đến <span className="font-semibold">{form.email}</span> và có hiệu lực trong 5 phút.
++                  </p>
++
++                  <div className="mt-5 flex justify-between gap-2">
++                    {otpDigits.map((digit, idx) => (
++                      <input
++                        key={idx}
++                        ref={(el) => { otpInputRefs.current[idx] = el; }}
++                        value={digit}
++                        onChange={(e) => handleOtpChange(idx, e.target.value)}
++                        onKeyDown={(e) => handleOtpKeyDown(idx, e)}
++                        onPaste={handleOtpPaste}
++                        inputMode="numeric"
++                        maxLength={1}
++                        className="h-12 w-12 rounded-2xl border border-slate-300 text-center text-xl font-bold tracking-widest text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
++                      />
++                    ))}
++                  </div>
++
++                  <div className="mt-5 flex gap-2">
++                    <button
++                      type="button"
++                      onClick={handleRegisterWithOtp}
++                      disabled={verifying || !otpCompleted}
++                      className="w-1/2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
++                    >
++                      {verifying ? "Đang xác nhận..." : "Xác nhận"}
++                    </button>
++
++                    <button
++                      type="button"
++                      onClick={sendOtp}
++                      disabled={sendingOtp}
++                      className="w-1/2 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-60"
++                    >
++                      {sendingOtp ? "Đang gửi lại..." : "Gửi lại OTP"}
++                    </button>
++                  </div>
+                 </div>
+-              </form>
++              )}
+             </div>
+           </div>
+         </div>
+       </div>
+     </section>
+   );
+ };
+diff --git a/Home/ayanavita-fontend-final/src/pages/HomePage.tsx b/Home/ayanavita-fontend-final/src/pages/HomePage.tsx
+index 5c91e78f480ea1a2b328c1abbfa4a520d6578420..5cd7f31ce69ef39d4cfb80b335bc0c632b532df5 100644
+--- a/Home/ayanavita-fontend-final/src/pages/HomePage.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/HomePage.tsx
+@@ -62,53 +62,51 @@ export default function HomePage() {
+
+   const marqueeItems = useMemo(() => [...partners, ...partners], []);
+
+   return (
+     <div className="bg-slate-50 text-slate-900">
+       <ParticlesBackground />
+
+       <div className="page-content">
+         <Header onLogin={() => openAuth("login")} onRegister={() => openAuth("register")} />
+
+         <TopBanner
+           onConsult={() =>
+             document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })
+           }
+         />
+
+         <BannerSlider slides={bannerSlides} onAction={onSlideAction} />
+
+         <Stats />
+
+         <Partners gridItems={partners.slice(0, 6)} marqueeItems={marqueeItems} />
+
+         <CourseGallery onGetDeal={() => openAuth("register")} />
+
+         <RegisterSection
+-          onRegisterSuccess={() =>
+-            openSuccess("Đăng ký thành công (prototype). Sau này bạn sẽ nối API để lưu user.")
+-          }
++          onRegisterSuccess={() => openSuccess("Đăng ký thành công.")}
+         />
+
+         <ProductSection />
+
+         <Outcomes />
+
+         <Reviews />
+
+         <PricingSection />
+
+         <ContactSection onSubmit={() => openSuccess("Đã nhận yêu cầu tư vấn (prototype).")} />
+
+         <Footer />
+       </div>
+
+       <SuccessModal
+         open={success.open}
+         message={success.message}
+         onClose={() => setSuccess({ open: false, message: "" })}
+       />
+
+       <AuthModal
+         open={authOpen}
+         tab={authTab}
+         onClose={() => setAuthOpen(false)}
+diff --git a/ayanavita-fontend/src/pages/LoginPage.tsx b/ayanavita-fontend/src/pages/LoginPage.tsx
+index d9eb3583ddbabf52eb01b37698d7b211b436d79e..2a86dc17db891007972a3f0acac4778e21eafefb 100644
+--- a/ayanavita-fontend/src/pages/LoginPage.tsx
++++ b/ayanavita-fontend/src/pages/LoginPage.tsx
+@@ -1,41 +1,41 @@
+ // src/pages/LoginPage.tsx
+ import React, { useMemo, useState } from "react";
+ import { Link, useLocation, useNavigate } from "react-router-dom";
+ import { ApiError } from "../api/http";
+ import { useAuth } from "../state/auth.store";
+ import { AppShell, Button, Card, Hr, Muted, SubTitle, Title } from "../ui/ui";
+
+ export default function LoginPage() {
+   const nav = useNavigate();
+   const loc = useLocation() as any;
+
+   const { login, status } = useAuth();
+   const from = useMemo(() => loc?.state?.from || "/courses", [loc]);
+
+-  const [email, setEmail] = useState("admin@ayanavita.com");
+-  const [password, setPassword] = useState("123456");
++  const [email, setEmail] = useState("");
++  const [password, setPassword] = useState("");
+   const [err, setErr] = useState<string | null>(null);
+
+   const busy = status === "loading";
+
+   async function onSubmit(e: React.FormEvent) {
+     e.preventDefault();
+     setErr(null);
+     try {
+       await login(email.trim(), password);
+       nav(from, { replace: true });
+     } catch (e: any) {
+       if (e instanceof ApiError) setErr(`(${e.status}) ${e.message}`);
+       else setErr(String(e?.message || "Login failed"));
+     }
+   }
+
+   return (
+     <AppShell
+       title={
+         <>
+           <Title>Đăng nhập AYANAVITA</Title>
+           <SubTitle>Vui lòng đăng nhập để truy cập khoá học và bài học.</SubTitle>
+         </>
+       }
+       actions={
+diff --git a/ayanavita-fontend/src/state/auth.store.tsx b/ayanavita-fontend/src/state/auth.store.tsx
+index 43a11a27ef395a2661810af6e095d444aa5a028c..f2fd58ba57cf046c3feb68ee2367fabb4fdb8d4d 100644
+--- a/ayanavita-fontend/src/state/auth.store.tsx
++++ b/ayanavita-fontend/src/state/auth.store.tsx
+@@ -33,60 +33,76 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
+       setUser(null);
+       setStatus("guest");
+       return;
+     }
+
+     setStatus("loading");
+     try {
+       const me = await authApi.me();
+       setUser(me);
+       setStatus("authed");
+     } catch {
+       // http.ts đã auto clear token khi 401, nhưng vẫn clear chắc chắn
+       clearAccessToken();
+       setToken("");
+       setUser(null);
+       setStatus("guest");
+     }
+   };
+
+   useEffect(() => {
+     void bootstrap();
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, []);
+
+   const login = async (email: string, password: string) => {
++    const normalizedEmail = email.trim().toLowerCase();
++    const normalizedPassword = password.trim();
++
++    if (!normalizedEmail || !normalizedPassword) {
++      setStatus("guest");
++      throw new Error("Vui lòng nhập đầy đủ email và mật khẩu.");
++    }
++
+     setStatus("loading");
+-    const res = await authApi.login({ email, password });
+-    setAccessToken(res.accessToken);
+-    setToken(res.accessToken);
++    try {
++      const res = await authApi.login({ email: normalizedEmail, password: normalizedPassword });
++      setAccessToken(res.accessToken);
++      setToken(res.accessToken);
+
+-    const me = await authApi.me();
+-    setUser(me);
+-    setStatus("authed");
++      const me = await authApi.me();
++      setUser(me);
++      setStatus("authed");
++    } catch (error) {
++      clearAccessToken();
++      setToken("");
++      setUser(null);
++      setStatus("guest");
++      throw error;
++    }
+   };
+
+   const register = async (email: string, password: string, name?: string) => {
+-    await authApi.register({ email, password, name });
++    await authApi.register({ email: email.trim().toLowerCase(), password, name });
+     await login(email, password);
+   };
+
+   const logout = () => {
+     clearAccessToken();
+     setToken("");
+     setUser(null);
+     setStatus("guest");
+   };
+
+   const value = useMemo<AuthCtx>(
+     () => ({ status, token, user, bootstrap, login, register, logout }),
+     [status, token, user]
+   );
+
+   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+ }
+
+ export function useAuth() {
+   const v = useContext(Ctx);
+   if (!v) throw new Error("useAuth must be used within <AuthProvider>");
+   return v;
+ }
 diff --git a/backend/ayanavitabackend/app/api/src/auth/auth.service.ts b/backend/ayanavitabackend/app/api/src/auth/auth.service.ts
-index dc088d21b758d2963837efe9c53f81675ce11685..79391a95e57a3a0301835db73466f225f4e54f26 100644
+index 79391a95e57a3a0301835db73466f225f4e54f26..2b387140a572e16e8f03acf01dd0391130e39f41 100644
 --- a/backend/ayanavitabackend/app/api/src/auth/auth.service.ts
 +++ b/backend/ayanavitabackend/app/api/src/auth/auth.service.ts
-@@ -125,91 +125,136 @@ export class AuthService {
+@@ -1,91 +1,95 @@
+-import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common'
++import { ForbiddenException, Injectable, Logger, UnauthorizedException } from '@nestjs/common'
+ import { JwtService } from '@nestjs/jwt'
+ import * as bcrypt from 'bcrypt'
+ import * as tls from 'tls'
+ import { PrismaService } from '../prisma/prisma.service'
+ import { RegisterDto } from '../users/dto/register.dto'
+ import { LoginDto } from '../users/dto/login.dto'
+ import { SendOtpDto } from './dto/send-otp.dto'
+ import { RegisterNewDto } from './dto/register-new.dto'
+
+ type JwtPayload = { sub: number; email: string; role: string }
+
+ @Injectable()
+ export class AuthService {
++  private readonly logger = new Logger(AuthService.name)
++
+   constructor(
+     private readonly prisma: PrismaService,
+     private readonly jwt: JwtService,
+   ) {}
+
+   async register(dto: RegisterDto) {
+     const exists = await this.prisma.user.findUnique({ where: { email: dto.email } })
+-    if (exists) throw new ForbiddenException('Email already exists')
++    if (exists) throw new ForbiddenException('Email đã tồn tại, vui lòng dùng email khác/ hoặc đăng nhập !')
+
+     const passwordHash = await bcrypt.hash(dto.password, 10)
+
+     const user = await this.prisma.user.create({
+       data: {
+         email: dto.email,
+         password: passwordHash,
+         name: dto.name,
+         role: 'USER',
+       },
+       select: { id: true, email: true, name: true, role: true },
+     })
+
+     const tokens = await this.issueTokens(user.id, user.email, user.role)
+     await this.setRefreshTokenHash(user.id, tokens.refreshToken)
+
+     return { user, ...tokens }
+   }
+
+   async sendOtp(dto: SendOtpDto) {
+     const email = dto.email.trim().toLowerCase()
+     const exists = await this.prisma.user.findUnique({ where: { email } })
+-    if (exists) throw new ForbiddenException('Email already exists')
++    if (exists) throw new ForbiddenException('Email đã tồn tại, vui lòng dùng email khác/ hoặc đăng nhập !')
+
+     const otp = String(Math.floor(100000 + Math.random() * 900000))
+     const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
+
+     await this.prisma.registrationOtp.upsert({
+       where: { email },
+       update: { code: otp, expiresAt, usedAt: null },
+       create: { email, code: otp, expiresAt },
+     })
+
+-    await this.sendOtpMail(email, otp)
++    void this.sendOtpMail(email, otp).catch((error) => {
++      this.logger.error(`Không gửi được email OTP tới ${email}`, error?.stack ?? String(error))
++    })
+
+     return { success: true, expiresInSeconds: 300 }
+   }
+
+   async registerNew(dto: RegisterNewDto) {
+     if (!dto.acceptedPolicy) throw new ForbiddenException('Bạn phải chấp nhận chính sách')
+
+     const email = dto.email.trim().toLowerCase()
+     const exists = await this.prisma.user.findUnique({ where: { email } })
+-    if (exists) throw new ForbiddenException('Email already exists')
++    if (exists) throw new ForbiddenException('Email đã tồn tại, vui lòng dùng email khác/ hoặc đăng nhập !')
+
+     const otpRow = await this.prisma.registrationOtp.findUnique({ where: { email } })
+     if (!otpRow || otpRow.usedAt || otpRow.code !== dto.otp) {
+       throw new ForbiddenException('OTP không hợp lệ')
+     }
+     if (otpRow.expiresAt.getTime() < Date.now()) {
+       throw new ForbiddenException('OTP đã hết hạn')
+     }
+
+     const passwordHash = await bcrypt.hash(dto.password, 10)
+
+     const user = await this.prisma.user.create({
+       data: {
+         email,
+         password: passwordHash,
+         name: dto.name,
+         phone: dto.phone,
+         role: 'USER',
+       },
+       select: { id: true, email: true, name: true, role: true, phone: true },
+     })
+
+     await this.prisma.registrationOtp.update({
+       where: { email },
+       data: { usedAt: new Date() },
+@@ -117,57 +121,97 @@ export class AuthService {
+     const user = await this.prisma.user.findUnique({ where: { id: userId } })
+     if (!user || !user.hashedRefreshToken) throw new ForbiddenException('Access denied')
+
+     const ok = await bcrypt.compare(refreshToken, user.hashedRefreshToken)
+     if (!ok) throw new ForbiddenException('Access denied')
+
+     const tokens = await this.issueTokens(user.id, user.email, user.role)
+     await this.setRefreshTokenHash(user.id, tokens.refreshToken)
 
      return tokens
    }
@@ -20,136 +1125,140 @@ index dc088d21b758d2963837efe9c53f81675ce11685..79391a95e57a3a0301835db73466f225
      const pass = process.env.MAIL_PASS ?? 'xetp fhph luse qydj'
      const to = email
      const subject = 'Mã OTP xác nhận đăng ký AYANAVITA'
-     const body = `Mã OTP của bạn là: ${otp}. Mã có hiệu lực trong 5 phút.`
-
-     await this.sendSmtpViaGmail({ user, pass, to, subject, body })
+-    const body = `Mã OTP của bạn là: ${otp}. Mã có hiệu lực trong 5 phút.`
+-
+-    await this.sendSmtpViaGmail({ user, pass, to, subject, body })
++    const body = `Xin chào bạn,\n\nMã OTP xác nhận đăng ký tài khoản AYANAVITA của bạn là: ${otp}.\nMã có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này cho bất kỳ ai để đảm bảo an toàn tài khoản.\n\nNếu bạn không thực hiện yêu cầu đăng ký, hãy bỏ qua email này.\n\nTrân trọng,\nĐội ngũ AYANAVITA`
++    const html = `
++<!doctype html>
++<html lang="vi">
++  <head>
++    <meta charset="UTF-8" />
++    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
++    <title>OTP xác nhận đăng ký AYANAVITA</title>
++  </head>
++  <body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif;color:#0f172a;">
++    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="padding:24px 12px;">
++      <tr>
++        <td align="center">
++          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 12px 28px rgba(15,23,42,0.12);">
++            <tr>
++              <td style="padding:24px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;">
++                <div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;opacity:.9;">AYANAVITA</div>
++                <div style="margin-top:10px;font-size:26px;font-weight:800;line-height:1.2;">Mã OTP của bạn</div>
++                <div style="margin-top:14px;display:inline-block;padding:12px 20px;background:#ffffff;color:#4f46e5;border-radius:12px;font-size:34px;font-weight:800;letter-spacing:8px;">${otp}</div>
++                <div style="margin-top:10px;font-size:13px;opacity:.95;">Mã có hiệu lực trong <strong>5 phút</strong>.</div>
++              </td>
++            </tr>
++            <tr>
++              <td style="padding:24px 24px 6px;">
++                <p style="margin:0 0 14px;font-size:15px;line-height:1.7;">Xin chào bạn,</p>
++                <p style="margin:0 0 14px;font-size:15px;line-height:1.7;">Cảm ơn bạn đã lựa chọn AYANAVITA. Bạn đang thực hiện bước xác minh để hoàn tất đăng ký tài khoản mới. Vui lòng nhập mã OTP ở trên vào màn hình xác thực để tiếp tục.</p>
++                <p style="margin:0 0 14px;font-size:15px;line-height:1.7;">Để đảm bảo an toàn, vui lòng không chia sẻ mã này cho bất kỳ ai, kể cả người tự xưng là nhân viên hỗ trợ. Nếu bạn không thực hiện yêu cầu này, bạn có thể bỏ qua email và không cần làm thêm thao tác nào.</p>
++              </td>
++            </tr>
++            <tr>
++              <td style="padding:16px 24px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;color:#334155;font-size:13px;line-height:1.7;">
++                Trân trọng,<br />
++                <strong>Đội ngũ AYANAVITA</strong>
++              </td>
++            </tr>
++          </table>
++        </td>
++      </tr>
++    </table>
++  </body>
++</html>`
++
++    await this.sendSmtpViaGmail({ user, pass, to, subject, body, html })
    }
 
-   private async sendSmtpViaGmail(params: { user: string; pass: string; to: string; subject: string; body: string }) {
-     const { user, pass, to, subject, body } = params
+-  private async sendSmtpViaGmail(params: { user: string; pass: string; to: string; subject: string; body: string }) {
+-    const { user, pass, to, subject, body } = params
++  private async sendSmtpViaGmail(params: { user: string; pass: string; to: string; subject: string; body: string; html?: string }) {
++    const { user, pass, to, subject, body, html } = params
 
--    await new Promise<void>((resolve, reject) => {
--      const socket = tls.connect(465, 'smtp.gmail.com', { servername: 'smtp.gmail.com' }, () => {
--        const authUser = Buffer.from(user).toString('base64')
--        const authPass = Buffer.from(pass).toString('base64')
--        const lines = [
--          'EHLO ayanavita.local',
--          'AUTH LOGIN',
--          authUser,
--          authPass,
--          `MAIL FROM:<${user}>`,
--          `RCPT TO:<${to}>`,
--          'DATA',
--          `Subject: ${subject}`,
--          `From: AYANAVITA <${user}>`,
--          `To: ${to}`,
--          'Content-Type: text/plain; charset=UTF-8',
--          '',
--          body,
--          '.',
--          'QUIT',
--        ]
--        socket.write(lines.join('\r\n') + '\r\n')
--      })
-+    const readSmtpResponse = (socket: tls.TLSSocket) =>
-+      new Promise<string>((resolve, reject) => {
-+        let buffer = ''
-+
-+        const cleanup = () => {
-+          socket.off('data', onData)
-+          socket.off('error', onError)
-+          socket.off('close', onClose)
-+        }
+     const readSmtpResponse = (socket: tls.TLSSocket) =>
+       new Promise<string>((resolve, reject) => {
+         let buffer = ''
 
--      let data = ''
--      socket.on('data', (chunk) => {
--        data += chunk.toString('utf8')
--      })
--      socket.on('error', reject)
--      socket.on('end', () => {
--        if (data.includes(' 535 ') || data.includes('\n535-') || data.includes('\n535 ')) {
--          reject(new Error('SMTP auth failed'))
--          return
-+        const onError = (err: Error) => {
-+          cleanup()
-+          reject(err)
+         const cleanup = () => {
+           socket.off('data', onData)
+           socket.off('error', onError)
+           socket.off('close', onClose)
          }
--        if (!data.includes('\n250 ') && !data.startsWith('250')) {
--          reject(new Error(`SMTP send failed: ${data}`))
--          return
-+
-+        const onClose = () => {
-+          cleanup()
-+          reject(new Error('SMTP connection closed unexpectedly'))
-+        }
-+
-+        const onData = (chunk: Buffer) => {
-+          buffer += chunk.toString('utf8')
-+          const normalized = buffer.replace(/\r\n/g, '\n')
-+          const lines = normalized.split('\n').filter(Boolean)
-+          if (lines.length === 0) return
-+
-+          const lastLine = lines[lines.length - 1]
-+          if (!/^\d{3} /.test(lastLine)) return
-+
-+          cleanup()
-+          resolve(normalized.trim())
+
+         const onError = (err: Error) => {
+           cleanup()
+           reject(err)
          }
--        resolve()
-+
-+        socket.on('data', onData)
-+        socket.once('error', onError)
-+        socket.once('close', onClose)
-       })
-+
-+    const sendCommand = async (socket: tls.TLSSocket, command: string, expectedCodes: number[]) => {
-+      socket.write(`${command}\r\n`)
-+      const response = await readSmtpResponse(socket)
-+      const code = Number(response.slice(0, 3))
-+      if (!expectedCodes.includes(code)) {
-+        throw new Error(`SMTP command failed (${command}): ${response}`)
-+      }
-+      return response
-+    }
-+
-+    const socket = await new Promise<tls.TLSSocket>((resolve, reject) => {
-+      const client = tls.connect(465, 'smtp.gmail.com', { servername: 'smtp.gmail.com' }, () => resolve(client))
-+      client.once('error', reject)
+
+         const onClose = () => {
+           cleanup()
+           reject(new Error('SMTP connection closed unexpectedly'))
+         }
+
+         const onData = (chunk: Buffer) => {
+           buffer += chunk.toString('utf8')
+           const normalized = buffer.replace(/\r\n/g, '\n')
+           const lines = normalized.split('\n').filter(Boolean)
+@@ -192,57 +236,69 @@ export class AuthService {
+       if (!expectedCodes.includes(code)) {
+         throw new Error(`SMTP command failed (${command}): ${response}`)
+       }
+       return response
+     }
+
+     const socket = await new Promise<tls.TLSSocket>((resolve, reject) => {
+       const client = tls.connect(465, 'smtp.gmail.com', { servername: 'smtp.gmail.com' }, () => resolve(client))
+       client.once('error', reject)
      })
-+
-+    try {
-+      const greeting = await readSmtpResponse(socket)
-+      if (!greeting.startsWith('220')) {
-+        throw new Error(`SMTP greeting failed: ${greeting}`)
-+      }
-+
-+      await sendCommand(socket, 'EHLO ayanavita.local', [250])
-+      await sendCommand(socket, 'AUTH LOGIN', [334])
-+      await sendCommand(socket, Buffer.from(user).toString('base64'), [334])
-+      await sendCommand(socket, Buffer.from(pass).toString('base64'), [235])
-+      await sendCommand(socket, `MAIL FROM:<${user}>`, [250])
-+      await sendCommand(socket, `RCPT TO:<${to}>`, [250, 251])
-+      await sendCommand(socket, 'DATA', [354])
-+
-+      const message = [
-+        `Subject: ${subject}`,
-+        `From: AYANAVITA <${user}>`,
-+        `To: ${to}`,
-+        'Content-Type: text/plain; charset=UTF-8',
+
+     try {
+       const greeting = await readSmtpResponse(socket)
+       if (!greeting.startsWith('220')) {
+         throw new Error(`SMTP greeting failed: ${greeting}`)
+       }
+
+       await sendCommand(socket, 'EHLO ayanavita.local', [250])
+       await sendCommand(socket, 'AUTH LOGIN', [334])
+       await sendCommand(socket, Buffer.from(user).toString('base64'), [334])
+       await sendCommand(socket, Buffer.from(pass).toString('base64'), [235])
+       await sendCommand(socket, `MAIL FROM:<${user}>`, [250])
+       await sendCommand(socket, `RCPT TO:<${to}>`, [250, 251])
+       await sendCommand(socket, 'DATA', [354])
+
++      const boundary = `aya-boundary-${Date.now()}`
+       const message = [
+         `Subject: ${subject}`,
+         `From: AYANAVITA <${user}>`,
+         `To: ${to}`,
++        'MIME-Version: 1.0',
++        `Content-Type: multipart/alternative; boundary="${boundary}"`,
 +        '',
-+        body,
-+        '.',
-+      ].join('\r\n')
-+      socket.write(`${message}\r\n`)
-+      const dataResponse = await readSmtpResponse(socket)
-+      if (!dataResponse.startsWith('250')) {
-+        throw new Error(`SMTP send failed: ${dataResponse}`)
-+      }
-+
-+      await sendCommand(socket, 'QUIT', [221])
-+    } finally {
-+      socket.end()
-+    }
++        `--${boundary}`,
+         'Content-Type: text/plain; charset=UTF-8',
+         '',
+         body,
++        '',
++        `--${boundary}`,
++        'Content-Type: text/html; charset=UTF-8',
++        '',
++        html ?? body,
++        '',
++        `--${boundary}--`,
+         '.',
+       ].join('\r\n')
+       socket.write(`${message}\r\n`)
+       const dataResponse = await readSmtpResponse(socket)
+       if (!dataResponse.startsWith('250')) {
+         throw new Error(`SMTP send failed: ${dataResponse}`)
+       }
+
+       await sendCommand(socket, 'QUIT', [221])
+     } finally {
+       socket.end()
+     }
    }
 
    private issueTokens(userId: number, email: string, role: string) {
@@ -163,15 +1272,3 @@ index dc088d21b758d2963837efe9c53f81675ce11685..79391a95e57a3a0301835db73466f225
      const refreshToken = this.jwt.sign(payload, {
        secret: process.env.JWT_REFRESH_SECRET,
        expiresIn: 7 * 24 * 60 * 60,
-     })
-
-     return { accessToken, refreshToken }
-   }
-
-   private async setRefreshTokenHash(userId: number, refreshToken: string) {
-     const hash = await bcrypt.hash(refreshToken, 10)
-     await this.prisma.user.update({
-       where: { id: userId },
-       data: { hashedRefreshToken: hash },
-     })
-   }

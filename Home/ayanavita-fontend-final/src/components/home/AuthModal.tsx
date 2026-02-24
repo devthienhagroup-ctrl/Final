@@ -6,6 +6,7 @@ import { authApi } from "../../api/auth.api";
 type AuthTab = "login" | "register";
 
 const OTP_LEN = 6;
+const INITIAL_REG = { name: "", phone: "", email: "", pass: "", confirm: "", terms: false };
 
 export function AuthModal({
   open,
@@ -24,7 +25,7 @@ export function AuthModal({
 }) {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPass, setLoginPass] = useState("");
-  const [reg, setReg] = useState({ name: "", phone: "", email: "", pass: "", confirm: "", terms: false });
+  const [reg, setReg] = useState(INITIAL_REG);
   const [otpDigits, setOtpDigits] = useState(Array.from({ length: OTP_LEN }, () => ""));
   const [otpOpen, setOtpOpen] = useState(false);
 
@@ -48,6 +49,19 @@ export function AuthModal({
 
   const otpValue = otpDigits.join("");
   const otpCompleted = otpValue.length === OTP_LEN;
+
+  function resetRegisterState() {
+    setReg(INITIAL_REG);
+    setOtpDigits(Array.from({ length: OTP_LEN }, () => ""));
+    setOtpOpen(false);
+    setError("");
+    setInfo("");
+  }
+
+  function handleCloseAll() {
+    resetRegisterState();
+    onClose();
+  }
 
   async function handleLogin() {
     if (!(emailOk && loginPassOk)) return;
@@ -107,7 +121,7 @@ export function AuthModal({
       if (res?.accessToken) localStorage.setItem("aya_access_token", res.accessToken);
       if (res?.refreshToken) localStorage.setItem("aya_refresh_token", res.refreshToken);
 
-      setOtpOpen(false);
+      resetRegisterState();
       onRegisterSuccess();
     } catch (e: any) {
       setError(e?.response?.data?.message || "OTP không đúng hoặc đã hết hạn");
@@ -144,13 +158,13 @@ export function AuthModal({
 
   return (
     <>
-      <Modal open={open} onClose={onClose} ariaLabel="Đăng nhập / Đăng ký">
+      <Modal open={open && !otpOpen} onClose={handleCloseAll} ariaLabel="Đăng nhập / Đăng ký">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-xs font-semibold text-slate-500">Tài khoản AYANAVITA</div>
             <h3 className="text-xl font-bold text-slate-900">Đăng nhập / Đăng ký</h3>
           </div>
-          <button type="button" onClick={onClose} className="h-10 w-10 rounded-2xl bg-slate-50 ring-1 ring-slate-200 hover:bg-slate-100" aria-label="Close">✕</button>
+          <button type="button" onClick={handleCloseAll} className="h-10 w-10 rounded-2xl bg-slate-50 ring-1 ring-slate-200 hover:bg-slate-100" aria-label="Close">✕</button>
         </div>
 
         <div className="mt-5 flex gap-2">
@@ -204,12 +218,24 @@ export function AuthModal({
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 p-4">
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
             <div className="flex items-center justify-between gap-3">
-              <div>
+              <div className="flex items-center gap-3">
                 <div className="text-xs font-semibold text-slate-500">Xác nhận OTP</div>
-                <h4 className="text-xl font-bold text-slate-900">Nhập mã gồm 6 chữ số</h4>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOtpOpen(false);
+                    setError("");
+                    setInfo("Bạn có thể chỉnh lại thông tin đăng ký trước khi xác nhận OTP.");
+                  }}
+                  className="text-sm font-semibold text-blue-600 hover:underline"
+                >
+                  Quay lại đăng ký
+                </button>
               </div>
-              <button type="button" onClick={() => setOtpOpen(false)} className="h-9 w-9 rounded-xl bg-slate-100 hover:bg-slate-200">✕</button>
+              <button type="button" onClick={handleCloseAll} className="h-9 w-9 rounded-xl bg-slate-100 hover:bg-slate-200">✕</button>
             </div>
+
+            <h4 className="mt-2 text-xl font-bold text-slate-900">Nhập mã gồm 6 chữ số</h4>
 
             <p className="mt-2 text-sm text-slate-600">Mã đã gửi đến <span className="font-semibold">{reg.email}</span> và có hiệu lực trong 5 phút.</p>
 
@@ -229,20 +255,20 @@ export function AuthModal({
               ))}
             </div>
 
-            <div className="mt-5 grid gap-2">
+            <div className="mt-5 flex gap-2">
               <button
                 type="button"
                 onClick={handleRegisterWithOtp}
                 disabled={loading || !otpCompleted}
-                className="rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+                className="w-1/2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
               >
-                {loading ? "Đang xác nhận..." : "Xác nhận OTP & tạo tài khoản"}
+                {loading ? "Đang xác nhận..." : "Xác nhận"}
               </button>
               <button
                 type="button"
                 onClick={sendOtpAndOpenModal}
                 disabled={sendingOtp}
-                className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-60"
+                className="w-1/2 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-60"
               >
                 {sendingOtp ? "Đang gửi lại..." : "Gửi lại OTP"}
               </button>

@@ -55,18 +55,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    setStatus("loading");
-    const res = await authApi.login({ email, password });
-    setAccessToken(res.accessToken);
-    setToken(res.accessToken);
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPassword = password.trim();
 
-    const me = await authApi.me();
-    setUser(me);
-    setStatus("authed");
+    if (!normalizedEmail || !normalizedPassword) {
+      setStatus("guest");
+      throw new Error("Vui lòng nhập đầy đủ email và mật khẩu.");
+    }
+
+    setStatus("loading");
+    try {
+      const res = await authApi.login({ email: normalizedEmail, password: normalizedPassword });
+      setAccessToken(res.accessToken);
+      setToken(res.accessToken);
+
+      const me = await authApi.me();
+      setUser(me);
+      setStatus("authed");
+    } catch (error) {
+      clearAccessToken();
+      setToken("");
+      setUser(null);
+      setStatus("guest");
+      throw error;
+    }
   };
 
   const register = async (email: string, password: string, name?: string) => {
-    await authApi.register({ email, password, name });
+    await authApi.register({ email: email.trim().toLowerCase(), password, name });
     await login(email, password);
   };
 

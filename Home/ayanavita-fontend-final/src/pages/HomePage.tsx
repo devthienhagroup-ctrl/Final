@@ -84,9 +84,7 @@ export default function HomePage() {
         <CourseGallery onGetDeal={() => openAuth("register")} />
 
         <RegisterSection
-          onRegisterSuccess={() =>
-            openSuccess("Đăng ký thành công (prototype). Sau này bạn sẽ nối API để lưu user.")
-          }
+          onRegisterSuccess={() => openSuccess("Đăng ký thành công.")}
         />
 
         <ProductSection />

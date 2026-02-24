@@ -12,8 +12,8 @@ export default function LoginPage() {
   const { login, status } = useAuth();
   const from = useMemo(() => loc?.state?.from || "/courses", [loc]);
 
-  const [email, setEmail] = useState("admin@ayanavita.com");
-  const [password, setPassword] = useState("123456");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
   const busy = status === "loading";

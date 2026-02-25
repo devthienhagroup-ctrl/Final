@@ -35,6 +35,7 @@ export function Layout() {
           <div className="nav">
             <NavItem to="/cms/pages" label="CMS Pages" />
             <NavItem to="/leads" label="Leads" />
+            <NavItem to="/catalog" label="Catalog" />
 
             <span className="pill" title="JWT token (short)">
               {token ? `${token.slice(0, 10)}…` : "no-token"}

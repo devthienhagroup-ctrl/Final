@@ -28,14 +28,13 @@ export class ServiceResponseDto {
   description?: string | null
   category?: string | null
   goals!: string[]
+  suitableFor!: string[]
   durationMin!: number
   price!: number
   ratingAvg!: number
   bookedCount!: number
   tag?: string | null
-  icon?: string | null
   imageUrl?: string | null
-  heroImageUrl?: string | null
   branchIds!: number[]
 }
 

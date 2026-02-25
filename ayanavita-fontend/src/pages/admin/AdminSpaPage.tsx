@@ -11,7 +11,7 @@ import { useAuth } from '../../state/auth.store'
 
 type TabKey = 'branches' | 'services' | 'specialists' | 'reviews'
 
-const defaultServiceForm: ServiceForm = { code: '', name: '', description: '', category: 'health', goals: '', durationMin: 60, price: 0, icon: '👏', imageUrl: '', tag: 'Spa' }
+const defaultServiceForm: ServiceForm = { code: '', name: '', description: '', category: 'health', goals: '', suitableFor: '', durationMin: 60, price: 0, tag: 'Spa' }
 const defaultSpecialistForm: SpecialistForm = { code: '', name: '', level: 'SENIOR', bio: '' }
 const defaultReviewForm: ReviewForm = { serviceId: 0, stars: 5, comment: '', customerName: '' }
 const defaultBranchForm: BranchForm = { code: '', name: '', address: '', phone: '', isActive: true }
@@ -27,6 +27,19 @@ const normalizeBranchCode = (name: string) => {
     .replace(/^_+|_+$/g, '')
 
   return base || 'BRANCH'
+}
+
+
+const normalizeServiceCode = (name: string) => {
+  const base = name
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/đ/gi, 'd')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+
+  return `SRV_${base || 'SERVICE'}`
 }
 
 const isValidPhoneNumber = (phone: string) => {
@@ -56,7 +69,6 @@ export default function AdminSpaPage() {
   const [reviews, setReviews] = useState<ServiceReview[]>([])
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
-  const [uploadedImage, setUploadedImage] = useState<{ url: string; fileName: string } | null>(null)
 
   const [branchForm, setBranchForm] = useState<BranchForm>(defaultBranchForm)
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
@@ -227,40 +239,37 @@ export default function AdminSpaPage() {
         setBranchForm({ ...next, code: normalizeBranchCode(nextName) })
       }} onSaveBranch={saveBranch} onEditBranch={(branch) => { setEditingBranch(branch); setBranchForm(branch) }} onDeleteBranch={deleteBranch} onCancelEdit={() => { setEditingBranch(null); setBranchForm(defaultBranchForm) }} />}
 
-      {tab === 'services' && <ServicesTab loading={loading} services={services} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onUploadImage={async () => {
-        if (!selectedImage) return
-        try {
-          const result = await spaAdminApi.uploadCloudImage(selectedImage)
-          setUploadedImage({ url: result.url, fileName: result.fileName })
-          setServiceForm((prev) => ({ ...prev, imageUrl: result.url }))
-          await AlertJs.success('Upload ảnh thành công')
-        } catch (error) {
-          await AlertJs.error('Upload ảnh thất bại', getVietnameseError(error, 'Không thể upload ảnh lên cloud.'))
+      {tab === 'services' && <ServicesTab loading={loading} services={services} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} onServiceFormChange={(next) => {
+        const nextName = next.name ?? serviceForm.name ?? ''
+        setServiceForm({ ...next, code: normalizeServiceCode(nextName) })
+      }} onSelectImage={setSelectedImage} onSaveService={async () => {
+        const payload = {
+          ...serviceForm,
+          goals: serviceForm.goals.split(',').map((item) => item.trim()).filter(Boolean),
+          suitableFor: serviceForm.suitableFor.split(',').map((item) => item.trim()).filter(Boolean),
         }
-      }} onDeleteCloudImage={async () => {
-        if (!uploadedImage) return
         try {
-          await spaAdminApi.deleteCloudImage({ fileName: uploadedImage.fileName })
-          setUploadedImage(null)
-          setServiceForm((prev) => ({ ...prev, imageUrl: '' }))
-          await AlertJs.success('Đã xóa ảnh cloud')
-        } catch (error) {
-          await AlertJs.error('Xóa ảnh thất bại', getVietnameseError(error, 'Không thể xóa ảnh cloud.'))
-        }
-      }} onSaveService={async () => {
-        const payload = { ...serviceForm, goals: serviceForm.goals.split(',').map((item) => item.trim()).filter(Boolean) }
-        try {
-          if (editingService) await spaAdminApi.updateService(editingService.id, payload)
-          else await spaAdminApi.createService(payload)
+          if (editingService) await spaAdminApi.updateService(editingService.id, payload, selectedImage)
+          else await spaAdminApi.createService(payload, selectedImage)
           setEditingService(null)
           setServiceForm(defaultServiceForm)
-          setUploadedImage(null)
+          setSelectedImage(null)
           await loadAll()
           await AlertJs.success('Đã lưu dịch vụ')
         } catch (error) {
           await AlertJs.error('Lưu dịch vụ thất bại', getVietnameseError(error, 'Vui lòng kiểm tra lại thông tin dịch vụ.'))
         }
-      }} onEditService={(service) => { setEditingService(service); setServiceForm({ ...serviceForm, ...service, goals: service.goals?.join(', ') || '' }) }} onDeleteService={async (service) => {
+      }} onEditService={(service) => {
+        setEditingService(service)
+        setSelectedImage(null)
+        setServiceForm({
+          ...defaultServiceForm,
+          ...service,
+          code: service.code || normalizeServiceCode(service.name),
+          goals: service.goals?.join(', ') || '',
+          suitableFor: service.suitableFor?.join(', ') || '',
+        })
+      }} onDeleteService={async (service) => {
         try {
           await spaAdminApi.deleteService(service.id)
           await loadAll()
@@ -268,7 +277,7 @@ export default function AdminSpaPage() {
         } catch (error) {
           await AlertJs.error('Xóa dịch vụ thất bại', getVietnameseError(error, 'Dịch vụ đang được sử dụng hoặc có lỗi hệ thống.'))
         }
-      }} onShowServiceDetail={(service) => { void AlertJs.info(`Chi tiết dịch vụ: ${service.name}`, `${service.description || '-'}\nIcon: ${service.icon || '-'}`) }} onCancelEdit={() => { setEditingService(null); setServiceForm(defaultServiceForm) }} />}
+      }} onCancelEdit={() => { setEditingService(null); setServiceForm(defaultServiceForm); setSelectedImage(null) }} />}
 
       {tab === 'specialists' && <SpecialistsTab loading={loading} branches={activeBranches} services={services} specialists={specialists} specialistForm={specialistForm} relationForm={relationForm} editingSpecialist={editingSpecialist} onSpecialistFormChange={setSpecialistForm} onRelationFormChange={setRelationForm} onSaveSpecialist={async () => {
         try {

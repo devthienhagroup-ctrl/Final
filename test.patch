@@ -1,168 +1,123 @@
-diff --git a/ayanavita-fontend/src/pages/admin/AdminSpaPage.css b/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
-index af0e127c87a104fafd6a88500ceab57c0e73b847..afda0a2b1ddf256a349708737611aee7c7bcf3b9 100644
---- a/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
-+++ b/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
-@@ -17,50 +17,101 @@
- .admin-page {
-   padding: 30px 40px;
-   font-family: Arial, Helvetica, -apple-system, BlinkMacSystemFont,
-   "Segoe UI", Roboto, sans-serif;
-   color: var(--ad-text);
-   background: var(--ad-bg);
+diff --git a/ayanavita-fontend/src/api/spaAdmin.api.ts b/ayanavita-fontend/src/api/spaAdmin.api.ts
+index dc02fc752b20475b8207447529196f8015d6eda3..f338ae177086ed040e0e618cb876953c70478d45 100644
+--- a/ayanavita-fontend/src/api/spaAdmin.api.ts
++++ b/ayanavita-fontend/src/api/spaAdmin.api.ts
+@@ -1,92 +1,90 @@
+ import { del, get, patch, post, request } from './http'
+
+ export type Branch = { id: number; code: string; name: string; address: string; phone?: string; isActive: boolean }
+ export type SpaService = {
+   id: number
+   code: string
+   name: string
+   description?: string
+   category?: string
+   goals: string[]
++  suitableFor: string[]
+   durationMin: number
+   price: number
+   ratingAvg: number
+-  icon?: string
+   imageUrl?: string
+   branchIds: number[]
+ }
+ export type Specialist = {
+   id: number
+   code: string
+   name: string
+   level: string
+   bio?: string
+   branchIds: number[]
+   serviceIds: number[]
+ }
+ export type ServiceReview = {
+   id: number
+   serviceId: number
+   userId?: number
+   stars: number
+   comment?: string
+   customerName?: string
+   createdAt: string
+ }
+ export type Appointment = {
+   id: number
+   customerName: string
+   customerPhone: string
+   customerEmail?: string
+   appointmentAt: string
+   status: string
+   note?: string
+   branch?: { id: number; name: string }
+   service?: { id: number; name: string }
+   specialist?: { id: number; name: string }
  }
 
- .admin-header {
-   margin-top: 10px;
-   display: flex;
-   justify-content: space-between;
-   align-items: center;
-   gap: 14px;
-   background: linear-gradient(130deg, #4f46e5, #7c3aed 60%, #ec4899 120%);
-   border-radius: 18px;
-   color: #fff;
-   padding: 22px;
-   box-shadow: 0 18px 44px rgba(79, 70, 229, 0.3);
+ export const spaAdminApi = {
+   branches: (includeInactive = false) => get<Branch[]>(`/booking/branches${includeInactive ? '?includeInactive=true' : ''}`, { auth: false }),
+   services: () => get<SpaService[]>('/booking/services', { auth: false }),
+   specialists: () => get<Specialist[]>('/booking/specialists', { auth: false }),
+   reviews: () => get<ServiceReview[]>('/booking/service-reviews', { auth: false }),
+   appointments: () => get<Appointment[]>('/booking/appointments', { auth: false }),
+
+   createBranch: (data: Partial<Branch>) => post('/booking/branches', data, { auth: false }),
+   updateBranch: (id: number, data: Partial<Branch>) => patch(`/booking/branches/${id}`, data, { auth: false }),
+   deleteBranch: (id: number) => del(`/booking/branches/${id}`, { auth: false }),
+
+-  createService: (data: any) => post('/booking/services', data, { auth: false }),
+-  updateService: (id: number, data: any) => patch(`/booking/services/${id}`, data, { auth: false }),
++  createService: (data: Record<string, any>, file?: File | null) => {
++    const form = new FormData()
++    Object.entries(data).forEach(([key, value]) => {
++      form.append(key, typeof value === 'string' ? value : JSON.stringify(value))
++    })
++    if (file) form.append('file', file)
++    return request('/booking/services', { method: 'POST', body: form, auth: false })
++  },
++  updateService: (id: number, data: Record<string, any>, file?: File | null) => {
++    const form = new FormData()
++    Object.entries(data).forEach(([key, value]) => {
++      form.append(key, typeof value === 'string' ? value : JSON.stringify(value))
++    })
++    if (file) form.append('file', file)
++    return request(`/booking/services/${id}`, { method: 'PATCH', body: form, auth: false })
++  },
+   deleteService: (id: number) => del(`/booking/services/${id}`, { auth: false }),
+
+   createSpecialist: (data: any) => post('/booking/specialists', data, { auth: false }),
+   updateSpecialist: (id: number, data: any) => patch(`/booking/specialists/${id}`, data, { auth: false }),
+   deleteSpecialist: (id: number) => del(`/booking/specialists/${id}`, { auth: false }),
+
+   createReview: (data: any) => post('/booking/service-reviews', data, { auth: false }),
+   deleteReview: (id: number) => del(`/booking/service-reviews/${id}`, { auth: false }),
+
+   updateAppointment: (id: number, data: any) => patch(`/booking/appointments/${id}`, data, { auth: false }),
+   deleteAppointment: (id: number) => del(`/booking/appointments/${id}`, { auth: false }),
+
+   syncRelations: (payload: any) => post('/booking/relations/sync', payload, { auth: false }),
+
+-  uploadCloudImage: async (file: File) => {
+-    const form = new FormData()
+-    form.append('file', file)
+-    return request<{ url: string; fileName: string; size: number }>('/booking/images/cloud', {
+-      method: 'POST',
+-      body: form,
+-      auth: false,
+-    })
+-  },
+-
+-  deleteCloudImage: (input: { fileName?: string; url?: string }) =>
+-    request<{ ok: boolean }>('/booking/images/cloud', {
+-      method: 'DELETE',
+-      body: input,
+-      auth: false,
+-    }),
  }
-
- .admin-header h1 { margin: 0 0 6px; font-size: 30px; }
- .admin-header p { margin: 0; opacity: .96; }
- .admin-header-kicker { margin: 0 0 6px; font-size: 12px; font-weight: 900; letter-spacing: .08em; opacity: .95; }
-
-+.admin-user-badge {
-+  display: inline-flex;
-+  align-items: center;
-+  gap: 12px;
-+  padding: 10px 14px;
-+  border-radius: 14px;
-+  background: rgba(255, 255, 255, 0.18);
-+  border: 1px solid rgba(255, 255, 255, 0.38);
-+  backdrop-filter: blur(8px);
-+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.2);
-+}
-+
-+.admin-user-avatar {
-+  width: 42px;
-+  height: 42px;
-+  border-radius: 50%;
-+  display: inline-flex;
-+  align-items: center;
-+  justify-content: center;
-+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(224, 231, 255, 0.95));
-+  color: #4338ca;
-+  font-size: 18px;
-+  font-weight: 900;
-+}
-+
-+.admin-user-meta {
-+  display: grid;
-+  gap: 2px;
-+}
-+
-+.admin-user-meta strong {
-+  font-size: 16px;
-+  font-weight: 800;
-+  line-height: 1.2;
-+}
-+
-+.admin-user-meta span {
-+  display: inline-flex;
-+  align-items: center;
-+  width: fit-content;
-+  font-size: 11px;
-+  font-weight: 800;
-+  letter-spacing: .08em;
-+  text-transform: uppercase;
-+  color: #e0e7ff;
-+  padding: 2px 8px;
-+  border-radius: 999px;
-+  border: 1px solid rgba(255, 255, 255, 0.32);
-+  background: rgba(15, 23, 42, 0.2);
-+}
-+
- .admin-overview {
-   margin-top: 14px;
-   display: grid;
-   grid-template-columns: repeat(4, minmax(190px, 1fr));
-   gap: 10px;
- }
-
- .overview-card {
-   background: var(--ad-card);
-   border: none;
-   border-radius: 14px;
-   box-shadow: 0 10px 26px rgba(15, 23, 42, 0.07);
-   padding: 14px 16px;
-   display: grid;
-   gap: 5px;
-   position: relative;
-   overflow: hidden;
- }
- .overview-card:nth-child(1) { color: #4f46e5; }
- .overview-card:nth-child(2) { color: #0891b2; }
- .overview-card:nth-child(3) { color: #16a34a; }
- .overview-card:nth-child(4) { color: #d97706; }
- .overview-card span { color: currentColor; font-weight: 800; font-size: 18px; display: inline-flex; align-items: center; line-height: 1.15; }
- .overview-card strong { font-size: 40px; color: #0f172a; line-height: 1.1; font-weight: 800; }
- .overview-card small { color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; font-weight: 500; }
-@@ -132,50 +183,51 @@
-   font-size: 15px;
-   font-weight: 500;
- }
- .admin-input:focus { outline: 2px solid #ddd6fe; border-color: #a78bfa; }
-
- .admin-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
-
- .admin-btn {
-   border-radius: 11px;
-   padding: 8px 12px;
-   border: 1px solid transparent;
-   font-weight: 800;
-   font-family: Arial, Helvetica, -apple-system, BlinkMacSystemFont,
-   "Segoe UI", Roboto, sans-serif;
-   cursor: pointer;
-   transition: transform .15s ease;
-   display: inline-flex;
-   align-items: center;
-   gap: 8px;
-   white-space: nowrap;
- }
- .admin-btn:hover { transform: translateY(-1px); }
- .admin-btn-primary { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; }
- .admin-btn-ghost { background: #fff; border-color: #cfd7e4; color: #1f2937; }
- .admin-btn-danger { background: linear-gradient(135deg, #e11d48, #ef4444); color: #fff; }
-+.admin-btn-save { background: linear-gradient(135deg, #0ea5e9, #2563eb); color: #fff; box-shadow: 0 8px 18px rgba(37, 99, 235, 0.28); }
-
- .admin-table-wrap { overflow: auto; border: 1px solid #e5e7ff; border-radius: 12px; }
- .admin-table { width: 100%; border-collapse: collapse; min-width: 780px; background: #fff; table-layout: auto; }
- .admin-table thead tr { background: linear-gradient(135deg, #eef2ff, #fdf2f8); }
- .admin-table th {
-   text-align: left;
-   padding: 11px 10px;
-   background: transparent;
-   color: #475569;
-   font-size: 12px;
-   text-transform: uppercase;
-   letter-spacing: .04em;
-   white-space: nowrap;
- }
- .admin-table td { padding: 10px; border-top: 1px solid #f1f5f9; vertical-align: middle; font-size: 14px; font-weight: 500; }
- .admin-table tbody tr:hover { background: #fafafe; }
- .td-strong { font-weight: 700; color: #111827; }
-
- .admin-divider { border: none; border-top: 1px solid var(--ad-border); margin: 14px 0; }
- .admin-checkbox {
-   display: inline-flex;
-   align-items: center;
-   gap: 10px;
-   font-weight: 600;
-   color: #334155;
 diff --git a/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx b/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
-index 36ada8b357a178fedba500cb36fe056e139cad29..e3bad161de70aaf1fc6cb79d096593807d1d851f 100644
+index e3bad161de70aaf1fc6cb79d096593807d1d851f..8974f8c7de200c552d8c54f1869df2ab954565c7 100644
 --- a/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
 +++ b/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
-@@ -1,185 +1,253 @@
+@@ -1,84 +1,96 @@
  import { useEffect, useMemo, useState } from 'react'
--import { Link } from 'react-router-dom'
  import { spaAdminApi, type Appointment, type Branch, type ServiceReview, type SpaService, type Specialist } from '../../api/spaAdmin.api'
  import { AlertJs } from '../../utils/alertJs'
  import './AdminSpaPage.css'
@@ -171,17 +126,31 @@ index 36ada8b357a178fedba500cb36fe056e139cad29..e3bad161de70aaf1fc6cb79d09659380
  import { ServicesTab } from './tabs/ServicesTab'
  import { SpecialistsTab } from './tabs/SpecialistsTab'
  import type { BranchForm, RelationForm, ReviewForm, ServiceForm, SpecialistForm } from './tabs/types'
-+import { useAuth } from '../../state/auth.store'
+ import { useAuth } from '../../state/auth.store'
 
  type TabKey = 'branches' | 'services' | 'specialists' | 'reviews'
 
- const defaultServiceForm: ServiceForm = { code: '', name: '', description: '', category: 'health', goals: '', durationMin: 60, price: 0, icon: '👏', imageUrl: '', tag: 'Spa' }
+-const defaultServiceForm: ServiceForm = { code: '', name: '', description: '', category: 'health', goals: '', durationMin: 60, price: 0, icon: '👏', imageUrl: '', tag: 'Spa' }
++const defaultServiceForm: ServiceForm = { code: '', name: '', description: '', category: 'health', goals: '', suitableFor: '', durationMin: 60, price: 0, tag: 'Spa' }
  const defaultSpecialistForm: SpecialistForm = { code: '', name: '', level: 'SENIOR', bio: '' }
  const defaultReviewForm: ReviewForm = { serviceId: 0, stars: 5, comment: '', customerName: '' }
  const defaultBranchForm: BranchForm = { code: '', name: '', address: '', phone: '', isActive: true }
 
+
+ const normalizeBranchCode = (name: string) => {
+   const base = name
+     .normalize('NFD')
+     .replace(/[̀-ͯ]/g, '')
+     .replace(/đ/gi, 'd')
+     .toUpperCase()
+     .replace(/[^A-Z0-9]+/g, '_')
+     .replace(/^_+|_+$/g, '')
+
+   return base || 'BRANCH'
+ }
+
 +
-+const normalizeBranchCode = (name: string) => {
++const normalizeServiceCode = (name: string) => {
 +  const base = name
 +    .normalize('NFD')
 +    .replace(/[̀-ͯ]/g, '')
@@ -190,17 +159,17 @@ index 36ada8b357a178fedba500cb36fe056e139cad29..e3bad161de70aaf1fc6cb79d09659380
 +    .replace(/[^A-Z0-9]+/g, '_')
 +    .replace(/^_+|_+$/g, '')
 +
-+  return base || 'BRANCH'
++  return `SRV_${base || 'SERVICE'}`
 +}
 +
-+const isValidPhoneNumber = (phone: string) => {
-+  const cleaned = phone.trim()
-+  if (!cleaned) return true
-+  if (!/^\+?[\d\s().-]+$/.test(cleaned)) return false
-+  const digitsCount = cleaned.replace(/\D/g, '').length
-+  return digitsCount >= 6 && digitsCount <= 20
-+}
-+
+ const isValidPhoneNumber = (phone: string) => {
+   const cleaned = phone.trim()
+   if (!cleaned) return true
+   if (!/^\+?[\d\s().-]+$/.test(cleaned)) return false
+   const digitsCount = cleaned.replace(/\D/g, '').length
+   return digitsCount >= 6 && digitsCount <= 20
+ }
+
  const getVietnameseError = (error: unknown, fallback: string) => {
    if (typeof error === 'object' && error && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
      const message = (error as { message: string }).message
@@ -211,7 +180,7 @@ index 36ada8b357a178fedba500cb36fe056e139cad29..e3bad161de70aaf1fc6cb79d09659380
  }
 
  export default function AdminSpaPage() {
-+  const { user } = useAuth()
+   const { user } = useAuth()
    const [tab, setTab] = useState<TabKey>('branches')
    const [loading, setLoading] = useState(false)
    const [branches, setBranches] = useState<Branch[]>([])
@@ -220,7 +189,7 @@ index 36ada8b357a178fedba500cb36fe056e139cad29..e3bad161de70aaf1fc6cb79d09659380
    const [reviews, setReviews] = useState<ServiceReview[]>([])
    const [appointments, setAppointments] = useState<Appointment[]>([])
    const [selectedImage, setSelectedImage] = useState<File | null>(null)
-   const [uploadedImage, setUploadedImage] = useState<{ url: string; fileName: string } | null>(null)
+-  const [uploadedImage, setUploadedImage] = useState<{ url: string; fileName: string } | null>(null)
 
    const [branchForm, setBranchForm] = useState<BranchForm>(defaultBranchForm)
    const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
@@ -236,142 +205,17 @@ index 36ada8b357a178fedba500cb36fe056e139cad29..e3bad161de70aaf1fc6cb79d09659380
      if (!reviewForm.serviceId) return reviews
      return reviews.filter((item) => item.serviceId === Number(reviewForm.serviceId))
    }, [reviewForm.serviceId, reviews])
-+  const displayName = useMemo(() => {
-+    if (!user?.email) return 'Admin User'
-+    const baseName = user.email.split('@')[0]?.replace(/[._-]+/g, ' ').trim()
-+    return baseName ? baseName.replace(/\b\w/g, (char) => char.toUpperCase()) : user.email
-+  }, [user?.email])
-+  const roleLabel = user?.role === 'ADMIN' ? 'Administrator' : user?.role ?? 'User'
-+  const avatarLetter = (displayName[0] || 'A').toUpperCase()
+   const displayName = useMemo(() => {
+     if (!user?.email) return 'Admin User'
+     const baseName = user.email.split('@')[0]?.replace(/[._-]+/g, ' ').trim()
+     return baseName ? baseName.replace(/\b\w/g, (char) => char.toUpperCase()) : user.email
+   }, [user?.email])
+   const roleLabel = user?.role === 'ADMIN' ? 'Administrator' : user?.role ?? 'User'
+   const avatarLetter = (displayName[0] || 'A').toUpperCase()
 
    const loadAll = async () => {
      setLoading(true)
-     try {
-       const [b, s, sp, r, a] = await Promise.all([
-         spaAdminApi.branches(true),
-         spaAdminApi.services(),
-         spaAdminApi.specialists(),
-         spaAdminApi.reviews(),
-         spaAdminApi.appointments(),
-       ])
-       setBranches(b)
-       setServices(s)
-       setSpecialists(sp)
-       setReviews(r)
-       setAppointments(a)
-     } catch (error) {
-       await AlertJs.error('Không thể tải dữ liệu', getVietnameseError(error, 'Hệ thống tạm thời gián đoạn, vui lòng thử lại.'))
-     } finally {
-       setLoading(false)
-     }
-   }
-
-   useEffect(() => {
-     loadAll()
-   }, [])
-
-   const saveBranch = async () => {
-+    const normalizedName = (branchForm.name || '').trim()
-+    const normalizedAddress = (branchForm.address || '').trim()
-+    const normalizedPhone = (branchForm.phone || '').trim()
-+    const generatedCode = normalizeBranchCode(normalizedName)
-+
-+    if (!normalizedName) {
-+      await AlertJs.error('Thiếu tên chi nhánh', 'Vui lòng nhập tên chi nhánh trước khi lưu.')
-+      return
-+    }
-+
-+    if (normalizedName.length < 2) {
-+      await AlertJs.error('Tên chi nhánh chưa hợp lệ', 'Tên chi nhánh cần có ít nhất 2 ký tự.')
-+      return
-+    }
-+
-+    if (!normalizedAddress) {
-+      await AlertJs.error('Thiếu địa chỉ', 'Vui lòng nhập địa chỉ chi nhánh.')
-+      return
-+    }
-+
-+    if (!isValidPhoneNumber(normalizedPhone)) {
-+      await AlertJs.error('Số điện thoại chưa hợp lệ', 'Vui lòng nhập đúng định dạng số điện thoại quốc tế (không giới hạn quốc gia).')
-+      return
-+    }
-+
-+    const payload: BranchForm = {
-+      ...branchForm,
-+      code: generatedCode,
-+      name: normalizedName,
-+      address: normalizedAddress,
-+      phone: normalizedPhone,
-+    }
-+
-     try {
--      if (editingBranch) await spaAdminApi.updateBranch(editingBranch.id, branchForm)
--      else await spaAdminApi.createBranch(branchForm)
-+      if (editingBranch) await spaAdminApi.updateBranch(editingBranch.id, payload)
-+      else await spaAdminApi.createBranch(payload)
-       setEditingBranch(null)
-       setBranchForm(defaultBranchForm)
-       await loadAll()
--      await AlertJs.success('Đã lưu chi nhánh thành công')
-+      await AlertJs.success('Đã lưu chi nhánh thành công', `Mã chi nhánh: ${generatedCode}. Dữ liệu đã được đồng bộ lên hệ thống.`)
-     } catch (error) {
-       await AlertJs.error('Lưu chi nhánh thất bại', getVietnameseError(error, 'Vui lòng kiểm tra lại thông tin chi nhánh.'))
-     }
-   }
-
-   const deleteBranch = async (branch: Branch) => {
-     const accepted = await AlertJs.confirm(`Bạn muốn xóa hoặc tắt active cho chi nhánh ${branch.name}?`)
-     if (!accepted) return
-
-     try {
-       const response = await spaAdminApi.deleteBranch(branch.id)
-       await loadAll()
-       if (response?.softDeleted) {
-         await AlertJs.success('Không thể xóa cứng', 'Chi nhánh đang liên kết dữ liệu nên hệ thống đã chuyển sang trạng thái không hoạt động.')
-       } else {
-         await AlertJs.success('Đã xóa chi nhánh')
-       }
-     } catch (error) {
-       await AlertJs.error('Xóa chi nhánh thất bại', getVietnameseError(error, 'Không thể xử lý yêu cầu xóa chi nhánh lúc này.'))
-     }
-   }
-
-   return (
-     <main className='admin-page'>
-       <header className='admin-header'>
-         <div>
-           <p className='admin-header-kicker'>SPA OPERATIONS HUB</p>
-           <h1>Spa Admin Dashboard</h1>
-           <p>Bảng điều khiển chuẩn hoá vận hành theo phong cách hiện đại, rõ dữ liệu, dễ thao tác.</p>
-         </div>
--        <div className='admin-row'>
--          <Link className='admin-btn admin-btn-ghost' to='/admin/orders'><i className='fa-solid fa-bag-shopping' />Quản lý đơn hàng</Link>
--          <button className='admin-btn admin-btn-primary' onClick={loadAll}><i className='fa-solid fa-rotate-right' />Làm mới</button>
-+        <div className='admin-user-badge' aria-label='Thông tin tài khoản đăng nhập'>
-+          <div className='admin-user-avatar'>{avatarLetter}</div>
-+          <div className='admin-user-meta'>
-+            <strong>{displayName}</strong>
-+            <span>{roleLabel}</span>
-+          </div>
-         </div>
-       </header>
-
-       <section className='admin-overview'>
-         <article className='overview-card'>
-           <span>Chi nhánh</span>
-           <strong>{branches.length}</strong>
-           <small>Đang active: {activeBranches.length}</small>
-           <i className='overview-icon fa-solid fa-building' />
-         </article>
-         <article className='overview-card'>
-           <span>Dịch vụ</span>
-           <strong>{services.length}</strong>
-           <small>Spa catalog</small>
-           <i className='overview-icon fa-solid fa-spa' />
-         </article>
-         <article className='overview-card'>
-           <span>Chuyên viên</span>
-           <strong>{specialists.length}</strong>
+@@ -205,92 +217,89 @@ export default function AdminSpaPage() {
            <small>Đủ năng lực vận hành</small>
            <i className='overview-icon fa-solid fa-user-nurse' />
          </article>
@@ -392,107 +236,1097 @@ index 36ada8b357a178fedba500cb36fe056e139cad29..e3bad161de70aaf1fc6cb79d09659380
 
        {loading && <section className='admin-card'>Đang tải dữ liệu...</section>}
 
--      {tab === 'branches' && <BranchesTab loading={loading} branches={branches} branchForm={branchForm} editingBranch={editingBranch} onBranchFormChange={setBranchForm} onSaveBranch={saveBranch} onEditBranch={(branch) => { setEditingBranch(branch); setBranchForm(branch) }} onDeleteBranch={deleteBranch} onCancelEdit={() => { setEditingBranch(null); setBranchForm(defaultBranchForm) }} />}
-+      {tab === 'branches' && <BranchesTab loading={loading} branches={branches} branchForm={branchForm} editingBranch={editingBranch} onBranchFormChange={(next) => {
-+        const nextName = next.name ?? branchForm.name ?? ''
-+        setBranchForm({ ...next, code: normalizeBranchCode(nextName) })
-+      }} onSaveBranch={saveBranch} onEditBranch={(branch) => { setEditingBranch(branch); setBranchForm(branch) }} onDeleteBranch={deleteBranch} onCancelEdit={() => { setEditingBranch(null); setBranchForm(defaultBranchForm) }} />}
+       {tab === 'branches' && <BranchesTab loading={loading} branches={branches} branchForm={branchForm} editingBranch={editingBranch} onBranchFormChange={(next) => {
+         const nextName = next.name ?? branchForm.name ?? ''
+         setBranchForm({ ...next, code: normalizeBranchCode(nextName) })
+       }} onSaveBranch={saveBranch} onEditBranch={(branch) => { setEditingBranch(branch); setBranchForm(branch) }} onDeleteBranch={deleteBranch} onCancelEdit={() => { setEditingBranch(null); setBranchForm(defaultBranchForm) }} />}
 
-       {tab === 'services' && <ServicesTab loading={loading} services={services} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onUploadImage={async () => {
-         if (!selectedImage) return
-         try {
-           const result = await spaAdminApi.uploadCloudImage(selectedImage)
-           setUploadedImage({ url: result.url, fileName: result.fileName })
-           setServiceForm((prev) => ({ ...prev, imageUrl: result.url }))
-           await AlertJs.success('Upload ảnh thành công')
-         } catch (error) {
-           await AlertJs.error('Upload ảnh thất bại', getVietnameseError(error, 'Không thể upload ảnh lên cloud.'))
+-      {tab === 'services' && <ServicesTab loading={loading} services={services} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onUploadImage={async () => {
+-        if (!selectedImage) return
+-        try {
+-          const result = await spaAdminApi.uploadCloudImage(selectedImage)
+-          setUploadedImage({ url: result.url, fileName: result.fileName })
+-          setServiceForm((prev) => ({ ...prev, imageUrl: result.url }))
+-          await AlertJs.success('Upload ảnh thành công')
+-        } catch (error) {
+-          await AlertJs.error('Upload ảnh thất bại', getVietnameseError(error, 'Không thể upload ảnh lên cloud.'))
+-        }
+-      }} onDeleteCloudImage={async () => {
+-        if (!uploadedImage) return
+-        try {
+-          await spaAdminApi.deleteCloudImage({ fileName: uploadedImage.fileName })
+-          setUploadedImage(null)
+-          setServiceForm((prev) => ({ ...prev, imageUrl: '' }))
+-          await AlertJs.success('Đã xóa ảnh cloud')
+-        } catch (error) {
+-          await AlertJs.error('Xóa ảnh thất bại', getVietnameseError(error, 'Không thể xóa ảnh cloud.'))
++      {tab === 'services' && <ServicesTab loading={loading} services={services} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} onServiceFormChange={(next) => {
++        const nextName = next.name ?? serviceForm.name ?? ''
++        setServiceForm({ ...next, code: normalizeServiceCode(nextName) })
++      }} onSelectImage={setSelectedImage} onSaveService={async () => {
++        const payload = {
++          ...serviceForm,
++          goals: serviceForm.goals.split(',').map((item) => item.trim()).filter(Boolean),
++          suitableFor: serviceForm.suitableFor.split(',').map((item) => item.trim()).filter(Boolean),
          }
-       }} onDeleteCloudImage={async () => {
-         if (!uploadedImage) return
+-      }} onSaveService={async () => {
+-        const payload = { ...serviceForm, goals: serviceForm.goals.split(',').map((item) => item.trim()).filter(Boolean) }
          try {
-           await spaAdminApi.deleteCloudImage({ fileName: uploadedImage.fileName })
-           setUploadedImage(null)
-           setServiceForm((prev) => ({ ...prev, imageUrl: '' }))
-           await AlertJs.success('Đã xóa ảnh cloud')
+-          if (editingService) await spaAdminApi.updateService(editingService.id, payload)
+-          else await spaAdminApi.createService(payload)
++          if (editingService) await spaAdminApi.updateService(editingService.id, payload, selectedImage)
++          else await spaAdminApi.createService(payload, selectedImage)
+           setEditingService(null)
+           setServiceForm(defaultServiceForm)
+-          setUploadedImage(null)
++          setSelectedImage(null)
+           await loadAll()
+           await AlertJs.success('Đã lưu dịch vụ')
          } catch (error) {
-           await AlertJs.error('Xóa ảnh thất bại', getVietnameseError(error, 'Không thể xóa ảnh cloud.'))
+           await AlertJs.error('Lưu dịch vụ thất bại', getVietnameseError(error, 'Vui lòng kiểm tra lại thông tin dịch vụ.'))
          }
-       }} onSaveService={async () => {
-         const payload = { ...serviceForm, goals: serviceForm.goals.split(',').map((item) => item.trim()).filter(Boolean) }
+-      }} onEditService={(service) => { setEditingService(service); setServiceForm({ ...serviceForm, ...service, goals: service.goals?.join(', ') || '' }) }} onDeleteService={async (service) => {
++      }} onEditService={(service) => {
++        setEditingService(service)
++        setSelectedImage(null)
++        setServiceForm({
++          ...defaultServiceForm,
++          ...service,
++          code: service.code || normalizeServiceCode(service.name),
++          goals: service.goals?.join(', ') || '',
++          suitableFor: service.suitableFor?.join(', ') || '',
++        })
++      }} onDeleteService={async (service) => {
          try {
-           if (editingService) await spaAdminApi.updateService(editingService.id, payload)
-diff --git a/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
-index c487c863d8a236bd44c9b39183f8bf6031a5deaf..f484d092bc095a951fd2f5efd5e7c1094bc0bb37 100644
---- a/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
-+++ b/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
-@@ -1,58 +1,65 @@
- import type { BranchesTabProps } from './types'
+           await spaAdminApi.deleteService(service.id)
+           await loadAll()
+           await AlertJs.success('Đã xóa dịch vụ')
+         } catch (error) {
+           await AlertJs.error('Xóa dịch vụ thất bại', getVietnameseError(error, 'Dịch vụ đang được sử dụng hoặc có lỗi hệ thống.'))
+         }
+-      }} onShowServiceDetail={(service) => { void AlertJs.info(`Chi tiết dịch vụ: ${service.name}`, `${service.description || '-'}\nIcon: ${service.icon || '-'}`) }} onCancelEdit={() => { setEditingService(null); setServiceForm(defaultServiceForm) }} />}
++      }} onCancelEdit={() => { setEditingService(null); setServiceForm(defaultServiceForm); setSelectedImage(null) }} />}
 
- export function BranchesTab({ branches, branchForm, editingBranch, onBranchFormChange, onSaveBranch, onEditBranch, onDeleteBranch, onCancelEdit }: BranchesTabProps) {
-+  const isEditing = Boolean(editingBranch)
-+
+       {tab === 'specialists' && <SpecialistsTab loading={loading} branches={activeBranches} services={services} specialists={specialists} specialistForm={specialistForm} relationForm={relationForm} editingSpecialist={editingSpecialist} onSpecialistFormChange={setSpecialistForm} onRelationFormChange={setRelationForm} onSaveSpecialist={async () => {
+         try {
+           if (editingSpecialist) await spaAdminApi.updateSpecialist(editingSpecialist.id, specialistForm)
+           else await spaAdminApi.createSpecialist(specialistForm)
+           setEditingSpecialist(null)
+           setSpecialistForm(defaultSpecialistForm)
+           await loadAll()
+           await AlertJs.success('Đã lưu chuyên viên')
+         } catch (error) {
+           await AlertJs.error('Lưu chuyên viên thất bại', getVietnameseError(error, 'Thông tin chuyên viên chưa hợp lệ.'))
+         }
+       }} onEditSpecialist={(specialist) => { setEditingSpecialist(specialist); setSpecialistForm({ code: specialist.code, name: specialist.name, level: specialist.level, bio: specialist.bio || '' }) }} onDeleteSpecialist={async (specialist) => {
+         try {
+           await spaAdminApi.deleteSpecialist(specialist.id)
+           await loadAll()
+           await AlertJs.success('Đã xóa chuyên viên')
+         } catch (error) {
+           await AlertJs.error('Xóa chuyên viên thất bại', getVietnameseError(error, 'Chuyên viên đang có lịch hẹn hoặc liên kết dữ liệu.'))
+         }
+       }} onShowSpecialistDetail={(specialist) => { void AlertJs.info(`Chuyên viên: ${specialist.name}`, specialist.bio || 'Không có mô tả chi tiết.') }} onSaveRelation={async () => {
+         if (!relationForm.branchId || !relationForm.serviceId || !relationForm.specialistId) {
+           await AlertJs.error('Thiếu dữ liệu', 'Vui lòng chọn đầy đủ chi nhánh, dịch vụ và chuyên viên.')
+           return
+         }
+diff --git a/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
+index 6c80a899a20d6642d8b53f3b7343c74471b1fdbb..974e42b4a9fa61b59a157fd770d63e6de0c4fa90 100644
+--- a/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
++++ b/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
+@@ -1,70 +1,71 @@
+ import type { ServicesTabProps } from './types'
+
+-export function ServicesTab({ services, serviceForm, editingService, selectedImageName, onServiceFormChange, onSelectImage, onUploadImage, onDeleteCloudImage, onSaveService, onEditService, onDeleteService, onShowServiceDetail, onCancelEdit }: ServicesTabProps) {
++export function ServicesTab({ services, serviceForm, editingService, selectedImageName, onServiceFormChange, onSelectImage, onSaveService, onEditService, onDeleteService, onCancelEdit }: ServicesTabProps) {
    return (
      <div className='admin-grid'>
        <section className='admin-card admin-card-glow'>
--        <h3 className='admin-card-title'><i className='fa-solid fa-building' /> {editingBranch ? 'Cập nhật chi nhánh' : 'Tạo chi nhánh mới'}</h3>
-+        <h3 className='admin-card-title'><i className='fa-solid fa-building' /> {isEditing ? 'Cập nhật chi nhánh' : 'Tạo chi nhánh mới'}</h3>
+         <h3 className='admin-card-title'><i className='fa-solid fa-spa' /> {editingService ? 'Cập nhật dịch vụ' : 'Tạo dịch vụ mới'}</h3>
          <div className='admin-form-grid'>
-           <label className='admin-field'>
-             <span className='admin-label'><i className='fa-solid fa-id-card' /> Mã chi nhánh</span>
--            <input className='admin-input' placeholder='VD: DE_BERLIN' value={branchForm.code || ''} onChange={(e) => onBranchFormChange({ ...branchForm, code: e.target.value })} />
-+            <input className='admin-input' placeholder='Tự động sinh từ tên chi nhánh' value={branchForm.code || ''} readOnly />
-+            <small className='admin-helper'>Mã được tự động tạo từ tên chi nhánh để đảm bảo chuẩn dữ liệu.</small>
-           </label>
-           <label className='admin-field'>
-             <span className='admin-label'><i className='fa-solid fa-tag' /> Tên chi nhánh</span>
-             <input className='admin-input' placeholder='Nhập tên chi nhánh' value={branchForm.name || ''} onChange={(e) => onBranchFormChange({ ...branchForm, name: e.target.value })} />
-           </label>
-           <label className='admin-field'>
-             <span className='admin-label'><i className='fa-solid fa-location-dot' /> Địa chỉ</span>
-             <input className='admin-input' placeholder='Nhập địa chỉ đầy đủ' value={branchForm.address || ''} onChange={(e) => onBranchFormChange({ ...branchForm, address: e.target.value })} />
-           </label>
-           <label className='admin-field'>
-             <span className='admin-label'><i className='fa-solid fa-phone' /> Số điện thoại</span>
-             <input className='admin-input' placeholder='+49 ...' value={branchForm.phone || ''} onChange={(e) => onBranchFormChange({ ...branchForm, phone: e.target.value })} />
-+            <small className='admin-helper'>Hỗ trợ định dạng số quốc tế (không giới hạn theo từng quốc gia).</small>
-           </label>
-           <label className='admin-checkbox'>
-             <input type='checkbox' checked={Boolean(branchForm.isActive ?? true)} onChange={(e) => onBranchFormChange({ ...branchForm, isActive: e.target.checked })} />
-             <span className='admin-checkbox-slider' />
-             <span className='admin-checkbox-label'>Hoạt động (Active)</span>
-           </label>
+-          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-id-card' /> Mã dịch vụ</span><input className='admin-input' placeholder='SERVICE_CODE' value={serviceForm.code} onChange={(e) => onServiceFormChange({ ...serviceForm, code: e.target.value })} /></label>
++          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-id-card' /> Mã dịch vụ (tự sinh)</span><input className='admin-input' placeholder='Tự sinh theo tên dịch vụ' value={serviceForm.code} disabled /></label>
+           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-sparkles' /> Tên dịch vụ</span><input className='admin-input' placeholder='Tên dịch vụ nổi bật' value={serviceForm.name} onChange={(e) => onServiceFormChange({ ...serviceForm, name: e.target.value })} /></label>
+           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-bullseye' /> Mục tiêu</span><input className='admin-input' placeholder='Relax, Detox,...' value={serviceForm.goals} onChange={(e) => onServiceFormChange({ ...serviceForm, goals: e.target.value })} /></label>
++          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-users' /> Những ai phù hợp (JSON)</span><input className='admin-input' placeholder='Nhập như goals, ví dụ: Người stress, Mất ngủ' value={serviceForm.suitableFor} onChange={(e) => onServiceFormChange({ ...serviceForm, suitableFor: e.target.value })} /></label>
+           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-clock' /> Thời lượng (phút)</span><input className='admin-input' type='number' placeholder='60' value={serviceForm.durationMin} onChange={(e) => onServiceFormChange({ ...serviceForm, durationMin: Number(e.target.value) })} /></label>
+           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-coins' /> Giá</span><input className='admin-input' type='number' placeholder='1000000' value={serviceForm.price} onChange={(e) => onServiceFormChange({ ...serviceForm, price: Number(e.target.value) })} /></label>
+           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-pen-to-square' /> Mô tả</span><textarea className='admin-input' placeholder='Mô tả dịch vụ chi tiết' value={serviceForm.description} onChange={(e) => onServiceFormChange({ ...serviceForm, description: e.target.value })} /></label>
+-          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-image' /> Image URL</span><input className='admin-input' placeholder='https://...' value={serviceForm.imageUrl} onChange={(e) => onServiceFormChange({ ...serviceForm, imageUrl: e.target.value })} /></label>
+           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-cloud-arrow-up' /> Upload ảnh</span><input type='file' accept='image/*' onChange={(e) => onSelectImage(e.target.files?.[0] || null)} /></label>
+           {selectedImageName && <span className='admin-helper'>Đã chọn: {selectedImageName}</span>}
          </div>
+-        <div className='admin-row'>
+-          <button className='admin-btn admin-btn-ghost' onClick={onUploadImage}><i className='fa-solid fa-cloud-arrow-up' />Upload cloud</button>
+-          <button className='admin-btn admin-btn-ghost' onClick={onDeleteCloudImage}><i className='fa-solid fa-trash-can' />Xóa ảnh cloud</button>
+-        </div>
          <div className='admin-row'>
--          <button className='admin-btn admin-btn-primary' onClick={onSaveBranch}><i className='fa-solid fa-plus' />{editingBranch ? 'Lưu thay đổi' : 'Thêm chi nhánh'}</button>
--          {editingBranch && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>Hủy</button>}
-+          <button className={`admin-btn ${isEditing ? 'admin-btn-save' : 'admin-btn-primary'}`} onClick={onSaveBranch}>
-+            <i className={`fa-solid ${isEditing ? 'fa-floppy-disk' : 'fa-plus'}`} />
-+            {isEditing ? 'Lưu thay đổi' : 'Thêm chi nhánh'}
-+          </button>
-+          {isEditing && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>Hủy</button>}
+           <button className='admin-btn admin-btn-primary' onClick={onSaveService}>{editingService ? 'Lưu thay đổi' : 'Thêm dịch vụ'}</button>
+           {editingService && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>Hủy</button>}
          </div>
        </section>
 
        <section className='admin-card'>
-         <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> Danh sách chi nhánh</h3>
+         <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> Danh sách dịch vụ</h3>
          <div className='admin-table-wrap'>
            <table className='admin-table'>
              <thead>
                <tr>
-                 <th>Tên chi nhánh</th>
-                 <th>Mã</th>
-                 <th>Địa chỉ</th>
-                 <th>Điện thoại</th>
-                 <th>Trạng thái</th>
+                 <th>Tên dịch vụ</th>
+                 <th>Code</th>
+                 <th>Thời lượng</th>
+                 <th>Giá</th>
+                 <th>Mục tiêu</th>
++                <th>Những ai phù hợp (JSON)</th>
                  <th>Thao tác</th>
                </tr>
              </thead>
              <tbody>
-               {branches.map((branch) => (
-                 <tr key={branch.id}>
-                   <td className='td-strong'>{branch.name}</td>
-                   <td><span className='admin-badge admin-badge-purple'>{branch.code}</span></td>
-                   <td>{branch.address}</td>
-                   <td>{branch.phone || '-'}</td>
+               {services.map((service) => (
+                 <tr key={service.id}>
+                   <td className='td-strong'>{service.name}</td>
+                   <td><span className='admin-badge admin-badge-purple'>{service.code}</span></td>
+                   <td>{service.durationMin} phút</td>
+                   <td><span className='admin-badge admin-badge-blue'>{service.price.toLocaleString('vi-VN')}đ</span></td>
                    <td>
+                     <div className='admin-badge-wrap'>
+                       {(service.goals || []).slice(0, 3).map((goal) => <span key={goal} className='admin-badge admin-badge-pastel'>{goal}</span>)}
+                     </div>
+                   </td>
++                  <td>
++                    <div className='admin-badge-wrap'>
++                      {(service.suitableFor || []).slice(0, 3).map((item) => <span key={`fit-${item}`} className='admin-badge admin-badge-pastel'>{item}</span>)}
++                    </div>
++                  </td>
+                   <td>
+                     <div className='admin-row'>
+                       <button className='admin-btn admin-btn-ghost' onClick={() => onEditService(service)}>Sửa</button>
+-                      <button className='admin-btn admin-btn-ghost' onClick={() => onShowServiceDetail(service)}>Chi tiết</button>
+                       <button className='admin-btn admin-btn-danger' onClick={() => onDeleteService(service)}>Xóa</button>
+                     </div>
+                   </td>
+                 </tr>
+               ))}
+             </tbody>
+           </table>
+         </div>
+       </section>
+     </div>
+   )
+ }
+diff --git a/ayanavita-fontend/src/pages/admin/tabs/types.ts b/ayanavita-fontend/src/pages/admin/tabs/types.ts
+index f1297c783e79645c31375cac2d900a3b898c333a..1b795270933bd9635af40458be3ae58f3e78e6e5 100644
+--- a/ayanavita-fontend/src/pages/admin/tabs/types.ts
++++ b/ayanavita-fontend/src/pages/admin/tabs/types.ts
+@@ -1,73 +1,69 @@
+ import type { Appointment, Branch, ServiceReview, SpaService, Specialist } from '../../../api/spaAdmin.api'
+
+ export type BranchForm = Partial<Branch>
+ export type ServiceForm = {
+   code: string
+   name: string
+   description: string
+   category: string
+   goals: string
++  suitableFor: string
+   durationMin: number
+   price: number
+-  icon: string
+-  imageUrl: string
+   tag: string
+ }
+
+ export type SpecialistForm = { code: string; name: string; level: string; bio: string }
+ export type ReviewForm = { serviceId: number; stars: number; comment: string; customerName: string }
+ export type RelationForm = { branchId: number; serviceId: number; specialistId: number }
+
+ export type CommonTabProps = {
+   loading: boolean
+ }
+
+ export type BranchesTabProps = CommonTabProps & {
+   branches: Branch[]
+   branchForm: BranchForm
+   editingBranch: Branch | null
+   onBranchFormChange: (next: BranchForm) => void
+   onSaveBranch: () => Promise<void>
+   onEditBranch: (branch: Branch) => void
+   onDeleteBranch: (branch: Branch) => Promise<void>
+   onCancelEdit: () => void
+ }
+
+ export type ServicesTabProps = CommonTabProps & {
+   services: SpaService[]
+   serviceForm: ServiceForm
+   editingService: SpaService | null
+   selectedImageName: string
+   onServiceFormChange: (next: ServiceForm) => void
+   onSelectImage: (file: File | null) => void
+-  onUploadImage: () => Promise<void>
+-  onDeleteCloudImage: () => Promise<void>
+   onSaveService: () => Promise<void>
+   onEditService: (service: SpaService) => void
+   onDeleteService: (service: SpaService) => Promise<void>
+-  onShowServiceDetail: (service: SpaService) => void
+   onCancelEdit: () => void
+ }
+
+ export type SpecialistsTabProps = CommonTabProps & {
+   branches: Branch[]
+   services: SpaService[]
+   specialists: Specialist[]
+   specialistForm: SpecialistForm
+   relationForm: RelationForm
+   editingSpecialist: Specialist | null
+   onSpecialistFormChange: (next: SpecialistForm) => void
+   onRelationFormChange: (next: RelationForm) => void
+   onSaveSpecialist: () => Promise<void>
+   onEditSpecialist: (specialist: Specialist) => void
+   onDeleteSpecialist: (specialist: Specialist) => Promise<void>
+   onShowSpecialistDetail: (specialist: Specialist) => void
+   onSaveRelation: () => Promise<void>
+   onCancelEdit: () => void
+ }
+
+ export type ReviewsTabProps = CommonTabProps & {
+   services: SpaService[]
+   appointments: Appointment[]
+   selectedServiceReviews: ServiceReview[]
+   reviewForm: ReviewForm
+diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202602250001_drop_service_icon/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202602250001_drop_service_icon/migration.sql
+new file mode 100644
+index 0000000000000000000000000000000000000000..81d3ae9545e73b1e05d2bb7c2e0e87a3de3fe209
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/prisma/migrations/202602250001_drop_service_icon/migration.sql
+@@ -0,0 +1,3 @@
++-- AlterTable
++ALTER TABLE `Service`
++  DROP COLUMN `icon`;
+diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202602250002_add_service_suitable_for_json/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202602250002_add_service_suitable_for_json/migration.sql
+new file mode 100644
+index 0000000000000000000000000000000000000000..024fcfa3f93d0f5068b04424596215b1120e83ae
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/prisma/migrations/202602250002_add_service_suitable_for_json/migration.sql
+@@ -0,0 +1,3 @@
++-- AlterTable
++ALTER TABLE `Service`
++  ADD COLUMN `suitableFor` JSON NULL;
+diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202602250003_drop_service_hero_image/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202602250003_drop_service_hero_image/migration.sql
+new file mode 100644
+index 0000000000000000000000000000000000000000..488969394291ec1d8555d73ead0c55928573ab97
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/prisma/migrations/202602250003_drop_service_hero_image/migration.sql
+@@ -0,0 +1,3 @@
++-- AlterTable
++ALTER TABLE `Service`
++  DROP COLUMN `heroImageUrl`;
+diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+index 10e3730e7f2a240720fd503652f8455fde15271d..75291ba644947db732905b8b33c67145efaee181 100644
+--- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
++++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+@@ -31,58 +31,57 @@ model User {
+   appointments       Appointment[]
+   serviceReviews     ServiceReview[]
+ }
+
+ model Branch {
+   id          Int                @id @default(autoincrement())
+   code        String             @unique @db.VarChar(32)
+   name        String             @db.VarChar(255)
+   address     String             @db.VarChar(255)
+   phone       String?            @db.VarChar(30)
+   isActive    Boolean            @default(true)
+   createdAt   DateTime           @default(now())
+   updatedAt   DateTime           @updatedAt
+   services    BranchService[]
+   specialists BranchSpecialist[]
+   appointments Appointment[]
+ }
+
+ model Service {
+   id           Int                 @id @default(autoincrement())
+   code         String              @unique @db.VarChar(32)
+   name         String              @db.VarChar(255)
+   description  String?             @db.Text
+   category     String?             @db.VarChar(30)
+   goals        Json?
++  suitableFor  Json?
+   durationMin  Int
+   price        Int                 @default(0)
+   ratingAvg    Float               @default(5)
+   bookedCount  Int                 @default(0)
+   tag          String?             @db.VarChar(80)
+-  icon         String?             @db.VarChar(50)
+   imageUrl     String?             @db.VarChar(500)
+-  heroImageUrl String?             @db.VarChar(500)
+   isActive     Boolean             @default(true)
+   createdAt    DateTime            @default(now())
+   updatedAt    DateTime            @updatedAt
+   branches     BranchService[]
+   specialists  ServiceSpecialist[]
+   appointments Appointment[]
+   reviews      ServiceReview[]
+ }
+
+ model Specialist {
+   id          Int                 @id @default(autoincrement())
+   code        String              @unique @db.VarChar(32)
+   name        String              @db.VarChar(255)
+   level       SpecialistLevel     @default(SENIOR)
+   bio         String?             @db.Text
+   avatarUrl   String?             @db.VarChar(500)
+   isActive    Boolean             @default(true)
+   createdAt   DateTime            @default(now())
+   updatedAt   DateTime            @updatedAt
+   services    ServiceSpecialist[]
+   branches    BranchSpecialist[]
+   appointments Appointment[]
+ }
+
+ model BranchService {
+diff --git a/backend/ayanavitabackend/app/api/prisma/seed.ts b/backend/ayanavitabackend/app/api/prisma/seed.ts
+index 4abf285db3454d5e0b4127c2baa8a631c1039525..6114c8438d4ccfc189e44246f938f3d0ba6a63d3 100644
+--- a/backend/ayanavitabackend/app/api/prisma/seed.ts
++++ b/backend/ayanavitabackend/app/api/prisma/seed.ts
+@@ -25,103 +25,99 @@ async function main() {
+       name: 'Test User',
+       role: 'USER',
+     },
+   })
+
+   const seedCourses = [
+     { title: 'Course 1 - Basic', price: 99000 },
+     { title: 'Course 2 - Pro', price: 199000 },
+     { title: 'Course 3 - Master', price: 299000 },
+   ].map((c) => ({ ...c, slug: slugify(c.title) }))
+
+   await prisma.course.createMany({ data: seedCourses, skipDuplicates: true })
+
+   const branchSeeds = [
+     { code: 'HCM_Q1', name: 'AYANAVITA • Quận 1 (HCM)', address: '12 Nguyễn Huệ, Quận 1, TP.HCM', phone: '0900000001' },
+     { code: 'HN_CG', name: 'AYANAVITA • Cầu Giấy (HN)', address: '88 Trần Thái Tông, Cầu Giấy, Hà Nội', phone: '0900000002' },
+     { code: 'DN_HC', name: 'AYANAVITA • Hải Châu (ĐN)', address: '25 Bạch Đằng, Hải Châu, Đà Nẵng', phone: '0900000003' },
+   ]
+
+   const serviceSeeds = [
+     {
+       code: 'SV-01',
+       name: 'Chăm sóc da chuyên sâu 👏',
+       category: 'skin',
+       goals: ['restore', 'bright'],
++      suitableFor: ['Da xỉn màu', 'Da thiếu ẩm'],
+       durationMin: 75,
+       price: 590000,
+       ratingAvg: 4.9,
+       bookedCount: 1320,
+       tag: 'Best seller',
+-      icon: '👏',
+       imageUrl: 'https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&w=1200&q=70',
+-      heroImageUrl: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1600&q=70',
+       description: 'Liệu trình làm sạch và phục hồi da chuyên sâu.',
+     },
+     {
+       code: 'SV-03',
+       name: 'Massage thư giãn toàn thân 🤗',
+       category: 'body',
+       goals: ['relax'],
++      suitableFor: ['Người stress', 'Mất ngủ'],
+       durationMin: 60,
+       price: 450000,
+       ratingAvg: 4.7,
+       bookedCount: 1640,
+       tag: 'Relax',
+-      icon: '🤗',
+       imageUrl: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=1200&q=70',
+-      heroImageUrl: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=1600&q=70',
+       description: 'Massage toàn thân giúp thư giãn và giảm căng cơ.',
+     },
+     {
+       code: 'SV-04',
+       name: 'Gội đầu dưỡng sinh 🌿',
+       category: 'health',
+       goals: ['relax', 'pain'],
++      suitableFor: ['Dân văn phòng', 'Hay đau đầu'],
+       durationMin: 60,
+       price: 320000,
+       ratingAvg: 4.8,
+       bookedCount: 2100,
+       tag: 'Hot',
+-      icon: '🌿',
+       imageUrl: 'https://images.unsplash.com/photo-1596178060671-7a80dc8059ea?auto=format&fit=crop&w=1200&q=70',
+-      heroImageUrl: 'https://images.unsplash.com/photo-1596178060671-7a80dc8059ea?auto=format&fit=crop&w=1600&q=70',
+       description: 'Kết hợp massage da đầu và tinh dầu giúp giảm căng thẳng.',
+     },
+     {
+       code: 'SV-06',
+       name: 'Combo da + massage ✨',
+       category: 'package',
+       goals: ['restore', 'relax'],
++      suitableFor: ['Cần phục hồi toàn diện', 'Thiếu thời gian'],
+       durationMin: 120,
+       price: 1050000,
+       ratingAvg: 4.9,
+       bookedCount: 420,
+       tag: 'Combo',
+-      icon: '✨',
+       imageUrl: 'https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?auto=format&fit=crop&w=1200&q=70',
+-      heroImageUrl: 'https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?auto=format&fit=crop&w=1600&q=70',
+       description: 'Kết hợp chăm sóc da và massage trị liệu trong một buổi.',
+     },
+   ]
+
+   const specialistSeeds: Array<{ code: string; name: string; level: SpecialistLevel; bio: string }> = [
+     { code: 'LINH', name: 'Chuyên viên Linh', level: SpecialistLevel.SENIOR, bio: '8 năm kinh nghiệm chăm sóc da.' },
+     { code: 'TRANG', name: 'Chuyên viên Trang', level: SpecialistLevel.EXPERT, bio: 'Chuyên gia massage trị liệu.' },
+     { code: 'MAI', name: 'Chuyên viên Mai', level: SpecialistLevel.SENIOR, bio: 'Tư vấn liệu trình phục hồi da.' },
+     { code: 'NAM', name: 'Chuyên viên Nam', level: SpecialistLevel.THERAPIST, bio: 'Kỹ thuật viên trị liệu cổ vai gáy.' },
+   ]
+
+   for (const b of branchSeeds) {
+     await prisma.branch.upsert({ where: { code: b.code }, update: b, create: b })
+   }
+
+   for (const s of serviceSeeds) {
+     await prisma.service.upsert({ where: { code: s.code }, update: s, create: s })
+   }
+
+   for (const st of specialistSeeds) {
+     await prisma.specialist.upsert({ where: { code: st.code }, update: st, create: st })
+   }
+
+   const branches = await prisma.branch.findMany()
+   const services = await prisma.service.findMany()
+diff --git a/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts b/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
+index b37e078fbffbda31b1babbcc95479d2043925356..0f4a0a80b5cfb61d16a5d89c2a4185b0fdca9b2d 100644
+--- a/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
+@@ -1,45 +1,64 @@
+ import {
+   BadRequestException,
+   Body,
+   Controller,
+   Delete,
+   Get,
+   Param,
+   ParseIntPipe,
+   Patch,
+   Post,
+   Query,
+   UploadedFile,
+   UseInterceptors,
+ } from '@nestjs/common'
+ import { FileInterceptor } from '@nestjs/platform-express'
+ import { memoryStorage } from 'multer'
+ import { BookingService } from './booking.service'
+ import { BookingFilterQueryDto } from './dto/booking-query.dto'
+ import { CreateAppointmentDto } from './dto/create-appointment.dto'
+
++
++const parseMultipartData = (input: Record<string, any>) => {
++  const data = { ...input }
++  for (const [key, value] of Object.entries(data)) {
++    if (typeof value === 'string') {
++      const trimmed = value.trim()
++      if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
++        try {
++          data[key] = JSON.parse(trimmed)
++        } catch {
++          data[key] = value
++        }
++      }
++    }
++  }
++  return data
++}
++
++
+ @Controller('booking')
+ export class BookingController {
+   constructor(private readonly booking: BookingService) {}
+
+   @Get('services-page')
+   servicesPage() {
+     return this.booking.listServicesCatalog()
+   }
+
+   @Post('images/temp')
+   @UseInterceptors(
+     FileInterceptor('file', {
+       storage: memoryStorage(),
+       limits: { fileSize: 5 * 1024 * 1024 },
+     }),
+   )
+   uploadTempImage(@UploadedFile() file?: any) {
+     if (!file) throw new BadRequestException('file is required')
+     return this.booking.saveTempImage(file)
+   }
+
+   @Post('images/cloud')
+   @UseInterceptors(
+     FileInterceptor('file', {
+       storage: memoryStorage(),
+@@ -65,57 +84,69 @@ export class BookingController {
+   branches(@Query('includeInactive') includeInactive?: string) {
+     return this.booking.listBranches(includeInactive === 'true')
+   }
+
+   @Post('branches')
+   createBranch(@Body() data: any) {
+     return this.booking.createBranch(data)
+   }
+
+   @Patch('branches/:id')
+   updateBranch(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
+     return this.booking.updateBranch(id, data)
+   }
+
+   @Delete('branches/:id')
+   deleteBranch(@Param('id', ParseIntPipe) id: number) {
+     return this.booking.deleteBranch(id)
+   }
+
+   @Get('services')
+   services(@Query() query: BookingFilterQueryDto) {
+     return this.booking.listServices(query.branchId)
+   }
+
+   @Post('services')
+-  createService(@Body() data: any) {
+-    return this.booking.createService(data)
++  @UseInterceptors(
++    FileInterceptor('file', {
++      storage: memoryStorage(),
++      limits: { fileSize: 10 * 1024 * 1024 },
++    }),
++  )
++  createService(@Body() data: any, @UploadedFile() file?: any) {
++    return this.booking.createService(parseMultipartData(data), file)
+   }
+
+   @Patch('services/:id')
+-  updateService(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
+-    return this.booking.updateService(id, data)
++  @UseInterceptors(
++    FileInterceptor('file', {
++      storage: memoryStorage(),
++      limits: { fileSize: 10 * 1024 * 1024 },
++    }),
++  )
++  updateService(@Param('id', ParseIntPipe) id: number, @Body() data: any, @UploadedFile() file?: any) {
++    return this.booking.updateService(id, parseMultipartData(data), file)
+   }
+
+   @Delete('services/:id')
+   deleteService(@Param('id', ParseIntPipe) id: number) {
+     return this.booking.deleteService(id)
+   }
+
+   @Get('specialists')
+   specialists(@Query() query: BookingFilterQueryDto) {
+     return this.booking.listSpecialists(query.branchId, query.serviceId)
+   }
+
+   @Post('specialists')
+   createSpecialist(@Body() data: any) {
+     return this.booking.createSpecialist(data)
+   }
+
+   @Patch('specialists/:id')
+   updateSpecialist(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
+     return this.booking.updateSpecialist(id, data)
+   }
+
+   @Delete('specialists/:id')
+   deleteSpecialist(@Param('id', ParseIntPipe) id: number) {
+     return this.booking.deleteSpecialist(id)
+diff --git a/backend/ayanavitabackend/app/api/src/booking/booking.service.ts b/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
+index 7fe6d7022b480cd283128d1a9b14ee1ab1ad3f14..1a57d04fdf2097c9d8b2b31499fac796032dd3ae 100644
+--- a/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
++++ b/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
+@@ -1,75 +1,134 @@
+ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+ import { Prisma } from '@prisma/client'
+ import { promises as fs } from 'fs'
+ import { createHash, createHmac } from 'crypto'
+ import { extname, join } from 'path'
+ import { PrismaService } from '../prisma/prisma.service'
+ import { CreateAppointmentDto } from './dto/create-appointment.dto'
+ import {
+   BranchResponseDto,
+   ServiceCatalogItemDto,
+   ServiceResponseDto,
+   ServiceReviewResponseDto,
+   SpecialistResponseDto,
+   TempImageResponseDto,
+ } from './dto/booking-response.dto'
+
+ @Injectable()
+ export class BookingService {
+   constructor(private readonly prisma: PrismaService) {}
+
+   private readonly s3Bucket = process.env.CLOUDFLY_BUCKET || 'ayanavita-public'
+   private readonly s3Region = process.env.CLOUDFLY_REGION || 'auto'
+   private readonly s3Endpoint = process.env.CLOUDFLY_ENDPOINT || 'https://s3.cloudfly.vn'
+-  private readonly s3AccessKey = process.env.CLOUDFLY_ACCESS_KEY || '56f8Erg7KoBiIedMrvbe0cBNjy3OIPKHdX0vAW4N'
+-  private readonly s3SecretKey = process.env.CLOUDFLY_SECRET_KEY || '67NZA2R2X53AYJU5I036'
++  private readonly s3AccessKey = process.env.CLOUDFLY_ACCESS_KEY || '67NZA2R2X53AYJU5I036'
++  private readonly s3SecretKey = process.env.CLOUDFLY_SECRET_KEY || '56f8Erg7KoBiIedMrvbe0cBNjy3OIPKHdX0vAW4N'
+
+   private toStringArray(value: Prisma.JsonValue | null | undefined): string[] {
+     return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+   }
+
+   private readonly tempImageDir = join(process.cwd(), 'temp-images')
+
+   async saveTempImage(file: any): Promise<TempImageResponseDto> {
+     await fs.mkdir(this.tempImageDir, { recursive: true })
+     const safeExt = extname(file.originalname || '').slice(0, 10) || '.jpg'
+     const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}${safeExt}`
+     const filePath = join(this.tempImageDir, fileName)
+     await fs.writeFile(filePath, file.buffer)
+
+     return {
+       fileName,
+       url: `/booking-temp-images/${fileName}`,
+       size: file.size,
+     }
+   }
+
+   private hmac(key: Buffer | string, value: string) {
+     return createHmac('sha256', key).update(value, 'utf8').digest()
+   }
+
++  private presignCloudReadUrl(key: string, expiresInSeconds = 1800) {
++    const endpoint = this.s3Endpoint.replace(/\/$/, '')
++    const host = new URL(endpoint).host
++    const now = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '')
++    const dateStamp = now.slice(0, 8)
++    const credentialScope = `${dateStamp}/${this.s3Region}/s3/aws4_request`
++
++    const params = new URLSearchParams({
++      'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
++      'X-Amz-Content-Sha256': 'UNSIGNED-PAYLOAD',
++      'X-Amz-Credential': `${this.s3AccessKey}/${credentialScope}`,
++      'X-Amz-Date': now,
++      'X-Amz-Expires': String(expiresInSeconds),
++      'X-Amz-SignedHeaders': 'host',
++      'x-amz-checksum-mode': 'ENABLED',
++      'x-id': 'GetObject',
++    })
++
++    const canonicalQuery = [...params.entries()]
++      .sort(([a], [b]) => a.localeCompare(b))
++      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
++      .join('&')
++
++    const canonicalRequest = [
++      'GET',
++      `/${this.s3Bucket}/${key}`,
++      canonicalQuery,
++      `host:${host}\n`,
++      'host',
++      'UNSIGNED-PAYLOAD',
++    ].join('\n')
++
++    const stringToSign = [
++      'AWS4-HMAC-SHA256',
++      now,
++      credentialScope,
++      createHash('sha256').update(canonicalRequest).digest('hex'),
++    ].join('\n')
++
++    const kDate = this.hmac(`AWS4${this.s3SecretKey}`, dateStamp)
++    const kRegion = this.hmac(kDate, this.s3Region)
++    const kService = this.hmac(kRegion, 's3')
++    const kSigning = this.hmac(kService, 'aws4_request')
++    const signature = createHmac('sha256', kSigning).update(stringToSign, 'utf8').digest('hex')
++
++    return `${endpoint}/${this.s3Bucket}/${key}?${canonicalQuery}&X-Amz-Signature=${signature}`
++  }
++
++  private extractCloudKey(input: { fileName?: string; url?: string }) {
++    if (input.fileName) return decodeURIComponent(input.fileName)
++    if (!input.url) return null
++    const withoutQuery = input.url.split('?')[0]
++    const bucketPath = `/${this.s3Bucket}/`
++    const bucketIndex = withoutQuery.indexOf(bucketPath)
++    if (bucketIndex >= 0) return decodeURIComponent(withoutQuery.slice(bucketIndex + bucketPath.length))
++    const parsed = withoutQuery.split('.s3.cloudfly.vn/')[1]
++    return parsed ? decodeURIComponent(parsed) : null
++  }
++
+   private async signedS3Request(method: 'PUT' | 'DELETE', key: string, file?: any) {
+     const endpointHost = new URL(this.s3Endpoint).host
+     const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '')
+     const dateStamp = amzDate.slice(0, 8)
+     const payloadHash = method === 'PUT' && file
+       ? createHash('sha256').update(file.buffer).digest('hex')
+       : createHash('sha256').update('').digest('hex')
+
+     const canonicalHeaders = `host:${endpointHost}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`
+     const signedHeaders = 'host;x-amz-content-sha256;x-amz-date'
+     const canonicalRequest = [method, `/${this.s3Bucket}/${key}`, '', canonicalHeaders, signedHeaders, payloadHash].join('\n')
+     const credentialScope = `${dateStamp}/${this.s3Region}/s3/aws4_request`
+     const stringToSign = [
+       'AWS4-HMAC-SHA256',
+       amzDate,
+       credentialScope,
+       createHash('sha256').update(canonicalRequest).digest('hex'),
+     ].join('\n')
+
+     const kDate = this.hmac(`AWS4${this.s3SecretKey}`, dateStamp)
+     const kRegion = this.hmac(kDate, this.s3Region)
+     const kService = this.hmac(kRegion, 's3')
+     const kSigning = this.hmac(kService, 'aws4_request')
+     const signature = createHmac('sha256', kSigning).update(stringToSign, 'utf8').digest('hex')
+
+@@ -81,89 +140,90 @@ export class BookingService {
+       'x-amz-date': amzDate,
+       'x-amz-content-sha256': payloadHash,
+     }
+
+     if (method === 'PUT' && file) {
+       headers['content-type'] = file.mimetype || 'image/jpeg'
+     }
+
+     const res = await fetch(uploadUrl, {
+       method,
+       headers,
+       body: method === 'PUT' ? file?.buffer : undefined,
+     })
+
+     if (!res.ok) {
+       const text = await res.text()
+       throw new BadRequestException(`Cloud ${method} failed: ${text || res.status}`)
+     }
+
+     return uploadUrl
+   }
+
+   async uploadImageToCloud(file: any): Promise<TempImageResponseDto> {
+     const safeExt = extname(file.originalname || '').slice(0, 10) || '.jpg'
+     const key = `spa/${Date.now()}-${Math.random().toString(36).slice(2)}${safeExt}`
+-    const uploadUrl = await this.signedS3Request('PUT', key, file)
++    await this.signedS3Request('PUT', key, file)
+
+     return {
+       fileName: key,
+-      url: `${process.env.CLOUDFLY_PUBLIC_URL || uploadUrl}`,
++      url: this.presignCloudReadUrl(key),
+       size: file.size,
+     }
+   }
+
+   async deleteCloudImage(input: { fileName?: string; url?: string }) {
+-    const key = input.fileName || input.url?.split(`/${this.s3Bucket}/`)[1] || input.url?.split('.s3.cloudfly.vn/')[1]
++    const key = this.extractCloudKey(input)
+     if (!key) throw new BadRequestException('fileName or url is required')
+-    await this.signedS3Request('DELETE', decodeURIComponent(key))
++    await this.signedS3Request('DELETE', key)
+     return { ok: true }
+   }
+
+   async deleteTempImage(fileName: string) {
+     if (!/^[a-zA-Z0-9._-]+$/.test(fileName)) {
+       throw new BadRequestException('Invalid file name')
+     }
+
+     const filePath = join(this.tempImageDir, fileName)
+     try {
+       await fs.unlink(filePath)
+       return { ok: true }
+     } catch {
+       return { ok: false }
+     }
+   }
+
+   async listServicesCatalog(): Promise<ServiceCatalogItemDto[]> {
+     const rows = await this.prisma.service.findMany({
+       where: { isActive: true },
+       select: {
+         id: true,
+         code: true,
+         name: true,
+         category: true,
+         goals: true,
++        suitableFor: true,
+         durationMin: true,
+         price: true,
+         ratingAvg: true,
+         bookedCount: true,
+         imageUrl: true,
+         tag: true,
+       },
+       orderBy: { id: 'asc' },
+     })
+
+     return rows.map((s) => ({
+       id: s.code,
+       dbId: s.id,
+       name: s.name,
+       cat: s.category ?? 'health',
+       goal: this.toStringArray(s.goals),
+       duration: s.durationMin,
+       price: s.price,
+       rating: s.ratingAvg,
+       booked: s.bookedCount,
+       img: s.imageUrl,
+       tag: s.tag ?? 'Spa',
+     }))
+   }
+
+@@ -175,78 +235,76 @@ export class BookingService {
+     })
+
+     return rows.map((b) => ({
+       id: b.id,
+       code: b.code,
+       name: b.name,
+       address: b.address,
+       phone: b.phone,
+       isActive: b.isActive,
+     }))
+   }
+
+   async listServices(branchId?: number): Promise<ServiceResponseDto[]> {
+     const rows = await this.prisma.service.findMany({
+       where: {
+         isActive: true,
+         ...(branchId ? { branches: { some: { branchId } } } : {}),
+       },
+       select: {
+         id: true,
+         code: true,
+         name: true,
+         description: true,
+         category: true,
+         goals: true,
++        suitableFor: true,
+         durationMin: true,
+         price: true,
+         ratingAvg: true,
+         bookedCount: true,
+         tag: true,
+-        icon: true,
+         imageUrl: true,
+-        heroImageUrl: true,
+         branches: { select: { branchId: true } },
+       },
+       orderBy: { id: 'asc' },
+     })
+
+     return rows.map((s) => ({
+       id: s.id,
+       code: s.code,
+       name: s.name,
+       description: s.description,
+       category: s.category,
+       goals: this.toStringArray(s.goals),
++      suitableFor: this.toStringArray(s.suitableFor),
+       durationMin: s.durationMin,
+       price: s.price,
+       ratingAvg: s.ratingAvg,
+       bookedCount: s.bookedCount,
+       tag: s.tag,
+-      icon: s.icon,
+       imageUrl: s.imageUrl,
+-      heroImageUrl: s.heroImageUrl,
+       branchIds: s.branches.map((b) => b.branchId),
+     }))
+   }
+
+   async listSpecialists(branchId?: number, serviceId?: number): Promise<SpecialistResponseDto[]> {
+     const rows = await this.prisma.specialist.findMany({
+       where: {
+         isActive: true,
+         ...(branchId ? { branches: { some: { branchId } } } : {}),
+         ...(serviceId ? { services: { some: { serviceId } } } : {}),
+       },
+       select: {
+         id: true,
+         code: true,
+         name: true,
+         level: true,
+         bio: true,
+         branches: { select: { branchId: true } },
+         services: { select: { serviceId: true } },
+       },
+       orderBy: { id: 'asc' },
+     })
+
+     return rows.map((s) => ({
+       id: s.id,
+@@ -339,56 +397,104 @@ export class BookingService {
+         note: dto.note,
+         branchId: dto.branchId,
+         serviceId: dto.serviceId,
+         specialistId: dto.specialistId,
+         userId: dto.userId,
+       },
+       include: {
+         branch: { select: { id: true, name: true } },
+         service: { select: { id: true, name: true, durationMin: true, price: true } },
+         specialist: { select: { id: true, name: true, level: true } },
+       },
+     })
+
+     return created
+   }
+
+   async updateAppointment(id: number, data: any) {
+     return this.prisma.appointment.update({ where: { id }, data })
+   }
+
+   async deleteAppointment(id: number) {
+     await this.prisma.appointment.delete({ where: { id } })
+     return { ok: true }
+   }
+
+-  async createService(data: any) {
+-    return this.prisma.service.create({ data })
++
++  private normalizeServiceCode(name?: string) {
++    const base = (name || '')
++      .normalize('NFD')
++      .replace(/[̀-ͯ]/g, '')
++      .replace(/đ/gi, 'd')
++      .toUpperCase()
++      .replace(/[^A-Z0-9]+/g, '_')
++      .replace(/^_+|_+$/g, '')
++
++    return `SRV_${base || Date.now()}`
+   }
+
+-  async updateService(id: number, data: any) {
+-    return this.prisma.service.update({ where: { id }, data })
++  private sanitizeServiceData(data: any) {
++    const goalsInput = Array.isArray(data.goals) ? data.goals : []
++    const suitableForInput = Array.isArray(data.suitableFor) ? data.suitableFor : []
++    return {
++      code: data.code || this.normalizeServiceCode(data.name),
++      name: data.name,
++      description: data.description,
++      category: data.category,
++      goals: goalsInput,
++      suitableFor: suitableForInput,
++      durationMin: Number(data.durationMin ?? 60),
++      price: Number(data.price ?? 0),
++      tag: data.tag,
++    }
++  }
++
++  async createService(data: any, file?: any) {
++    let imageUrl: string | undefined
++    if (file) {
++      const uploaded = await this.uploadImageToCloud(file)
++      imageUrl = uploaded.url
++    }
++    return this.prisma.service.create({ data: { ...this.sanitizeServiceData(data), imageUrl } })
++  }
++
++  async updateService(id: number, data: any, file?: any) {
++    const existing = await this.prisma.service.findUnique({ where: { id }, select: { imageUrl: true } })
++    if (!existing) throw new NotFoundException('Service not found')
++
++    let imageUrl = existing.imageUrl
++    if (file) {
++      const uploaded = await this.uploadImageToCloud(file)
++      imageUrl = uploaded.url
++      if (existing.imageUrl) {
++        try {
++          await this.deleteCloudImage({ url: existing.imageUrl })
++        } catch {}
++      }
++    }
++
++    return this.prisma.service.update({ where: { id }, data: { ...this.sanitizeServiceData(data), imageUrl } })
+   }
+
+   async deleteService(id: number) {
+     await this.prisma.service.delete({ where: { id } })
+     return { ok: true }
+   }
+
+   async createBranch(data: any) {
+     return this.prisma.branch.create({ data })
+   }
+
+   async updateBranch(id: number, data: any) {
+     return this.prisma.branch.update({ where: { id }, data })
+   }
+
+   async deleteBranch(id: number) {
+     const [branchServiceCount, branchSpecialistCount, appointmentCount] = await Promise.all([
+       this.prisma.branchService.count({ where: { branchId: id } }),
+       this.prisma.branchSpecialist.count({ where: { branchId: id } }),
+       this.prisma.appointment.count({ where: { branchId: id } }),
+     ])
+
+     const linkedCount = branchServiceCount + branchSpecialistCount + appointmentCount
+     if (linkedCount > 0) {
+       await this.prisma.branch.update({ where: { id }, data: { isActive: false } })
+diff --git a/backend/ayanavitabackend/app/api/src/booking/dto/booking-response.dto.ts b/backend/ayanavitabackend/app/api/src/booking/dto/booking-response.dto.ts
+index 972cd9d64c5ae3d0c791d38357108db41a610730..c6d8b3dcce3f2fc06d69e8afea602b5b664bc819 100644
+--- a/backend/ayanavitabackend/app/api/src/booking/dto/booking-response.dto.ts
++++ b/backend/ayanavitabackend/app/api/src/booking/dto/booking-response.dto.ts
+@@ -6,58 +6,57 @@ export class BranchResponseDto {
+   phone?: string | null
+   isActive!: boolean
+ }
+
+ export class ServiceCatalogItemDto {
+   id!: string
+   dbId!: number
+   name!: string
+   cat!: string
+   goal!: string[]
+   duration!: number
+   price!: number
+   rating!: number
+   booked!: number
+   img?: string | null
+   tag!: string
+ }
+
+ export class ServiceResponseDto {
+   id!: number
+   code!: string
+   name!: string
+   description?: string | null
+   category?: string | null
+   goals!: string[]
++  suitableFor!: string[]
+   durationMin!: number
+   price!: number
+   ratingAvg!: number
+   bookedCount!: number
+   tag?: string | null
+-  icon?: string | null
+   imageUrl?: string | null
+-  heroImageUrl?: string | null
+   branchIds!: number[]
+ }
+
+ export class SpecialistResponseDto {
+   id!: number
+   code!: string
+   name!: string
+   level!: string
+   bio?: string | null
+   branchIds!: number[]
+   serviceIds!: number[]
+ }
+
+ export class ServiceReviewResponseDto {
+   id!: number
+   serviceId!: number
+   userId?: number | null
+   stars!: number
+   comment?: string | null
+   customerName?: string | null
+   createdAt!: Date
+ }
+
+ export class TempImageResponseDto {
+   fileName!: string

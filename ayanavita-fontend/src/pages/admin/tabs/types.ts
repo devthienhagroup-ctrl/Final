@@ -7,10 +7,9 @@ export type ServiceForm = {
   description: string
   category: string
   goals: string
+  suitableFor: string
   durationMin: number
   price: number
-  icon: string
-  imageUrl: string
   tag: string
 }
 
@@ -40,12 +39,9 @@ export type ServicesTabProps = CommonTabProps & {
   selectedImageName: string
   onServiceFormChange: (next: ServiceForm) => void
   onSelectImage: (file: File | null) => void
-  onUploadImage: () => Promise<void>
-  onDeleteCloudImage: () => Promise<void>
   onSaveService: () => Promise<void>
   onEditService: (service: SpaService) => void
   onDeleteService: (service: SpaService) => Promise<void>
-  onShowServiceDetail: (service: SpaService) => void
   onCancelEdit: () => void
 }
 

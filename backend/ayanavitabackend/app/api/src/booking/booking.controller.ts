@@ -18,6 +18,25 @@ import { BookingService } from './booking.service'
 import { BookingFilterQueryDto } from './dto/booking-query.dto'
 import { CreateAppointmentDto } from './dto/create-appointment.dto'
 
+
+const parseMultipartData = (input: Record<string, any>) => {
+  const data = { ...input }
+  for (const [key, value] of Object.entries(data)) {
+    if (typeof value === 'string') {
+      const trimmed = value.trim()
+      if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+        try {
+          data[key] = JSON.parse(trimmed)
+        } catch {
+          data[key] = value
+        }
+      }
+    }
+  }
+  return data
+}
+
+
 @Controller('booking')
 export class BookingController {
   constructor(private readonly booking: BookingService) {}
@@ -87,13 +106,25 @@ export class BookingController {
   }
 
   @Post('services')
-  createService(@Body() data: any) {
-    return this.booking.createService(data)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+    }),
+  )
+  createService(@Body() data: any, @UploadedFile() file?: any) {
+    return this.booking.createService(parseMultipartData(data), file)
   }
 
   @Patch('services/:id')
-  updateService(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
-    return this.booking.updateService(id, data)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+    }),
+  )
+  updateService(@Param('id', ParseIntPipe) id: number, @Body() data: any, @UploadedFile() file?: any) {
+    return this.booking.updateService(id, parseMultipartData(data), file)
   }
 
   @Delete('services/:id')

@@ -53,14 +53,13 @@ model Service {
   description  String?             @db.Text
   category     String?             @db.VarChar(30)
   goals        Json?
+  suitableFor  Json?
   durationMin  Int
   price        Int                 @default(0)
   ratingAvg    Float               @default(5)
   bookedCount  Int                 @default(0)
   tag          String?             @db.VarChar(80)
-  icon         String?             @db.VarChar(50)
   imageUrl     String?             @db.VarChar(500)
-  heroImageUrl String?             @db.VarChar(500)
   isActive     Boolean             @default(true)
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt

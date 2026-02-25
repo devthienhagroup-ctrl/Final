@@ -8,10 +8,10 @@ export type SpaService = {
   description?: string
   category?: string
   goals: string[]
+  suitableFor: string[]
   durationMin: number
   price: number
   ratingAvg: number
-  icon?: string
   imageUrl?: string
   branchIds: number[]
 }
@@ -57,8 +57,22 @@ export const spaAdminApi = {
   updateBranch: (id: number, data: Partial<Branch>) => patch(`/booking/branches/${id}`, data, { auth: false }),
   deleteBranch: (id: number) => del(`/booking/branches/${id}`, { auth: false }),
 
-  createService: (data: any) => post('/booking/services', data, { auth: false }),
-  updateService: (id: number, data: any) => patch(`/booking/services/${id}`, data, { auth: false }),
+  createService: (data: Record<string, any>, file?: File | null) => {
+    const form = new FormData()
+    Object.entries(data).forEach(([key, value]) => {
+      form.append(key, typeof value === 'string' ? value : JSON.stringify(value))
+    })
+    if (file) form.append('file', file)
+    return request('/booking/services', { method: 'POST', body: form, auth: false })
+  },
+  updateService: (id: number, data: Record<string, any>, file?: File | null) => {
+    const form = new FormData()
+    Object.entries(data).forEach(([key, value]) => {
+      form.append(key, typeof value === 'string' ? value : JSON.stringify(value))
+    })
+    if (file) form.append('file', file)
+    return request(`/booking/services/${id}`, { method: 'PATCH', body: form, auth: false })
+  },
   deleteService: (id: number) => del(`/booking/services/${id}`, { auth: false }),
 
   createSpecialist: (data: any) => post('/booking/specialists', data, { auth: false }),
@@ -73,20 +87,4 @@ export const spaAdminApi = {
 
   syncRelations: (payload: any) => post('/booking/relations/sync', payload, { auth: false }),
 
-  uploadCloudImage: async (file: File) => {
-    const form = new FormData()
-    form.append('file', file)
-    return request<{ url: string; fileName: string; size: number }>('/booking/images/cloud', {
-      method: 'POST',
-      body: form,
-      auth: false,
-    })
-  },
-
-  deleteCloudImage: (input: { fileName?: string; url?: string }) =>
-    request<{ ok: boolean }>('/booking/images/cloud', {
-      method: 'DELETE',
-      body: input,
-      auth: false,
-    }),
 }

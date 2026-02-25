@@ -18,11 +18,11 @@ import {
 export class BookingService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private readonly s3Bucket = process.env.CLOUDFLY_BUCKET || 'ayanavita-public'
+  private readonly s3Bucket = process.env.CLOUDFLY_BUCKET || 'ayanavita-dev'
   private readonly s3Region = process.env.CLOUDFLY_REGION || 'auto'
   private readonly s3Endpoint = process.env.CLOUDFLY_ENDPOINT || 'https://s3.cloudfly.vn'
-  private readonly s3AccessKey = process.env.CLOUDFLY_ACCESS_KEY || '56f8Erg7KoBiIedMrvbe0cBNjy3OIPKHdX0vAW4N'
-  private readonly s3SecretKey = process.env.CLOUDFLY_SECRET_KEY || '67NZA2R2X53AYJU5I036'
+  private readonly s3AccessKey = process.env.CLOUDFLY_ACCESS_KEY || '67NZA2R2X53AYJU5I036'
+  private readonly s3SecretKey = process.env.CLOUDFLY_SECRET_KEY || '56f8Erg7KoBiIedMrvbe0cBNjy3OIPKHdX0vAW4N'
 
   private toStringArray(value: Prisma.JsonValue | null | undefined): string[] {
     return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
@@ -46,6 +46,65 @@ export class BookingService {
 
   private hmac(key: Buffer | string, value: string) {
     return createHmac('sha256', key).update(value, 'utf8').digest()
+  }
+
+  private presignCloudReadUrl(key: string, expiresInSeconds = 1800) {
+    const endpoint = this.s3Endpoint.replace(/\/$/, '')
+    const host = new URL(endpoint).host
+    const now = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '')
+    const dateStamp = now.slice(0, 8)
+    const credentialScope = `${dateStamp}/${this.s3Region}/s3/aws4_request`
+
+    const params = new URLSearchParams({
+      'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
+      'X-Amz-Content-Sha256': 'UNSIGNED-PAYLOAD',
+      'X-Amz-Credential': `${this.s3AccessKey}/${credentialScope}`,
+      'X-Amz-Date': now,
+      'X-Amz-Expires': String(expiresInSeconds),
+      'X-Amz-SignedHeaders': 'host',
+      'x-amz-checksum-mode': 'ENABLED',
+      'x-id': 'GetObject',
+    })
+
+    const canonicalQuery = [...params.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join('&')
+
+    const canonicalRequest = [
+      'GET',
+      `/${this.s3Bucket}/${key}`,
+      canonicalQuery,
+      `host:${host}\n`,
+      'host',
+      'UNSIGNED-PAYLOAD',
+    ].join('\n')
+
+    const stringToSign = [
+      'AWS4-HMAC-SHA256',
+      now,
+      credentialScope,
+      createHash('sha256').update(canonicalRequest).digest('hex'),
+    ].join('\n')
+
+    const kDate = this.hmac(`AWS4${this.s3SecretKey}`, dateStamp)
+    const kRegion = this.hmac(kDate, this.s3Region)
+    const kService = this.hmac(kRegion, 's3')
+    const kSigning = this.hmac(kService, 'aws4_request')
+    const signature = createHmac('sha256', kSigning).update(stringToSign, 'utf8').digest('hex')
+
+    return `${endpoint}/${this.s3Bucket}/${key}?${canonicalQuery}&X-Amz-Signature=${signature}`
+  }
+
+  private extractCloudKey(input: { fileName?: string; url?: string }) {
+    if (input.fileName) return decodeURIComponent(input.fileName)
+    if (!input.url) return null
+    const withoutQuery = input.url.split('?')[0]
+    const bucketPath = `/${this.s3Bucket}/`
+    const bucketIndex = withoutQuery.indexOf(bucketPath)
+    if (bucketIndex >= 0) return decodeURIComponent(withoutQuery.slice(bucketIndex + bucketPath.length))
+    const parsed = withoutQuery.split('.s3.cloudfly.vn/')[1]
+    return parsed ? decodeURIComponent(parsed) : null
   }
 
   private async signedS3Request(method: 'PUT' | 'DELETE', key: string, file?: any) {
@@ -103,19 +162,19 @@ export class BookingService {
   async uploadImageToCloud(file: any): Promise<TempImageResponseDto> {
     const safeExt = extname(file.originalname || '').slice(0, 10) || '.jpg'
     const key = `spa/${Date.now()}-${Math.random().toString(36).slice(2)}${safeExt}`
-    const uploadUrl = await this.signedS3Request('PUT', key, file)
+    await this.signedS3Request('PUT', key, file)
 
     return {
       fileName: key,
-      url: `${process.env.CLOUDFLY_PUBLIC_URL || uploadUrl}`,
+      url: this.presignCloudReadUrl(key),
       size: file.size,
     }
   }
 
   async deleteCloudImage(input: { fileName?: string; url?: string }) {
-    const key = input.fileName || input.url?.split(`/${this.s3Bucket}/`)[1] || input.url?.split('.s3.cloudfly.vn/')[1]
+    const key = this.extractCloudKey(input)
     if (!key) throw new BadRequestException('fileName or url is required')
-    await this.signedS3Request('DELETE', decodeURIComponent(key))
+    await this.signedS3Request('DELETE', key)
     return { ok: true }
   }
 
@@ -142,6 +201,7 @@ export class BookingService {
         name: true,
         category: true,
         goals: true,
+        suitableFor: true,
         durationMin: true,
         price: true,
         ratingAvg: true,
@@ -197,14 +257,13 @@ export class BookingService {
         description: true,
         category: true,
         goals: true,
+        suitableFor: true,
         durationMin: true,
         price: true,
         ratingAvg: true,
         bookedCount: true,
         tag: true,
-        icon: true,
         imageUrl: true,
-        heroImageUrl: true,
         branches: { select: { branchId: true } },
       },
       orderBy: { id: 'asc' },
@@ -217,14 +276,13 @@ export class BookingService {
       description: s.description,
       category: s.category,
       goals: this.toStringArray(s.goals),
+      suitableFor: this.toStringArray(s.suitableFor),
       durationMin: s.durationMin,
       price: s.price,
       ratingAvg: s.ratingAvg,
       bookedCount: s.bookedCount,
       tag: s.tag,
-      icon: s.icon,
       imageUrl: s.imageUrl,
-      heroImageUrl: s.heroImageUrl,
       branchIds: s.branches.map((b) => b.branchId),
     }))
   }
@@ -361,12 +419,60 @@ export class BookingService {
     return { ok: true }
   }
 
-  async createService(data: any) {
-    return this.prisma.service.create({ data })
+
+  private normalizeServiceCode(name?: string) {
+    const base = (name || '')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/đ/gi, 'd')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+
+    return `SRV_${base || Date.now()}`
   }
 
-  async updateService(id: number, data: any) {
-    return this.prisma.service.update({ where: { id }, data })
+  private sanitizeServiceData(data: any) {
+    const goalsInput = Array.isArray(data.goals) ? data.goals : []
+    const suitableForInput = Array.isArray(data.suitableFor) ? data.suitableFor : []
+    return {
+      code: data.code || this.normalizeServiceCode(data.name),
+      name: data.name,
+      description: data.description,
+      category: data.category,
+      goals: goalsInput,
+      suitableFor: suitableForInput,
+      durationMin: Number(data.durationMin ?? 60),
+      price: Number(data.price ?? 0),
+      tag: data.tag,
+    }
+  }
+
+  async createService(data: any, file?: any) {
+    let imageUrl: string | undefined
+    if (file) {
+      const uploaded = await this.uploadImageToCloud(file)
+      imageUrl = uploaded.url
+    }
+    return this.prisma.service.create({ data: { ...this.sanitizeServiceData(data), imageUrl } })
+  }
+
+  async updateService(id: number, data: any, file?: any) {
+    const existing = await this.prisma.service.findUnique({ where: { id }, select: { imageUrl: true } })
+    if (!existing) throw new NotFoundException('Service not found')
+
+    let imageUrl = existing.imageUrl
+    if (file) {
+      const uploaded = await this.uploadImageToCloud(file)
+      imageUrl = uploaded.url
+      if (existing.imageUrl) {
+        try {
+          await this.deleteCloudImage({ url: existing.imageUrl })
+        } catch {}
+      }
+    }
+
+    return this.prisma.service.update({ where: { id }, data: { ...this.sanitizeServiceData(data), imageUrl } })
   }
 
   async deleteService(id: number) {

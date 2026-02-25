@@ -25,6 +25,7 @@ export default function BookingPage() {
 
   const { items: toasts, push: toast, remove } = useToast();
   const slots = useBookingSlots();
+  const { clearPick } = slots;
 
   const [services, setServices] = React.useState<Opt[]>([]);
   const [branches, setBranches] = React.useState<Opt[]>([]);
@@ -97,17 +98,17 @@ export default function BookingPage() {
     bootstrapCatalog();
   }, [bootstrapCatalog]);
 
-  const onBranchChange = async (nextBranch: string) => {
+  const onBranchChange = React.useCallback(async (nextBranch: string) => {
     setBranchId(nextBranch);
     setCustomTime("");
-    slots.clearPick();
+    clearPick();
     await refreshSlots(serviceId, nextBranch, date);
-  };
+  }, [clearPick, date, refreshSlots, serviceId]);
 
-  const onServiceChange = async (nextService: string) => {
+  const onServiceChange = React.useCallback(async (nextService: string) => {
     setServiceId(nextService);
     setCustomTime("");
-    slots.clearPick();
+    clearPick();
     try {
       const branchRows = await bookingApi.branches(nextService ? { serviceId: Number(nextService) } : undefined);
       const normalizedBranches = normalizeBranches(branchRows);
@@ -118,14 +119,14 @@ export default function BookingPage() {
     } catch {
       toast("Không tải được chi nhánh theo dịch vụ");
     }
-  };
+  }, [clearPick, date, normalizeBranches, refreshSlots, toast]);
 
-  const onDateChange = async (nextDate: string) => {
+  const onDateChange = React.useCallback(async (nextDate: string) => {
     setDate(nextDate);
     setCustomTime("");
-    slots.clearPick();
+    clearPick();
     await refreshSlots(serviceId, branchId, nextDate);
-  };
+  }, [branchId, clearPick, refreshSlots, serviceId]);
 
   const onAuthClick = () => {
     if (user) {
@@ -154,7 +155,7 @@ export default function BookingPage() {
   const resetAll = async () => {
     setResetSignal((x) => x + 1);
     setCustomTime("");
-    slots.clearPick();
+    clearPick();
     await bootstrapCatalog();
     toast("Đã reset", "Bạn có thể đặt lịch lại.");
   };
@@ -173,12 +174,7 @@ export default function BookingPage() {
               branches={branches as any}
               selectedServiceId={serviceId}
               selectedBranchId={branchId}
-              selectedSlot={slots.selectedSlot}
-              customTime={customTime}
-              onCustomTime={(v) => {
-                setCustomTime(v);
-                if (v) slots.clearPick();
-              }}
+              selectedSlot={customTime || slots.selectedSlot}
               onToast={toast}
               onCreate={async (b) => {
                 try {
@@ -204,31 +200,23 @@ export default function BookingPage() {
               onDateChange={onDateChange}
             />
             {loadingCatalog && <div className="text-sm text-slate-500">Đang tải dữ liệu dịch vụ từ API...</div>}
-
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 ring-1 ring-slate-200">
-              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                <div className="text-sm text-slate-700">
-                  Khung giờ đã chọn: <b>{customTime || slots.selectedSlot || "Chưa chọn"}</b>
-                  <span className="text-slate-500"> • </span>
-                  <button className="font-extrabold text-indigo-600 hover:underline" onClick={resetAll} type="button">
-                    Reset toàn bộ
-                  </button>
-                </div>
-              </div>
-              <div className="mt-2 text-sm text-slate-600">Slot được backend tính theo số chuyên viên phục vụ được dịch vụ ở chi nhánh đã chọn.</div>
-            </div>
           </div>
 
           <div className="space-y-4">
             <SlotPicker
               slots={slots.slots}
               selected={slots.selectedSlot}
+              customTime={customTime}
               loading={slots.loading}
               durationMin={slots.durationMin}
               capacity={slots.capacity}
               onPick={(t) => {
                 setCustomTime("");
                 slots.pick(t);
+              }}
+              onCustomTime={(v) => {
+                setCustomTime(v);
+                if (v) clearPick();
               }}
               onRefresh={() => refreshSlots(serviceId, branchId, date)}
             />

@@ -18,8 +18,6 @@ export function BookingForm({
   selectedServiceId,
   selectedBranchId,
   selectedSlot,
-  customTime,
-  onCustomTime,
   onToast,
   onCreate,
   onResetSignal,
@@ -33,8 +31,6 @@ export function BookingForm({
   selectedServiceId: string;
   selectedBranchId: string;
   selectedSlot: string | null;
-  customTime: string;
-  onCustomTime: (value: string) => void;
   onToast: (t: string, d?: string) => void;
   onCreate: (b: Booking) => void;
   onResetSignal: number;
@@ -76,7 +72,7 @@ export function BookingForm({
     const name = draft.name.trim();
     const phone = draft.phone.trim();
     const date = draft.date;
-    const pickedTime = customTime || selectedSlot;
+    const pickedTime = selectedSlot;
 
     if (!name) return onToast("Thiếu thông tin", "Vui lòng nhập họ và tên.");
     if (!isValidPhone(phone)) return onToast("Số điện thoại chưa đúng", "Vui lòng nhập số bắt đầu bằng 0 và đủ 10–11 số.");
@@ -182,16 +178,6 @@ export function BookingForm({
           />
         </div>
 
-        <div>
-          <label className="text-sm font-extrabold text-slate-700">Giờ tự chọn (tuỳ chọn)</label>
-          <input
-            type="time"
-            className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
-            value={customTime}
-            onChange={(e) => onCustomTime(e.target.value)}
-          />
-        </div>
-
         <div className="md:col-span-2">
           <label className="text-sm font-extrabold text-slate-700">Ghi chú</label>
           <textarea rows={3} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100" placeholder="Tình trạng da, nhu cầu…" value={draft.note} onChange={(e) => update("note", e.target.value)} />
@@ -200,7 +186,7 @@ export function BookingForm({
 
       <div className="mt-4 rounded-3xl bg-slate-50 p-4 ring-1 ring-slate-200">
         <div className="text-sm text-slate-700">
-          Khung giờ đã chọn: <b>{customTime || selectedSlot || "Chưa chọn"}</b>
+          Khung giờ đã chọn: <b>{selectedSlot || "Chưa chọn"}</b>
           <span className="text-slate-500"> • Dự kiến: </span>
           <b>{svc ? `${svc.duration} phút` : "—"}</b>
         </div>

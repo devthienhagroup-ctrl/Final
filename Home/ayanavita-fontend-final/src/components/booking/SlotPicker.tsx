@@ -5,7 +5,9 @@ import type { Slot } from "../../services/useBookingSlots";
 export function SlotPicker({
   slots,
   selected,
+  customTime,
   onPick,
+  onCustomTime,
   onRefresh,
   loading,
   durationMin,
@@ -13,7 +15,9 @@ export function SlotPicker({
 }: {
   slots: Slot[];
   selected: string | null;
+  customTime: string;
   onPick: (t: string) => void;
+  onCustomTime: (value: string) => void;
   onRefresh: () => void;
   loading?: boolean;
   durationMin?: number;
@@ -55,6 +59,17 @@ export function SlotPicker({
             </button>
           );
         })}
+      </div>
+
+      <div className={["mt-4 rounded-2xl border p-3", customTime ? "border-indigo-500 ring-2 ring-indigo-100" : "border-slate-200"].join(" ")}>
+        <div className="text-sm font-extrabold text-slate-700">Giờ tuỳ chọn</div>
+        <input
+          type="time"
+          className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:ring-4 focus:ring-indigo-100"
+          value={customTime}
+          onChange={(e) => onCustomTime(e.target.value)}
+        />
+        <div className="mt-1 text-xs text-slate-500">Khi dùng giờ tuỳ chọn, ô này sẽ được active thay cho khung giờ gợi ý.</div>
       </div>
     </aside>
   );

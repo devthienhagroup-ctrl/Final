@@ -1,59 +1,11 @@
-diff --git a/Home/ayanavita-fontend-final/src/api/booking.api.ts b/Home/ayanavita-fontend-final/src/api/booking.api.ts
-index b00ad1d3199ba1de7cbc9c89072b2693a5d56f45..25fd81f344ed6a545f91a6bddda423cd346553a5 100644
---- a/Home/ayanavita-fontend-final/src/api/booking.api.ts
-+++ b/Home/ayanavita-fontend-final/src/api/booking.api.ts
-@@ -15,30 +15,40 @@ export type BookingService = {
-   description?: string | null;
-   category?: string | null;
-   goals: string[];
-   durationMin: number;
-   price: number;
-   ratingAvg: number;
-   bookedCount: number;
-   tag?: string | null;
-   icon?: string | null;
-   imageUrl?: string | null;
-   heroImageUrl?: string | null;
-   branchIds: number[];
- };
-
- export type BookingSpecialist = {
-   id: number;
-   code: string;
-   name: string;
-   level: string;
-   bio?: string | null;
-   branchIds: number[];
-   serviceIds: number[];
- };
-
- export const bookingApi = {
--  branches: async (): Promise<BookingBranch[]> => (await http.get("/booking/branches")).data,
--  services: async (): Promise<BookingService[]> => (await http.get("/booking/services")).data,
-+  branches: async (params?: { serviceId?: number }): Promise<BookingBranch[]> =>
-+    (await http.get("/booking/branches", { params })).data,
-+  services: async (params?: { branchId?: number }): Promise<BookingService[]> => {
-+    const { data } = await http.get("/booking/services", { params });
-+    return Array.isArray(data) ? data : (data?.items ?? []);
-+  },
-   specialists: async (): Promise<BookingSpecialist[]> =>
-     (await http.get("/booking/specialists")).data,
-+  slotSuggestions: async (params: { branchId: number; serviceId: number; date: string }) =>
-+    (await http.get("/booking/slot-suggestions", { params })).data as {
-+      durationMin: number;
-+      capacity: number;
-+      slots: { time: string; available: boolean; occupied: number }[];
-+    },
- };
 diff --git a/Home/ayanavita-fontend-final/src/components/booking/BookingForm.tsx b/Home/ayanavita-fontend-final/src/components/booking/BookingForm.tsx
-index 51d5ff184c58b58af071859ea6cfacbba3673f97..91f40f8351ae2e4fe35079fac795846bf500b765 100644
+index 91f40f8351ae2e4fe35079fac795846bf500b765..3068c9dd4aeb9df0e31f47ed82c0f296001fe81e 100644
 --- a/Home/ayanavita-fontend-final/src/components/booking/BookingForm.tsx
 +++ b/Home/ayanavita-fontend-final/src/components/booking/BookingForm.tsx
-@@ -1,284 +1,220 @@
+@@ -1,104 +1,100 @@
  // src/components/booking/BookingForm.tsx
  import React, { useEffect, useMemo, useState } from "react";
--import type { DemoBranch, DemoService, DemoStaff } from "../../services/booking.demo";
-+import type { DemoBranch, DemoService } from "../../services/booking.demo";
+ import type { DemoBranch, DemoService } from "../../services/booking.demo";
  import type { Booking } from "../../services/booking.storage";
  import { uid, money, isValidPhone, toISODate } from "../../services/booking.utils";
 
@@ -61,99 +13,67 @@ index 51d5ff184c58b58af071859ea6cfacbba3673f97..91f40f8351ae2e4fe35079fac795846b
    name: string;
    phone: string;
    email: string;
--  notify: "zalo" | "sms" | "email";
--  serviceId: string;
--  staffId: string; // "" means auto assign
--  branchId: string;
--  date: string; // yyyy-mm-dd
-+  date: string;
+   date: string;
    note: string;
  };
 
  export function BookingForm({
    services,
--  staff,
    branches,
-+  selectedServiceId,
-+  selectedBranchId,
+   selectedServiceId,
+   selectedBranchId,
    selectedSlot,
-+  customTime,
-+  onCustomTime,
+-  customTime,
+-  onCustomTime,
    onToast,
    onCreate,
    onResetSignal,
    initialName,
-+  onServiceChange,
-+  onBranchChange,
-+  onDateChange,
+   onServiceChange,
+   onBranchChange,
+   onDateChange,
  }: {
    services: DemoService[];
--  staff: DemoStaff[];
    branches: DemoBranch[];
-+  selectedServiceId: string;
-+  selectedBranchId: string;
+   selectedServiceId: string;
+   selectedBranchId: string;
    selectedSlot: string | null;
-+  customTime: string;
-+  onCustomTime: (value: string) => void;
+-  customTime: string;
+-  onCustomTime: (value: string) => void;
    onToast: (t: string, d?: string) => void;
    onCreate: (b: Booking) => void;
--  onResetSignal: number; // increase to reset
-+  onResetSignal: number;
+   onResetSignal: number;
    initialName?: string;
-+  onServiceChange: (serviceId: string) => void;
-+  onBranchChange: (branchId: string) => void;
-+  onDateChange: (date: string) => void;
+   onServiceChange: (serviceId: string) => void;
+   onBranchChange: (branchId: string) => void;
+   onDateChange: (date: string) => void;
  }) {
    const tomorrow = useMemo(() => toISODate(new Date(Date.now() + 86400000)), []);
    const [draft, setDraft] = useState<BookingDraft>(() => ({
      name: initialName || "",
      phone: "",
      email: "",
--    notify: "zalo",
--    serviceId: services[0]?.id || "",
--    staffId: "",
--    branchId: branches[0]?.id || "",
      date: tomorrow,
      note: "",
    }));
 
--  // sync name when user login demo
    useEffect(() => {
      if (initialName) setDraft((d) => ({ ...d, name: initialName }));
    }, [initialName]);
 
--  // external reset
    useEffect(() => {
      setDraft({
        name: initialName || "",
        phone: "",
        email: "",
--      notify: "zalo",
--      serviceId: services[0]?.id || "",
--      staffId: "",
--      branchId: branches[0]?.id || "",
        date: tomorrow,
        note: "",
      });
--    // eslint-disable-next-line react-hooks/exhaustive-deps
--  }, [onResetSignal]);
-+    onDateChange(tomorrow);
-+  }, [onResetSignal, initialName, onDateChange, tomorrow]);
+     onDateChange(tomorrow);
+   }, [onResetSignal, initialName, onDateChange, tomorrow]);
 
--
--  useEffect(() => {
--    setDraft((d) => ({
--      ...d,
--      serviceId: d.serviceId || services[0]?.id || "",
--      branchId: d.branchId || branches[0]?.id || "",
--    }));
--  }, [services, branches]);
--
--  const svc = useMemo(() => services.find((s) => s.id === draft.serviceId), [services, draft.serviceId]);
--  const staffPick = useMemo(() => staff.find((s) => s.id === draft.staffId), [staff, draft.staffId]);
--  const branchPick = useMemo(() => branches.find((b) => b.id === draft.branchId), [branches, draft.branchId]);
-+  const svc = useMemo(() => services.find((s) => s.id === selectedServiceId), [services, selectedServiceId]);
-+  const branchPick = useMemo(() => branches.find((b) => b.id === selectedBranchId), [branches, selectedBranchId]);
+   const svc = useMemo(() => services.find((s) => s.id === selectedServiceId), [services, selectedServiceId]);
+   const branchPick = useMemo(() => branches.find((b) => b.id === selectedBranchId), [branches, selectedBranchId]);
 
    const update = <K extends keyof BookingDraft>(k: K, v: BookingDraft[K]) => setDraft((d) => ({ ...d, [k]: v }));
 
@@ -161,16 +81,15 @@ index 51d5ff184c58b58af071859ea6cfacbba3673f97..91f40f8351ae2e4fe35079fac795846b
      const name = draft.name.trim();
      const phone = draft.phone.trim();
      const date = draft.date;
-+    const pickedTime = customTime || selectedSlot;
+-    const pickedTime = customTime || selectedSlot;
++    const pickedTime = selectedSlot;
 
      if (!name) return onToast("Thiếu thông tin", "Vui lòng nhập họ và tên.");
      if (!isValidPhone(phone)) return onToast("Số điện thoại chưa đúng", "Vui lòng nhập số bắt đầu bằng 0 và đủ 10–11 số.");
      if (!date) return onToast("Thiếu ngày", "Vui lòng chọn ngày.");
--    if (!svc) return onToast("Thiếu dịch vụ", "Vui lòng chọn dịch vụ.");
-+    if (!svc) return onToast("Thiếu dịch vụ", "Vui lòng chọn dịch vụ trước.");
+     if (!svc) return onToast("Thiếu dịch vụ", "Vui lòng chọn dịch vụ trước.");
      if (!branchPick) return onToast("Thiếu chi nhánh", "Vui lòng chọn chi nhánh.");
--    if (!selectedSlot) return onToast("Chưa chọn giờ", "Vui lòng chọn một khung giờ.");
-+    if (!pickedTime) return onToast("Chưa chọn giờ", "Vui lòng chọn khung giờ hoặc nhập giờ tùy chọn.");
+     if (!pickedTime) return onToast("Chưa chọn giờ", "Vui lòng chọn khung giờ hoặc nhập giờ tùy chọn.");
 
      const booking: Booking = {
        id: uid("BK"),
@@ -178,135 +97,21 @@ index 51d5ff184c58b58af071859ea6cfacbba3673f97..91f40f8351ae2e4fe35079fac795846b
        name,
        phone,
        email: draft.email.trim(),
--      notify: draft.notify,
--      serviceId: svc?.id,
--      serviceName: svc?.name,
--      duration: svc?.duration,
--      price: svc?.price,
--      staffId: staffPick?.id || null,
--      staffName: staffPick?.name || "Hệ thống phân bổ",
--      branchId: branchPick?.id,
--      branchName: branchPick?.name,
-+      notify: "email",
-+      serviceId: svc.id,
-+      serviceName: svc.name,
-+      duration: svc.duration,
-+      price: svc.price,
-+      staffId: null,
-+      staffName: "Hệ thống phân bổ",
-+      branchId: branchPick.id,
-+      branchName: branchPick.name,
+       notify: "email",
+       serviceId: svc.id,
+       serviceName: svc.name,
+       duration: svc.duration,
+       price: svc.price,
+       staffId: null,
+       staffName: "Hệ thống phân bổ",
+       branchId: branchPick.id,
+       branchName: branchPick.name,
        date,
--      time: selectedSlot,
-+      time: pickedTime,
-       note: draft.note.trim(),
-       status: "confirmed",
-     };
-
-     onCreate(booking);
-     onToast("Tạo lịch hẹn thành công", `Mã: ${booking.id} • ${booking.date} ${booking.time}`);
-   };
-
-   return (
-     <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-       <div className="flex items-start justify-between gap-3">
-         <div>
-           <div className="text-xs font-extrabold text-slate-500">Form đặt lịch</div>
-           <div className="text-2xl font-extrabold">Thông tin & lựa chọn</div>
-           <div className="mt-1 text-sm text-slate-600">Bạn có thể đặt cho bản thân hoặc người thân.</div>
-         </div>
-         <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-extrabold">
-           🔒 Bảo mật
-         </span>
-       </div>
-
-       <div className="mt-5 grid gap-4 md:grid-cols-2">
-         <div>
-           <label className="text-sm font-extrabold text-slate-700">Họ và tên *</label>
--          <input
--            className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
--            placeholder="Ví dụ: Lê Hiếu"
--            value={draft.name}
--            onChange={(e) => update("name", e.target.value)}
--          />
-+          <input className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100" placeholder="Ví dụ: Lê Hiếu" value={draft.name} onChange={(e) => update("name", e.target.value)} />
-         </div>
-         <div>
-           <label className="text-sm font-extrabold text-slate-700">Số điện thoại *</label>
--          <input
--            className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
--            placeholder="09xx xxx xxx"
--            value={draft.phone}
--            onChange={(e) => update("phone", e.target.value)}
--          />
-+          <input className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100" placeholder="09xx xxx xxx" value={draft.phone} onChange={(e) => update("phone", e.target.value)} />
-         </div>
-
-         <div>
-           <label className="text-sm font-extrabold text-slate-700">Email (tuỳ chọn)</label>
--          <input
--            className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
--            placeholder="email@example.com"
--            value={draft.email}
--            onChange={(e) => update("email", e.target.value)}
--          />
--        </div>
--        <div>
--          <label className="text-sm font-extrabold text-slate-700">Kênh nhắc lịch</label>
--          <select
--            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
--            value={draft.notify}
--            onChange={(e) => update("notify", e.target.value as any)}
--          >
--            <option value="zalo">Zalo</option>
--            <option value="sms">SMS</option>
--            <option value="email">Email</option>
--          </select>
-+          <input className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100" placeholder="email@example.com" value={draft.email} onChange={(e) => update("email", e.target.value)} />
-         </div>
-
-         <div>
-           <label className="text-sm font-extrabold text-slate-700">Dịch vụ *</label>
-           <select
-             className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
--            value={draft.serviceId}
--            onChange={(e) => update("serviceId", e.target.value)}
-+            value={selectedServiceId}
-+            onChange={(e) => onServiceChange(e.target.value)}
-           >
-             {services.map((s) => (
-               <option key={s.id} value={s.id}>
-                 {s.name} • {s.duration} phút • {money(s.price)}
-               </option>
-             ))}
-           </select>
-         </div>
-
--        <div>
--          <label className="text-sm font-extrabold text-slate-700">Chuyên viên</label>
--          <select
--            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
--            value={draft.staffId}
--            onChange={(e) => update("staffId", e.target.value)}
--          >
--            <option value="">Không chọn (hệ thống phân bổ)</option>
--            {staff.map((s) => (
--              <option key={s.id} value={s.id}>
--                {s.name} • {s.level}
--              </option>
--            ))}
--          </select>
--        </div>
--
-         <div>
-           <label className="text-sm font-extrabold text-slate-700">Chi nhánh *</label>
-           <select
-             className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
--            value={draft.branchId}
--            onChange={(e) => update("branchId", e.target.value)}
-+            value={selectedBranchId}
-+            disabled={!selectedServiceId || !branches.length}
-+            onChange={(e) => onBranchChange(e.target.value)}
+       time: pickedTime,
+@@ -160,61 +156,51 @@ export function BookingForm({
+             value={selectedBranchId}
+             disabled={!selectedServiceId || !branches.length}
+             onChange={(e) => onBranchChange(e.target.value)}
            >
              {branches.map((b) => (
                <option key={b.id} value={b.id}>
@@ -322,189 +127,55 @@ index 51d5ff184c58b58af071859ea6cfacbba3673f97..91f40f8351ae2e4fe35079fac795846b
              type="date"
              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
              value={draft.date}
--            onChange={(e) => update("date", e.target.value)}
-+            onChange={(e) => {
-+              update("date", e.target.value);
-+              onDateChange(e.target.value);
-+            }}
+             onChange={(e) => {
+               update("date", e.target.value);
+               onDateChange(e.target.value);
+             }}
            />
          </div>
 
--        <div className="md:col-span-2">
--          <label className="text-sm font-extrabold text-slate-700">Ghi chú</label>
--          <textarea
--            rows={3}
-+        <div>
-+          <label className="text-sm font-extrabold text-slate-700">Giờ tự chọn (tuỳ chọn)</label>
-+          <input
-+            type="time"
-             className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
--            placeholder="Tình trạng da, nhu cầu…"
--            value={draft.note}
--            onChange={(e) => update("note", e.target.value)}
-+            value={customTime}
-+            onChange={(e) => onCustomTime(e.target.value)}
-           />
+-        <div>
+-          <label className="text-sm font-extrabold text-slate-700">Giờ tự chọn (tuỳ chọn)</label>
+-          <input
+-            type="time"
+-            className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
+-            value={customTime}
+-            onChange={(e) => onCustomTime(e.target.value)}
+-          />
+-        </div>
+-
+         <div className="md:col-span-2">
+           <label className="text-sm font-extrabold text-slate-700">Ghi chú</label>
+           <textarea rows={3} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100" placeholder="Tình trạng da, nhu cầu…" value={draft.note} onChange={(e) => update("note", e.target.value)} />
          </div>
-+
-+        <div className="md:col-span-2">
-+          <label className="text-sm font-extrabold text-slate-700">Ghi chú</label>
-+          <textarea rows={3} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100" placeholder="Tình trạng da, nhu cầu…" value={draft.note} onChange={(e) => update("note", e.target.value)} />
-+        </div>
        </div>
 
        <div className="mt-4 rounded-3xl bg-slate-50 p-4 ring-1 ring-slate-200">
--        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
--          <div className="text-sm text-slate-700">
--            Khung giờ đã chọn: <b>{selectedSlot || "Chưa chọn"}</b>
--            <span className="text-slate-500"> • Dự kiến: </span>
--            <b>{svc ? `${svc.duration} phút` : "—"}</b>
--          </div>
--
--          <div className="flex gap-2">
--            <button
--              type="button"
--              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-extrabold hover:bg-slate-50"
--              onClick={() => {
--                // parent will bump reset signal; this is just a hint
--                onToast("Reset", "Bấm Reset ở page để làm sạch toàn bộ.");
--              }}
--            >
--              Reset
--            </button>
-+        <div className="text-sm text-slate-700">
-+          Khung giờ đã chọn: <b>{customTime || selectedSlot || "Chưa chọn"}</b>
-+          <span className="text-slate-500"> • Dự kiến: </span>
-+          <b>{svc ? `${svc.duration} phút` : "—"}</b>
-+        </div>
+         <div className="text-sm text-slate-700">
+-          Khung giờ đã chọn: <b>{customTime || selectedSlot || "Chưa chọn"}</b>
++          Khung giờ đã chọn: <b>{selectedSlot || "Chưa chọn"}</b>
+           <span className="text-slate-500"> • Dự kiến: </span>
+           <b>{svc ? `${svc.duration} phút` : "—"}</b>
+         </div>
 
--            <button
--              type="button"
--              className="rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 px-4 py-3 text-sm font-extrabold text-white ring-1 ring-indigo-200 hover:opacity-95"
--              onClick={create}
--            >
--              ➕ Tạo lịch hẹn
--            </button>
--          </div>
-+        <div className="mt-3 flex gap-2">
-+          <button type="button" className="rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 px-4 py-3 text-sm font-extrabold text-white ring-1 ring-indigo-200 hover:opacity-95" onClick={create}>
-+            ➕ Tạo lịch hẹn
-+          </button>
+         <div className="mt-3 flex gap-2">
+           <button type="button" className="rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 px-4 py-3 text-sm font-extrabold text-white ring-1 ring-indigo-200 hover:opacity-95" onClick={create}>
+             ➕ Tạo lịch hẹn
+           </button>
          </div>
 
          <div className="mt-2 text-sm text-slate-600">
--          Giá tham khảo: <b>{svc ? money(svc.price) : "—"}</b>{" "}
--          <span className="text-slate-500">• Có thể thay đổi theo tình trạng/ liệu trình.</span>
-+          Giá tham khảo: <b>{svc ? money(svc.price) : "—"}</b> <span className="text-slate-500">• Có thể thay đổi theo tình trạng/ liệu trình.</span>
+           Giá tham khảo: <b>{svc ? money(svc.price) : "—"}</b> <span className="text-slate-500">• Có thể thay đổi theo tình trạng/ liệu trình.</span>
          </div>
        </div>
      </div>
    );
  }
-diff --git a/Home/ayanavita-fontend-final/src/components/booking/BookingHero.tsx b/Home/ayanavita-fontend-final/src/components/booking/BookingHero.tsx
-index 8896ed33601915da9cd07ee1ad6355063efe5039..3f03990f020434fcbdb6a6478b2bddb899e4ea9d 100644
---- a/Home/ayanavita-fontend-final/src/components/booking/BookingHero.tsx
-+++ b/Home/ayanavita-fontend-final/src/components/booking/BookingHero.tsx
-@@ -1,93 +1,84 @@
- // src/components/booking/BookingHero.tsx
- import React from "react";
-
- export function BookingHero({
-   onFillDemo,
-   onScrollForm,
--  onViewMyBookings,
- }: {
-   onFillDemo: () => void;
-   onScrollForm: () => void;
--  onViewMyBookings: () => void;
- }) {
-   return (
-     <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-       <div className="grid lg:grid-cols-2">
-         <div className="p-6 lg:p-8">
-           <div className="inline-flex items-center gap-2">
-             <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-extrabold">
-               📅 Booking
-             </span>
-             <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-extrabold">
-               💛 Tư vấn miễn phí
-             </span>
-           </div>
-
-           <h1 className="mt-4 text-3xl font-extrabold leading-tight md:text-4xl">
-             Đặt lịch chăm sóc sắc đẹp & sức khoẻ tại AYANAVITA
-           </h1>
-           <p className="mt-3 text-slate-600">
--            Chọn dịch vụ, chi nhánh, ngày giờ và chuyên viên. Hệ thống demo sẽ tạo “phiếu đặt lịch” và lưu vào localStorage.
-+            Chọn dịch vụ, chi nhánh, ngày giờ phù hợp. Hệ thống sẽ kiểm tra slot theo năng lực phục vụ thực tế từ backend.
-           </p>
-
-           <div className="mt-5 grid gap-3 sm:grid-cols-3">
-             {[
-               ["Cam kết", "Chuẩn quy trình", "Đào tạo bài bản, đồng nhất thương hiệu."],
-               ["Thời gian", "Linh hoạt", "Khung giờ đa dạng, ưu tiên khách đặt trước."],
-               ["Hỗ trợ", "Nhanh chóng", "Hotline + Zalo + tư vấn tại chỗ."],
-             ].map(([k, t, d]) => (
-               <div key={k} className="rounded-3xl bg-slate-50 p-4 ring-1 ring-slate-200">
-                 <div className="text-xs font-extrabold text-slate-500">{k}</div>
-                 <div className="mt-1 font-extrabold">{t}</div>
-                 <div className="mt-1 text-sm text-slate-600">{d}</div>
-               </div>
-             ))}
-           </div>
-
-           <div className="mt-5 flex flex-wrap gap-2">
-             <button
-               type="button"
-               onClick={onFillDemo}
-               className="rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-300 px-4 py-3 text-sm font-extrabold text-slate-900 ring-1 ring-amber-200 hover:opacity-95"
-             >
-               ✨ Điền demo
-             </button>
-             <button
-               type="button"
-               onClick={onScrollForm}
-               className="rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 px-4 py-3 text-sm font-extrabold text-white ring-1 ring-indigo-200 hover:opacity-95"
-             >
-               📝 Đặt lịch ngay
-             </button>
--            <button
--              type="button"
--              onClick={onViewMyBookings}
--              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-extrabold hover:bg-slate-50"
--            >
--              📋 Xem lịch của tôi
--            </button>
-           </div>
-         </div>
-
-         {/* right illustration */}
-         <div className="bg-gradient-to-br from-indigo-600 to-violet-600 p-6 text-white lg:p-8">
-           <div className="flex items-center justify-between">
-             <div className="text-sm font-extrabold opacity-90">Hình minh hoạ (SVG)</div>
-             <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-extrabold">
-               ★ 4.9/5
-             </span>
-           </div>
-
-           <div className="mt-4 rounded-3xl bg-white/10 p-4 ring-1 ring-white/20">
-             <svg viewBox="0 0 800 420" className="h-auto w-full">
-               <defs>
-                 <linearGradient id="g1" x1="0" x2="1">
-                   <stop offset="0" stopColor="#FBBF24" />
-                   <stop offset="1" stopColor="#F59E0B" />
-                 </linearGradient>
-                 <linearGradient id="g2" x1="0" x2="1">
-                   <stop offset="0" stopColor="#A78BFA" />
-                   <stop offset="1" stopColor="#4F46E5" />
-                 </linearGradient>
-               </defs>
-               <rect x="20" y="20" width="760" height="380" rx="28" fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.25)" />
 diff --git a/Home/ayanavita-fontend-final/src/components/booking/SlotPicker.tsx b/Home/ayanavita-fontend-final/src/components/booking/SlotPicker.tsx
-index 5b9ba711c0d6c793c491a4a48f7569c85b635e18..b3d45c3f4b14f339674121215a5f19d54cba56a6 100644
+index b3d45c3f4b14f339674121215a5f19d54cba56a6..6506b708252061302f446bcfa2771fa9d0a1d586 100644
 --- a/Home/ayanavita-fontend-final/src/components/booking/SlotPicker.tsx
 +++ b/Home/ayanavita-fontend-final/src/components/booking/SlotPicker.tsx
-@@ -1,64 +1,61 @@
+@@ -1,61 +1,76 @@
  // src/components/booking/SlotPicker.tsx
  import React from "react";
  import type { Slot } from "../../services/useBookingSlots";
@@ -512,43 +183,40 @@ index 5b9ba711c0d6c793c491a4a48f7569c85b635e18..b3d45c3f4b14f339674121215a5f19d5
  export function SlotPicker({
    slots,
    selected,
++  customTime,
    onPick,
++  onCustomTime,
    onRefresh,
-+  loading,
-+  durationMin,
-+  capacity,
+   loading,
+   durationMin,
+   capacity,
  }: {
    slots: Slot[];
    selected: string | null;
++  customTime: string;
    onPick: (t: string) => void;
++  onCustomTime: (value: string) => void;
    onRefresh: () => void;
-+  loading?: boolean;
-+  durationMin?: number;
-+  capacity?: number;
+   loading?: boolean;
+   durationMin?: number;
+   capacity?: number;
  }) {
    return (
      <aside className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
        <div className="flex items-start justify-between">
          <div>
--          <div className="text-xs font-extrabold text-slate-500">Khung giờ</div>
-+          <div className="text-xs font-extrabold text-slate-500">Khung giờ gợi ý</div>
+           <div className="text-xs font-extrabold text-slate-500">Khung giờ gợi ý</div>
            <div className="text-xl font-extrabold">Chọn giờ phù hợp</div>
-+          <div className="mt-1 text-xs text-slate-500">{durationMin ? `Mỗi slot ${durationMin} phút` : "Chọn chi nhánh + dịch vụ + ngày"}{capacity ? ` • Năng lực: ${capacity} slot đồng thời` : ""}</div>
+           <div className="mt-1 text-xs text-slate-500">{durationMin ? `Mỗi slot ${durationMin} phút` : "Chọn chi nhánh + dịch vụ + ngày"}{capacity ? ` • Năng lực: ${capacity} slot đồng thời` : ""}</div>
          </div>
--        <button
--          className="rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-300 px-4 py-2 text-sm font-extrabold text-slate-900 ring-1 ring-amber-200 hover:opacity-95"
--          onClick={onRefresh}
--          type="button"
--        >
-+        <button className="rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-300 px-4 py-2 text-sm font-extrabold text-slate-900 ring-1 ring-amber-200 hover:opacity-95" onClick={onRefresh} type="button">
+         <button className="rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-300 px-4 py-2 text-sm font-extrabold text-slate-900 ring-1 ring-amber-200 hover:opacity-95" onClick={onRefresh} type="button">
            ↻ Làm mới
          </button>
        </div>
 
--      <div className="mt-4 grid gap-2">
-+      {loading ? <div className="mt-4 text-sm text-slate-500">Đang tải khung giờ...</div> : null}
-+
-+      <div className="mt-4 grid grid-cols-3 gap-2">
+       {loading ? <div className="mt-4 text-sm text-slate-500">Đang tải khung giờ...</div> : null}
+
+       <div className="mt-4 grid grid-cols-3 gap-2">
          {slots.map((s) => {
            const disabled = !s.available;
            const active = selected === s.t;
@@ -559,79 +227,128 @@ index 5b9ba711c0d6c793c491a4a48f7569c85b635e18..b3d45c3f4b14f339674121215a5f19d5
                disabled={disabled}
                onClick={() => onPick(s.t)}
                className={[
--                "flex w-full items-center justify-between rounded-3xl p-3 text-left ring-1 ring-slate-200",
-+                "aspect-square rounded-2xl p-2 text-center ring-1 ring-slate-200",
+                 "aspect-square rounded-2xl p-2 text-center ring-1 ring-slate-200",
                  disabled ? "cursor-not-allowed bg-slate-100 opacity-60" : "bg-white hover:bg-slate-50",
                  active ? "ring-2 ring-indigo-500" : "",
                ].join(" ")}
              >
--              <div className="flex items-center gap-2">
--                <span className="text-slate-500">{disabled ? "⛔" : "○"}</span>
--                <div>
--                  <div className="font-extrabold">{s.t}</div>
--                  <div className="text-xs text-slate-500">{disabled ? "Hết chỗ" : "Còn chỗ"}</div>
--                </div>
--              </div>
--              <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-extrabold">
--                🕒 Slot
--              </span>
-+              <div className="text-sm font-extrabold">{s.t}</div>
-+              <div className="mt-1 text-[11px] text-slate-500">{disabled ? "Hết chỗ" : "Còn chỗ"}</div>
+               <div className="text-sm font-extrabold">{s.t}</div>
+               <div className="mt-1 text-[11px] text-slate-500">{disabled ? "Hết chỗ" : "Còn chỗ"}</div>
              </button>
            );
          })}
        </div>
++
++      <div className={["mt-4 rounded-2xl border p-3", customTime ? "border-indigo-500 ring-2 ring-indigo-100" : "border-slate-200"].join(" ")}>
++        <div className="text-sm font-extrabold text-slate-700">Giờ tuỳ chọn</div>
++        <input
++          type="time"
++          className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:ring-4 focus:ring-indigo-100"
++          value={customTime}
++          onChange={(e) => onCustomTime(e.target.value)}
++        />
++        <div className="mt-1 text-xs text-slate-500">Khi dùng giờ tuỳ chọn, ô này sẽ được active thay cho khung giờ gợi ý.</div>
++      </div>
      </aside>
    );
  }
+diff --git a/Home/ayanavita-fontend-final/src/components/booking/ToastStack.tsx b/Home/ayanavita-fontend-final/src/components/booking/ToastStack.tsx
+index 55b29045f3df275c663c69716b709362b63e6aba..24fc114c004bd44b05de2323fb3165503e8de891 100644
+--- a/Home/ayanavita-fontend-final/src/components/booking/ToastStack.tsx
++++ b/Home/ayanavita-fontend-final/src/components/booking/ToastStack.tsx
+@@ -1,35 +1,33 @@
+ // src/components/booking/ToastStack.tsx
+ import React from "react";
+ import type { ToastItem } from "../../services/useToast";
+
+ export function ToastStack({
+   items,
+   onClose,
+ }: {
+   items: ToastItem[];
+   onClose: (id: string) => void;
+ }) {
++  const current = items[0];
++  if (!current) return null;
++
+   return (
+-    <div className="fixed bottom-4 right-4 z-[90] grid w-[min(420px,calc(100vw-32px))] gap-2">
+-      {items.map((t) => (
+-        <div
+-          key={t.id}
+-          className="flex gap-3 rounded-2xl border border-white/10 bg-slate-900 p-3 text-white shadow-2xl"
+-        >
+-          <div className="mt-0.5 text-emerald-400">●</div>
+-          <div className="min-w-0">
+-            <div className="font-extrabold">{t.title}</div>
+-            {t.desc ? <div className="mt-0.5 text-sm text-white/80">{t.desc}</div> : null}
+-          </div>
+-          <button
+-            className="ml-auto opacity-80 hover:opacity-100"
+-            aria-label="close"
+-            onClick={() => onClose(t.id)}
+-          >
+-            ✕
+-          </button>
++    <div className="pointer-events-none fixed inset-0 z-[90] flex items-center justify-center p-4">
++      <div className="pointer-events-auto w-full max-w-md rounded-3xl border border-slate-100 bg-white p-6 text-center shadow-2xl">
++        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-emerald-100 to-green-100">
++          <span className="text-2xl text-emerald-600">✓</span>
+         </div>
+-      ))}
++        <div className="mt-3 font-extrabold text-slate-900">{current.title}</div>
++        {current.desc ? <div className="mt-1 text-sm text-slate-600">{current.desc}</div> : null}
++        <button
++          className="mt-5 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 px-5 py-2 text-sm font-extrabold text-white hover:opacity-95"
++          aria-label="close"
++          onClick={() => onClose(current.id)}
++        >
++          Đóng
++        </button>
++      </div>
+     </div>
+   );
+ }
 diff --git a/Home/ayanavita-fontend-final/src/pages/BookingPage.tsx b/Home/ayanavita-fontend-final/src/pages/BookingPage.tsx
-index 5fa74fbe724604a5ceca91af69af4a47a1620506..80fde5a2cb5b6cc20b21a08a927acb05d64deb69 100644
+index 80fde5a2cb5b6cc20b21a08a927acb05d64deb69..ff0438ada3481fa0ca7190e764887789a8f906c1 100644
 --- a/Home/ayanavita-fontend-final/src/pages/BookingPage.tsx
 +++ b/Home/ayanavita-fontend-final/src/pages/BookingPage.tsx
-@@ -1,185 +1,248 @@
- // src/pages/BookingPage.tsx
- import React from "react";
-+import { useSearchParams } from "react-router-dom";
+@@ -3,50 +3,51 @@ import React from "react";
+ import { useSearchParams } from "react-router-dom";
  import { BookingHeader } from "../components/booking/BookingHeader";
  import { BookingHero } from "../components/booking/BookingHero";
  import { BookingForm } from "../components/booking/BookingForm";
  import { SlotPicker } from "../components/booking/SlotPicker";
--import { MyBookings } from "../components/booking/MyBookings";
  import { TrustSection } from "../components/booking/TrustSection";
--import { BookingFooter } from "../components/booking/BookingFooter";
  import { AuthModal } from "../components/booking/AuthModal";
  import { PolicyModal } from "../components/booking/PolicyModal";
  import { ToastStack } from "../components/booking/ToastStack";
 
--import { useBookingCatalog } from "../services/booking.demo";
-+import { bookingApi } from "../api/booking.api";
+ import { bookingApi } from "../api/booking.api";
  import { http } from "../api/http";
  import { useToast } from "../services/useToast";
  import { useBookingSlots } from "../services/useBookingSlots";
--import { useBookings } from "../services/useBookings";
  import { getAuth, setAuth, type AuthUser } from "../services/auth.storage";
--import type { BookingStatus } from "../services/booking.storage";
  import { Footer } from "../components/layout/Footer";
 
-+type Opt = { id: string; name: string; duration?: number; price?: number; address?: string };
-+
+ type Opt = { id: string; name: string; duration?: number; price?: number; address?: string };
+
  export default function BookingPage() {
-+  const [searchParams] = useSearchParams();
-+  const preselectedService = searchParams.get("serviceId") || "";
-+
+   const [searchParams] = useSearchParams();
+   const preselectedService = searchParams.get("serviceId") || "";
+
    const { items: toasts, push: toast, remove } = useToast();
    const slots = useBookingSlots();
--  const bookings = useBookings();
--  const catalog = useBookingCatalog();
-+
-+  const [services, setServices] = React.useState<Opt[]>([]);
-+  const [branches, setBranches] = React.useState<Opt[]>([]);
-+  const [loadingCatalog, setLoadingCatalog] = React.useState(true);
-+
-+  const [serviceId, setServiceId] = React.useState<string>("");
-+  const [branchId, setBranchId] = React.useState<string>("");
-+  const [date, setDate] = React.useState<string>(new Date(Date.now() + 86400000).toISOString().slice(0, 10));
-+  const [customTime, setCustomTime] = React.useState("");
++  const { clearPick } = slots;
+
+   const [services, setServices] = React.useState<Opt[]>([]);
+   const [branches, setBranches] = React.useState<Opt[]>([]);
+   const [loadingCatalog, setLoadingCatalog] = React.useState(true);
+
+   const [serviceId, setServiceId] = React.useState<string>("");
+   const [branchId, setBranchId] = React.useState<string>("");
+   const [date, setDate] = React.useState<string>(new Date(Date.now() + 86400000).toISOString().slice(0, 10));
+   const [customTime, setCustomTime] = React.useState("");
 
    const [authOpen, setAuthOpen] = React.useState(false);
    const [policyOpen, setPolicyOpen] = React.useState(false);
@@ -644,89 +361,75 @@ index 5fa74fbe724604a5ceca91af69af4a47a1620506..80fde5a2cb5b6cc20b21a08a927acb05
    });
 
    const [resetSignal, setResetSignal] = React.useState(0);
--
    const formRef = React.useRef<HTMLDivElement | null>(null);
--
    const userLabel = user ? user.name : "Đăng nhập";
 
-+  const refreshSlots = React.useCallback(async (sid: string, bid: string, d: string) => {
-+    await slots.refresh({
-+      serviceId: sid ? Number(sid) : undefined,
-+      branchId: bid ? Number(bid) : undefined,
-+      date: d,
-+    });
-+  }, [slots.refresh]);
-+
-+  const normalizeServices = React.useCallback(
-+    (input: any[]) => input.map((s: any) => ({ id: String(s.id), name: s.name, duration: Number(s.durationMin || 0), price: Number(s.price || 0) })),
-+    [],
-+  );
-+
-+  const normalizeBranches = React.useCallback(
-+    (input: any[]) => input.map((b: any) => ({ id: String(b.id), name: b.name, address: b.address })),
-+    [],
-+  );
-+
-+  const bootstrapCatalog = React.useCallback(async () => {
-+    setLoadingCatalog(true);
-+    try {
-+      const serviceRows = await bookingApi.services();
-+      const normalizedServices = normalizeServices(serviceRows);
-+      setServices(normalizedServices);
-+
-+      const preferred = normalizedServices.find((s) => s.id === preselectedService)?.id;
-+      const nextService = preferred || normalizedServices[0]?.id || "";
-+      setServiceId(nextService);
-+
-+      const branchRows = nextService ? await bookingApi.branches({ serviceId: Number(nextService) }) : [];
-+      const normalizedBranches = normalizeBranches(branchRows);
-+      setBranches(normalizedBranches);
-+
-+      const nextBranch = normalizedBranches[0]?.id || "";
-+      setBranchId(nextBranch);
-+
-+      await refreshSlots(nextService, nextBranch, date);
-+    } catch {
-+      toast("Không tải được dữ liệu", "Vui lòng kiểm tra backend (localhost:8090).");
-+    } finally {
-+      setLoadingCatalog(false);
-+    }
-+  }, [date, normalizeBranches, normalizeServices, preselectedService, refreshSlots, toast]);
-+
-+  React.useEffect(() => {
-+    bootstrapCatalog();
-+  }, [bootstrapCatalog]);
-+
-+  const onBranchChange = async (nextBranch: string) => {
-+    setBranchId(nextBranch);
-+    setCustomTime("");
-+    slots.clearPick();
-+    await refreshSlots(serviceId, nextBranch, date);
-+  };
-+
-+  const onServiceChange = async (nextService: string) => {
-+    setServiceId(nextService);
-+    setCustomTime("");
-+    slots.clearPick();
-+    try {
-+      const branchRows = await bookingApi.branches(nextService ? { serviceId: Number(nextService) } : undefined);
-+      const normalizedBranches = normalizeBranches(branchRows);
-+      setBranches(normalizedBranches);
-+      const nextBranch = normalizedBranches[0]?.id || "";
-+      setBranchId(nextBranch);
-+      await refreshSlots(nextService, nextBranch, date);
-+    } catch {
-+      toast("Không tải được chi nhánh theo dịch vụ");
-+    }
-+  };
-+
-+  const onDateChange = async (nextDate: string) => {
-+    setDate(nextDate);
-+    setCustomTime("");
-+    slots.clearPick();
-+    await refreshSlots(serviceId, branchId, nextDate);
-+  };
-+
+   const refreshSlots = React.useCallback(async (sid: string, bid: string, d: string) => {
+@@ -75,174 +76,174 @@ export default function BookingPage() {
+       setServices(normalizedServices);
+
+       const preferred = normalizedServices.find((s) => s.id === preselectedService)?.id;
+       const nextService = preferred || normalizedServices[0]?.id || "";
+       setServiceId(nextService);
+
+       const branchRows = nextService ? await bookingApi.branches({ serviceId: Number(nextService) }) : [];
+       const normalizedBranches = normalizeBranches(branchRows);
+       setBranches(normalizedBranches);
+
+       const nextBranch = normalizedBranches[0]?.id || "";
+       setBranchId(nextBranch);
+
+       await refreshSlots(nextService, nextBranch, date);
+     } catch {
+       toast("Không tải được dữ liệu", "Vui lòng kiểm tra backend (localhost:8090).");
+     } finally {
+       setLoadingCatalog(false);
+     }
+   }, [date, normalizeBranches, normalizeServices, preselectedService, refreshSlots, toast]);
+
+   React.useEffect(() => {
+     bootstrapCatalog();
+   }, [bootstrapCatalog]);
+
+-  const onBranchChange = async (nextBranch: string) => {
++  const onBranchChange = React.useCallback(async (nextBranch: string) => {
+     setBranchId(nextBranch);
+     setCustomTime("");
+-    slots.clearPick();
++    clearPick();
+     await refreshSlots(serviceId, nextBranch, date);
+-  };
++  }, [clearPick, date, refreshSlots, serviceId]);
+
+-  const onServiceChange = async (nextService: string) => {
++  const onServiceChange = React.useCallback(async (nextService: string) => {
+     setServiceId(nextService);
+     setCustomTime("");
+-    slots.clearPick();
++    clearPick();
+     try {
+       const branchRows = await bookingApi.branches(nextService ? { serviceId: Number(nextService) } : undefined);
+       const normalizedBranches = normalizeBranches(branchRows);
+       setBranches(normalizedBranches);
+       const nextBranch = normalizedBranches[0]?.id || "";
+       setBranchId(nextBranch);
+       await refreshSlots(nextService, nextBranch, date);
+     } catch {
+       toast("Không tải được chi nhánh theo dịch vụ");
+     }
+-  };
++  }, [clearPick, date, normalizeBranches, refreshSlots, toast]);
+
+-  const onDateChange = async (nextDate: string) => {
++  const onDateChange = React.useCallback(async (nextDate: string) => {
+     setDate(nextDate);
+     setCustomTime("");
+-    slots.clearPick();
++    clearPick();
+     await refreshSlots(serviceId, branchId, nextDate);
+-  };
++  }, [branchId, clearPick, refreshSlots, serviceId]);
+
    const onAuthClick = () => {
      if (user) {
        if (confirm("Bạn muốn đăng xuất?")) {
@@ -740,7 +443,6 @@ index 5fa74fbe724604a5ceca91af69af4a47a1620506..80fde5a2cb5b6cc20b21a08a927acb05
    };
 
    const fillDemo = () => {
--    // demo fill via reset signal and user name propagated to BookingForm
      if (!user) {
        const demoUser: AuthUser = { email: "demo@ayanavita.vn", name: "Khách Demo", remember: false };
        setUser(demoUser);
@@ -752,65 +454,38 @@ index 5fa74fbe724604a5ceca91af69af4a47a1620506..80fde5a2cb5b6cc20b21a08a927acb05
      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
    };
 
--  const viewMyBookings = () => {
--    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
--    toast("Lịch của tôi", "Xem phần sidebar bên phải.");
--  };
--
--  const resetAll = () => {
-+  const resetAll = async () => {
+   const resetAll = async () => {
      setResetSignal((x) => x + 1);
--    slots.refresh();
--    bookings.reload();
-+    setCustomTime("");
-+    slots.clearPick();
-+    await bootstrapCatalog();
+     setCustomTime("");
+-    slots.clearPick();
++    clearPick();
+     await bootstrapCatalog();
      toast("Đã reset", "Bạn có thể đặt lịch lại.");
    };
 
--  const clearBookings = () => {
--    if (!confirm("Xóa toàn bộ lịch hẹn (demo)?")) return;
--    bookings.clearAll();
--    toast("Đã xóa lịch hẹn", "LocalStorage đã được làm sạch.");
--  };
--
--  const setStatus = (id: string, status: BookingStatus) => {
--    bookings.setStatus(id, status);
--    toast("Đã cập nhật trạng thái", `${id} • ${status}`);
--  };
--
    return (
      <div className="min-h-screen bg-slate-50 text-slate-900">
--      <BookingHeader
--        userLabel={userLabel}
--        onHotline={() => toast("Hotline", "Gọi 0900 000 000 (demo).")}
--        onAuthClick={onAuthClick}
--      />
-+      <BookingHeader userLabel={userLabel} onHotline={() => toast("Hotline", "Gọi 0900 000 000 (demo)." )} onAuthClick={onAuthClick} />
+       <BookingHeader userLabel={userLabel} onHotline={() => toast("Hotline", "Gọi 0900 000 000 (demo)." )} onAuthClick={onAuthClick} />
 
        <main className="mx-auto max-w-7xl px-4 py-6">
--        <BookingHero onFillDemo={fillDemo} onScrollForm={scrollToForm} onViewMyBookings={viewMyBookings} />
-+        <BookingHero onFillDemo={fillDemo} onScrollForm={scrollToForm} />
+         <BookingHero onFillDemo={fillDemo} onScrollForm={scrollToForm} />
 
          <section id="form" className="mt-5 grid gap-4 lg:grid-cols-3" ref={formRef}>
            <div className="lg:col-span-2 space-y-4">
              <BookingForm
--              services={catalog.services}
--              staff={catalog.staff}
--              branches={catalog.branches}
-+              services={services as any}
-+              branches={branches as any}
-+              selectedServiceId={serviceId}
-+              selectedBranchId={branchId}
-               selectedSlot={slots.selectedSlot}
-+              customTime={customTime}
-+              onCustomTime={(v) => {
-+                setCustomTime(v);
-+                if (v) slots.clearPick();
-+              }}
+               services={services as any}
+               branches={branches as any}
+               selectedServiceId={serviceId}
+               selectedBranchId={branchId}
+-              selectedSlot={slots.selectedSlot}
+-              customTime={customTime}
+-              onCustomTime={(v) => {
+-                setCustomTime(v);
+-                if (v) slots.clearPick();
+-              }}
++              selectedSlot={customTime || slots.selectedSlot}
                onToast={toast}
                onCreate={async (b) => {
--                bookings.add(b);
                  try {
                    await http.post("/booking/appointments", {
                      customerName: b.name,
@@ -820,40 +495,32 @@ index 5fa74fbe724604a5ceca91af69af4a47a1620506..80fde5a2cb5b6cc20b21a08a927acb05
                      note: b.note || undefined,
                      branchId: Number(b.branchId),
                      serviceId: Number(b.serviceId),
--                    specialistId: b.staffId ? Number(b.staffId) : undefined,
                    });
--                } catch {
--                  toast("Lưu DB chưa thành công", "Vui lòng kiểm tra backend (localhost:8090).");
-+                  toast("Tạo lịch hẹn thành công", `${b.date} ${b.time}`);
-+                  await refreshSlots(serviceId, branchId, date);
-+                } catch (error: any) {
-+                  toast("Không thể tạo lịch", error?.response?.data?.message || "Khung giờ có thể đã hết chỗ.");
+                   toast("Tạo lịch hẹn thành công", `${b.date} ${b.time}`);
+                   await refreshSlots(serviceId, branchId, date);
+                 } catch (error: any) {
+                   toast("Không thể tạo lịch", error?.response?.data?.message || "Khung giờ có thể đã hết chỗ.");
                  }
                }}
                onResetSignal={resetSignal}
                initialName={user?.name || ""}
-+              onServiceChange={onServiceChange}
-+              onBranchChange={onBranchChange}
-+              onDateChange={onDateChange}
+               onServiceChange={onServiceChange}
+               onBranchChange={onBranchChange}
+               onDateChange={onDateChange}
              />
--            {catalog.loading && <div className="text-sm text-slate-500">Đang tải dữ liệu dịch vụ từ API...</div>}
-+            {loadingCatalog && <div className="text-sm text-slate-500">Đang tải dữ liệu dịch vụ từ API...</div>}
+             {loadingCatalog && <div className="text-sm text-slate-500">Đang tải dữ liệu dịch vụ từ API...</div>}
 
              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 ring-1 ring-slate-200">
                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                  <div className="text-sm text-slate-700">
--                  Khung giờ đã chọn: <b>{slots.selectedSlot || "Chưa chọn"}</b>
-+                  Khung giờ đã chọn: <b>{customTime || slots.selectedSlot || "Chưa chọn"}</b>
+                   Khung giờ đã chọn: <b>{customTime || slots.selectedSlot || "Chưa chọn"}</b>
                    <span className="text-slate-500"> • </span>
                    <button className="font-extrabold text-indigo-600 hover:underline" onClick={resetAll} type="button">
                      Reset toàn bộ
                    </button>
                  </div>
                </div>
--              <div className="mt-2 text-sm text-slate-600">
--                Tip: bấm “Làm mới” ở khung giờ để random available/unavailable (demo).
--              </div>
-+              <div className="mt-2 text-sm text-slate-600">Slot được backend tính theo số chuyên viên phục vụ được dịch vụ ở chi nhánh đã chọn.</div>
+               <div className="mt-2 text-sm text-slate-600">Slot được backend tính theo số chuyên viên phục vụ được dịch vụ ở chi nhánh đã chọn.</div>
              </div>
            </div>
 
@@ -861,992 +528,63 @@ index 5fa74fbe724604a5ceca91af69af4a47a1620506..80fde5a2cb5b6cc20b21a08a927acb05
              <SlotPicker
                slots={slots.slots}
                selected={slots.selectedSlot}
--              onPick={(t) => slots.pick(t)}
--              onRefresh={() => {
--                slots.refresh();
--                toast("Đã làm mới slot", "Một số khung giờ có thể hết chỗ (demo).");
-+              loading={slots.loading}
-+              durationMin={slots.durationMin}
-+              capacity={slots.capacity}
-+              onPick={(t) => {
-+                setCustomTime("");
-+                slots.pick(t);
++              customTime={customTime}
+               loading={slots.loading}
+               durationMin={slots.durationMin}
+               capacity={slots.capacity}
+               onPick={(t) => {
+                 setCustomTime("");
+                 slots.pick(t);
                }}
-+              onRefresh={() => refreshSlots(serviceId, branchId, date)}
++              onCustomTime={(v) => {
++                setCustomTime(v);
++                if (v) clearPick();
++              }}
+               onRefresh={() => refreshSlots(serviceId, branchId, date)}
              />
--
--            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
--              <MyBookings list={bookings.list} onSetStatus={setStatus} onClear={clearBookings} />
--            </div>
            </div>
          </section>
 
          <TrustSection onPolicy={() => setPolicyOpen(true)} />
        </main>
 
--      <Footer
--      />
--
--      <AuthModal
--        open={authOpen}
--        onClose={() => setAuthOpen(false)}
--        toast={toast}
--        onAuthed={(u) => setUser(u)}
--      />
-+      <Footer />
+       <Footer />
 
-+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} toast={toast} onAuthed={(u) => setUser(u)} />
+       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} toast={toast} onAuthed={(u) => setUser(u)} />
        <PolicyModal open={policyOpen} onClose={() => setPolicyOpen(false)} />
--
        <ToastStack items={toasts} onClose={remove} />
      </div>
    );
  }
-diff --git a/Home/ayanavita-fontend-final/src/pages/ServiceDetailPage.tsx b/Home/ayanavita-fontend-final/src/pages/ServiceDetailPage.tsx
-index 4803c6806360a36162314149ba5fd6320fc6d37f..3f17a1c966c02e9423613a9745587a7e75332e94 100644
---- a/Home/ayanavita-fontend-final/src/pages/ServiceDetailPage.tsx
-+++ b/Home/ayanavita-fontend-final/src/pages/ServiceDetailPage.tsx
-@@ -170,51 +170,51 @@ export default function ServiceDetailPage() {
-                   <img
-                     className="h-64 w-full object-cover"
-                     alt="detail"
-                     src={service.imageUrl || "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1600&q=70"}
-                   />
-                   <div className="absolute inset-0 bg-gradient-to-r from-slate-950/55 to-indigo-700/10" />
-                   <div className="absolute inset-0 p-6 flex flex-col justify-end">
-                     <div className="text-xs font-extrabold text-white/80">Chi tiết dịch vụ</div>
-                     <h1 className="text-2xl md:text-3xl font-extrabold text-white">
-                       {service.name} (#{service.id})
-                     </h1>
-                     <div className="mt-2 flex gap-2 flex-wrap">
-                       <span className="chip"><i className="fa-solid fa-clock text-indigo-600" />{service.durationMin} phút</span>
-                       <span className="chip">
-                         <i className="fa-solid fa-star star" />
-                         {service.ratingAvg.toFixed(1)} ({new Intl.NumberFormat("vi-VN").format(service.bookedCount)} lượt)
-                       </span>
-                     </div>
-                   </div>
-                 </div>
+diff --git a/Home/ayanavita-fontend-final/src/services/useToast.ts b/Home/ayanavita-fontend-final/src/services/useToast.ts
+index 922a41f5d2f4237abc998b007dd5b95f04d44851..6aaa467d80932af890f2d2ecb08e53634ce94e1e 100644
+--- a/Home/ayanavita-fontend-final/src/services/useToast.ts
++++ b/Home/ayanavita-fontend-final/src/services/useToast.ts
+@@ -1,26 +1,26 @@
+ // src/services/useToast.ts
+ import { useCallback, useState } from "react";
 
-                 <div className="p-5 grid gap-4 md:grid-cols-3">
-                   <div className="card p-4">
-                     <div className="text-xs font-extrabold text-slate-500">Giá niêm yết</div>
-                     <div className="text-2xl font-extrabold mt-1">{money(service.price)}</div>
--                    <Link to="/booking" className="btn btn-primary w-full mt-3"><i className="fa-solid fa-calendar-check" />Đặt lịch</Link>
-+                    <Link to={`/booking?serviceId=${service.id}`} className="btn btn-primary w-full mt-3"><i className="fa-solid fa-calendar-check" />Đặt lịch</Link>
-                     <Link to="/services" className="btn w-full mt-2"><i className="fa-solid fa-arrow-left" />Danh sách</Link>
-                   </div>
+ export type ToastItem = {
+   id: string;
+   title: string;
+   desc?: string;
+ };
 
-                   <div className="card p-4 md:col-span-2">
-                     <div className="font-extrabold">Mục tiêu &amp; Lợi ích</div>
-                     <ul className="mt-2 text-sm text-slate-700 space-y-2">
-                       {service.goals.length ? service.goals.map((goal, idx) => (
-                         <li key={idx} className="flex gap-2"><span className="text-emerald-600 font-extrabold">•</span>{goal}</li>
-                       )) : <li>Đang cập nhật.</li>}
-                     </ul>
-                     {service.description ? <div className="mt-3 text-sm muted">{service.description}</div> : null}
-                   </div>
-                 </div>
+ export function useToast() {
+   const [items, setItems] = useState<ToastItem[]>([]);
 
-                 <div className="px-5 pb-5 grid gap-4 lg:grid-cols-2">
-                   <div className="card p-5">
-                     <div className="font-extrabold">Quy trình</div>
-                     <ol className="mt-3 text-sm text-slate-700 space-y-2">
-                       {service.process.length ? service.process.map((p, idx) => (
-                         <li key={idx}><b>{idx + 1})</b> {p}</li>
-                       )) : <li>Đang cập nhật.</li>}
-                     </ol>
-                   </div>
-
-                   <div className="card p-5">
-diff --git a/Home/ayanavita-fontend-final/src/pages/ServicesPage.tsx b/Home/ayanavita-fontend-final/src/pages/ServicesPage.tsx
-index 45a6ffbe04e06089d4907e37c6f4af9bef7f9756..8e79ffb130b44363982cd6a143d3b8022b1d1710 100644
---- a/Home/ayanavita-fontend-final/src/pages/ServicesPage.tsx
-+++ b/Home/ayanavita-fontend-final/src/pages/ServicesPage.tsx
-@@ -81,51 +81,51 @@ function ServiceCard({ s }: { s: ApiService }) {
-             {money(s.price)}
-           </span>
-         </div>
-
-         <div className="mt-2 text-xs text-slate-500">
-           {s.id} • {s.duration} phút
-         </div>
-       </div>
-
-       <div className="mt-2 flex items-center justify-between text-sm text-slate-700">
-         <div className="flex items-center gap-2">
-           <Stars rating={s.rating} /> <b>{s.rating.toFixed(1)}</b>
-         </div>
-         <span className="chip">
-           <i className="fa-solid fa-fire text-rose-600" />
-           {s.tag}
-         </span>
-       </div>
-
-       <div className="mt-3 grid grid-cols-2 gap-2">
-         <Link className="btn" to={`/services/${s.id}`}>
-           <i className="fa-solid fa-circle-info" />
-           Chi tiết
-         </Link>
-
--        <Link className="btn btn-primary" to="/booking">
-+        <Link className="btn btn-primary" to={`/booking?serviceId=${s.dbId}`}>
-           <i className="fa-solid fa-calendar-check" />
-           Đặt
-         </Link>
-       </div>
-     </article>
-   );
- }
-
- export default function ServicesPage() {
-   const [authOpen, setAuthOpen] = useState(false);
-   const [authTab, setAuthTab] = useState<AuthTab>("login");
-   const [success, setSuccess] = useState<{ open: boolean; message: string }>({
-     open: false,
-     message: "",
-   });
-
-   const [loading, setLoading] = useState(true);
-   const [services, setServices] = useState<ApiService[]>([]);
-
-   const openAuth = useCallback((tab: AuthTab) => {
-     setAuthTab(tab);
-     setAuthOpen(true);
+   const push = useCallback((title: string, desc = "") => {
+     const id = Math.random().toString(16).slice(2);
+-    setItems((prev) => [{ id, title, desc }, ...prev]);
++    setItems([{ id, title, desc }]);
+     window.setTimeout(() => {
+       setItems((prev) => prev.filter((x) => x.id !== id));
+     }, 4200);
    }, []);
 
-   const openSuccess = useCallback((message: string) => {
-diff --git a/Home/ayanavita-fontend-final/src/services/useBookingSlots.ts b/Home/ayanavita-fontend-final/src/services/useBookingSlots.ts
-index 3881bf59d7fb56b6a8f19d18d3b289b48a6b50ec..8ecf9ebffbf816ca9b338a91c4ab085271a7f220 100644
---- a/Home/ayanavita-fontend-final/src/services/useBookingSlots.ts
-+++ b/Home/ayanavita-fontend-final/src/services/useBookingSlots.ts
-@@ -1,26 +1,45 @@
- // src/services/useBookingSlots.ts
- import { useCallback, useMemo, useState } from "react";
-+import { bookingApi } from "../api/booking.api";
-
--export type Slot = { t: string; available: boolean };
--
--const BASE = ["09:00", "10:00", "11:00", "13:30", "14:30", "15:30", "16:30", "18:30", "19:30"];
--
--function gen(): Slot[] {
--  return BASE.map((t) => ({ t, available: Math.random() > 0.25 }));
--}
-+export type Slot = { t: string; available: boolean; occupied?: number };
-
- export function useBookingSlots() {
--  const [slots, setSlots] = useState<Slot[]>(() => gen());
-+  const [slots, setSlots] = useState<Slot[]>([]);
-   const [selected, setSelected] = useState<string | null>(null);
--
--  const refresh = useCallback(() => {
--    setSlots(gen());
--    setSelected(null);
-+  const [capacity, setCapacity] = useState(0);
-+  const [durationMin, setDurationMin] = useState(0);
-+  const [loading, setLoading] = useState(false);
-+
-+  const refresh = useCallback(async (params?: { branchId?: number; serviceId?: number; date?: string }) => {
-+    if (!params?.branchId || !params?.serviceId || !params?.date) {
-+      setSlots([]);
-+      setCapacity(0);
-+      setDurationMin(0);
-+      setSelected(null);
-+      return;
-+    }
-+
-+    setLoading(true);
-+    try {
-+      const data = await bookingApi.slotSuggestions({
-+        branchId: params.branchId,
-+        serviceId: params.serviceId,
-+        date: params.date,
-+      });
-+      const nextSlots = (data?.slots || []).map((s) => ({ t: s.time, available: !!s.available, occupied: s.occupied }));
-+      setSlots(nextSlots);
-+      setCapacity(Number(data?.capacity || 0));
-+      setDurationMin(Number(data?.durationMin || 0));
-+      setSelected((prev) => (nextSlots.some((s) => s.t === prev && s.available) ? prev : null));
-+    } finally {
-+      setLoading(false);
-+    }
+   const remove = useCallback((id: string) => {
+     setItems((prev) => prev.filter((x) => x.id !== id));
    }, []);
 
-   const pick = useCallback((t: string) => setSelected(t), []);
--
-+  const clearPick = useCallback(() => setSelected(null), []);
-   const selectedSlot = useMemo(() => selected, [selected]);
-
--  return { slots, selectedSlot, pick, refresh, clearPick: () => setSelected(null) };
-+  return { slots, selectedSlot, pick, refresh, clearPick, capacity, durationMin, loading };
- }
-diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202602270001_drop_appointment_userid/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202602270001_drop_appointment_userid/migration.sql
-new file mode 100644
-index 0000000000000000000000000000000000000000..de58a099e1e2c9bffedd1590d61528a9357eb994
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/prisma/migrations/202602270001_drop_appointment_userid/migration.sql
-@@ -0,0 +1,8 @@
-+-- DropForeignKey
-+ALTER TABLE `Appointment` DROP FOREIGN KEY `Appointment_userId_fkey`;
-+
-+-- DropIndex
-+DROP INDEX `Appointment_userId_idx` ON `Appointment`;
-+
-+-- AlterTable
-+ALTER TABLE `Appointment` DROP COLUMN `userId`;
-diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-index 722a4b969e471e108f04bd68336edafb7e882bb1..b72c454394b21806b299ac69c463e5e1d4c56eaa 100644
---- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
-+++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-@@ -6,51 +6,50 @@ datasource db {
-   provider          = "mysql"
-   url               = env("DATABASE_URL")
-   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
- }
-
- model User {
-   id                 Int      @id @default(autoincrement())
-   email              String   @unique
-   password           String
-   name               String?
-   phone              String?
-   role               Role     @default(USER)
-   isActive           Boolean  @default(true)
-   hashedRefreshToken String?  @db.Text
-   createdAt          DateTime @default(now())
-   updatedAt          DateTime @updatedAt
-
-   // ✅ ADD
-   enrollments    Enrollment[]
-   lessonProgress LessonProgress[]
-   orders         Order[] // <— opposite for Order.user
-
-   // ✅ CMS (optional relations)
-   cmsSectionVersions CmsSectionVersion[]
-   mediaAssets        MediaAsset[]
--  appointments       Appointment[]
-   serviceReviews     ServiceReview[]
- }
-
- model Branch {
-   id          Int                @id @default(autoincrement())
-   code        String             @unique @db.VarChar(32)
-   name        String             @db.VarChar(255)
-   address     String             @db.VarChar(255)
-   phone       String?            @db.VarChar(30)
-   isActive    Boolean            @default(true)
-   createdAt   DateTime           @default(now())
-   updatedAt   DateTime           @updatedAt
-   services    BranchService[]
-   specialists Specialist[]
-   appointments Appointment[]
- }
-
- model ServiceCategory {
-   id        Int      @id @default(autoincrement())
-   name      String   @unique @db.VarChar(255)
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
-   services  Service[]
- }
-
-@@ -113,80 +112,76 @@ model BranchService {
- model SpecialistBranchService {
-   specialistId Int
-   branchId     Int
-   serviceId    Int
-   createdAt    DateTime @default(now())
-
-   specialist Specialist   @relation(fields: [specialistId], references: [id], onDelete: Cascade)
-   branchService BranchService @relation(fields: [branchId, serviceId], references: [branchId, serviceId], onDelete: Cascade)
-
-   @@id([specialistId, branchId, serviceId])
-   @@index([branchId, serviceId])
- }
-
- model Appointment {
-   id            Int               @id @default(autoincrement())
-   code          String            @unique @db.VarChar(40)
-   customerName  String            @db.VarChar(255)
-   customerPhone String            @db.VarChar(30)
-   customerEmail String?           @db.VarChar(255)
-   appointmentAt DateTime
-   note          String?           @db.Text
-   status        AppointmentStatus @default(PENDING)
-   branchId      Int
-   serviceId     Int
-   specialistId  Int?
--  userId        Int?
-   createdAt     DateTime          @default(now())
-   updatedAt     DateTime          @updatedAt
-
-   branch     Branch      @relation(fields: [branchId], references: [id], onDelete: Restrict)
-   service    Service     @relation(fields: [serviceId], references: [id], onDelete: Restrict)
-   specialist Specialist? @relation(fields: [specialistId], references: [id], onDelete: SetNull)
--  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-   @@index([branchId, appointmentAt])
-   @@index([serviceId])
-   @@index([specialistId])
--  @@index([userId])
- }
-
- model ServiceReview {
-   id         Int      @id @default(autoincrement())
-   serviceId  Int
-   userId     Int?
-   stars      Int
-   comment    String?  @db.Text
-   customerName String? @db.VarChar(255)
-   createdAt  DateTime @default(now())
-   updatedAt  DateTime @updatedAt
-
-   service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-   user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-   @@index([serviceId])
--  @@index([userId])
- }
-
-
- model RegistrationOtp {
-   id        Int      @id @default(autoincrement())
-   email     String   @unique
-   code      String   @db.VarChar(6)
-   expiresAt DateTime
-   usedAt    DateTime?
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
- }
-
- model Course {
-   id          Int      @id @default(autoincrement())
-   title       String
-   slug        String   @unique
-   description String?
-   thumbnail   String?
-   price       Int      @default(0)
-   published   Boolean  @default(false)
-   createdAt   DateTime @default(now())
-   updatedAt   DateTime @updatedAt
-
-   lessons     Lesson[]
-@@ -208,76 +203,74 @@ model Lesson {
-   createdAt DateTime         @default(now())
-   updatedAt DateTime         @updatedAt
-   course    Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-   progress  LessonProgress[]
-
-   @@unique([courseId, slug])
-   @@index([courseId, order])
- }
-
- model Enrollment {
-   id       Int @id @default(autoincrement())
-   userId   Int
-   courseId Int
-   orderId  Int
-
-   createdAt DateTime @default(now())
-
-   status     EnrollmentStatus @default(ACTIVE)
-   enrolledAt DateTime         @default(now())
-   updatedAt  DateTime         @updatedAt
-   user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-   course     Course           @relation(fields: [courseId], references: [id], onDelete: Restrict)
-   order      Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-   @@unique([userId, courseId])
--  @@index([userId])
-   @@index([courseId])
-   @@index([orderId])
- }
-
- model LessonProgress {
-   id           Int      @id @default(autoincrement())
-   userId       Int
-   lessonId     Int
-   completed    Boolean  @default(false)
-   lastOpenedAt DateTime @default(now())
-
-   // tiến độ
-   status          ProgressStatus @default(IN_PROGRESS)
-   percent         Int            @default(0) // 0..100
-   lastPositionSec Int            @default(0)
-   completedAt     DateTime?
-
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
-   lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-   @@unique([userId, lessonId])
-   @@index([lessonId])
--  @@index([userId])
- }
-
- enum ProgressStatus {
-   IN_PROGRESS
-   COMPLETED
- }
-
- enum SpecialistLevel {
-   JUNIOR
-   SENIOR
-   EXPERT
-   THERAPIST
- }
-
- enum AppointmentStatus {
-   PENDING
-   CONFIRMED
-   DONE
-   CANCELED
- }
-
- enum Role {
-   ADMIN
-   MANAGER
-   STAFF
-@@ -296,51 +289,50 @@ enum OrderStatus {
-   CANCELED
-   EXPIRED
- }
-
- model Order {
-   id          Int          @id @default(autoincrement())
-   code        String       @unique @db.VarChar(32) // mã đơn
-   userId      Int
-   status      OrderStatus  @default(PENDING)
-   enrollments Enrollment[]
-
-   currency String @default("VND") @db.VarChar(3)
-   subtotal Int    @default(0)
-   discount Int    @default(0)
-   total    Int    @default(0)
-
-   paidAt     DateTime?
-   canceledAt DateTime?
-
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
-
-   user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-   items OrderItem[]
-
--  @@index([userId])
-   @@index([status])
- }
-
- model OrderItem {
-   id       Int @id @default(autoincrement())
-   orderId  Int
-   courseId Int
-
-   price       Int    @default(0)
-   courseTitle String @db.VarChar(255) // snapshot (khuyến nghị)
-
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
-
-   order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-   course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
-
-   @@unique([orderId, courseId])
-   @@index([courseId])
- }
-
- // ===================== CMS (Landing / Public Pages) =====================
-
- enum CmsStatus {
-   DRAFT
-diff --git a/backend/ayanavitabackend/app/api/prisma/seed.ts b/backend/ayanavitabackend/app/api/prisma/seed.ts
-index c406d3e97d394f3859f60a1f0eb4293669fb93f0..755ba2be253ca24513478a8b53acfa2578e56a3f 100644
---- a/backend/ayanavitabackend/app/api/prisma/seed.ts
-+++ b/backend/ayanavitabackend/app/api/prisma/seed.ts
-@@ -176,63 +176,61 @@ async function main() {
-             serviceId: service.id,
-           },
-         },
-         update: {},
-         create: {
-           specialistId: specialist.id,
-           branchId: specialist.branchId,
-           serviceId: service.id,
-         },
-       })
-     }
-   }
-
-   const now = new Date()
-   const sampleAppointments = [
-     {
-       code: 'APM-1001',
-       customerName: 'Nguyễn Thu Hà',
-       customerPhone: '0912000111',
-       customerEmail: 'thuha@example.com',
-       appointmentAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
-       note: 'Da nhạy cảm, cần tư vấn kỹ.',
-       branchId: branches[0]?.id,
-       serviceId: services[0]?.id,
-       specialistId: specialists[0]?.id,
--      userId: user.id,
-     },
-     {
-       code: 'APM-1002',
-       customerName: 'Trần Minh Anh',
-       customerPhone: '0912000222',
-       customerEmail: 'minhanh@example.com',
-       appointmentAt: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000),
-       note: 'Ưu tiên khung giờ chiều 🤗',
-       branchId: branches[1]?.id,
-       serviceId: services[1]?.id,
-       specialistId: specialists[1]?.id,
--      userId: user.id,
-     },
-   ].filter((item) => item.branchId && item.serviceId)
-
-   for (const a of sampleAppointments) {
-     await prisma.appointment.upsert({
-       where: { code: a.code },
-       update: a,
-       create: a,
-     })
-   }
-
-   const serviceReviewSeeds = [
-     { serviceId: services[0]?.id, userId: user.id, stars: 5, comment: 'Rất hài lòng 👏👏👏', customerName: 'Thu Hà' },
-     { serviceId: services[1]?.id, userId: user.id, stars: 4, comment: 'Dịch vụ tốt, nhân viên nhiệt tình 🤗', customerName: 'Minh Anh' },
-     { serviceId: services[2]?.id, userId: null, stars: 5, comment: 'Thư giãn đúng nghĩa, sẽ quay lại!', customerName: 'Khách lẻ' },
-   ].filter((r) => r.serviceId)
-
-   for (const review of serviceReviewSeeds) {
-     const existing = await prisma.serviceReview.findFirst({
-       where: {
-         serviceId: review.serviceId,
-         customerName: review.customerName ?? undefined,
-         comment: review.comment ?? undefined,
-       },
-     })
-diff --git a/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts b/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
-index e7e5cf917eba13cb7b5b02e7afea5dab8f07af0d..2ef1c8274bc503775bcfed66766644f023c66965 100644
---- a/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
-+++ b/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
-@@ -168,53 +168,75 @@ export class BookingController {
-   @Delete('service-categories/:id')
-   deleteServiceCategory(@Param('id', ParseIntPipe) id: number) {
-     return this.booking.deleteServiceCategory(id)
-   }
-
-   @Get('specialists')
-   specialists(@Query() query: BookingFilterQueryDto) {
-     return this.booking.listSpecialists(query.branchId, query.serviceId)
-   }
-
-   @Post('specialists')
-   createSpecialist(@Body() data: any) {
-     return this.booking.createSpecialist(data)
-   }
-
-   @Patch('specialists/:id')
-   updateSpecialist(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
-     return this.booking.updateSpecialist(id, data)
-   }
-
-   @Delete('specialists/:id')
-   deleteSpecialist(@Param('id', ParseIntPipe) id: number) {
-     return this.booking.deleteSpecialist(id)
-   }
-
-+
-+  @Get('slot-suggestions')
-+  slotSuggestions(
-+    @Query('branchId') branchId: string,
-+    @Query('serviceId') serviceId: string,
-+    @Query('date') date: string,
-+  ) {
-+    const parsedBranchId = Number(branchId)
-+    const parsedServiceId = Number(serviceId)
-+    if (!Number.isInteger(parsedBranchId) || parsedBranchId < 1) {
-+      throw new BadRequestException('branchId must be a positive integer')
-+    }
-+    if (!Number.isInteger(parsedServiceId) || parsedServiceId < 1) {
-+      throw new BadRequestException('serviceId must be a positive integer')
-+    }
-+    if (!date) {
-+      throw new BadRequestException('date is required')
-+    }
-+
-+    return this.booking.getSlotSuggestions(parsedBranchId, parsedServiceId, date)
-+  }
-+
-   @Get('appointments')
--  appointments(@Query() query: BookingFilterQueryDto) {
--    return this.booking.listAppointments(query.userId)
-+  appointments() {
-+    return this.booking.listAppointments()
-   }
-
-   @Patch('appointments/:id')
-   updateAppointment(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
-     return this.booking.updateAppointment(id, data)
-   }
-
-   @Delete('appointments/:id')
-   deleteAppointment(@Param('id', ParseIntPipe) id: number) {
-     return this.booking.deleteAppointment(id)
-   }
-
-   @Get('service-reviews')
-   serviceReviews(@Query() query: BookingFilterQueryDto) {
-     return this.booking.listServiceReviews(query.serviceId)
-   }
-
-   @Post('service-reviews')
-   createServiceReview(@Body() data: any) {
-     return this.booking.createServiceReview(data)
-   }
-
-   @Delete('service-reviews/:id')
-   deleteServiceReview(@Param('id', ParseIntPipe) id: number) {
-     return this.booking.deleteServiceReview(id)
-diff --git a/backend/ayanavitabackend/app/api/src/booking/booking.service.ts b/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
-index 26f89487ec2fcbb286a39e1b9318d64aa61b94c3..5b803f075ab73a76d444a082ac00a847b881a44b 100644
---- a/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
-@@ -362,61 +362,152 @@ export class BookingService {
-       },
-       select: {
-         id: true,
-         code: true,
-         name: true,
-         level: true,
-         bio: true,
-         branchId: true,
-         serviceLinks: { select: { serviceId: true } },
-       },
-       orderBy: { id: 'asc' },
-     })
-
-     return rows.map((s) => ({
-       id: s.id,
-       code: s.code,
-       name: s.name,
-       level: s.level,
-       bio: s.bio,
-       branchId: s.branchId,
-       serviceIds: [...new Set(s.serviceLinks.map((srv) => srv.serviceId))],
-     }))
-   }
-
-
--  listAppointments(userId?: number) {
-+  listAppointments() {
-     return this.prisma.appointment.findMany({
--      where: userId ? { userId } : {},
-       include: {
-         branch: { select: { id: true, name: true } },
-         service: { select: { id: true, name: true, durationMin: true, price: true } },
-         specialist: { select: { id: true, name: true, level: true } },
-       },
-       orderBy: { appointmentAt: 'desc' },
-     })
-   }
-+
-+  private parseDateWindow(date: string) {
-+    const dayStart = new Date(`${date}T00:00:00`)
-+    const dayEnd = new Date(`${date}T23:59:59.999`)
-+    if (Number.isNaN(dayStart.getTime()) || Number.isNaN(dayEnd.getTime())) {
-+      throw new BadRequestException('Invalid date format, expected yyyy-mm-dd')
-+    }
-+    return { dayStart, dayEnd }
-+  }
-+
-+  private toTimeLabel(date: Date) {
-+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-+  }
-+
-+  private overlaps(startA: Date, endA: Date, startB: Date, endB: Date) {
-+    return startA < endB && endA > startB
-+  }
-+
-+  private async getServiceCapacity(branchId: number, serviceId: number) {
-+    return this.prisma.specialistBranchService.count({
-+      where: {
-+        branchId,
-+        serviceId,
-+        specialist: { isActive: true },
-+      },
-+    })
-+  }
-+
-+  private async countOverlappingAppointments(params: {
-+    branchId: number
-+    serviceId: number
-+    start: Date
-+    end: Date
-+    ignoreAppointmentId?: number
-+  }) {
-+    const rows = await this.prisma.appointment.findMany({
-+      where: {
-+        branchId: params.branchId,
-+        serviceId: params.serviceId,
-+        status: { not: 'CANCELED' },
-+        appointmentAt: {
-+          gte: new Date(params.start.getTime() - 12 * 60 * 60 * 1000),
-+          lte: new Date(params.end.getTime() + 12 * 60 * 60 * 1000),
-+        },
-+        ...(params.ignoreAppointmentId ? { id: { not: params.ignoreAppointmentId } } : {}),
-+      },
-+      select: { id: true, appointmentAt: true, service: { select: { durationMin: true } } },
-+    })
-+
-+    return rows.filter((row) => {
-+      const start = new Date(row.appointmentAt)
-+      const end = new Date(start.getTime() + row.service.durationMin * 60000)
-+      return this.overlaps(params.start, params.end, start, end)
-+    }).length
-+  }
-+
-+  async getSlotSuggestions(branchId: number, serviceId: number, date: string) {
-+    const [service, branchService] = await Promise.all([
-+      this.prisma.service.findUnique({ where: { id: serviceId }, select: { id: true, durationMin: true } }),
-+      this.prisma.branchService.findUnique({ where: { branchId_serviceId: { branchId, serviceId } } }),
-+    ])
-+
-+    if (!service) throw new NotFoundException('Service not found')
-+    if (!branchService) throw new BadRequestException('Service is not available in this branch')
-+
-+    const capacity = await this.getServiceCapacity(branchId, serviceId)
-+    const durationMin = Math.max(1, service.durationMin || 1)
-+
-+    const { dayStart } = this.parseDateWindow(date)
-+    const slotStart = new Date(dayStart)
-+    slotStart.setHours(7, 0, 0, 0)
-+    const closing = new Date(dayStart)
-+    closing.setHours(21, 0, 0, 0)
-+
-+    const slots: Array<{ time: string; available: boolean; occupied: number }> = []
-+    for (let cursor = new Date(slotStart); cursor < closing; cursor = new Date(cursor.getTime() + durationMin * 60000)) {
-+      const end = new Date(cursor.getTime() + durationMin * 60000)
-+      const occupied = await this.countOverlappingAppointments({ branchId, serviceId, start: cursor, end })
-+      slots.push({
-+        time: this.toTimeLabel(cursor),
-+        occupied,
-+        available: capacity > occupied,
-+      })
-+    }
-+
-+    return {
-+      durationMin,
-+      capacity,
-+      slots,
-+    }
-+  }
-+
-   async listServiceReviews(serviceId?: number): Promise<ServiceReviewResponseDto[]> {
-     const rows = await this.prisma.serviceReview.findMany({
-       where: serviceId ? { serviceId } : {},
-       select: {
-         id: true,
-         serviceId: true,
-         userId: true,
-         stars: true,
-         comment: true,
-         customerName: true,
-         createdAt: true,
-       },
-       orderBy: { id: 'desc' },
-     })
-
-     return rows
-   }
-
-   async createAppointment(dto: CreateAppointmentDto) {
-     const appointmentAt = new Date(dto.appointmentAt)
-     if (Number.isNaN(appointmentAt.getTime())) {
-       throw new BadRequestException('Invalid appointmentAt date')
-     }
-
-     const [branch, service] = await Promise.all([
-@@ -428,64 +519,95 @@ export class BookingService {
-     if (!service) throw new NotFoundException('Service not found')
-
-     const branchService = await this.prisma.branchService.findUnique({
-       where: { branchId_serviceId: { branchId: dto.branchId, serviceId: dto.serviceId } },
-     })
-
-     if (!branchService) {
-       throw new BadRequestException('Service is not available in this branch')
-     }
-
-     if (dto.specialistId) {
-       const specialist = await this.prisma.specialist.findUnique({ where: { id: dto.specialistId } })
-       if (!specialist) throw new NotFoundException('Specialist not found')
-
-       if (specialist.branchId !== dto.branchId) {
-         throw new BadRequestException('Specialist does not belong to this branch')
-       }
-
-       const specialistBranchService = await this.prisma.specialistBranchService.findUnique({
-         where: { specialistId_branchId_serviceId: { specialistId: dto.specialistId, branchId: dto.branchId, serviceId: dto.serviceId } },
-       })
-
-       if (!specialistBranchService) {
-         throw new BadRequestException('Specialist is not available for this service in selected branch')
-       }
-+
-+      const specialistAppointments = await this.prisma.appointment.findMany({
-+        where: {
-+          specialistId: dto.specialistId,
-+          status: { not: 'CANCELED' },
-+          appointmentAt: {
-+            gte: new Date(appointmentAt.getTime() - 12 * 60 * 60 * 1000),
-+            lte: new Date(appointmentAt.getTime() + 12 * 60 * 60 * 1000),
-+          },
-+        },
-+        select: { appointmentAt: true, service: { select: { durationMin: true } } },
-+      })
-+      const specialistConflict = specialistAppointments.some((row) => {
-+        const start = new Date(row.appointmentAt)
-+        const end = new Date(start.getTime() + row.service.durationMin * 60000)
-+        return this.overlaps(appointmentAt, new Date(appointmentAt.getTime() + service.durationMin * 60000), start, end)
-+      })
-+      if (specialistConflict) {
-+        throw new BadRequestException('Specialist is already occupied at this time')
-+      }
-+    }
-+
-+    const capacity = await this.getServiceCapacity(dto.branchId, dto.serviceId)
-+    const occupied = await this.countOverlappingAppointments({
-+      branchId: dto.branchId,
-+      serviceId: dto.serviceId,
-+      start: appointmentAt,
-+      end: new Date(appointmentAt.getTime() + service.durationMin * 60000),
-+    })
-+
-+    if (capacity <= occupied) {
-+      throw new BadRequestException('Selected time is fully booked for this service in selected branch')
-     }
-
-     const created = await this.prisma.appointment.create({
-       data: {
-         code: `APM-${Date.now()}`,
-         customerName: dto.customerName,
-         customerPhone: dto.customerPhone,
-         customerEmail: dto.customerEmail,
-         appointmentAt,
-         note: dto.note,
-         branchId: dto.branchId,
-         serviceId: dto.serviceId,
-         specialistId: dto.specialistId,
--        userId: dto.userId,
-       },
-       include: {
-         branch: { select: { id: true, name: true } },
-         service: { select: { id: true, name: true, durationMin: true, price: true } },
-         specialist: { select: { id: true, name: true, level: true } },
-       },
-     })
-
-     return created
-   }
-
-   async updateAppointment(id: number, data: any) {
-     return this.prisma.appointment.update({ where: { id }, data })
-   }
-
-   async deleteAppointment(id: number) {
-     await this.prisma.appointment.delete({ where: { id } })
-     return { ok: true }
-   }
-
-
-   private sanitizeServiceData(data: any): { serviceData: Prisma.ServiceUncheckedCreateInput; branchIds: number[] } {
-     const goalsInput = Array.isArray(data.goals) ? data.goals : []
-     const suitableForInput = Array.isArray(data.suitableFor) ? data.suitableFor : []
-     const processInput = Array.isArray(data.process) ? data.process : []
-diff --git a/backend/ayanavitabackend/app/api/src/booking/dto/booking-query.dto.ts b/backend/ayanavitabackend/app/api/src/booking/dto/booking-query.dto.ts
-index ade76a93e8a3ca961b6903852ab1f3d67fd875a0..4240dfabb17a02bdccf06e8c197aae43e4896c49 100644
---- a/backend/ayanavitabackend/app/api/src/booking/dto/booking-query.dto.ts
-+++ b/backend/ayanavitabackend/app/api/src/booking/dto/booking-query.dto.ts
-@@ -1,43 +1,37 @@
- import { Transform, Type } from 'class-transformer'
- import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
-
- export class BookingFilterQueryDto {
-   @IsOptional()
-   @Type(() => Number)
-   @IsInt()
-   @Min(1)
-   branchId?: number
-
-   @IsOptional()
-   @Type(() => Number)
-   @IsInt()
-   @Min(1)
-   serviceId?: number
-
--  @IsOptional()
--  @Type(() => Number)
--  @IsInt()
--  @Min(1)
--  userId?: number
--
-   @IsOptional()
-   @IsString()
-   q?: string
-
-   @IsOptional()
-   @Type(() => Number)
-   @IsInt()
-   @Min(1)
-   page?: number
-
-   @IsOptional()
-   @Type(() => Number)
-   @IsInt()
-   @Min(1)
-   @Max(100)
-   pageSize?: number
-
-   @IsOptional()
-   @Transform(({ value }) => value === 'true' || value === true)
-   includeInactive?: boolean
- }
-diff --git a/backend/ayanavitabackend/app/api/src/booking/dto/create-appointment.dto.ts b/backend/ayanavitabackend/app/api/src/booking/dto/create-appointment.dto.ts
-index f8310c1674364ab324c88dec752577edae95c285..8da9792d5adcfd458c5f6693ad1bcbd9aa5ca293 100644
---- a/backend/ayanavitabackend/app/api/src/booking/dto/create-appointment.dto.ts
-+++ b/backend/ayanavitabackend/app/api/src/booking/dto/create-appointment.dto.ts
-@@ -10,31 +10,26 @@ export class CreateAppointmentDto {
-   customerPhone!: string
-
-   @IsOptional()
-   @IsEmail()
-   customerEmail?: string
-
-   @IsString()
-   appointmentAt!: string
-
-   @IsOptional()
-   @IsString()
-   note?: string
-
-   @IsInt()
-   @Min(1)
-   branchId!: number
-
-   @IsInt()
-   @Min(1)
-   serviceId!: number
-
-   @IsOptional()
-   @IsInt()
-   @Min(1)
-   specialistId?: number
--
--  @IsOptional()
--  @IsInt()
--  @Min(1)
--  userId?: number
+   return { items, push, remove };
  }

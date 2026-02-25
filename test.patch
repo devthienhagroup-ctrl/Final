@@ -1,11 +1,127 @@
-diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202603020001_drop_specialist_code/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202603020001_drop_specialist_code/migration.sql
-new file mode 100644
-index 0000000000000000000000000000000000000000..a3d8c19cc226a38523aa9e3ffad1af60138be28e
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/prisma/migrations/202603020001_drop_specialist_code/migration.sql
-@@ -0,0 +1,5 @@
-+ALTER TABLE `Specialist`
-+  DROP INDEX `Specialist_code_key`;
-+
-+ALTER TABLE `Specialist`
-+  DROP COLUMN `code`;
+diff --git a/backend/ayanavitabackend/app/api/prisma/seed.ts b/backend/ayanavitabackend/app/api/prisma/seed.ts
+index caafff23ac452a8f2f88216ada1863079f8c7e95..69e8100e9202bd3dc4d10ac36ffb57cd2178353a 100644
+--- a/backend/ayanavitabackend/app/api/prisma/seed.ts
++++ b/backend/ayanavitabackend/app/api/prisma/seed.ts
+@@ -74,55 +74,55 @@ async function main() {
+       goals: ['relax', 'pain'],
+       suitableFor: ['Dân văn phòng', 'Hay đau đầu'],
+       durationMin: 60,
+       price: 320000,
+       ratingAvg: 4.8,
+       bookedCount: 2100,
+       tag: 'Hot',
+       imageUrl: 'https://images.unsplash.com/photo-1596178060671-7a80dc8059ea?auto=format&fit=crop&w=1200&q=70',
+       description: 'Kết hợp massage da đầu và tinh dầu giúp giảm căng thẳng.',
+     },
+     {
+       name: 'Combo da + massage ✨',
+       categoryName: 'Combo liệu trình',
+       goals: ['restore', 'relax'],
+       suitableFor: ['Cần phục hồi toàn diện', 'Thiếu thời gian'],
+       durationMin: 120,
+       price: 1050000,
+       ratingAvg: 4.9,
+       bookedCount: 420,
+       tag: 'Combo',
+       imageUrl: 'https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?auto=format&fit=crop&w=1200&q=70',
+       description: 'Kết hợp chăm sóc da và massage trị liệu trong một buổi.',
+     },
+   ]
+
+-  const specialistSeeds: Array<{ code: string; email: string; name: string; level: SpecialistLevel; bio: string; branchCode: string }> = [
+-    { code: 'LINH', email: 'linh.staff@ayanavita.local', name: 'Chuyên viên Linh', level: SpecialistLevel.SENIOR, bio: '8 năm kinh nghiệm chăm sóc da.', branchCode: 'HCM_Q1' },
+-    { code: 'TRANG', email: 'trang.staff@ayanavita.local', name: 'Chuyên viên Trang', level: SpecialistLevel.EXPERT, bio: 'Chuyên gia massage trị liệu.', branchCode: 'HN_CG' },
+-    { code: 'MAI', email: 'mai.staff@ayanavita.local', name: 'Chuyên viên Mai', level: SpecialistLevel.SENIOR, bio: 'Tư vấn liệu trình phục hồi da.', branchCode: 'DN_HC' },
+-    { code: 'NAM', email: 'nam.staff@ayanavita.local', name: 'Chuyên viên Nam', level: SpecialistLevel.THERAPIST, bio: 'Kỹ thuật viên trị liệu cổ vai gáy.', branchCode: 'HCM_Q1' },
++  const specialistSeeds: Array<{ email: string; name: string; level: SpecialistLevel; bio: string; branchCode: string }> = [
++    { email: 'linh.staff@ayanavita.local', name: 'Chuyên viên Linh', level: SpecialistLevel.SENIOR, bio: '8 năm kinh nghiệm chăm sóc da.', branchCode: 'HCM_Q1' },
++    { email: 'trang.staff@ayanavita.local', name: 'Chuyên viên Trang', level: SpecialistLevel.EXPERT, bio: 'Chuyên gia massage trị liệu.', branchCode: 'HN_CG' },
++    { email: 'mai.staff@ayanavita.local', name: 'Chuyên viên Mai', level: SpecialistLevel.SENIOR, bio: 'Tư vấn liệu trình phục hồi da.', branchCode: 'DN_HC' },
++    { email: 'nam.staff@ayanavita.local', name: 'Chuyên viên Nam', level: SpecialistLevel.THERAPIST, bio: 'Kỹ thuật viên trị liệu cổ vai gáy.', branchCode: 'HCM_Q1' },
+   ]
+
+   for (const b of branchSeeds) {
+     await prisma.branch.upsert({ where: { code: b.code }, update: b, create: b })
+   }
+
+   const categorySeeds = [
+     { name: 'Chăm sóc da' },
+     { name: 'Chăm sóc cơ thể' },
+     { name: 'Dưỡng sinh' },
+     { name: 'Combo liệu trình' },
+     { name: 'Khác' },
+   ]
+
+   for (const c of categorySeeds) {
+     await prisma.serviceCategory.upsert({ where: { name: c.name }, update: c, create: c })
+   }
+
+   const categories = await prisma.serviceCategory.findMany()
+   const categoryMap = new Map(categories.map((c) => [c.name, c.id]))
+
+   for (const s of serviceSeeds) {
+     const { categoryName, ...serviceData } = s
+     const categoryId = categoryMap.get(categoryName) ?? categoryMap.get('Khác')
+     const existingService = await prisma.service.findFirst({ where: { name: s.name } })
+@@ -137,61 +137,59 @@ async function main() {
+   }
+
+   const branches = await prisma.branch.findMany()
+   const branchByCode = new Map(branches.map((item) => [item.code, item.id]))
+
+   for (const st of specialistSeeds) {
+     const branchId = branchByCode.get(st.branchCode)
+     if (!branchId) continue
+
+     const staffUser = await prisma.user.upsert({
+       where: { email: st.email },
+       update: { name: st.name, role: 'STAFF' },
+       create: {
+         email: st.email,
+         password: passwordHash,
+         name: st.name,
+         role: 'STAFF',
+       },
+     })
+
+     const existingSpecialist = await prisma.specialist.findUnique({ where: { userId: staffUser.id } })
+     if (existingSpecialist) {
+       await prisma.specialist.update({
+         where: { id: existingSpecialist.id },
+         data: {
+-          code: st.code,
+           name: st.name,
+           level: st.level,
+           bio: st.bio,
+           branch: { connect: { id: branchId } },
+         },
+       })
+     } else {
+       await prisma.specialist.create({
+         data: {
+-          code: st.code,
+           name: st.name,
+           level: st.level,
+           bio: st.bio,
+           branch: { connect: { id: branchId } },
+           user: { connect: { id: staffUser.id } },
+         },
+       })
+     }
+   }
+
+   const services = await prisma.service.findMany()
+   const specialists = await prisma.specialist.findMany()
+
+   for (const branch of branches) {
+     for (const service of services) {
+       await prisma.branchService.upsert({
+         where: { branchId_serviceId: { branchId: branch.id, serviceId: service.id } },
+         update: {},
+         create: { branchId: branch.id, serviceId: service.id },
+       })
+     }
+   }
+
+   for (const specialist of specialists) {
+     const branchServices = services.filter((_, index) => index % 2 === specialist.id % 2)

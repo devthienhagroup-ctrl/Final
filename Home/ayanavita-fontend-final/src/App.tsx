@@ -1,75 +1,62 @@
-// src/App.tsx
-import React from "react";
-import {Routes, Route, BrowserRouter} from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 
-
-import HomePage from "./pages/HomePage";
-import ServicesPage from "./pages/ServicesPage";
+import Layout from "./components/layout/Layout";
 import BookingPage from "./pages/BookingPage";
-import ServiceDetailPage from "./pages/ServiceDetailPage";
-
-import Layout from "./components/layout/Layout"
-
-import CoursesPage from "./pages/CoursesPage";
+import BlogPage from "./pages/BlogPage";
 import CartPage from "./pages/CartPage";
-import ProductCheckoutPage from "./pages/ProductCheckoutPage";
 import CheckoutPage from "./pages/CheckoutPage";
-import ProductsPage from "./pages/ProductsPage";
 import ComparePage from "./pages/ComparePage";
-import TrackOrderPage from "./pages/TrackOrderPage";
-import ProductCategoryPage from "./pages/ProductCategoryPage";
-import ProductDetailPage from "./pages/ProductDetailPage";
+import ContactPage from "./pages/ContactPage";
 import CourseDetailPage from "./pages/CourseDetailPage";
 import CoursePlayerPage from "./pages/CoursePlayerPage";
-import BlogPage from "./pages/BlogPage";
+import CoursesPage from "./pages/CoursesPage";
+import HomePage from "./pages/HomePage";
 import LessonDetailPage from "./pages/LessonDetailPage";
+import ProductCategoryPage from "./pages/ProductCategoryPage";
+import ProductCheckoutPage from "./pages/ProductCheckoutPage";
+import ProductDetailPage from "./pages/ProductDetailPage";
+import ProductAdminDetailPage from "./pages/ProductAdminDetailPage";
+import ProductAdminListPage from "./pages/ProductAdminListPage";
+import ProductsPage from "./pages/ProductsPage";
 import ReviewsCenterPage from "./pages/ReviewsCenterPage";
-import ContactPage from "./pages/ContactPage";
-// ví dụ
-
+import ServiceDetailPage from "./pages/ServiceDetailPage";
+import ServicesPage from "./pages/ServicesPage";
+import TrackOrderPage from "./pages/TrackOrderPage";
 
 export default function App() {
-    return (
-            <Routes>
-                <Route element={<Layout/>}>
-                    <Route path="/" element={<HomePage/>}/>
+  return (
+    <Routes>
+      <Route element={<Layout />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/services" element={<ServicesPage />} />
+        <Route path="/services/:serviceId" element={<ServiceDetailPage />} />
+        <Route path="/booking" element={<BookingPage />} />
 
-                    {/* Spa services */}
-                    <Route path="/services" element={<ServicesPage/>}/>
-                    <Route path="/services/:serviceId" element={<ServiceDetailPage/>}/>
-                    <Route path="/booking" element={<BookingPage/>}/>
+        <Route path="/courses" element={<CoursesPage />} />
+        <Route path="/courses/:courseId" element={<CourseDetailPage />} />
+        <Route path="/courses/:courseId/lesson" element={<LessonDetailPage />} />
+        <Route path="/courses/player" element={<CoursePlayerPage />} />
 
-                    {/* Courses (prototype) */}
-                    <Route path="/courses" element={<CoursesPage/>}/>
+        <Route path="/products" element={<ProductsPage />} />
+        <Route path="/products/:sku" element={<ProductDetailPage />} />
+        <Route path="/product-cate" element={<ProductCategoryPage />} />
+        <Route path="/cart" element={<CartPage />} />
+        <Route path="/product-checkout" element={<ProductCheckoutPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/compare" element={<ComparePage />} />
+        <Route path="/track-order" element={<TrackOrderPage />} />
 
-                    {/* Product cart (prototype) */}
-                    <Route path="/cart" element={<CartPage/>}/>
-                    <Route path="/product-checkout" element={<ProductCheckoutPage/>}/>
-                    <Route path="/checkout" element={<CheckoutPage/>}/>
-                    <Route path="/products" element={<ProductsPage/>}/>
-                    <Route path="/compare" element={<ComparePage/>}/>
-                    <Route path="/track-order" element={<TrackOrderPage/>}/>
-                    <Route path="/product-cate" element={<ProductCategoryPage/>}/>
-                    <Route path="/products/:sku" element={<ProductDetailPage/>}/>
-                    <Route path="/courses/:courseId" element={<CourseDetailPage/>}/>
-                    <Route path="/courses/player" element={<CoursePlayerPage/>}/>
-                    // truy cập: /courses/detail?courseId=CR-1001
-                    <Route path="/courses/:courseId/lesson" element={<LessonDetailPage/>}/>
-                    <Route path="/reviews" element={<ReviewsCenterPage/>}/>
+        <Route path="/reviews" element={<ReviewsCenterPage />} />
+        <Route path="/blog" element={<BlogPage />} />
+        <Route path="/contact" element={<ContactPage />} />
 
-                    <Route path="/blog" element={<BlogPage/>}/>
-                    <Route path="/contact" element={<ContactPage/>}/>
+        <Route path="/admin/products" element={<ProductAdminListPage />} />
+        <Route path="/admin/products/:productId" element={<ProductAdminDetailPage />} />
 
-                    {/* placeholder các page khác để không vỡ Link */}
-                    <Route path="/products" element={<div className="p-6">Products (todo)</div>}/>
-                    <Route path="/checkout" element={<div className="p-6">Checkout (todo)</div>}/>
-                    <Route path="/franchise" element={<div className="p-6">Franchise (todo)</div>}/>
-                    <Route path="/account" element={<div className="p-6">Account (todo)</div>}/>
-                    <Route path="/compare" element={<div className="p-6">Compare (todo)</div>}/>
-                    <Route path="/track-order" element={<div className="p-6">Track order (todo)</div>}/>
-
-                    <Route path="*" element={<div className="p-6">Not found</div>}/>
-                </Route>
-            </Routes>
-    );
+        <Route path="/franchise" element={<div className="p-6">Franchise (todo)</div>} />
+        <Route path="/account" element={<div className="p-6">Account (todo)</div>} />
+        <Route path="*" element={<div className="p-6">Not found</div>} />
+      </Route>
+    </Routes>
+  );
 }

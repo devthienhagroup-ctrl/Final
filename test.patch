@@ -1,1705 +1,907 @@
-diff --git a/backend/ayanavitabackend/app/admin/src/App.tsx b/backend/ayanavitabackend/app/admin/src/App.tsx
-index 37bdbecc6a3fe3ec8eb2585b5a7b4fc4a5ea281a..59edf006a935c317ea2abd1f5102b5972e79916b 100644
---- a/backend/ayanavitabackend/app/admin/src/App.tsx
-+++ b/backend/ayanavitabackend/app/admin/src/App.tsx
-@@ -1,38 +1,40 @@
- import React from "react";
- import { Navigate, Route, Routes } from "react-router-dom";
+diff --git a/Home/ayanavita-fontend-final/src/App.tsx b/Home/ayanavita-fontend-final/src/App.tsx
+index 4852c6a67f04e330e8cf31e511f59fce528b76e8..e12816f9ee6a2da2faac44c39e1c666faf096c27 100644
+--- a/Home/ayanavita-fontend-final/src/App.tsx
++++ b/Home/ayanavita-fontend-final/src/App.tsx
+@@ -1,75 +1,62 @@
+-// src/App.tsx
+-import React from "react";
+-import {Routes, Route, BrowserRouter} from "react-router-dom";
++import { Route, Routes } from "react-router-dom";
 
- import { Layout } from "./components/Layout";
- import { AuthProvider } from "./app/auth.store";
- import { RequireAuth } from "./app/guard";
-
- import { LoginPage } from "./pages/LoginPage";
- import { CmsPagesPage } from "./pages/CmsPagesPage";
- import { CmsEditPage } from "./pages/CmsEditPage";
- import { LeadsPage } from "./pages/LeadsPage";
- import { NotFound } from "./pages/NotFound";
-+import { CatalogCrudPage } from "./pages/CatalogCrudPage";
+-
+-import HomePage from "./pages/HomePage";
+-import ServicesPage from "./pages/ServicesPage";
++import Layout from "./components/layout/Layout";
+ import BookingPage from "./pages/BookingPage";
+-import ServiceDetailPage from "./pages/ServiceDetailPage";
+-
+-import Layout from "./components/layout/Layout"
+-
+-import CoursesPage from "./pages/CoursesPage";
++import BlogPage from "./pages/BlogPage";
+ import CartPage from "./pages/CartPage";
+-import ProductCheckoutPage from "./pages/ProductCheckoutPage";
+ import CheckoutPage from "./pages/CheckoutPage";
+-import ProductsPage from "./pages/ProductsPage";
+ import ComparePage from "./pages/ComparePage";
+-import TrackOrderPage from "./pages/TrackOrderPage";
+-import ProductCategoryPage from "./pages/ProductCategoryPage";
+-import ProductDetailPage from "./pages/ProductDetailPage";
++import ContactPage from "./pages/ContactPage";
+ import CourseDetailPage from "./pages/CourseDetailPage";
+ import CoursePlayerPage from "./pages/CoursePlayerPage";
+-import BlogPage from "./pages/BlogPage";
++import CoursesPage from "./pages/CoursesPage";
++import HomePage from "./pages/HomePage";
+ import LessonDetailPage from "./pages/LessonDetailPage";
++import ProductCategoryPage from "./pages/ProductCategoryPage";
++import ProductCheckoutPage from "./pages/ProductCheckoutPage";
++import ProductDetailPage from "./pages/ProductDetailPage";
++import ProductAdminDetailPage from "./pages/ProductAdminDetailPage";
++import ProductAdminListPage from "./pages/ProductAdminListPage";
++import ProductsPage from "./pages/ProductsPage";
+ import ReviewsCenterPage from "./pages/ReviewsCenterPage";
+-import ContactPage from "./pages/ContactPage";
+-// ví dụ
+-
++import ServiceDetailPage from "./pages/ServiceDetailPage";
++import ServicesPage from "./pages/ServicesPage";
++import TrackOrderPage from "./pages/TrackOrderPage";
 
  export default function App() {
-   return (
-     <AuthProvider>
-       <Routes>
-         <Route path="/login" element={<LoginPage />} />
-
-         <Route
-           path="/"
-           element={
-             <RequireAuth>
-               <Layout />
-             </RequireAuth>
-           }
-         >
-           <Route index element={<Navigate to="/cms/pages" replace />} />
-           <Route path="cms/pages" element={<CmsPagesPage />} />
-           <Route path="cms/pages/:slug" element={<CmsEditPage />} />
-           <Route path="leads" element={<LeadsPage />} />
-+          <Route path="catalog" element={<CatalogCrudPage />} />
-         </Route>
-
-         <Route path="*" element={<NotFound />} />
-       </Routes>
-     </AuthProvider>
-   );
- }
-diff --git a/backend/ayanavitabackend/app/admin/src/components/Layout.tsx b/backend/ayanavitabackend/app/admin/src/components/Layout.tsx
-index c87d797ef90b7e641732653c711cbd19f89f9cbf..d19a9821eb0c7b59740e4606ce0ad82b4b23cfd4 100644
---- a/backend/ayanavitabackend/app/admin/src/components/Layout.tsx
-+++ b/backend/ayanavitabackend/app/admin/src/components/Layout.tsx
-@@ -13,50 +13,51 @@ function NavItem({ to, label }: { to: string; label: string }) {
-     </NavLink>
-   );
- }
-
- export function Layout() {
-   const { token, logout } = useAuth();
-   const nav = useNavigate();
-
-   return (
-     <ToastProvider>
-       <div className="topbar">
-         <div className="row">
-           <Link to="/" className="brand" aria-label="Home">
-             <span className="dot" aria-hidden="true" />
-             <div>
-               <span className="g-text">AYANAVITA Admin</span>
-               <div className="muted" style={{ fontSize: 12, fontWeight: 900, marginTop: 2 }}>
-                 CMS • Leads • Publish
-               </div>
-             </div>
-           </Link>
-
-           <div className="nav">
-             <NavItem to="/cms/pages" label="CMS Pages" />
-             <NavItem to="/leads" label="Leads" />
-+            <NavItem to="/catalog" label="Catalog" />
-
-             <span className="pill" title="JWT token (short)">
-               {token ? `${token.slice(0, 10)}…` : "no-token"}
-             </span>
-
-             <button
-               className="btn btn-danger"
-               type="button"
-               onClick={() => {
-                 logout();
-                 nav("/login", { replace: true });
-               }}
-             >
-               Logout
-             </button>
-           </div>
-         </div>
-       </div>
-
-       <div className="container">
-         <Outlet />
-       </div>
-     </ToastProvider>
-   );
- }
-diff --git a/backend/ayanavitabackend/app/admin/src/pages/CatalogCrudPage.tsx b/backend/ayanavitabackend/app/admin/src/pages/CatalogCrudPage.tsx
-new file mode 100644
-index 0000000000000000000000000000000000000000..5ee62b2db6748d4d659223eb23d8e54c90f77ee3
---- /dev/null
-+++ b/backend/ayanavitabackend/app/admin/src/pages/CatalogCrudPage.tsx
-@@ -0,0 +1,106 @@
-+import React, { useState } from 'react'
-+import { useAuth } from '../app/auth.store'
-+import { apiFetch } from '../api/client'
+-    return (
+-            <Routes>
+-                <Route element={<Layout/>}>
+-                    <Route path="/" element={<HomePage/>}/>
+-
+-                    {/* Spa services */}
+-                    <Route path="/services" element={<ServicesPage/>}/>
+-                    <Route path="/services/:serviceId" element={<ServiceDetailPage/>}/>
+-                    <Route path="/booking" element={<BookingPage/>}/>
+-
+-                    {/* Courses (prototype) */}
+-                    <Route path="/courses" element={<CoursesPage/>}/>
+-
+-                    {/* Product cart (prototype) */}
+-                    <Route path="/cart" element={<CartPage/>}/>
+-                    <Route path="/product-checkout" element={<ProductCheckoutPage/>}/>
+-                    <Route path="/checkout" element={<CheckoutPage/>}/>
+-                    <Route path="/products" element={<ProductsPage/>}/>
+-                    <Route path="/compare" element={<ComparePage/>}/>
+-                    <Route path="/track-order" element={<TrackOrderPage/>}/>
+-                    <Route path="/product-cate" element={<ProductCategoryPage/>}/>
+-                    <Route path="/products/:sku" element={<ProductDetailPage/>}/>
+-                    <Route path="/courses/:courseId" element={<CourseDetailPage/>}/>
+-                    <Route path="/courses/player" element={<CoursePlayerPage/>}/>
+-                    // truy cập: /courses/detail?courseId=CR-1001
+-                    <Route path="/courses/:courseId/lesson" element={<LessonDetailPage/>}/>
+-                    <Route path="/reviews" element={<ReviewsCenterPage/>}/>
+-
+-                    <Route path="/blog" element={<BlogPage/>}/>
+-                    <Route path="/contact" element={<ContactPage/>}/>
+-
+-                    {/* placeholder các page khác để không vỡ Link */}
+-                    <Route path="/products" element={<div className="p-6">Products (todo)</div>}/>
+-                    <Route path="/checkout" element={<div className="p-6">Checkout (todo)</div>}/>
+-                    <Route path="/franchise" element={<div className="p-6">Franchise (todo)</div>}/>
+-                    <Route path="/account" element={<div className="p-6">Account (todo)</div>}/>
+-                    <Route path="/compare" element={<div className="p-6">Compare (todo)</div>}/>
+-                    <Route path="/track-order" element={<div className="p-6">Track order (todo)</div>}/>
+-
+-                    <Route path="*" element={<div className="p-6">Not found</div>}/>
+-                </Route>
+-            </Routes>
+-    );
++  return (
++    <Routes>
++      <Route element={<Layout />}>
++        <Route path="/" element={<HomePage />} />
++        <Route path="/services" element={<ServicesPage />} />
++        <Route path="/services/:serviceId" element={<ServiceDetailPage />} />
++        <Route path="/booking" element={<BookingPage />} />
 +
-+const defaults: Record<string, string> = {
-+  categories: JSON.stringify(
-+    {
-+      status: 'active',
-+      translations: [
-+        { languageCode: 'vi', name: 'Chăm sóc da', slug: 'cham-soc-da' },
-+        { languageCode: 'en', name: 'Skincare', slug: 'skincare' },
-+      ],
-+    },
-+    null,
-+    2,
-+  ),
-+  products: JSON.stringify(
-+    {
-+      sku: 'SPA-SAMPLE-001',
-+      categoryId: 1,
-+      price: 489000,
-+      status: 'active',
-+      translations: [
-+        { languageCode: 'vi', name: 'Serum Spa', slug: 'serum-spa' },
-+        { languageCode: 'en', name: 'Spa Serum', slug: 'spa-serum' },
-+      ],
-+    },
-+    null,
-+    2,
-+  ),
-+  attributes: JSON.stringify(
-+    {
-+      code: 'material',
-+      valueType: 'text',
-+      translations: [
-+        { languageCode: 'vi', displayName: 'Chất liệu' },
-+        { languageCode: 'en', displayName: 'Material' },
-+      ],
-+    },
-+    null,
-+    2,
-+  ),
-+  ingredients: JSON.stringify(
-+    {
-+      code: 'vitamin_c',
-+      translations: [
-+        { languageCode: 'vi', displayName: 'Vitamin C' },
-+        { languageCode: 'en', displayName: 'Vitamin C' },
-+      ],
-+    },
-+    null,
-+    2,
-+  ),
++        <Route path="/courses" element={<CoursesPage />} />
++        <Route path="/courses/:courseId" element={<CourseDetailPage />} />
++        <Route path="/courses/:courseId/lesson" element={<LessonDetailPage />} />
++        <Route path="/courses/player" element={<CoursePlayerPage />} />
++
++        <Route path="/products" element={<ProductsPage />} />
++        <Route path="/products/:sku" element={<ProductDetailPage />} />
++        <Route path="/product-cate" element={<ProductCategoryPage />} />
++        <Route path="/cart" element={<CartPage />} />
++        <Route path="/product-checkout" element={<ProductCheckoutPage />} />
++        <Route path="/checkout" element={<CheckoutPage />} />
++        <Route path="/compare" element={<ComparePage />} />
++        <Route path="/track-order" element={<TrackOrderPage />} />
++
++        <Route path="/reviews" element={<ReviewsCenterPage />} />
++        <Route path="/blog" element={<BlogPage />} />
++        <Route path="/contact" element={<ContactPage />} />
++
++        <Route path="/admin/products" element={<ProductAdminListPage />} />
++        <Route path="/admin/products/:productId" element={<ProductAdminDetailPage />} />
++
++        <Route path="/franchise" element={<div className="p-6">Franchise (todo)</div>} />
++        <Route path="/account" element={<div className="p-6">Account (todo)</div>} />
++        <Route path="*" element={<div className="p-6">Not found</div>} />
++      </Route>
++    </Routes>
++  );
+ }
+diff --git a/Home/ayanavita-fontend-final/src/api/productAdmin.api.ts b/Home/ayanavita-fontend-final/src/api/productAdmin.api.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..0f18abc134006f96216b456ea957eb2a075a8f58
+--- /dev/null
++++ b/Home/ayanavita-fontend-final/src/api/productAdmin.api.ts
+@@ -0,0 +1,210 @@
++import { http } from "./http";
++import {
++  LANGUAGES,
++  type LanguageCode,
++  type ProductAdminItem,
++  type ProductAttribute,
++  type ProductCategory,
++  type ProductIngredient,
++  type ProductTranslation
++} from "../types/productAdmin";
++
++const STORAGE_KEY = "aya_admin_products_v1";
++const CATEGORY_STORAGE_KEY = "aya_admin_categories_v1";
++
++const uid = () => Math.random().toString(36).slice(2, 10);
++
++const defaultTranslations = (): ProductTranslation[] =>
++  LANGUAGES.map((item) => ({
++    lang: item.code,
++    name: "",
++    shortDescription: "",
++    description: ""
++  }));
++
++const defaultCategories: ProductCategory[] = [
++  { id: "cat-cleanser", name: "Sữa rửa mặt", description: "Làm sạch dịu nhẹ" },
++  { id: "cat-serum", name: "Serum", description: "Đặc trị và phục hồi" }
++];
++
++const defaultProducts: ProductAdminItem[] = [
++  {
++    id: "prd-001",
++    sku: "AYA-CLEAN-001",
++    categoryId: "cat-cleanser",
++    price: 289000,
++    stock: 50,
++    status: "active",
++    translations: [
++      {
++        lang: "vi",
++        name: "Sữa rửa mặt dịu nhẹ",
++        shortDescription: "Làm sạch - giữ ẩm",
++        description: "Làm sạch da và cân bằng độ pH."
++      },
++      {
++        lang: "en",
++        name: "Gentle Cleanser",
++        shortDescription: "Clean & hydrate",
++        description: "Removes dirt while keeping skin hydrated."
++      },
++      {
++        lang: "ja",
++        name: "ジェントルクレンザー",
++        shortDescription: "洗浄と保湿",
++        description: "肌をやさしく洗い、うるおいを守ります。"
++      }
++    ],
++    ingredients: [
++      { id: uid(), name: "Niacinamide", note: "2%" },
++      { id: uid(), name: "Aloe Vera", note: "Làm dịu" }
++    ],
++    attributes: [
++      { id: uid(), key: "Dung tích", value: "150ml" },
++      { id: uid(), key: "Loại da", value: "Mọi loại da" }
++    ],
++    updatedAt: new Date().toISOString()
++  }
++];
++
++const readLocalProducts = (): ProductAdminItem[] => {
++  const raw = localStorage.getItem(STORAGE_KEY);
++  if (!raw) {
++    localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultProducts));
++    return defaultProducts;
++  }
++  return JSON.parse(raw) as ProductAdminItem[];
++};
++
++const writeLocalProducts = (products: ProductAdminItem[]) => {
++  localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
++};
++
++const readLocalCategories = (): ProductCategory[] => {
++  const raw = localStorage.getItem(CATEGORY_STORAGE_KEY);
++  if (!raw) {
++    localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(defaultCategories));
++    return defaultCategories;
++  }
++  return JSON.parse(raw) as ProductCategory[];
++};
++
++const writeLocalCategories = (categories: ProductCategory[]) => {
++  localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(categories));
++};
++
++export async function fetchAdminProducts(): Promise<ProductAdminItem[]> {
++  try {
++    const res = await http.get("/admin/products");
++    return (res.data?.data ?? res.data ?? []) as ProductAdminItem[];
++  } catch {
++    return readLocalProducts();
++  }
 +}
 +
-+function Panel({ resource }: { resource: 'categories' | 'products' | 'attributes' | 'ingredients' }) {
-+  const { token } = useAuth()
-+  const [payload, setPayload] = useState(defaults[resource])
-+  const [id, setId] = useState('')
-+  const [result, setResult] = useState('')
++export async function fetchAdminProductById(id: string): Promise<ProductAdminItem | null> {
++  try {
++    const res = await http.get(`/admin/products/${id}`);
++    return (res.data?.data ?? res.data ?? null) as ProductAdminItem | null;
++  } catch {
++    return readLocalProducts().find((item) => item.id === id) ?? null;
++  }
++}
 +
-+  const callApi = async (method: 'GET' | 'POST' | 'PATCH' | 'DELETE') => {
-+    try {
-+      const path = `/catalog/${resource}${id ? `/${id}` : ''}`
-+      const body = method === 'POST' || method === 'PATCH' ? JSON.parse(payload) : undefined
-+      const data = await apiFetch<any>(path, {
-+        method,
-+        token,
-+        ...(body ? { body: JSON.stringify(body) } : {}),
-+      })
-+      setResult(JSON.stringify(data, null, 2))
-+    } catch (error: any) {
-+      setResult(error?.message || 'Request failed')
-+    }
++export async function createAdminProduct(): Promise<ProductAdminItem> {
++  const payload: ProductAdminItem = {
++    id: `prd-${uid()}`,
++    sku: `AYA-${uid().toUpperCase()}`,
++    categoryId: "",
++    price: 0,
++    stock: 0,
++    status: "draft",
++    translations: defaultTranslations(),
++    ingredients: [],
++    attributes: [],
++    updatedAt: new Date().toISOString()
++  };
++
++  try {
++    const res = await http.post("/admin/products", payload);
++    return (res.data?.data ?? payload) as ProductAdminItem;
++  } catch {
++    const products = readLocalProducts();
++    const next = [payload, ...products];
++    writeLocalProducts(next);
++    return payload;
++  }
++}
++
++export async function updateAdminProduct(item: ProductAdminItem): Promise<ProductAdminItem> {
++  const payload = { ...item, updatedAt: new Date().toISOString() };
++
++  try {
++    const res = await http.put(`/admin/products/${item.id}`, payload);
++    return (res.data?.data ?? payload) as ProductAdminItem;
++  } catch {
++    const products = readLocalProducts();
++    const next = products.map((product) => (product.id === item.id ? payload : product));
++    writeLocalProducts(next);
++    return payload;
++  }
++}
++
++export async function fetchAdminCategories(): Promise<ProductCategory[]> {
++  try {
++    const res = await http.get("/admin/product-categories");
++    return (res.data?.data ?? res.data ?? []) as ProductCategory[];
++  } catch {
++    return readLocalCategories();
++  }
++}
++
++export async function createAdminCategory(name: string, description: string): Promise<ProductCategory> {
++  const payload: ProductCategory = { id: `cat-${uid()}`, name, description };
++  try {
++    const res = await http.post("/admin/product-categories", payload);
++    return (res.data?.data ?? payload) as ProductCategory;
++  } catch {
++    const categories = readLocalCategories();
++    const next = [payload, ...categories];
++    writeLocalCategories(next);
++    return payload;
++  }
++}
++
++export async function updateAdminCategory(category: ProductCategory): Promise<ProductCategory> {
++  try {
++    const res = await http.put(`/admin/product-categories/${category.id}`, category);
++    return (res.data?.data ?? category) as ProductCategory;
++  } catch {
++    const categories = readLocalCategories();
++    const next = categories.map((item) => (item.id === category.id ? category : item));
++    writeLocalCategories(next);
++    return category;
++  }
++}
++
++export async function deleteAdminCategory(categoryId: string): Promise<void> {
++  try {
++    await http.delete(`/admin/product-categories/${categoryId}`);
++  } catch {
++    const categories = readLocalCategories();
++    const next = categories.filter((item) => item.id !== categoryId);
++    writeLocalCategories(next);
++  }
++}
++
++export function upsertTranslation(
++  translations: ProductTranslation[],
++  lang: LanguageCode,
++  patch: Partial<ProductTranslation>
++): ProductTranslation[] {
++  const existing = translations.find((item) => item.lang === lang);
++  if (!existing) {
++    return [...translations, { lang, name: "", shortDescription: "", description: "", ...patch }];
++  }
++  return translations.map((item) => (item.lang === lang ? { ...item, ...patch } : item));
++}
++
++export const createIngredient = (): ProductIngredient => ({ id: uid(), name: "", note: "" });
++export const createAttribute = (): ProductAttribute => ({ id: uid(), key: "", value: "" });
+diff --git a/Home/ayanavita-fontend-final/src/pages/ProductAdminDetailPage.tsx b/Home/ayanavita-fontend-final/src/pages/ProductAdminDetailPage.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..6011a78e158c388efb37f46c64d5b90fcc077563
+--- /dev/null
++++ b/Home/ayanavita-fontend-final/src/pages/ProductAdminDetailPage.tsx
+@@ -0,0 +1,298 @@
++import { useEffect, useMemo, useState } from "react";
++import { Link, useNavigate, useParams } from "react-router-dom";
++import {
++  createAttribute,
++  createIngredient,
++  fetchAdminCategories,
++  fetchAdminProductById,
++  updateAdminProduct,
++  upsertTranslation
++} from "../api/productAdmin.api";
++import { LANGUAGES, type LanguageCode, type ProductAdminItem, type ProductCategory } from "../types/productAdmin";
++
++export default function ProductAdminDetailPage() {
++  const { productId } = useParams();
++  const navigate = useNavigate();
++  const [product, setProduct] = useState<ProductAdminItem | null>(null);
++  const [categories, setCategories] = useState<ProductCategory[]>([]);
++  const [activeLang, setActiveLang] = useState<LanguageCode>("vi");
++  const [saving, setSaving] = useState(false);
++
++  useEffect(() => {
++    const load = async () => {
++      if (!productId) return;
++      const [detail, categoryList] = await Promise.all([fetchAdminProductById(productId), fetchAdminCategories()]);
++      setProduct(detail);
++      setCategories(categoryList);
++    };
++    load();
++  }, [productId]);
++
++  const translation = useMemo(() => product?.translations.find((item) => item.lang === activeLang), [product, activeLang]);
++
++  const onSave = async () => {
++    if (!product) return;
++    setSaving(true);
++    await updateAdminProduct(product);
++    setSaving(false);
++  };
++
++  if (!product) {
++    return (
++      <div className="min-h-screen bg-slate-50 p-6">
++        <div className="mx-auto max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Không tìm thấy sản phẩm.</div>
++      </div>
++    );
 +  }
 +
 +  return (
-+    <div className="card" style={{ marginBottom: 20 }}>
-+      <h3 style={{ marginTop: 0, textTransform: 'capitalize' }}>{resource}</h3>
-+      <div style={{ display: 'grid', gap: 8 }}>
-+        <input className="input" placeholder="ID (for get one/patch/delete)" value={id} onChange={(e) => setId(e.target.value)} />
-+        <textarea className="input" style={{ minHeight: 180, fontFamily: 'monospace' }} value={payload} onChange={(e) => setPayload(e.target.value)} />
-+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-+          <button className="btn" onClick={() => callApi('GET')}>GET</button>
-+          <button className="btn btn-primary" onClick={() => callApi('POST')}>POST</button>
-+          <button className="btn" onClick={() => callApi('PATCH')}>PATCH</button>
-+          <button className="btn btn-danger" onClick={() => callApi('DELETE')}>DELETE</button>
++    <div className="min-h-screen bg-slate-50 p-6 text-slate-800">
++      <div className="mx-auto max-w-5xl space-y-6">
++        <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
++          <div className="flex flex-wrap items-center justify-between gap-3">
++            <div>
++              <p className="text-xs font-semibold text-indigo-600">Chi tiết sản phẩm</p>
++              <h1 className="text-2xl font-bold">{translation?.name || "Sản phẩm mới"}</h1>
++              <p className="text-sm text-slate-500">{product.sku}</p>
++            </div>
++            <div className="flex gap-2">
++              <button onClick={() => navigate("/admin/products")} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold">
++                Quay lại danh sách
++              </button>
++              <button onClick={onSave} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-70" disabled={saving}>
++                {saving ? "Đang lưu..." : "Lưu thay đổi"}
++              </button>
++            </div>
++          </div>
++        </header>
++
++        <section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2">
++          <label className="space-y-1 text-sm">
++            <span className="font-semibold">SKU</span>
++            <input
++              className="w-full rounded-lg border border-slate-300 px-3 py-2"
++              value={product.sku}
++              onChange={(e) => setProduct((prev) => (prev ? { ...prev, sku: e.target.value } : prev))}
++            />
++          </label>
++          <label className="space-y-1 text-sm">
++            <span className="font-semibold">Category</span>
++            <select
++              className="w-full rounded-lg border border-slate-300 px-3 py-2"
++              value={product.categoryId}
++              onChange={(e) => setProduct((prev) => (prev ? { ...prev, categoryId: e.target.value } : prev))}
++            >
++              <option value="">-- Chọn category --</option>
++              {categories.map((item) => (
++                <option key={item.id} value={item.id}>{item.name}</option>
++              ))}
++            </select>
++          </label>
++          <label className="space-y-1 text-sm">
++            <span className="font-semibold">Giá</span>
++            <input
++              type="number"
++              className="w-full rounded-lg border border-slate-300 px-3 py-2"
++              value={product.price}
++              onChange={(e) => setProduct((prev) => (prev ? { ...prev, price: Number(e.target.value) } : prev))}
++            />
++          </label>
++          <label className="space-y-1 text-sm">
++            <span className="font-semibold">Tồn kho</span>
++            <input
++              type="number"
++              className="w-full rounded-lg border border-slate-300 px-3 py-2"
++              value={product.stock}
++              onChange={(e) => setProduct((prev) => (prev ? { ...prev, stock: Number(e.target.value) } : prev))}
++            />
++          </label>
++        </section>
++
++        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
++          <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
++            {LANGUAGES.map((lang) => (
++              <button
++                key={lang.code}
++                onClick={() => setActiveLang(lang.code)}
++                className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${activeLang === lang.code ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-700"}`}
++              >
++                {lang.label}
++              </button>
++            ))}
++            <span className="ml-auto text-xs text-slate-500">Tab chỉnh sửa đa ngôn ngữ</span>
++          </div>
++
++          <div className="grid gap-3">
++            <label className="space-y-1 text-sm">
++              <span className="font-semibold">Tên sản phẩm</span>
++              <input
++                className="w-full rounded-lg border border-slate-300 px-3 py-2"
++                value={translation?.name || ""}
++                onChange={(e) =>
++                  setProduct((prev) =>
++                    prev
++                      ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { name: e.target.value }) }
++                      : prev
++                  )
++                }
++              />
++            </label>
++            <label className="space-y-1 text-sm">
++              <span className="font-semibold">Mô tả ngắn</span>
++              <input
++                className="w-full rounded-lg border border-slate-300 px-3 py-2"
++                value={translation?.shortDescription || ""}
++                onChange={(e) =>
++                  setProduct((prev) =>
++                    prev
++                      ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { shortDescription: e.target.value }) }
++                      : prev
++                  )
++                }
++              />
++            </label>
++            <label className="space-y-1 text-sm">
++              <span className="font-semibold">Mô tả chi tiết</span>
++              <textarea
++                rows={4}
++                className="w-full rounded-lg border border-slate-300 px-3 py-2"
++                value={translation?.description || ""}
++                onChange={(e) =>
++                  setProduct((prev) =>
++                    prev
++                      ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { description: e.target.value }) }
++                      : prev
++                  )
++                }
++              />
++            </label>
++          </div>
++        </section>
++
++        <section className="grid gap-6 md:grid-cols-2">
++          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
++            <div className="mb-3 flex items-center justify-between">
++              <h3 className="text-lg font-bold">CRUD thành phần</h3>
++              <button
++                className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold"
++                onClick={() => setProduct((prev) => (prev ? { ...prev, ingredients: [...prev.ingredients, createIngredient()] } : prev))}
++              >
++                + Thêm
++              </button>
++            </div>
++            <div className="space-y-2">
++              {product.ingredients.map((item) => (
++                <div key={item.id} className="grid gap-2 rounded-lg border border-slate-200 p-3">
++                  <input
++                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
++                    placeholder="Tên thành phần"
++                    value={item.name}
++                    onChange={(e) =>
++                      setProduct((prev) =>
++                        prev
++                          ? {
++                              ...prev,
++                              ingredients: prev.ingredients.map((row) => (row.id === item.id ? { ...row, name: e.target.value } : row))
++                            }
++                          : prev
++                      )
++                    }
++                  />
++                  <input
++                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
++                    placeholder="Ghi chú"
++                    value={item.note}
++                    onChange={(e) =>
++                      setProduct((prev) =>
++                        prev
++                          ? {
++                              ...prev,
++                              ingredients: prev.ingredients.map((row) => (row.id === item.id ? { ...row, note: e.target.value } : row))
++                            }
++                          : prev
++                      )
++                    }
++                  />
++                  <button
++                    className="justify-self-end text-sm font-semibold text-rose-600"
++                    onClick={() =>
++                      setProduct((prev) =>
++                        prev ? { ...prev, ingredients: prev.ingredients.filter((row) => row.id !== item.id) } : prev
++                      )
++                    }
++                  >
++                    Xóa
++                  </button>
++                </div>
++              ))}
++            </div>
++          </div>
++
++          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
++            <div className="mb-3 flex items-center justify-between">
++              <h3 className="text-lg font-bold">CRUD thuộc tính</h3>
++              <button
++                className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold"
++                onClick={() => setProduct((prev) => (prev ? { ...prev, attributes: [...prev.attributes, createAttribute()] } : prev))}
++              >
++                + Thêm
++              </button>
++            </div>
++            <div className="space-y-2">
++              {product.attributes.map((item) => (
++                <div key={item.id} className="grid gap-2 rounded-lg border border-slate-200 p-3">
++                  <input
++                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
++                    placeholder="Tên thuộc tính"
++                    value={item.key}
++                    onChange={(e) =>
++                      setProduct((prev) =>
++                        prev
++                          ? {
++                              ...prev,
++                              attributes: prev.attributes.map((row) => (row.id === item.id ? { ...row, key: e.target.value } : row))
++                            }
++                          : prev
++                      )
++                    }
++                  />
++                  <input
++                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
++                    placeholder="Giá trị"
++                    value={item.value}
++                    onChange={(e) =>
++                      setProduct((prev) =>
++                        prev
++                          ? {
++                              ...prev,
++                              attributes: prev.attributes.map((row) => (row.id === item.id ? { ...row, value: e.target.value } : row))
++                            }
++                          : prev
++                      )
++                    }
++                  />
++                  <button
++                    className="justify-self-end text-sm font-semibold text-rose-600"
++                    onClick={() =>
++                      setProduct((prev) =>
++                        prev ? { ...prev, attributes: prev.attributes.filter((row) => row.id !== item.id) } : prev
++                      )
++                    }
++                  >
++                    Xóa
++                  </button>
++                </div>
++              ))}
++            </div>
++          </div>
++        </section>
++
++        <div className="pb-6 text-right text-sm">
++          <Link to="/admin/products" className="font-semibold text-indigo-600 hover:underline">
++            ← Về trang danh sách
++          </Link>
 +        </div>
-+        <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{result}</pre>
 +      </div>
 +    </div>
-+  )
++  );
 +}
+diff --git a/Home/ayanavita-fontend-final/src/pages/ProductAdminListPage.tsx b/Home/ayanavita-fontend-final/src/pages/ProductAdminListPage.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..0a7888defec974c242311ab06104493c58f3d6c8
+--- /dev/null
++++ b/Home/ayanavita-fontend-final/src/pages/ProductAdminListPage.tsx
+@@ -0,0 +1,200 @@
++import { useEffect, useMemo, useState } from "react";
++import { Link, useNavigate } from "react-router-dom";
++import {
++  createAdminCategory,
++  createAdminProduct,
++  deleteAdminCategory,
++  fetchAdminCategories,
++  fetchAdminProducts,
++  updateAdminCategory
++} from "../api/productAdmin.api";
++import type { ProductAdminItem, ProductCategory } from "../types/productAdmin";
 +
-+export function CatalogCrudPage() {
++
++type CategoryRowProps = {
++  category: ProductCategory;
++  onSave: (category: ProductCategory) => void;
++  onDelete: (categoryId: string) => void;
++};
++
++function CategoryRow({ category, onSave, onDelete }: CategoryRowProps) {
++  const [draft, setDraft] = useState(category);
++
++  useEffect(() => {
++    setDraft(category);
++  }, [category]);
++
 +  return (
-+    <div>
-+      <h2>Catalog CRUD (Simple Admin)</h2>
-+      <p className="muted">Trang đơn giản để tương tác API CRUD cho category, sản phẩm, thuộc tính, thành phần.</p>
-+      <Panel resource="categories" />
-+      <Panel resource="products" />
-+      <Panel resource="attributes" />
-+      <Panel resource="ingredients" />
++    <div className="grid gap-2 rounded-xl border border-slate-200 p-3 md:grid-cols-[1fr_1fr_auto_auto]">
++      <input
++        className="rounded-lg border border-slate-300 px-3 py-2"
++        value={draft.name}
++        onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))}
++      />
++      <input
++        className="rounded-lg border border-slate-300 px-3 py-2"
++        value={draft.description || ""}
++        onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
++      />
++      <button onClick={() => onSave(draft)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">
++        Lưu
++      </button>
++      <button onClick={() => onDelete(category.id)} className="rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-600">
++        Xóa
++      </button>
 +    </div>
-+  )
++  );
 +}
-diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/20260225000100_catalog_i18n/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/20260225000100_catalog_i18n/migration.sql
++
++export default function ProductAdminListPage() {
++  const navigate = useNavigate();
++  const [products, setProducts] = useState<ProductAdminItem[]>([]);
++  const [categories, setCategories] = useState<ProductCategory[]>([]);
++  const [loading, setLoading] = useState(true);
++  const [openCategoryModal, setOpenCategoryModal] = useState(false);
++  const [newCategory, setNewCategory] = useState({ name: "", description: "" });
++
++  const categoryMap = useMemo(() => Object.fromEntries(categories.map((item) => [item.id, item.name])), [categories]);
++
++  const loadData = async () => {
++    setLoading(true);
++    const [productList, categoryList] = await Promise.all([fetchAdminProducts(), fetchAdminCategories()]);
++    setProducts(productList);
++    setCategories(categoryList);
++    setLoading(false);
++  };
++
++  useEffect(() => {
++    loadData();
++  }, []);
++
++  const onCreateProduct = async () => {
++    const created = await createAdminProduct();
++    navigate(`/admin/products/${created.id}`);
++  };
++
++  const onCreateCategory = async () => {
++    if (!newCategory.name.trim()) return;
++    await createAdminCategory(newCategory.name.trim(), newCategory.description.trim());
++    setNewCategory({ name: "", description: "" });
++    loadData();
++  };
++
++  const onInlineEditCategory = async (category: ProductCategory) => {
++    await updateAdminCategory(category);
++    loadData();
++  };
++
++  const onDeleteCategory = async (categoryId: string) => {
++    await deleteAdminCategory(categoryId);
++    loadData();
++  };
++
++  return (
++    <div className="min-h-screen bg-slate-50 p-6 text-slate-800">
++      <div className="mx-auto max-w-6xl space-y-6">
++        <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
++          <p className="text-sm font-semibold text-indigo-600">Quản lý sản phẩm</p>
++          <h1 className="mt-1 text-2xl font-bold">Danh sách sản phẩm</h1>
++          <p className="mt-2 text-sm text-slate-500">Giao diện sáng, tách trang danh sách và trang chi tiết để chỉnh sửa dễ hơn.</p>
++          <div className="mt-4 flex flex-wrap gap-3">
++            <button onClick={onCreateProduct} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
++              + Thêm sản phẩm
++            </button>
++            <button onClick={() => setOpenCategoryModal(true)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-100">
++              Quản lý category
++            </button>
++          </div>
++        </header>
++
++        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
++          {loading ? (
++            <div className="p-8 text-center text-sm text-slate-500">Đang tải dữ liệu...</div>
++          ) : (
++            <div className="overflow-x-auto">
++              <table className="min-w-full text-sm">
++                <thead>
++                  <tr className="border-b border-slate-200 text-left text-slate-500">
++                    <th className="px-3 py-3">SKU</th>
++                    <th className="px-3 py-3">Tên (VI)</th>
++                    <th className="px-3 py-3">Category</th>
++                    <th className="px-3 py-3">Giá</th>
++                    <th className="px-3 py-3">Tồn kho</th>
++                    <th className="px-3 py-3">Trạng thái</th>
++                    <th className="px-3 py-3">Hành động</th>
++                  </tr>
++                </thead>
++                <tbody>
++                  {products.map((product) => {
++                    const viName = product.translations.find((item) => item.lang === "vi")?.name || "(chưa đặt tên)";
++                    return (
++                      <tr key={product.id} className="border-b border-slate-100 hover:bg-slate-50">
++                        <td className="px-3 py-3 font-mono text-xs">{product.sku}</td>
++                        <td className="px-3 py-3 font-semibold">{viName}</td>
++                        <td className="px-3 py-3">{categoryMap[product.categoryId] || "-"}</td>
++                        <td className="px-3 py-3">{product.price.toLocaleString("vi-VN")} đ</td>
++                        <td className="px-3 py-3">{product.stock}</td>
++                        <td className="px-3 py-3">
++                          <span className={`rounded-full px-2 py-1 text-xs font-semibold ${product.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
++                            {product.status === "active" ? "Đang bán" : "Nháp"}
++                          </span>
++                        </td>
++                        <td className="px-3 py-3">
++                          <Link className="rounded-lg border border-indigo-200 px-3 py-1.5 font-semibold text-indigo-700 hover:bg-indigo-50" to={`/admin/products/${product.id}`}>
++                            Sửa chi tiết
++                          </Link>
++                        </td>
++                      </tr>
++                    );
++                  })}
++                </tbody>
++              </table>
++            </div>
++          )}
++        </section>
++      </div>
++
++      {openCategoryModal && (
++        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4">
++          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
++            <div className="mb-4 flex items-center justify-between">
++              <h2 className="text-xl font-bold">Category chung</h2>
++              <button className="text-slate-500 hover:text-slate-700" onClick={() => setOpenCategoryModal(false)}>
++                Đóng
++              </button>
++            </div>
++
++            <div className="grid gap-2 rounded-xl border border-slate-200 p-4 md:grid-cols-[1fr_1fr_auto]">
++              <input
++                className="rounded-lg border border-slate-300 px-3 py-2"
++                placeholder="Tên category"
++                value={newCategory.name}
++                onChange={(e) => setNewCategory((prev) => ({ ...prev, name: e.target.value }))}
++              />
++              <input
++                className="rounded-lg border border-slate-300 px-3 py-2"
++                placeholder="Mô tả"
++                value={newCategory.description}
++                onChange={(e) => setNewCategory((prev) => ({ ...prev, description: e.target.value }))}
++              />
++              <button onClick={onCreateCategory} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">
++                Thêm
++              </button>
++            </div>
++
++            <div className="mt-4 space-y-2">
++              {categories.map((category) => (
++                <CategoryRow
++                  key={category.id}
++                  category={category}
++                  onSave={onInlineEditCategory}
++                  onDelete={onDeleteCategory}
++                />
++              ))}
++            </div>
++          </div>
++        </div>
++      )}
++    </div>
++  );
++}
+diff --git a/Home/ayanavita-fontend-final/src/types/productAdmin.ts b/Home/ayanavita-fontend-final/src/types/productAdmin.ts
 new file mode 100644
-index 0000000000000000000000000000000000000000..39e1a7d257fa839f762975207c4b6c5431d6a65e
+index 0000000000000000000000000000000000000000..45f93ed2a19985f4b770ed8290789e34d46574f9
 --- /dev/null
-+++ b/backend/ayanavitabackend/app/api/prisma/migrations/20260225000100_catalog_i18n/migration.sql
-@@ -0,0 +1,130 @@
-+-- Languages
-+CREATE TABLE `languages` (
-+  `code` VARCHAR(10) NOT NULL,
-+  `name` VARCHAR(50) NOT NULL,
-+  `is_active` BOOLEAN NOT NULL DEFAULT TRUE,
-+  PRIMARY KEY (`code`)
-+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-+
-+INSERT INTO `languages` (`code`, `name`, `is_active`) VALUES
-+  ('vi', 'Tiếng Việt', TRUE),
-+  ('en', 'English', TRUE),
-+  ('de', 'Deutsch', TRUE)
-+ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `is_active` = VALUES(`is_active`);
-+
-+-- Categories + translations
-+CREATE TABLE `categories` (
-+  `id` BIGINT NOT NULL AUTO_INCREMENT,
-+  `parent_id` BIGINT NULL,
-+  `status` VARCHAR(20) NOT NULL DEFAULT 'active',
-+  PRIMARY KEY (`id`),
-+  CONSTRAINT `fk_category_parent` FOREIGN KEY (`parent_id`) REFERENCES `categories`(`id`) ON DELETE SET NULL
-+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-+
-+CREATE TABLE `category_translations` (
-+  `category_id` BIGINT NOT NULL,
-+  `language_code` VARCHAR(10) NOT NULL,
-+  `name` VARCHAR(255) NOT NULL,
-+  `slug` VARCHAR(255) NOT NULL,
-+  `description` TEXT NULL,
-+  PRIMARY KEY (`category_id`, `language_code`),
-+  CONSTRAINT `fk_ct_category` FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON DELETE CASCADE,
-+  CONSTRAINT `fk_ct_language` FOREIGN KEY (`language_code`) REFERENCES `languages`(`code`) ON DELETE RESTRICT
-+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-+
-+CREATE UNIQUE INDEX `uq_category_slug_per_lang` ON `category_translations`(`language_code`, `slug`);
-+
-+-- Products + translations
-+CREATE TABLE `products` (
-+  `id` BIGINT NOT NULL AUTO_INCREMENT,
-+  `sku` VARCHAR(64) NOT NULL,
-+  `category_id` BIGINT NULL,
-+  `price` DECIMAL(18,2) NOT NULL DEFAULT 0,
-+  `status` VARCHAR(20) NOT NULL DEFAULT 'active',
-+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-+  PRIMARY KEY (`id`),
-+  UNIQUE INDEX `products_sku_key`(`sku`),
-+  CONSTRAINT `fk_product_category` FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON DELETE SET NULL
-+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-+
-+CREATE TABLE `product_translations` (
-+  `product_id` BIGINT NOT NULL,
-+  `language_code` VARCHAR(10) NOT NULL,
-+  `name` VARCHAR(255) NOT NULL,
-+  `slug` VARCHAR(255) NOT NULL,
-+  `short_description` VARCHAR(500) NULL,
-+  `description` TEXT NULL,
-+  PRIMARY KEY (`product_id`, `language_code`),
-+  CONSTRAINT `fk_pt_product` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE,
-+  CONSTRAINT `fk_pt_language` FOREIGN KEY (`language_code`) REFERENCES `languages`(`code`) ON DELETE RESTRICT
-+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-+
-+CREATE UNIQUE INDEX `uq_product_slug_per_lang` ON `product_translations`(`language_code`, `slug`);
-+CREATE INDEX `idx_product_translation_lang` ON `product_translations`(`language_code`);
-+
-+-- Attributes
-+CREATE TABLE `attribute_keys` (
-+  `id` BIGINT NOT NULL AUTO_INCREMENT,
-+  `code` VARCHAR(100) NOT NULL,
-+  `value_type` VARCHAR(20) NOT NULL DEFAULT 'text',
-+  `is_active` BOOLEAN NOT NULL DEFAULT TRUE,
-+  PRIMARY KEY (`id`),
-+  UNIQUE INDEX `attribute_keys_code_key`(`code`)
-+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-+
-+CREATE TABLE `attribute_key_translations` (
-+  `attribute_key_id` BIGINT NOT NULL,
-+  `language_code` VARCHAR(10) NOT NULL,
-+  `display_name` VARCHAR(255) NOT NULL,
-+  `description` TEXT NULL,
-+  PRIMARY KEY (`attribute_key_id`, `language_code`),
-+  CONSTRAINT `fk_akt_key` FOREIGN KEY (`attribute_key_id`) REFERENCES `attribute_keys`(`id`) ON DELETE CASCADE,
-+  CONSTRAINT `fk_akt_lang` FOREIGN KEY (`language_code`) REFERENCES `languages`(`code`) ON DELETE RESTRICT
-+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-+
-+CREATE TABLE `product_attributes` (
-+  `product_id` BIGINT NOT NULL,
-+  `attribute_key_id` BIGINT NOT NULL,
-+  `value_text` TEXT NULL,
-+  `value_number` DECIMAL(18,4) NULL,
-+  `value_boolean` BOOLEAN NULL,
-+  `value_json` TEXT NULL,
-+  PRIMARY KEY (`product_id`, `attribute_key_id`),
-+  CONSTRAINT `fk_pa_product` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE,
-+  CONSTRAINT `fk_pa_key` FOREIGN KEY (`attribute_key_id`) REFERENCES `attribute_keys`(`id`) ON DELETE RESTRICT
-+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-+
-+CREATE INDEX `idx_product_attribute_key` ON `product_attributes`(`attribute_key_id`);
-+
-+-- Ingredients
-+CREATE TABLE `ingredient_keys` (
-+  `id` BIGINT NOT NULL AUTO_INCREMENT,
-+  `code` VARCHAR(100) NOT NULL,
-+  `is_active` BOOLEAN NOT NULL DEFAULT TRUE,
-+  PRIMARY KEY (`id`),
-+  UNIQUE INDEX `ingredient_keys_code_key`(`code`)
-+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-+
-+CREATE TABLE `ingredient_key_translations` (
-+  `ingredient_key_id` BIGINT NOT NULL,
-+  `language_code` VARCHAR(10) NOT NULL,
-+  `display_name` VARCHAR(255) NOT NULL,
-+  `description` TEXT NULL,
-+  PRIMARY KEY (`ingredient_key_id`, `language_code`),
-+  CONSTRAINT `fk_ikt_key` FOREIGN KEY (`ingredient_key_id`) REFERENCES `ingredient_keys`(`id`) ON DELETE CASCADE,
-+  CONSTRAINT `fk_ikt_lang` FOREIGN KEY (`language_code`) REFERENCES `languages`(`code`) ON DELETE RESTRICT
-+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-+
-+CREATE TABLE `product_ingredients` (
-+  `product_id` BIGINT NOT NULL,
-+  `ingredient_key_id` BIGINT NOT NULL,
-+  `value` VARCHAR(255) NULL,
-+  `note` TEXT NULL,
-+  `sort_order` INT NOT NULL DEFAULT 0,
-+  PRIMARY KEY (`product_id`, `ingredient_key_id`),
-+  CONSTRAINT `fk_pi_product` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE,
-+  CONSTRAINT `fk_pi_key` FOREIGN KEY (`ingredient_key_id`) REFERENCES `ingredient_keys`(`id`) ON DELETE RESTRICT
-+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-+
-+CREATE INDEX `idx_product_ingredient_sort` ON `product_ingredients`(`product_id`, `sort_order`);
-diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-index bcc1cb3b239c1e20a16fd8726350a4a3905f61bd..42aee322f13c50bc41fe16151bd5a9e9809c970f 100644
---- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
-+++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-@@ -283,25 +283,182 @@ model MediaAsset {
-   mimeType String  @db.VarChar(100)
-   size     Int
-   width    Int?
-   height   Int?
-   alt      String? @db.VarChar(255)
-   tags     String? @db.Text
-
-   createdBy Int?
-   createdAt DateTime @default(now())
-
-   user User? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
-
-   @@index([createdBy, createdAt])
- }
-
- model PublicLead {
-   id        Int      @id @default(autoincrement())
-   type      String   @db.VarChar(30) // "book" | "talk"
-   payload   Json
-   createdAt DateTime @default(now())
-
-   @@index([type, createdAt])
- }
-
-
-+
-+
-+model Language {
-+  code     String  @id @db.VarChar(10)
-+  name     String  @db.VarChar(50)
-+  isActive Boolean @default(true) @map("is_active")
-+
-+  categoryTranslations     CategoryTranslation[]
-+  productTranslations      ProductTranslation[]
-+  attributeKeyTranslations AttributeKeyTranslation[]
-+  ingredientKeyTranslations IngredientKeyTranslation[]
-+
-+  @@map("languages")
-+}
-+
-+model Category {
-+  id       BigInt   @id @default(autoincrement())
-+  parentId BigInt?  @map("parent_id")
-+  status   String   @default("active") @db.VarChar(20)
-+
-+  parent   Category?  @relation("CategoryParent", fields: [parentId], references: [id], onDelete: SetNull)
-+  children Category[] @relation("CategoryParent")
-+
-+  translations CategoryTranslation[]
-+  products     CatalogProduct[]
-+
-+  @@map("categories")
-+}
-+
-+model CategoryTranslation {
-+  categoryId   BigInt @map("category_id")
-+  languageCode String @map("language_code") @db.VarChar(10)
-+  name         String @db.VarChar(255)
-+  slug         String @db.VarChar(255)
-+  description  String? @db.Text
-+
-+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-+  language Language @relation(fields: [languageCode], references: [code], onDelete: Restrict)
-+
-+  @@id([categoryId, languageCode])
-+  @@unique([languageCode, slug], map: "uq_category_slug_per_lang")
-+  @@map("category_translations")
-+}
-+
-+model CatalogProduct {
-+  id         BigInt   @id @default(autoincrement())
-+  sku        String   @unique @db.VarChar(64)
-+  categoryId BigInt?  @map("category_id")
-+  price      Decimal  @default(0) @db.Decimal(18, 2)
-+  status     String   @default("active") @db.VarChar(20)
-+  createdAt  DateTime @default(now()) @map("created_at")
-+  updatedAt  DateTime @updatedAt @map("updated_at")
-+
-+  category     Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-+  translations ProductTranslation[]
-+  attributes   ProductAttribute[]
-+  ingredients  ProductIngredient[]
-+
-+  @@map("products")
-+}
-+
-+model ProductTranslation {
-+  productId         BigInt @map("product_id")
-+  languageCode      String @map("language_code") @db.VarChar(10)
-+  name              String @db.VarChar(255)
-+  slug              String @db.VarChar(255)
-+  shortDescription  String? @map("short_description") @db.VarChar(500)
-+  description       String? @db.Text
-+
-+  product  CatalogProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
-+  language Language       @relation(fields: [languageCode], references: [code], onDelete: Restrict)
-+
-+  @@id([productId, languageCode])
-+  @@unique([languageCode, slug], map: "uq_product_slug_per_lang")
-+  @@index([languageCode], map: "idx_product_translation_lang")
-+  @@map("product_translations")
-+}
-+
-+model AttributeKey {
-+  id        BigInt  @id @default(autoincrement())
-+  code      String  @unique @db.VarChar(100)
-+  valueType String  @default("text") @map("value_type") @db.VarChar(20)
-+  isActive  Boolean @default(true) @map("is_active")
-+
-+  translations AttributeKeyTranslation[]
-+  products     ProductAttribute[]
-+
-+  @@map("attribute_keys")
-+}
-+
-+model AttributeKeyTranslation {
-+  attributeKeyId BigInt @map("attribute_key_id")
-+  languageCode   String @map("language_code") @db.VarChar(10)
-+  displayName    String @map("display_name") @db.VarChar(255)
-+  description    String? @db.Text
-+
-+  attributeKey AttributeKey @relation(fields: [attributeKeyId], references: [id], onDelete: Cascade)
-+  language     Language     @relation(fields: [languageCode], references: [code], onDelete: Restrict)
-+
-+  @@id([attributeKeyId, languageCode])
-+  @@map("attribute_key_translations")
-+}
-+
-+model ProductAttribute {
-+  productId      BigInt @map("product_id")
-+  attributeKeyId BigInt @map("attribute_key_id")
-+  valueText      String? @map("value_text") @db.Text
-+  valueNumber    Decimal? @map("value_number") @db.Decimal(18, 4)
-+  valueBoolean   Boolean? @map("value_boolean")
-+  valueJson      String? @map("value_json") @db.Text
-+
-+  product      CatalogProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
-+  attributeKey AttributeKey   @relation(fields: [attributeKeyId], references: [id], onDelete: Restrict)
-+
-+  @@id([productId, attributeKeyId])
-+  @@index([attributeKeyId], map: "idx_product_attribute_key")
-+  @@map("product_attributes")
-+}
-+
-+model IngredientKey {
-+  id       BigInt  @id @default(autoincrement())
-+  code     String  @unique @db.VarChar(100)
-+  isActive Boolean @default(true) @map("is_active")
-+
-+  translations IngredientKeyTranslation[]
-+  products     ProductIngredient[]
-+
-+  @@map("ingredient_keys")
-+}
-+
-+model IngredientKeyTranslation {
-+  ingredientKeyId BigInt @map("ingredient_key_id")
-+  languageCode    String @map("language_code") @db.VarChar(10)
-+  displayName     String @map("display_name") @db.VarChar(255)
-+  description     String? @db.Text
-+
-+  ingredientKey IngredientKey @relation(fields: [ingredientKeyId], references: [id], onDelete: Cascade)
-+  language      Language      @relation(fields: [languageCode], references: [code], onDelete: Restrict)
-+
-+  @@id([ingredientKeyId, languageCode])
-+  @@map("ingredient_key_translations")
-+}
-+
-+model ProductIngredient {
-+  productId       BigInt @map("product_id")
-+  ingredientKeyId BigInt @map("ingredient_key_id")
-+  value           String? @db.VarChar(255)
-+  note            String? @db.Text
-+  sortOrder       Int @default(0) @map("sort_order")
-+
-+  product       CatalogProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
-+  ingredientKey IngredientKey  @relation(fields: [ingredientKeyId], references: [id], onDelete: Restrict)
-+
-+  @@id([productId, ingredientKeyId])
-+  @@index([productId, sortOrder], map: "idx_product_ingredient_sort")
-+  @@map("product_ingredients")
-+}
-diff --git a/backend/ayanavitabackend/app/api/prisma/seed.ts b/backend/ayanavitabackend/app/api/prisma/seed.ts
-index 120cd6089ea5de88e2dd9ccc7dc64f967ede0e12..cb7df4030e77e2c99ef05738bc05283043aabfee 100644
---- a/backend/ayanavitabackend/app/api/prisma/seed.ts
-+++ b/backend/ayanavitabackend/app/api/prisma/seed.ts
-@@ -1,60 +1,205 @@
- import { PrismaClient } from '@prisma/client'
- import * as bcrypt from 'bcrypt'
-
- const prisma = new PrismaClient()
-
- function slugify(input: string) {
-   return input
-     .toLowerCase()
-     .trim()
-     .normalize('NFD')
-     .replace(/[\u0300-\u036f]/g, '')
-     .replace(/[^a-z0-9]+/g, '-')
-     .replace(/(^-|-$)+/g, '')
- }
-
-+async function seedCatalog() {
-+  await prisma.language.upsert({ where: { code: 'vi' }, update: { name: 'Tiếng Việt' }, create: { code: 'vi', name: 'Tiếng Việt' } })
-+  await prisma.language.upsert({ where: { code: 'en' }, update: { name: 'English' }, create: { code: 'en', name: 'English' } })
-+  await prisma.language.upsert({ where: { code: 'de' }, update: { name: 'Deutsch' }, create: { code: 'de', name: 'Deutsch' } })
-+
-+  let skincare = await prisma.category.findFirst({
-+    where: { translations: { some: { languageCode: 'vi', slug: 'cham-soc-da' } } },
-+  })
-+
-+  if (!skincare) {
-+    skincare = await prisma.category.create({
-+      data: {
-+        status: 'active',
-+        translations: {
-+          create: [
-+            { languageCode: 'vi', name: 'Chăm sóc da', slug: 'cham-soc-da', description: 'Danh mục sản phẩm skincare.' },
-+            { languageCode: 'en', name: 'Skincare', slug: 'skincare', description: 'Skincare product category.' },
-+            { languageCode: 'de', name: 'Hautpflege', slug: 'hautpflege', description: 'Kategorie für Hautpflegeprodukte.' },
-+          ],
-+        },
-+      },
-+    })
-+  }
-+
-+  const [materialKey, volumeKey] = await Promise.all([
-+    prisma.attributeKey.upsert({
-+      where: { code: 'material' },
-+      update: {},
-+      create: {
-+        code: 'material',
-+        valueType: 'text',
-+        translations: {
-+          create: [
-+            { languageCode: 'vi', displayName: 'Chất liệu', description: 'Thành phần chất liệu chính' },
-+            { languageCode: 'en', displayName: 'Material', description: 'Main material information' },
-+            { languageCode: 'de', displayName: 'Material', description: 'Hauptmaterial-Information' },
-+          ],
-+        },
-+      },
-+    }),
-+    prisma.attributeKey.upsert({
-+      where: { code: 'volume_ml' },
-+      update: {},
-+      create: {
-+        code: 'volume_ml',
-+        valueType: 'number',
-+        translations: {
-+          create: [
-+            { languageCode: 'vi', displayName: 'Dung tích (ml)' },
-+            { languageCode: 'en', displayName: 'Volume (ml)' },
-+            { languageCode: 'de', displayName: 'Volumen (ml)' },
-+          ],
-+        },
-+      },
-+    }),
-+  ])
-+
-+  const [vitaminCKey, aloeKey] = await Promise.all([
-+    prisma.ingredientKey.upsert({
-+      where: { code: 'vitamin_c' },
-+      update: {},
-+      create: {
-+        code: 'vitamin_c',
-+        translations: {
-+          create: [
-+            { languageCode: 'vi', displayName: 'Vitamin C' },
-+            { languageCode: 'en', displayName: 'Vitamin C' },
-+            { languageCode: 'de', displayName: 'Vitamin C' },
-+          ],
-+        },
-+      },
-+    }),
-+    prisma.ingredientKey.upsert({
-+      where: { code: 'aloe_vera' },
-+      update: {},
-+      create: {
-+        code: 'aloe_vera',
-+        translations: {
-+          create: [
-+            { languageCode: 'vi', displayName: 'Nha đam' },
-+            { languageCode: 'en', displayName: 'Aloe Vera' },
-+            { languageCode: 'de', displayName: 'Aloe Vera' },
-+          ],
-+        },
-+      },
-+    }),
-+  ])
-+
-+  const sku = 'SPA-SERUM-001'
-+  const product = await prisma.catalogProduct.upsert({
-+    where: { sku },
-+    update: {
-+      categoryId: skincare.id,
-+      price: 489000,
-+      status: 'active',
-+    },
-+    create: {
-+      sku,
-+      categoryId: skincare.id,
-+      price: 489000,
-+      status: 'active',
-+      translations: {
-+        create: [
-+          {
-+            languageCode: 'vi',
-+            name: 'Serum Spa Phục Hồi',
-+            slug: slugify('serum-spa-phuc-hoi'),
-+            shortDescription: 'Dưỡng sáng và làm dịu da sau liệu trình spa.',
-+            description: 'Serum giàu vitamin C và nha đam, phù hợp dùng hằng ngày.',
-+          },
-+          {
-+            languageCode: 'en',
-+            name: 'Spa Recovery Serum',
-+            slug: slugify('spa-recovery-serum'),
-+            shortDescription: 'Brightens and calms skin after spa treatment.',
-+            description: 'A daily serum with vitamin C and aloe vera.',
-+          },
-+          {
-+            languageCode: 'de',
-+            name: 'Spa Regenerationsserum',
-+            slug: slugify('spa-regenerationsserum'),
-+            shortDescription: 'Für strahlende und beruhigte Haut nach Spa-Behandlung.',
-+            description: 'Tägliches Serum mit Vitamin C und Aloe Vera.',
-+          },
-+        ],
-+      },
-+    },
-+  })
-+
-+  await prisma.productAttribute.upsert({
-+    where: { productId_attributeKeyId: { productId: product.id, attributeKeyId: materialKey.id } },
-+    update: { valueText: 'Glass bottle' },
-+    create: { productId: product.id, attributeKeyId: materialKey.id, valueText: 'Glass bottle' },
-+  })
-+
-+  await prisma.productAttribute.upsert({
-+    where: { productId_attributeKeyId: { productId: product.id, attributeKeyId: volumeKey.id } },
-+    update: { valueNumber: 30 },
-+    create: { productId: product.id, attributeKeyId: volumeKey.id, valueNumber: 30 },
-+  })
-+
-+  await prisma.productIngredient.upsert({
-+    where: { productId_ingredientKeyId: { productId: product.id, ingredientKeyId: vitaminCKey.id } },
-+    update: { value: '10mg', sortOrder: 1 },
-+    create: { productId: product.id, ingredientKeyId: vitaminCKey.id, value: '10mg', sortOrder: 1 },
-+  })
-+
-+  await prisma.productIngredient.upsert({
-+    where: { productId_ingredientKeyId: { productId: product.id, ingredientKeyId: aloeKey.id } },
-+    update: { value: '5%', sortOrder: 2 },
-+    create: { productId: product.id, ingredientKeyId: aloeKey.id, value: '5%', sortOrder: 2 },
-+  })
-+}
-+
- async function main() {
--  // 🔐 HASH PASSWORD
-   const passwordHash = await bcrypt.hash('123456', 10)
-
--  // 👤 USER TEST (CHỈ 1 LẦN – PASSWORD ĐÃ HASH)
-   const user = await prisma.user.upsert({
-     where: { email: 'test@ayanavita.com' },
-     update: {},
-     create: {
-       email: 'test@ayanavita.com',
-       password: passwordHash,
-       name: 'Test User',
-       role: 'USER',
-     },
-   })
-
--  // 📚 COURSES TEST
-   const seedCourses = [
-     { title: 'Course 1 - Basic', price: 99000 },
-     { title: 'Course 2 - Pro', price: 199000 },
-     { title: 'Course 3 - Master', price: 299000 },
--  ].map((c) => ({
--    ...c,
--    slug: slugify(c.title),
--  }))
-+  ].map((c) => ({ ...c, slug: slugify(c.title) }))
-
--  await prisma.course.createMany({
--    data: seedCourses,
--    skipDuplicates: true,
--  })
-+  await prisma.course.createMany({ data: seedCourses, skipDuplicates: true })
-+  await seedCatalog()
-
-   const courses = await prisma.course.findMany({ orderBy: { id: 'asc' } })
--
-   console.log('🌱 Seed OK')
--  console.log({ userId: user.id, courses })
-+  console.log({ userId: user.id, coursesCount: courses.length })
- }
-
- main()
-   .catch((e) => {
-     console.error(e)
-     process.exit(1)
-   })
-   .finally(async () => {
-     await prisma.$disconnect()
-   })
-diff --git a/backend/ayanavitabackend/app/api/src/app.module.ts b/backend/ayanavitabackend/app/api/src/app.module.ts
-index 9f2a8b14037768f91719a92f91680b8110c06e3b..863ebd5298fd9b90488f84a937df04fdea2b935a 100644
---- a/backend/ayanavitabackend/app/api/src/app.module.ts
-+++ b/backend/ayanavitabackend/app/api/src/app.module.ts
-@@ -1,30 +1,32 @@
- import { Module } from '@nestjs/common'
- import { PrismaModule } from './prisma/prisma.module'
- import { UsersModule } from './users/users.module'
- import { AuthModule } from './auth/auth.module'
- import { CoursesModule } from './courses/courses.module'
- import { LessonsModule } from './lessons/lessons.module'
- import { EnrollmentsModule } from './enrollments/enrollments.module'
- import { OrdersModule } from './orders/orders.module'
- import { ProgressModule } from './progress/progress.module'
- import { CmsModule } from './cms/cms.module'
-+import { CatalogModule } from './catalog/catalog.module'
-
-
-
-
- @Module({
-   imports: [
-     PrismaModule,
-     UsersModule,
-     AuthModule,
-     CoursesModule,
-     LessonsModule,
-     EnrollmentsModule,
-     ProgressModule,
-     OrdersModule,
-     CmsModule,
-+    CatalogModule,
-
-
-   ],
- })
- export class AppModule {}
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/attributes.controller.ts b/backend/ayanavitabackend/app/api/src/catalog/attributes.controller.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..1522f2212b66b2d5c6cbde8b8ec3f99ba13f30ef
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/catalog/attributes.controller.ts
-@@ -0,0 +1,33 @@
-+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post } from '@nestjs/common'
-+import { AttributesService } from './attributes.service'
-+import { CreateAttributeKeyDto, UpdateAttributeKeyDto } from './dto/attribute.dto'
-+
-+@Controller('catalog/attributes')
-+export class AttributesController {
-+  constructor(private readonly service: AttributesService) {}
-+
-+  @Get()
-+  findAll() {
-+    return this.service.findAll()
-+  }
-+
-+  @Get(':id')
-+  findOne(@Param('id', ParseIntPipe) id: number) {
-+    return this.service.findOne(id)
-+  }
-+
-+  @Post()
-+  create(@Body() dto: CreateAttributeKeyDto) {
-+    return this.service.create(dto)
-+  }
-+
-+  @Patch(':id')
-+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateAttributeKeyDto) {
-+    return this.service.update(id, dto)
-+  }
-+
-+  @Delete(':id')
-+  remove(@Param('id', ParseIntPipe) id: number) {
-+    return this.service.remove(id)
-+  }
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/attributes.service.ts b/backend/ayanavitabackend/app/api/src/catalog/attributes.service.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..d521f139dae5cbce0c7c6f66d7528e8d5e431e90
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/catalog/attributes.service.ts
-@@ -0,0 +1,66 @@
-+import { Injectable, NotFoundException } from '@nestjs/common'
-+import { PrismaService } from '../prisma/prisma.service'
-+import { CreateAttributeKeyDto, UpdateAttributeKeyDto } from './dto/attribute.dto'
-+import { normalizeBigInt } from './utils'
-+
-+@Injectable()
-+export class AttributesService {
-+  constructor(private readonly prisma: PrismaService) {}
-+
-+  async findAll() {
-+    const rows = await this.prisma.attributeKey.findMany({
-+      include: { translations: true },
-+      orderBy: { id: 'desc' },
-+    })
-+    return normalizeBigInt(rows)
-+  }
-+
-+  async findOne(id: number) {
-+    const row = await this.prisma.attributeKey.findUnique({
-+      where: { id: BigInt(id) },
-+      include: { translations: true },
-+    })
-+    if (!row) throw new NotFoundException('Attribute key not found')
-+    return normalizeBigInt(row)
-+  }
-+
-+  async create(dto: CreateAttributeKeyDto) {
-+    const row = await this.prisma.attributeKey.create({
-+      data: {
-+        code: dto.code,
-+        valueType: dto.valueType ?? 'text',
-+        isActive: dto.isActive ?? true,
-+        translations: { create: dto.translations },
-+      },
-+      include: { translations: true },
-+    })
-+    return normalizeBigInt(row)
-+  }
-+
-+  async update(id: number, dto: UpdateAttributeKeyDto) {
-+    await this.findOne(id)
-+    const row = await this.prisma.$transaction(async (tx) => {
-+      if (dto.translations) {
-+        await tx.attributeKeyTranslation.deleteMany({ where: { attributeKeyId: BigInt(id) } })
-+      }
-+
-+      return tx.attributeKey.update({
-+        where: { id: BigInt(id) },
-+        data: {
-+          code: dto.code,
-+          valueType: dto.valueType,
-+          isActive: dto.isActive,
-+          translations: dto.translations ? { create: dto.translations } : undefined,
-+        },
-+        include: { translations: true },
-+      })
-+    })
-+    return normalizeBigInt(row)
-+  }
-+
-+  async remove(id: number) {
-+    await this.findOne(id)
-+    const row = await this.prisma.attributeKey.delete({ where: { id: BigInt(id) } })
-+    return normalizeBigInt(row)
-+  }
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/catalog.module.ts b/backend/ayanavitabackend/app/api/src/catalog/catalog.module.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..fac77235edb6798446244b604a19c9e9a9a9aeb3
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/catalog/catalog.module.ts
-@@ -0,0 +1,15 @@
-+import { Module } from '@nestjs/common'
-+import { CategoriesController } from './categories.controller'
-+import { CategoriesService } from './categories.service'
-+import { ProductsController } from './products.controller'
-+import { ProductsService } from './products.service'
-+import { AttributesController } from './attributes.controller'
-+import { AttributesService } from './attributes.service'
-+import { IngredientsController } from './ingredients.controller'
-+import { IngredientsService } from './ingredients.service'
-+
-+@Module({
-+  controllers: [CategoriesController, ProductsController, AttributesController, IngredientsController],
-+  providers: [CategoriesService, ProductsService, AttributesService, IngredientsService],
-+})
-+export class CatalogModule {}
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/categories.controller.ts b/backend/ayanavitabackend/app/api/src/catalog/categories.controller.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..164dc15f24b97efe695d73bd1fa5f8a79a8e7c66
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/catalog/categories.controller.ts
-@@ -0,0 +1,33 @@
-+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post } from '@nestjs/common'
-+import { CategoriesService } from './categories.service'
-+import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto'
-+
-+@Controller('catalog/categories')
-+export class CategoriesController {
-+  constructor(private readonly service: CategoriesService) {}
-+
-+  @Get()
-+  findAll() {
-+    return this.service.findAll()
-+  }
-+
-+  @Get(':id')
-+  findOne(@Param('id', ParseIntPipe) id: number) {
-+    return this.service.findOne(id)
-+  }
-+
-+  @Post()
-+  create(@Body() dto: CreateCategoryDto) {
-+    return this.service.create(dto)
-+  }
-+
-+  @Patch(':id')
-+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCategoryDto) {
-+    return this.service.update(id, dto)
-+  }
-+
-+  @Delete(':id')
-+  remove(@Param('id', ParseIntPipe) id: number) {
-+    return this.service.remove(id)
-+  }
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/categories.service.ts b/backend/ayanavitabackend/app/api/src/catalog/categories.service.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..0cd390c813a45f820a0dafe6b26ff727c2373fe6
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/catalog/categories.service.ts
-@@ -0,0 +1,66 @@
-+import { Injectable, NotFoundException } from '@nestjs/common'
-+import { PrismaService } from '../prisma/prisma.service'
-+import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto'
-+import { normalizeBigInt } from './utils'
-+
-+@Injectable()
-+export class CategoriesService {
-+  constructor(private readonly prisma: PrismaService) {}
-+
-+  async findAll() {
-+    const rows = await this.prisma.category.findMany({
-+      include: { translations: true },
-+      orderBy: { id: 'desc' },
-+    })
-+    return normalizeBigInt(rows)
-+  }
-+
-+  async findOne(id: number) {
-+    const row = await this.prisma.category.findUnique({
-+      where: { id: BigInt(id) },
-+      include: { translations: true },
-+    })
-+    if (!row) throw new NotFoundException('Category not found')
-+    return normalizeBigInt(row)
-+  }
-+
-+  async create(dto: CreateCategoryDto) {
-+    const row = await this.prisma.category.create({
-+      data: {
-+        parentId: dto.parentId ? BigInt(dto.parentId) : null,
-+        status: dto.status ?? 'active',
-+        translations: { create: dto.translations },
-+      },
-+      include: { translations: true },
-+    })
-+    return normalizeBigInt(row)
-+  }
-+
-+  async update(id: number, dto: UpdateCategoryDto) {
-+    await this.findOne(id)
-+
-+    const row = await this.prisma.$transaction(async (tx) => {
-+      if (dto.translations) {
-+        await tx.categoryTranslation.deleteMany({ where: { categoryId: BigInt(id) } })
-+      }
-+
-+      return tx.category.update({
-+        where: { id: BigInt(id) },
-+        data: {
-+          parentId: dto.parentId === undefined ? undefined : dto.parentId === null ? null : BigInt(dto.parentId),
-+          status: dto.status,
-+          translations: dto.translations ? { create: dto.translations } : undefined,
-+        },
-+        include: { translations: true },
-+      })
-+    })
-+
-+    return normalizeBigInt(row)
-+  }
-+
-+  async remove(id: number) {
-+    await this.findOne(id)
-+    const row = await this.prisma.category.delete({ where: { id: BigInt(id) } })
-+    return normalizeBigInt(row)
-+  }
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/dto/attribute.dto.ts b/backend/ayanavitabackend/app/api/src/catalog/dto/attribute.dto.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..10fa6eec337f4c77044a308285fbb5b8dbabd6df
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/catalog/dto/attribute.dto.ts
-@@ -0,0 +1,69 @@
-+import { Type } from 'class-transformer'
-+import {
-+  IsArray,
-+  IsBoolean,
-+  IsNotEmpty,
-+  IsOptional,
-+  IsString,
-+  MaxLength,
-+  ValidateNested,
-+} from 'class-validator'
-+
-+export class AttributeTranslationDto {
-+  @IsString()
-+  @MaxLength(10)
-+  languageCode!: string
-+
-+  @IsString()
-+  @IsNotEmpty()
-+  @MaxLength(255)
-+  displayName!: string
-+
-+  @IsOptional()
-+  @IsString()
-+  description?: string
-+}
-+
-+export class CreateAttributeKeyDto {
-+  @IsString()
-+  @MaxLength(100)
-+  code!: string
-+
-+  @IsOptional()
-+  @IsString()
-+  @MaxLength(20)
-+  valueType?: string
-+
-+  @IsOptional()
-+  @Type(() => Boolean)
-+  @IsBoolean()
-+  isActive?: boolean
-+
-+  @IsArray()
-+  @ValidateNested({ each: true })
-+  @Type(() => AttributeTranslationDto)
-+  translations!: AttributeTranslationDto[]
-+}
-+
-+export class UpdateAttributeKeyDto {
-+  @IsOptional()
-+  @IsString()
-+  @MaxLength(100)
-+  code?: string
-+
-+  @IsOptional()
-+  @IsString()
-+  @MaxLength(20)
-+  valueType?: string
-+
-+  @IsOptional()
-+  @Type(() => Boolean)
-+  @IsBoolean()
-+  isActive?: boolean
-+
-+  @IsOptional()
-+  @IsArray()
-+  @ValidateNested({ each: true })
-+  @Type(() => AttributeTranslationDto)
-+  translations?: AttributeTranslationDto[]
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/dto/category.dto.ts b/backend/ayanavitabackend/app/api/src/catalog/dto/category.dto.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..9528e35dc75ed4a8dd2f02774e8aac7d8eae79c4
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/catalog/dto/category.dto.ts
-@@ -0,0 +1,65 @@
-+import { Type } from 'class-transformer'
-+import {
-+  IsArray,
-+  IsInt,
-+  IsNotEmpty,
-+  IsOptional,
-+  IsString,
-+  MaxLength,
-+  ValidateNested,
-+} from 'class-validator'
-+
-+export class CategoryTranslationDto {
-+  @IsString()
-+  @MaxLength(10)
-+  languageCode!: string
-+
-+  @IsString()
-+  @IsNotEmpty()
-+  @MaxLength(255)
-+  name!: string
-+
-+  @IsString()
-+  @IsNotEmpty()
-+  @MaxLength(255)
-+  slug!: string
-+
-+  @IsOptional()
-+  @IsString()
-+  description?: string
-+}
-+
-+export class CreateCategoryDto {
-+  @IsOptional()
-+  @Type(() => Number)
-+  @IsInt()
-+  parentId?: number
-+
-+  @IsOptional()
-+  @IsString()
-+  @MaxLength(20)
-+  status?: string
-+
-+  @IsArray()
-+  @ValidateNested({ each: true })
-+  @Type(() => CategoryTranslationDto)
-+  translations!: CategoryTranslationDto[]
-+}
-+
-+export class UpdateCategoryDto {
-+  @IsOptional()
-+  @Type(() => Number)
-+  @IsInt()
-+  parentId?: number | null
-+
-+  @IsOptional()
-+  @IsString()
-+  @MaxLength(20)
-+  status?: string
-+
-+  @IsOptional()
-+  @IsArray()
-+  @ValidateNested({ each: true })
-+  @Type(() => CategoryTranslationDto)
-+  translations?: CategoryTranslationDto[]
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/dto/ingredient.dto.ts b/backend/ayanavitabackend/app/api/src/catalog/dto/ingredient.dto.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..71f075ff6a70c6dea1c426bcafc2e6e0d90a8382
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/catalog/dto/ingredient.dto.ts
-@@ -0,0 +1,59 @@
-+import { Type } from 'class-transformer'
-+import {
-+  IsArray,
-+  IsBoolean,
-+  IsNotEmpty,
-+  IsOptional,
-+  IsString,
-+  MaxLength,
-+  ValidateNested,
-+} from 'class-validator'
-+
-+export class IngredientTranslationDto {
-+  @IsString()
-+  @MaxLength(10)
-+  languageCode!: string
-+
-+  @IsString()
-+  @IsNotEmpty()
-+  @MaxLength(255)
-+  displayName!: string
-+
-+  @IsOptional()
-+  @IsString()
-+  description?: string
-+}
-+
-+export class CreateIngredientKeyDto {
-+  @IsString()
-+  @MaxLength(100)
-+  code!: string
-+
-+  @IsOptional()
-+  @Type(() => Boolean)
-+  @IsBoolean()
-+  isActive?: boolean
-+
-+  @IsArray()
-+  @ValidateNested({ each: true })
-+  @Type(() => IngredientTranslationDto)
-+  translations!: IngredientTranslationDto[]
-+}
-+
-+export class UpdateIngredientKeyDto {
-+  @IsOptional()
-+  @IsString()
-+  @MaxLength(100)
-+  code?: string
-+
-+  @IsOptional()
-+  @Type(() => Boolean)
-+  @IsBoolean()
-+  isActive?: boolean
-+
-+  @IsOptional()
-+  @IsArray()
-+  @ValidateNested({ each: true })
-+  @Type(() => IngredientTranslationDto)
-+  translations?: IngredientTranslationDto[]
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/dto/product-metadata.dto.ts b/backend/ayanavitabackend/app/api/src/catalog/dto/product-metadata.dto.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..a0e0c68c30dce34a3f73c638aec275b9e3b35193
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/catalog/dto/product-metadata.dto.ts
-@@ -0,0 +1,58 @@
-+import { Type } from 'class-transformer'
-+import { IsArray, IsBoolean, IsInt, IsOptional, IsString, ValidateNested } from 'class-validator'
-+
-+export class ProductAttributeValueDto {
-+  @Type(() => Number)
-+  @IsInt()
-+  attributeKeyId!: number
-+
-+  @IsOptional()
-+  @IsString()
-+  valueText?: string
-+
-+  @IsOptional()
-+  @Type(() => Number)
-+  valueNumber?: number
-+
-+  @IsOptional()
-+  @Type(() => Boolean)
-+  @IsBoolean()
-+  valueBoolean?: boolean
-+
-+  @IsOptional()
-+  @IsString()
-+  valueJson?: string
-+}
-+
-+export class ProductIngredientValueDto {
-+  @Type(() => Number)
-+  @IsInt()
-+  ingredientKeyId!: number
-+
-+  @IsOptional()
-+  @IsString()
-+  value?: string
-+
-+  @IsOptional()
-+  @IsString()
-+  note?: string
-+
-+  @IsOptional()
-+  @Type(() => Number)
-+  @IsInt()
-+  sortOrder?: number
-+}
-+
-+export class UpsertProductAttributesDto {
-+  @IsArray()
-+  @ValidateNested({ each: true })
-+  @Type(() => ProductAttributeValueDto)
-+  items!: ProductAttributeValueDto[]
-+}
-+
-+export class UpsertProductIngredientsDto {
-+  @IsArray()
-+  @ValidateNested({ each: true })
-+  @Type(() => ProductIngredientValueDto)
-+  items!: ProductIngredientValueDto[]
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/dto/product.dto.ts b/backend/ayanavitabackend/app/api/src/catalog/dto/product.dto.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..c08c96e133163aa3ab7c2acaef65ba9d9c0b5fae
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/catalog/dto/product.dto.ts
-@@ -0,0 +1,89 @@
-+import { Type } from 'class-transformer'
-+import {
-+  IsArray,
-+  IsInt,
-+  IsNotEmpty,
-+  IsNumber,
-+  IsOptional,
-+  IsString,
-+  MaxLength,
-+  ValidateNested,
-+} from 'class-validator'
-+
-+export class ProductTranslationDto {
-+  @IsString()
-+  @MaxLength(10)
-+  languageCode!: string
-+
-+  @IsString()
-+  @IsNotEmpty()
-+  @MaxLength(255)
-+  name!: string
-+
-+  @IsString()
-+  @IsNotEmpty()
-+  @MaxLength(255)
-+  slug!: string
-+
-+  @IsOptional()
-+  @IsString()
-+  @MaxLength(500)
-+  shortDescription?: string
-+
-+  @IsOptional()
-+  @IsString()
-+  description?: string
-+}
-+
-+export class CreateProductDto {
-+  @IsString()
-+  @MaxLength(64)
-+  sku!: string
-+
-+  @IsOptional()
-+  @Type(() => Number)
-+  @IsInt()
-+  categoryId?: number
-+
-+  @Type(() => Number)
-+  @IsNumber()
-+  price!: number
-+
-+  @IsOptional()
-+  @IsString()
-+  @MaxLength(20)
-+  status?: string
-+
-+  @IsArray()
-+  @ValidateNested({ each: true })
-+  @Type(() => ProductTranslationDto)
-+  translations!: ProductTranslationDto[]
-+}
-+
-+export class UpdateProductDto {
-+  @IsOptional()
-+  @IsString()
-+  @MaxLength(64)
-+  sku?: string
-+
-+  @IsOptional()
-+  @Type(() => Number)
-+  @IsInt()
-+  categoryId?: number | null
-+
-+  @IsOptional()
-+  @Type(() => Number)
-+  @IsNumber()
-+  price?: number
-+
-+  @IsOptional()
-+  @IsString()
-+  @MaxLength(20)
-+  status?: string
-+
-+  @IsOptional()
-+  @IsArray()
-+  @ValidateNested({ each: true })
-+  @Type(() => ProductTranslationDto)
-+  translations?: ProductTranslationDto[]
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/ingredients.controller.ts b/backend/ayanavitabackend/app/api/src/catalog/ingredients.controller.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..7be617f1d946091bfab577c7986b6987ed3a6e82
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/catalog/ingredients.controller.ts
-@@ -0,0 +1,33 @@
-+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post } from '@nestjs/common'
-+import { IngredientsService } from './ingredients.service'
-+import { CreateIngredientKeyDto, UpdateIngredientKeyDto } from './dto/ingredient.dto'
-+
-+@Controller('catalog/ingredients')
-+export class IngredientsController {
-+  constructor(private readonly service: IngredientsService) {}
-+
-+  @Get()
-+  findAll() {
-+    return this.service.findAll()
-+  }
-+
-+  @Get(':id')
-+  findOne(@Param('id', ParseIntPipe) id: number) {
-+    return this.service.findOne(id)
-+  }
-+
-+  @Post()
-+  create(@Body() dto: CreateIngredientKeyDto) {
-+    return this.service.create(dto)
-+  }
-+
-+  @Patch(':id')
-+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateIngredientKeyDto) {
-+    return this.service.update(id, dto)
-+  }
-+
-+  @Delete(':id')
-+  remove(@Param('id', ParseIntPipe) id: number) {
-+    return this.service.remove(id)
-+  }
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/ingredients.service.ts b/backend/ayanavitabackend/app/api/src/catalog/ingredients.service.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..dbcc180b2fea2532ccfce479b96f22b7730168c4
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/catalog/ingredients.service.ts
-@@ -0,0 +1,64 @@
-+import { Injectable, NotFoundException } from '@nestjs/common'
-+import { PrismaService } from '../prisma/prisma.service'
-+import { CreateIngredientKeyDto, UpdateIngredientKeyDto } from './dto/ingredient.dto'
-+import { normalizeBigInt } from './utils'
-+
-+@Injectable()
-+export class IngredientsService {
-+  constructor(private readonly prisma: PrismaService) {}
-+
-+  async findAll() {
-+    const rows = await this.prisma.ingredientKey.findMany({
-+      include: { translations: true },
-+      orderBy: { id: 'desc' },
-+    })
-+    return normalizeBigInt(rows)
-+  }
-+
-+  async findOne(id: number) {
-+    const row = await this.prisma.ingredientKey.findUnique({
-+      where: { id: BigInt(id) },
-+      include: { translations: true },
-+    })
-+    if (!row) throw new NotFoundException('Ingredient key not found')
-+    return normalizeBigInt(row)
-+  }
-+
-+  async create(dto: CreateIngredientKeyDto) {
-+    const row = await this.prisma.ingredientKey.create({
-+      data: {
-+        code: dto.code,
-+        isActive: dto.isActive ?? true,
-+        translations: { create: dto.translations },
-+      },
-+      include: { translations: true },
-+    })
-+    return normalizeBigInt(row)
-+  }
-+
-+  async update(id: number, dto: UpdateIngredientKeyDto) {
-+    await this.findOne(id)
-+    const row = await this.prisma.$transaction(async (tx) => {
-+      if (dto.translations) {
-+        await tx.ingredientKeyTranslation.deleteMany({ where: { ingredientKeyId: BigInt(id) } })
-+      }
-+
-+      return tx.ingredientKey.update({
-+        where: { id: BigInt(id) },
-+        data: {
-+          code: dto.code,
-+          isActive: dto.isActive,
-+          translations: dto.translations ? { create: dto.translations } : undefined,
-+        },
-+        include: { translations: true },
-+      })
-+    })
-+    return normalizeBigInt(row)
-+  }
-+
-+  async remove(id: number) {
-+    await this.findOne(id)
-+    const row = await this.prisma.ingredientKey.delete({ where: { id: BigInt(id) } })
-+    return normalizeBigInt(row)
-+  }
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/products.controller.ts b/backend/ayanavitabackend/app/api/src/catalog/products.controller.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..9c5084c1907dbba872e487fb207c61bcf34fc791
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/catalog/products.controller.ts
-@@ -0,0 +1,52 @@
-+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post } from '@nestjs/common'
-+import { ProductsService } from './products.service'
-+import { CreateProductDto, UpdateProductDto } from './dto/product.dto'
-+import { UpsertProductAttributesDto, UpsertProductIngredientsDto } from './dto/product-metadata.dto'
-+
-+@Controller('catalog/products')
-+export class ProductsController {
-+  constructor(private readonly service: ProductsService) {}
-+
-+  @Get()
-+  findAll() {
-+    return this.service.findAll()
-+  }
-+
-+  @Get(':id')
-+  findOne(@Param('id', ParseIntPipe) id: number) {
-+    return this.service.findOne(id)
-+  }
-+
-+  @Post()
-+  create(@Body() dto: CreateProductDto) {
-+    return this.service.create(dto)
-+  }
-+
-+  @Patch(':id')
-+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateProductDto) {
-+    return this.service.update(id, dto)
-+  }
-+
-+
-+  @Patch(':id/attributes')
-+  replaceAttributes(
-+    @Param('id', ParseIntPipe) id: number,
-+    @Body() dto: UpsertProductAttributesDto,
-+  ) {
-+    return this.service.replaceAttributes(id, dto)
-+  }
-+
-+  @Patch(':id/ingredients')
-+  replaceIngredients(
-+    @Param('id', ParseIntPipe) id: number,
-+    @Body() dto: UpsertProductIngredientsDto,
-+  ) {
-+    return this.service.replaceIngredients(id, dto)
-+  }
-+
-+
-+  @Delete(':id')
-+  remove(@Param('id', ParseIntPipe) id: number) {
-+    return this.service.remove(id)
-+  }
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/products.service.ts b/backend/ayanavitabackend/app/api/src/catalog/products.service.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..2f99c029b1578dcdb243d5e1582c72d10bc270aa
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/catalog/products.service.ts
-@@ -0,0 +1,110 @@
-+import { Injectable, NotFoundException } from '@nestjs/common'
-+import { PrismaService } from '../prisma/prisma.service'
-+import { CreateProductDto, UpdateProductDto } from './dto/product.dto'
-+import { UpsertProductAttributesDto, UpsertProductIngredientsDto } from './dto/product-metadata.dto'
-+import { normalizeBigInt } from './utils'
-+
-+@Injectable()
-+export class ProductsService {
-+  constructor(private readonly prisma: PrismaService) {}
-+
-+  async findAll() {
-+    const rows = await this.prisma.catalogProduct.findMany({
-+      include: { translations: true, category: true },
-+      orderBy: { id: 'desc' },
-+    })
-+    return normalizeBigInt(rows)
-+  }
-+
-+  async findOne(id: number) {
-+    const row = await this.prisma.catalogProduct.findUnique({
-+      where: { id: BigInt(id) },
-+      include: { translations: true, category: true, attributes: true, ingredients: true },
-+    })
-+    if (!row) throw new NotFoundException('Product not found')
-+    return normalizeBigInt(row)
-+  }
-+
-+  async create(dto: CreateProductDto) {
-+    const row = await this.prisma.catalogProduct.create({
-+      data: {
-+        sku: dto.sku,
-+        categoryId: dto.categoryId ? BigInt(dto.categoryId) : null,
-+        price: dto.price,
-+        status: dto.status ?? 'active',
-+        translations: { create: dto.translations },
-+      },
-+      include: { translations: true, category: true },
-+    })
-+    return normalizeBigInt(row)
-+  }
-+
-+  async update(id: number, dto: UpdateProductDto) {
-+    await this.findOne(id)
-+    const row = await this.prisma.$transaction(async (tx) => {
-+      if (dto.translations) {
-+        await tx.productTranslation.deleteMany({ where: { productId: BigInt(id) } })
-+      }
-+
-+      return tx.catalogProduct.update({
-+        where: { id: BigInt(id) },
-+        data: {
-+          sku: dto.sku,
-+          categoryId: dto.categoryId === undefined ? undefined : dto.categoryId === null ? null : BigInt(dto.categoryId),
-+          price: dto.price,
-+          status: dto.status,
-+          translations: dto.translations ? { create: dto.translations } : undefined,
-+        },
-+        include: { translations: true, category: true },
-+      })
-+    })
-+    return normalizeBigInt(row)
-+  }
-+
-+  async replaceAttributes(id: number, dto: UpsertProductAttributesDto) {
-+    await this.findOne(id)
-+    const rows = await this.prisma.$transaction(async (tx) => {
-+      await tx.productAttribute.deleteMany({ where: { productId: BigInt(id) } })
-+      if (dto.items.length) {
-+        await tx.productAttribute.createMany({
-+          data: dto.items.map((item) => ({
-+            productId: BigInt(id),
-+            attributeKeyId: BigInt(item.attributeKeyId),
-+            valueText: item.valueText,
-+            valueNumber: item.valueNumber,
-+            valueBoolean: item.valueBoolean,
-+            valueJson: item.valueJson,
-+          })),
-+        })
-+      }
-+      return tx.productAttribute.findMany({ where: { productId: BigInt(id) } })
-+    })
-+    return normalizeBigInt(rows)
-+  }
-+
-+  async replaceIngredients(id: number, dto: UpsertProductIngredientsDto) {
-+    await this.findOne(id)
-+    const rows = await this.prisma.$transaction(async (tx) => {
-+      await tx.productIngredient.deleteMany({ where: { productId: BigInt(id) } })
-+      if (dto.items.length) {
-+        await tx.productIngredient.createMany({
-+          data: dto.items.map((item) => ({
-+            productId: BigInt(id),
-+            ingredientKeyId: BigInt(item.ingredientKeyId),
-+            value: item.value,
-+            note: item.note,
-+            sortOrder: item.sortOrder ?? 0,
-+          })),
-+        })
-+      }
-+      return tx.productIngredient.findMany({ where: { productId: BigInt(id) }, orderBy: { sortOrder: 'asc' } })
-+    })
-+    return normalizeBigInt(rows)
-+  }
-+
-+  async remove(id: number) {
-+    await this.findOne(id)
-+    const row = await this.prisma.catalogProduct.delete({ where: { id: BigInt(id) } })
-+    return normalizeBigInt(row)
-+  }
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/utils.ts b/backend/ayanavitabackend/app/api/src/catalog/utils.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..1eb646e3dd34633859c5f95aff3f270fd9eda9a9
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/catalog/utils.ts
-@@ -0,0 +1,7 @@
-+export function normalizeBigInt<T>(value: T): T {
-+  return JSON.parse(
-+    JSON.stringify(value, (_, currentValue) =>
-+      typeof currentValue === 'bigint' ? currentValue.toString() : currentValue,
-+    ),
-+  ) as T
-+}
++++ b/Home/ayanavita-fontend-final/src/types/productAdmin.ts
+@@ -0,0 +1,45 @@
++export type LanguageCode = "vi" | "en" | "ja";
++
++export type ProductTranslation = {
++  lang: LanguageCode;
++  name: string;
++  shortDescription: string;
++  description: string;
++};
++
++export type ProductIngredient = {
++  id: string;
++  name: string;
++  note: string;
++};
++
++export type ProductAttribute = {
++  id: string;
++  key: string;
++  value: string;
++};
++
++export type ProductCategory = {
++  id: string;
++  name: string;
++  description?: string;
++};
++
++export type ProductAdminItem = {
++  id: string;
++  sku: string;
++  categoryId: string;
++  price: number;
++  stock: number;
++  status: "active" | "draft";
++  translations: ProductTranslation[];
++  ingredients: ProductIngredient[];
++  attributes: ProductAttribute[];
++  updatedAt: string;
++};
++
++export const LANGUAGES: Array<{ code: LanguageCode; label: string }> = [
++  { code: "vi", label: "Tiếng Việt" },
++  { code: "en", label: "English" },
++  { code: "ja", label: "日本語" }
++];

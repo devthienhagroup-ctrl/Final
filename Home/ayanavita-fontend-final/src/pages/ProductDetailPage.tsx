@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { SiteHeader } from "../components/layout/SiteHeader";
-import { Footer } from "../components/layout/Footer";
+
 
 import { PRODUCTS, type ProductSku } from "../data/products.data";
 import { money } from "../services/booking.utils";
@@ -110,7 +109,6 @@ export default function ProductDetailPage() {
   if (!base) {
     return (
       <div className="text-slate-900">
-        <SiteHeader />
         <main className="px-4 pb-10">
           <div className="max-w-4xl mx-auto card p-6">
             <div className="text-2xl font-extrabold">Không tìm thấy sản phẩm</div>
@@ -118,7 +116,6 @@ export default function ProductDetailPage() {
             <Link className="mt-4 btn btn-primary inline-block" to="/products">Về danh mục</Link>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -174,7 +171,6 @@ export default function ProductDetailPage() {
 
   return (
     <div className="text-slate-900">
-      <SiteHeader />
 
       {/* Top bar chips */}
       <div className="bg-white border-b border-slate-200">
@@ -193,33 +189,24 @@ export default function ProductDetailPage() {
       </div>
 
       {/* Sticky header with anchors */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
+      <header className="sticky top-[65px] z-50 bg-white/80 backdrop-blur border-b border-slate-200">
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3">
-          <Link className="flex items-center gap-3" to="/products">
-            <div className="h-11 w-11 rounded-2xl flex items-center justify-center text-white font-extrabold bg-gradient-to-br from-indigo-600 to-violet-600">
-              A
-            </div>
-            <div>
-              <div className="text-lg font-extrabold leading-5">AYANAVITA</div>
-              <div className="text-xs font-extrabold text-slate-500">Product Detail</div>
-            </div>
-          </Link>
 
           <div className="hidden lg:flex items-center gap-2">
-            <a className="btn" href="#overview">Tổng quan</a>
-            <a className="btn" href="#ingredients">Thành phần</a>
-            <a className="btn" href="#usage">Cách dùng</a>
-            <a className="btn" href="#reviews">Đánh giá</a>
-            <a className="btn" href="#faq">FAQ</a>
+            <a className="btn !p-2 !text-sm" href="#overview">Tổng quan</a>
+            <a className="btn !p-2 !text-sm" href="#ingredients">Thành phần</a>
+            <a className="btn !p-2 !text-sm" href="#usage">Cách dùng</a>
+            <a className="btn !p-2 !text-sm" href="#reviews">Đánh giá</a>
+            <a className="btn !p-2 !text-sm" href="#faq">FAQ</a>
           </div>
 
           <div className="flex items-center gap-2">
-            <button className="btn" type="button" onClick={() => setCartOpen(true)}>
+            <button className="btn !p-2 !text-sm" type="button" onClick={() => setCartOpen(true)}>
               <i className="fa-solid fa-cart-shopping mr-2" />
               Giỏ hàng
               <span className="ml-2 chip" style={{ padding: "5px 10px" }}>{cartCount}</span>
             </button>
-            <Link className="btn lg:hidden w-11 h-11 p-0 flex items-center justify-center" to="/products" aria-label="Back">
+            <Link className="btn lg:hidden w-10 h-10 text-sm p-0 flex items-center justify-center" to="/products" aria-label="Back">
               <i className="fa-solid fa-arrow-left" />
             </Link>
           </div>
@@ -339,7 +326,7 @@ export default function ProductDetailPage() {
                     <i className="fa-solid fa-plus" />
                   </button>
 
-                  <button className="btn btn-primary flex-1" type="button" onClick={() => addToCart(qty)}>
+                  <button className="btn btn-primary hover:text-purple-800 flex-1" type="button" onClick={() => addToCart(qty)}>
                     <i className="fa-solid fa-cart-plus mr-2" />Thêm vào giỏ
                   </button>
                 </div>
@@ -650,7 +637,6 @@ export default function ProductDetailPage() {
         </div>
       </section>
 
-      <Footer />
 
       {/* Modals */}
       <MiniCartModal open={cartOpen} onClose={() => setCartOpen(false)} />

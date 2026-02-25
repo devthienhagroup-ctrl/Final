@@ -17,6 +17,43 @@ import {
   uid,
 } from "../services/checkout.storage";
 import { calcDiscountAmount, calcShippingFee, calcSubtotal, calcTotal } from "../services/checkout.pricing";
+import { http } from "../api/http"; // <-- THÊM IMPORT
+
+// ==================== Default CMS Data ====================
+const defaultToastCms = {
+  // Toast titles & messages
+  toastVoucherTitle: "Voucher",
+  toastVoucherAppliedAYA10: "Đã áp dụng AYA10",
+  toastVoucherAppliedFREESHIP: "Đã áp dụng FREESHIP",
+  toastVoucherInvalid: "Mã không hợp lệ.",
+
+  toastSaveDraftTitle: "Đã lưu",
+  toastSaveDraftMessage: "Đã lưu thông tin giao hàng (demo).",
+
+  toastOrderCreatedTitle: "Order",
+  toastOrderCreatedMessageTemplate: "Đã tạo đơn {code} (demo).",
+
+  toastMarkPaidTitle: "Thanh toán",
+  toastMarkPaidMessage: "Đã cập nhật trạng thái: Đã thanh toán (demo).",
+
+  toastValidationErrorTitle: "Thiếu thông tin",
+  toastValidationErrorMessage: "Vui lòng nhập đủ thông tin và đồng ý điều khoản.",
+
+  // Notes trả về từ applyVoucher (dùng trong demo)
+  voucherNoteCleared: "Đã xóa voucher.",
+  voucherNoteAppliedAYA10: "Áp dụng AYA10: giảm 10% tạm tính (demo).",
+  voucherNoteAppliedFREESHIP: "Áp dụng FREESHIP: miễn phí vận chuyển (demo).",
+  voucherNoteInvalid: "Voucher không hợp lệ (demo).",
+
+  // Trạng thái thanh toán
+  payStatusPending: "Chờ thanh toán",
+  payStatusPaid: "Đã thanh toán",
+
+  // Mã đơn hàng mẫu và tiền tố
+  orderCodePreview: "AYA-ORDER",
+  orderCodePrefix: "AYA-",
+} as const;
+// ===========================================================
 
 function upper(s: string) {
   return (s || "").toString().trim().toUpperCase();
@@ -27,25 +64,63 @@ function nowISO() {
 }
 
 function genOrderCode() {
+  // Sử dụng giá trị từ state, nhưng ở đây là hàm thuần túy, sẽ lấy prefix từ toastCms khi dùng
+  // Tạm thời để cứng, sau này có thể sửa thành tham số
   return "AYA-" + Math.random().toString(16).slice(2, 8).toUpperCase();
 }
 
 export default function ProductCheckoutPage() {
   const [state, setState] = useState<CheckoutState>(() => loadCheckoutState());
 
+  // ========== API & LANGUAGE ==========
+  const [checkoutData, setCheckoutData] = useState<any>(null);
+  const [currentLanguage, setCurrentLanguage] = useState<string>(() => {
+    return localStorage.getItem("preferred-language") || "vi";
+  });
+  const [toastCms, setToastCms] = useState(defaultToastCms); // state động cho CMS data
+
+  // Lắng nghe sự kiện thay đổi ngôn ngữ từ Header
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setCurrentLanguage(event.detail.language);
+    };
+    window.addEventListener('languageChange', handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener('languageChange', handleLanguageChange as EventListener);
+    };
+  }, []);
+
+  // Gọi API khi language thay đổi
+  useEffect(() => {
+    const fetchCheckout = async () => {
+      try {
+        const res = await http.get(`/public/pages/checkout?lang=${currentLanguage}`);
+        setCheckoutData(res.data);
+        // Ghi đè (merge) dữ liệu từ sections[4] vào toastCms
+        if (res.data?.sections?.[4]?.data) {
+          setToastCms(prev => ({ ...prev, ...res.data.sections[4].data }));
+        }
+      } catch (error) {
+        console.error("Lỗi gọi API checkout:", error);
+      }
+    };
+    fetchCheckout();
+  }, [currentLanguage]);
+  // =====================================
+
   // controlled customer form (draft)
   const [customer, setCustomer] = useState<CustomerDraft>(() => {
     const d = state.customerDraft;
     return (
-      d || {
-        name: "",
-        phone: "",
-        email: "",
-        addr: "",
-        city: "",
-        district: "",
-        note: "",
-      }
+        d || {
+          name: "",
+          phone: "",
+          email: "",
+          addr: "",
+          city: "",
+          district: "",
+          note: "",
+        }
     );
   });
 
@@ -67,7 +142,7 @@ export default function ProductCheckoutPage() {
     msg: "",
   });
 
-  const orderCodePreview = orderResult?.code || "AYA-ORDER";
+  const orderCodePreview = orderResult?.code || toastCms.orderCodePreview;
 
   // persist state
   useEffect(() => {
@@ -117,7 +192,7 @@ export default function ProductCheckoutPage() {
     setState((s) => ({
       ...s,
       cart: s.cart.map((x) =>
-        x.id === id ? { ...x, qty: Math.max(1, Number(x.qty || 1) - 1) } : x
+          x.id === id ? { ...x, qty: Math.max(1, Number(x.qty || 1) - 1) } : x
       ),
     }));
   }, []);
@@ -130,34 +205,51 @@ export default function ProductCheckoutPage() {
     const c = upper(code);
     if (!c) {
       setState((s) => ({ ...s, voucher: { code: "", discount: 0, freeShip: false } }));
-      return { ok: true, note: "Đã xóa voucher." };
+      return { ok: true, note: toastCms.voucherNoteCleared };
     }
 
     if (c === "AYA10") {
       setState((s) => ({ ...s, voucher: { code: c, discount: 0.1, freeShip: false } }));
-      setToast({ open: true, title: "Voucher", msg: "Đã áp dụng AYA10" });
-      return { ok: true, note: "Áp dụng AYA10: giảm 10% tạm tính (demo)." };
+      setToast({
+        open: true,
+        title: toastCms.toastVoucherTitle,
+        msg: toastCms.toastVoucherAppliedAYA10,
+      });
+      return { ok: true, note: toastCms.voucherNoteAppliedAYA10 };
     }
 
     if (c === "FREESHIP") {
       setState((s) => ({ ...s, voucher: { code: c, discount: 0, freeShip: true } }));
-      setToast({ open: true, title: "Voucher", msg: "Đã áp dụng FREESHIP" });
-      return { ok: true, note: "Áp dụng FREESHIP: miễn phí vận chuyển (demo)." };
+      setToast({
+        open: true,
+        title: toastCms.toastVoucherTitle,
+        msg: toastCms.toastVoucherAppliedFREESHIP,
+      });
+      return { ok: true, note: toastCms.voucherNoteAppliedFREESHIP };
     }
 
-    setToast({ open: true, title: "Voucher", msg: "Mã không hợp lệ." });
-    return { ok: false, note: "Voucher không hợp lệ (demo)." };
-  }, []);
+    setToast({
+      open: true,
+      title: toastCms.toastVoucherTitle,
+      msg: toastCms.toastVoucherInvalid,
+    });
+    return { ok: false, note: toastCms.voucherNoteInvalid };
+  }, [toastCms]); // Thêm toastCms vào deps
 
   const saveDraft = useCallback(() => {
     setState((s) => ({ ...s, customerDraft: { ...customer } }));
-    setToast({ open: true, title: "Đã lưu", msg: "Đã lưu thông tin giao hàng (demo)." });
-  }, [customer]);
+    setToast({
+      open: true,
+      title: toastCms.toastSaveDraftTitle,
+      msg: toastCms.toastSaveDraftMessage,
+    });
+  }, [customer, toastCms]); // Thêm toastCms
 
+  // Nhờ 'as const' của default, nhưng giờ dùng state nên type vẫn suy ra tốt
   const payStatusByMethod = useCallback((m: PayMethod) => {
-    if (m === "bank") return "Chờ thanh toán" as const;
-    return "Đã thanh toán" as const;
-  }, []);
+    if (m === "bank") return toastCms.payStatusPending;
+    return toastCms.payStatusPaid;
+  }, [toastCms]); // Thêm toastCms
 
   const validate = useCallback(() => {
     if (!customer.name.trim()) return false;
@@ -171,9 +263,11 @@ export default function ProductCheckoutPage() {
   }, [agree, customer, state.cart.length]);
 
   const createOrder = useCallback((): Order => {
+    // Dùng toastCms.orderCodePrefix thay vì hằng cứng
+    const orderCode = toastCms.orderCodePrefix + Math.random().toString(16).slice(2, 8).toUpperCase();
     const order: Order = {
       id: uid("ORD"),
-      code: genOrderCode(),
+      code: orderCode,
       createdAt: nowISO(),
 
       customer: { ...customer },
@@ -199,96 +293,114 @@ export default function ProductCheckoutPage() {
 
     setState((s) => ({ ...s, orders: [order, ...(s.orders || [])] }));
     return order;
-  }, [customer, payStatusByMethod, pricing, state.cart, state.payMethod, state.shipping, state.voucher]);
+  }, [customer, payStatusByMethod, pricing, state.cart, state.payMethod, state.shipping, state.voucher, toastCms]); // Thêm toastCms
 
   const onPay = useCallback(() => {
     setShowError(false);
 
     if (!validate()) {
       setShowError(true);
-      setToast({ open: true, title: "Thiếu thông tin", msg: "Vui lòng nhập đủ thông tin và đồng ý điều khoản." });
+      setToast({
+        open: true,
+        title: toastCms.toastValidationErrorTitle,
+        msg: toastCms.toastValidationErrorMessage,
+      });
       return;
     }
 
     const order = createOrder();
     setOrderResult(order);
     setStep3Active(true);
-    setToast({ open: true, title: "Order", msg: "Đã tạo đơn " + order.code + " (demo)." });
-  }, [createOrder, validate]);
+    setToast({
+      open: true,
+      title: toastCms.toastOrderCreatedTitle,
+      msg: toastCms.toastOrderCreatedMessageTemplate.replace("{code}", order.code),
+    });
+  }, [createOrder, validate, toastCms]); // Thêm toastCms
 
   const onMarkPaid = useCallback(() => {
     setState((s) => {
       if (!s.orders?.length) return s;
-      const first = { ...s.orders[0], payStatus: "Đã thanh toán" as const };
+      const first = { ...s.orders[0], payStatus: toastCms.payStatusPaid };
       const next = [first, ...s.orders.slice(1)];
       // sync local current result if it is the same order
       setOrderResult((cur) => (cur && cur.id === first.id ? first : cur));
       return { ...s, orders: next };
     });
-    setToast({ open: true, title: "Thanh toán", msg: "Đã cập nhật trạng thái: Đã thanh toán (demo)." });
-  }, []);
+    setToast({
+      open: true,
+      title: toastCms.toastMarkPaidTitle,
+      msg: toastCms.toastMarkPaidMessage,
+    });
+  }, [toastCms]); // Thêm toastCms
 
   const onViewOrders = useCallback(() => {
     window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   }, []);
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--aya-soft)" }}>
-      <CheckoutHeader step2Active={step2Active} step3Active={step3Active} />
+      <div className="min-h-screen" style={{ background: "var(--aya-soft)" }}>
+        <CheckoutHeader
+            cmsData={checkoutData?.sections?.[0]?.data}
+            step2Active={step2Active} step3Active={step3Active}
+        />
 
-      <main className="grad">
-        <div className="mx-auto max-w-7xl px-4 py-8">
-          <div className="grid gap-6 lg:grid-cols-3 items-start">
-            {/* Left: Form */}
-            <section className="lg:col-span-2 grid gap-5">
-              <CustomerShippingCard
-                customer={customer}
-                onChange={setCustomer}
-                shipping={state.shipping}
-                onShippingChange={setShipping}
+        <main className="grad">
+          <div className="mx-auto max-w-7xl px-4 py-8">
+            <div className="grid gap-6 lg:grid-cols-3 items-start">
+              {/* Left: Form */}
+              <section className="lg:col-span-2 grid gap-5">
+                <CustomerShippingCard
+                    cmsData={checkoutData?.sections?.[1]?.data}
+                    customer={customer}
+                    onChange={setCustomer}
+                    shipping={state.shipping}
+                    onShippingChange={setShipping}
+                />
+
+                <PaymentCard
+                    cmsData={checkoutData?.sections?.[2]?.data}
+                    payMethod={state.payMethod}
+                    onPayMethodChange={setPayMethod}
+                    agree={agree}
+                    onAgreeChange={setAgree}
+                    orderCodePreview={orderCodePreview}
+                    onStep2Seen={() => setStep2Active(true)}
+                />
+
+                <ConfirmCard
+                    cmsData={checkoutData?.sections?.[3]?.data}
+                    onPay={onPay}
+                    onSaveDraft={saveDraft}
+                    showError={showError}
+                    order={orderResult}
+                    onMarkPaid={onMarkPaid}
+                    onViewOrders={onViewOrders}
+                />
+              </section>
+
+              {/* Right: Summary */}
+              <OrderSummaryAside
+                  cmsData={checkoutData?.sections?.[5]?.data}
+                  state={state}
+                  onCartPlus={cartPlus}
+                  onCartMinus={cartMinus}
+                  onCartRemove={cartRemove}
+                  onApplyVoucher={applyVoucher}
               />
+            </div>
 
-              <PaymentCard
-                payMethod={state.payMethod}
-                onPayMethodChange={setPayMethod}
-                agree={agree}
-                onAgreeChange={setAgree}
-                orderCodePreview={orderCodePreview}
-                onStep2Seen={() => setStep2Active(true)}
-              />
-
-              <ConfirmCard
-                onPay={onPay}
-                onSaveDraft={saveDraft}
-                showError={showError}
-                order={orderResult}
-                onMarkPaid={onMarkPaid}
-                onViewOrders={onViewOrders}
-              />
-            </section>
-
-            {/* Right: Summary */}
-            <OrderSummaryAside
-              state={state}
-              onCartPlus={cartPlus}
-              onCartMinus={cartMinus}
-              onCartRemove={cartRemove}
-              onApplyVoucher={applyVoucher}
-            />
+            <div className="mt-8 text-center text-sm muted">
+            </div>
           </div>
+        </main>
 
-          <div className="mt-8 text-center text-sm muted">
-            © 2025 AYANAVITA • Checkout prototype (React) – sẵn sàng nối API thanh toán.
-          </div>
-        </div>
-      </main>
-
-      <Toast
-        open={toast.open}
-        title={toast.title}
-        message={toast.msg}
-        onClose={() => setToast((t) => ({ ...t, open: false }))}
-      />
-    </div>
+        <Toast
+            open={toast.open}
+            title={toast.title}
+            message={toast.msg}
+            onClose={() => setToast((t) => ({ ...t, open: false }))}
+        />
+      </div>
   );
 }

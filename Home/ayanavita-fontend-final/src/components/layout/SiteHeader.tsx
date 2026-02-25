@@ -64,9 +64,9 @@ export function SiteHeader({ active }: Props) {
   }, [location.pathname]);
 
   return (
-    <header className="px-4 py-4">
-      <div className="max-w-6xl mx-auto card px-5 py-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <header className="">
+      <div className=" mx-auto px-5 py-4">
+        <div className="max-w-7xl mx-auto flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           {/* Brand */}
           <div className="flex items-center justify-between gap-3">
             <Link to="/" className="flex items-center gap-3">
@@ -150,10 +150,10 @@ export function SiteHeader({ active }: Props) {
                   <i className="fa-solid fa-handshake mr-2" />
                   Nhượng quyền
                 </NavLink>
-                <NavLink className={navClass} to="/account">
+{/*                <NavLink className={navClass} to="/account">
                   <i className="fa-solid fa-user mr-2" />
                   Tài khoản
-                </NavLink>
+                </NavLink>*/}
               </>
             )}
           </nav>
@@ -162,10 +162,10 @@ export function SiteHeader({ active }: Props) {
           <div className="hidden md:flex gap-2 items-center">
             <Link className="btn" to="/cart">
               <i className="fa-solid fa-cart-shopping mr-2" />
-              Cart <span className="chip ml-1">{cartCount}</span>
+              <span className="chip ml-1">{cartCount}</span>
             </Link>
 
-            <Link className="btn btn-primary" to="/booking">
+            <Link className="btn btn-primary hover:text-purple-700" to="/booking">
               <i className="fa-solid fa-calendar-check mr-2" />
               Đặt ngay
             </Link>

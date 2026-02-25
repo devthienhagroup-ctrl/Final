@@ -5,6 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 import "./index.css";
 import App from "./App";
 import "./styles/aya-course-player.css";
+import "flag-icons/css/flag-icons.min.css";
 
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

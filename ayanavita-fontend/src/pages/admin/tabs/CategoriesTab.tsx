@@ -26,20 +26,30 @@ export function CategoriesTab({ categories, categoryForm, editingCategory, onCat
               </tr>
             </thead>
             <tbody>
-              {categories.map((category) => (
-                <tr key={category.id}>
-                  <td className='td-strong'>{category.name}</td>
-                  <td>{category.serviceCount}</td>
-                  <td>
-                    <div className='admin-row'>
-                      <button className='admin-btn admin-btn-ghost' onClick={() => onEditCategory(category)}>Sửa</button>
-                      <button className='admin-btn admin-btn-danger' onClick={() => onDeleteCategory(category)} disabled={category.serviceCount > 0}>
-                        Xóa
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {categories.map((category) => {
+                const hasServices = category.serviceCount > 0
+                const deleteButtonClass = hasServices ? 'admin-btn admin-btn-ghost' : 'admin-btn admin-btn-danger'
+
+                return (
+                  <tr key={category.id}>
+                    <td className='td-strong'>{category.name}</td>
+                    <td>{category.serviceCount}</td>
+                    <td>
+                      <div className='admin-row'>
+                        <button className='admin-btn admin-btn-ghost' onClick={() => onEditCategory(category)}>Sửa</button>
+                        <button
+                          className={deleteButtonClass}
+                          onClick={() => onDeleteCategory(category)}
+                          disabled={hasServices}
+                          title={hasServices ? 'Danh mục đang có dịch vụ nên không thể xóa' : 'Xóa danh mục'}
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

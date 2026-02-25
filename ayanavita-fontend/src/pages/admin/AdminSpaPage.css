@@ -249,7 +249,7 @@
 }
 .admin-btn:hover { transform: translateY(-1px); }
 .admin-btn-primary { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; }
-.admin-btn-ghost { background: #fff; border-color: #cfd7e4; color: #1f2937; }
+.admin-btn-ghost { background: #ffffff; border-color: #cfd7e4; color: #1f2937; }
 .admin-btn-danger { background: linear-gradient(135deg, #e11d48, #ef4444); color: #fff; }
 .admin-btn-save { background: linear-gradient(135deg, #0ea5e9, #2563eb); color: #fff; box-shadow: 0 8px 18px rgba(37, 99, 235, 0.28); }
 

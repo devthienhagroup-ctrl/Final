@@ -287,6 +287,15 @@ export default function AdminSpaPage() {
           await AlertJs.error('Thiếu danh mục', 'Vui lòng chọn danh mục cho dịch vụ.')
           return
         }
+        const normalizedServiceName = serviceForm.name.trim().toLocaleLowerCase('vi')
+        const duplicatedService = services.find((service) => (
+          service.id !== editingService?.id && service.name.trim().toLocaleLowerCase('vi') === normalizedServiceName
+        ))
+
+        if (duplicatedService) {
+          await AlertJs.error('Tên dịch vụ bị trùng', `Tên dịch vụ "${serviceForm.name.trim()}" đã tồn tại. Vui lòng nhập tên khác.`)
+          return
+        }
         const payload = {
           ...serviceForm,
           goals: serviceForm.goals.split(',').map((item) => item.trim()).filter(Boolean),

@@ -232,6 +232,7 @@
 .admin-input:focus { outline: 2px solid #ddd6fe; border-color: #a78bfa; }
 
 .admin-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.admin-row-nowrap { flex-wrap: nowrap; }
 
 .admin-btn {
   border-radius: 11px;
@@ -332,6 +333,7 @@
 .admin-btn-icon:hover { transform: translateY(-1px); }
 .admin-btn-icon-edit { background: linear-gradient(135deg, #0ea5e9, #2563eb); box-shadow: 0 8px 18px rgba(37, 99, 235, .25); }
 .admin-btn-icon-delete { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 8px 18px rgba(220, 38, 38, .24); }
+.admin-btn-icon-info { background: linear-gradient(135deg, #14b8a6, #0d9488); box-shadow: 0 8px 18px rgba(13, 148, 136, .25); }
 
 .admin-badge {
   display: inline-flex;
@@ -350,6 +352,69 @@
 .admin-badge-yellow { background: #fff7ed; color: #b45309; border-color: #fed7aa; }
 .admin-badge-orange { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
 .admin-badge-pastel { background: #fdf2f8; color: #be185d; border-color: #fbcfe8; }
+.admin-badge-pink { background: #fdf2f8; color: #be185d; border-color: #fbcfe8; }
+.admin-badge-rose { background: #ffe4e6; color: #be123c; border-color: #fecdd3; }
+.admin-badge-cyan { background: #ecfeff; color: #0e7490; border-color: #a5f3fc; }
+.admin-badge-sky { background: #e0f2fe; color: #0369a1; border-color: #bae6fd; }
+.admin-badge-amber { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+
+.services-table th,
+.services-table td {
+  white-space: nowrap;
+}
+
+.services-name-cell {
+  min-width: 280px;
+  max-width: 360px;
+  font-weight: 800;
+}
+
+.services-rating {
+  font-weight: 800;
+  background: linear-gradient(135deg, #f59e0b, #fde047);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.services-booked {
+  font-weight: 800;
+  color: #16a34a;
+}
+
+.service-action-menu {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.service-action-trigger {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  justify-content: center;
+  padding: 0;
+}
+
+.service-action-list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #dbe3f2;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.18);
+  z-index: 5;
+}
+
+.service-action-menu:hover .service-action-list,
+.service-action-menu:focus-within .service-action-list {
+  display: inline-flex;
+}
 
 @media (max-width: 1100px) {
   .admin-overview { grid-template-columns: repeat(2, minmax(170px, 1fr)); }

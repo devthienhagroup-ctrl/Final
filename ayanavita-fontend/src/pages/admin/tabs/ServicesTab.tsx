@@ -2,13 +2,13 @@ import { useState } from 'react'
 import type { SpaService } from '../../../api/spaAdmin.api'
 import type { ServicesTabProps } from './types'
 
-const renderJsonPreview = (items: string[]) => {
+const renderJsonPreview = (items: string[], badgeClass: string, extraBadgeClass: string) => {
   if (!items?.length) return '-'
   const [first, ...rest] = items
   return (
-    <div className='admin-row'>
-      <span className='admin-badge admin-badge-pastel'>{first}</span>
-      {rest.length > 0 && <span className='admin-badge admin-badge-purple'>+{rest.length}</span>}
+    <div className='admin-row admin-row-nowrap'>
+      <span className={`admin-badge ${badgeClass}`}>{first}</span>
+      {rest.length > 0 && <span className={`admin-badge ${extraBadgeClass}`}>+{rest.length}</span>}
     </div>
   )
 }
@@ -40,7 +40,7 @@ export function ServicesTab({ services, categories, serviceForm, editingService,
       </div>
 
       <div className='admin-table-wrap'>
-        <table className='admin-table'>
+        <table className='admin-table services-table'>
           <thead>
             <tr>
               <th>Tên dịch vụ</th>
@@ -59,21 +59,32 @@ export function ServicesTab({ services, categories, serviceForm, editingService,
           <tbody>
             {services.map((service) => (
               <tr key={service.id}>
-                <td className='td-strong'>{service.name}</td>
+                <td className='td-strong services-name-cell'>{service.name}</td>
                 <td><span className='admin-badge admin-badge-purple'>{service.code}</span></td>
                 <td>{service.category || '-'}</td>
                 <td>{service.durationMin} phút</td>
                 <td><span className='admin-badge admin-badge-blue'>{service.price.toLocaleString('vi-VN')}đ</span></td>
-                <td>{service.ratingAvg.toFixed(1)}</td>
-                <td>{service.bookedCount ?? 0}</td>
-                <td>{renderJsonPreview(service.goals || [])}</td>
-                <td>{renderJsonPreview(service.suitableFor || [])}</td>
-                <td>{renderJsonPreview(service.process || [])}</td>
+                <td><span className='services-rating'>{service.ratingAvg.toFixed(1)}</span></td>
+                <td><span className='services-booked'>{service.bookedCount ?? 0}</span></td>
+                <td>{renderJsonPreview(service.goals || [], 'admin-badge-pink', 'admin-badge-rose')}</td>
+                <td>{renderJsonPreview(service.suitableFor || [], 'admin-badge-cyan', 'admin-badge-sky')}</td>
+                <td>{renderJsonPreview(service.process || [], 'admin-badge-amber', 'admin-badge-yellow')}</td>
                 <td>
-                  <div className='admin-row'>
-                    <button className='admin-btn admin-btn-ghost' onClick={() => setDetailService(service)}>Chi tiết</button>
-                    <button className='admin-btn admin-btn-ghost' onClick={() => handleOpenEdit(service)}>Sửa</button>
-                    <button className='admin-btn admin-btn-danger' onClick={() => onDeleteService(service)}>Xóa</button>
+                  <div className='service-action-menu'>
+                    <button className='admin-btn admin-btn-ghost service-action-trigger' aria-label='Mở thao tác'>
+                      <i className='fa-solid fa-ellipsis' />
+                    </button>
+                    <div className='service-action-list'>
+                      <button className='admin-btn-icon admin-btn-icon-info' onClick={() => setDetailService(service)} title='Chi tiết'>
+                        <i className='fa-solid fa-circle-info' />
+                      </button>
+                      <button className='admin-btn-icon admin-btn-icon-edit' onClick={() => handleOpenEdit(service)} title='Sửa'>
+                        <i className='fa-solid fa-pen-to-square' />
+                      </button>
+                      <button className='admin-btn-icon admin-btn-icon-delete' onClick={() => onDeleteService(service)} title='Xóa'>
+                        <i className='fa-solid fa-trash' />
+                      </button>
+                    </div>
                   </div>
                 </td>
               </tr>

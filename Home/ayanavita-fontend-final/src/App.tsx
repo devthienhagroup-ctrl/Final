@@ -24,6 +24,7 @@ import CoursePlayerPage from "./pages/CoursePlayerPage";
 import BlogPage from "./pages/BlogPage";
 import LessonDetailPage from "./pages/LessonDetailPage";
 import ReviewsCenterPage from "./pages/ReviewsCenterPage";
+import ContactPage from "./pages/ContactPage";
 // ví dụ
 
 
@@ -48,7 +49,7 @@ export default function App() {
                     <Route path="/products" element={<ProductsPage/>}/>
                     <Route path="/compare" element={<ComparePage/>}/>
                     <Route path="/track-order" element={<TrackOrderPage/>}/>
-                    <Route path="/products" element={<ProductCategoryPage/>}/>
+                    <Route path="/product-cate" element={<ProductCategoryPage/>}/>
                     <Route path="/products/:sku" element={<ProductDetailPage/>}/>
                     <Route path="/courses/:courseId" element={<CourseDetailPage/>}/>
                     <Route path="/courses/player" element={<CoursePlayerPage/>}/>
@@ -57,7 +58,7 @@ export default function App() {
                     <Route path="/reviews" element={<ReviewsCenterPage/>}/>
 
                     <Route path="/blog" element={<BlogPage/>}/>
-
+                    <Route path="/contact" element={<ContactPage/>}/>
 
                     {/* placeholder các page khác để không vỡ Link */}
                     <Route path="/products" element={<div className="p-6">Products (todo)</div>}/>

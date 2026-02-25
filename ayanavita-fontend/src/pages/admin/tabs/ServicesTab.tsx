@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { SpaService } from '../../../api/spaAdmin.api'
 import type { ServicesTabProps } from './types'
 
@@ -7,13 +7,32 @@ const renderJsonPreview = (items: string[], badgeClass: string, extraBadgeClass:
   const [first, ...rest] = items
   return (
     <div className='admin-row admin-row-nowrap'>
-      <span className={`admin-badge ${badgeClass}`}>{first}</span>
+      <span className={`admin-badge admin-badge-ellipsis ${badgeClass}`} title={first}>{first}</span>
       {rest.length > 0 && <span className={`admin-badge ${extraBadgeClass}`}>+{rest.length}</span>}
     </div>
   )
 }
 
-export function ServicesTab({ services, categories, serviceForm, editingService, selectedImageName, onServiceFormChange, onSelectImage, onSaveService, onEditService, onDeleteService, onCancelEdit }: ServicesTabProps) {
+const pageSizeOptions = [5, 10, 20, 50]
+
+export function ServicesTab({
+  services,
+  categories,
+  serviceForm,
+  editingService,
+  selectedImageName,
+  searchKeyword,
+  pagination,
+  onSearchKeywordChange,
+  onPageChange,
+  onPageSizeChange,
+  onServiceFormChange,
+  onSelectImage,
+  onSaveService,
+  onEditService,
+  onDeleteService,
+  onCancelEdit,
+}: ServicesTabProps) {
   const [isEditModalOpen, setEditModalOpen] = useState(false)
   const [detailService, setDetailService] = useState<SpaService | null>(null)
 
@@ -32,11 +51,38 @@ export function ServicesTab({ services, categories, serviceForm, editingService,
     setEditModalOpen(false)
   }
 
+  const pageInfoLabel = useMemo(() => {
+    if (!pagination.total) return 'Không có dữ liệu'
+    const start = (pagination.page - 1) * pagination.pageSize + 1
+    const end = Math.min(pagination.page * pagination.pageSize, pagination.total)
+    return `${start}-${end} / ${pagination.total}`
+  }, [pagination.page, pagination.pageSize, pagination.total])
+
   return (
     <section className='admin-card admin-card-full'>
       <div className='admin-row admin-row-space'>
         <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> Quản lý dịch vụ</h3>
         <button className='admin-btn admin-btn-primary' onClick={handleOpenCreate}><i className='fa-solid fa-plus' /> Thêm dịch vụ</button>
+      </div>
+
+      <div className='admin-row services-toolbar'>
+        <label className='admin-field services-search-field'>
+          <span className='admin-label'><i className='fa-solid fa-magnifying-glass' /> Tìm tên dịch vụ</span>
+          <input
+            className='admin-input'
+            placeholder='Nhập tên dịch vụ...'
+            value={searchKeyword}
+            onChange={(e) => onSearchKeywordChange(e.target.value)}
+          />
+        </label>
+        <label className='admin-field services-size-field'>
+          <span className='admin-label'><i className='fa-solid fa-list-ol' /> Size trang</span>
+          <select className='admin-input' value={pagination.pageSize} onChange={(e) => onPageSizeChange(Number(e.target.value))}>
+            {pageSizeOptions.map((size) => (
+              <option key={size} value={size}>{size} / trang</option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <div className='admin-table-wrap'>
@@ -58,11 +104,15 @@ export function ServicesTab({ services, categories, serviceForm, editingService,
           <tbody>
             {services.map((service) => (
               <tr key={service.id}>
-                <td className='td-strong services-name-cell'>{service.name}</td>
-                <td>{service.category || '-'}</td>
+                <td className='td-strong services-name-cell' title={service.name}>{service.name}</td>
+                <td className='services-category-cell' title={service.category || '-'}>{service.category || '-'}</td>
                 <td>{service.durationMin} phút</td>
                 <td><span className='admin-badge admin-badge-blue'>{service.price.toLocaleString('vi-VN')}đ</span></td>
-                <td><span className='services-rating'>{service.ratingAvg.toFixed(1)}</span></td>
+                <td>
+                  <span className='services-rating'>
+                    <i className='fa-solid fa-star services-rating-icon' /> {service.ratingAvg.toFixed(1)}
+                  </span>
+                </td>
                 <td><span className='services-booked'>{service.bookedCount ?? 0}</span></td>
                 <td>{renderJsonPreview(service.goals || [], 'admin-badge-pink', 'admin-badge-rose')}</td>
                 <td>{renderJsonPreview(service.suitableFor || [], 'admin-badge-cyan', 'admin-badge-sky')}</td>
@@ -96,8 +146,30 @@ export function ServicesTab({ services, categories, serviceForm, editingService,
                 </td>
               </tr>
             ))}
+            {services.length === 0 && (
+              <tr>
+                <td colSpan={10} className='services-empty-state'>Không có dịch vụ phù hợp.</td>
+              </tr>
+            )}
           </tbody>
         </table>
+      </div>
+
+      <div className='admin-row admin-row-space services-pagination'>
+        <span className='admin-helper'>Hiển thị: {pageInfoLabel}</span>
+        <div className='admin-row services-pagination-controls'>
+          <button className='admin-btn admin-btn-ghost' disabled={pagination.page <= 1} onClick={() => onPageChange(pagination.page - 1)}>
+            <i className='fa-solid fa-chevron-left' /> Trước
+          </button>
+          <span className='admin-helper'>Trang {pagination.page}/{Math.max(1, pagination.totalPages)}</span>
+          <button
+            className='admin-btn admin-btn-ghost'
+            disabled={pagination.page >= pagination.totalPages}
+            onClick={() => onPageChange(pagination.page + 1)}
+          >
+            Sau <i className='fa-solid fa-chevron-right' />
+          </button>
+        </div>
       </div>
 
       {isEditModalOpen && (

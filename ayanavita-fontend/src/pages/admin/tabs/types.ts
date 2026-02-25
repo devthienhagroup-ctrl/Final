@@ -41,6 +41,11 @@ export type ServicesTabProps = CommonTabProps & {
   serviceForm: ServiceForm
   editingService: SpaService | null
   selectedImageName: string
+  searchKeyword: string
+  pagination: { page: number; pageSize: number; total: number; totalPages: number }
+  onSearchKeywordChange: (value: string) => void
+  onPageChange: (page: number) => void
+  onPageSizeChange: (size: number) => void
   onServiceFormChange: (next: ServiceForm) => void
   onSelectImage: (file: File | null) => void
   onSaveService: () => Promise<void>

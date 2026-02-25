@@ -55,6 +55,12 @@ export default function AdminSpaPage() {
   const [loading, setLoading] = useState(false)
   const [branches, setBranches] = useState<Branch[]>([])
   const [services, setServices] = useState<SpaService[]>([])
+  const [servicePageItems, setServicePageItems] = useState<SpaService[]>([])
+  const [serviceSearchKeyword, setServiceSearchKeyword] = useState('')
+  const [servicePage, setServicePage] = useState(1)
+  const [servicePageSize, setServicePageSize] = useState(10)
+  const [serviceTotal, setServiceTotal] = useState(0)
+  const [serviceTotalPages, setServiceTotalPages] = useState(1)
   const [categories, setCategories] = useState<ServiceCategory[]>([])
   const [specialists, setSpecialists] = useState<Specialist[]>([])
   const [reviews, setReviews] = useState<ServiceReview[]>([])
@@ -85,20 +91,39 @@ export default function AdminSpaPage() {
   const roleLabel = user?.role === 'ADMIN' ? 'Administrator' : user?.role ?? 'User'
   const avatarLetter = (displayName[0] || 'A').toUpperCase()
 
+  const loadServices = async (params?: { page?: number; q?: string; pageSize?: number }) => {
+    const response = await spaAdminApi.services({
+      q: params?.q ?? serviceSearchKeyword,
+      page: params?.page ?? servicePage,
+      pageSize: params?.pageSize ?? servicePageSize,
+    })
+    setServicePageItems(response.items)
+    setServiceTotal(response.total)
+    setServiceTotalPages(response.totalPages)
+    setServicePage(response.page)
+    setServicePageSize(response.pageSize)
+  }
+
   const loadAll = async () => {
     setLoading(true)
     try {
-      const [b, c, s, sp, r, a] = await Promise.all([
+      const [b, c, sAll, s, sp, r, a] = await Promise.all([
         spaAdminApi.branches(true),
         spaAdminApi.serviceCategories(),
-        spaAdminApi.services(),
+        spaAdminApi.services({ page: 1, pageSize: 100 }),
+        spaAdminApi.services({ q: serviceSearchKeyword, page: servicePage, pageSize: servicePageSize }),
         spaAdminApi.specialists(),
         spaAdminApi.reviews(),
         spaAdminApi.appointments(),
       ])
       setBranches(b)
       setCategories(c)
-      setServices(s)
+      setServices(sAll.items)
+      setServicePageItems(s.items)
+      setServiceTotal(s.total)
+      setServicePage(s.page)
+      setServicePageSize(s.pageSize)
+      setServiceTotalPages(s.totalPages)
       setSpecialists(sp)
       setReviews(r)
       setAppointments(a)
@@ -112,6 +137,14 @@ export default function AdminSpaPage() {
   useEffect(() => {
     loadAll()
   }, [])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadServices({ page: 1 })
+    }, 300)
+
+    return () => window.clearTimeout(timer)
+  }, [serviceSearchKeyword, servicePageSize])
 
   const saveBranch = async () => {
     const normalizedName = (branchForm.name || '').trim()
@@ -223,7 +256,7 @@ export default function AdminSpaPage() {
       <nav className='admin-tabs'>
         <button className={`admin-tab ${tab === 'branches' ? 'active' : ''}`} onClick={() => setTab('branches')}><i className='fa-solid fa-building-circle-check' />Chi nhánh ({branches.length})</button>
         <button className={`admin-tab ${tab === 'categories' ? 'active' : ''}`} onClick={() => setTab('categories')}><i className='fa-solid fa-layer-group' />Danh mục dịch vụ ({categories.length})</button>
-        <button className={`admin-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => setTab('services')}><i className='fa-solid fa-leaf' />Dịch vụ ({services.length})</button>
+        <button className={`admin-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => setTab('services')}><i className='fa-solid fa-leaf' />Dịch vụ ({serviceTotal})</button>
         <button className={`admin-tab ${tab === 'specialists' ? 'active' : ''}`} onClick={() => setTab('specialists')}><i className='fa-solid fa-people-group' />Chuyên viên + Quan hệ</button>
         <button className={`admin-tab ${tab === 'reviews' ? 'active' : ''}`} onClick={() => setTab('reviews')}><i className='fa-solid fa-star-half-stroke' />Review + Lịch hẹn</button>
       </nav>
@@ -267,7 +300,7 @@ export default function AdminSpaPage() {
         }
       }} onCancelEdit={() => { setEditingCategory(null); setCategoryForm(defaultCategoryForm) }} />}
 
-      {tab === 'services' && <ServicesTab loading={loading} services={services} categories={categories} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onSaveService={async () => {
+      {tab === 'services' && <ServicesTab loading={loading} services={servicePageItems} categories={categories} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} searchKeyword={serviceSearchKeyword} pagination={{ page: servicePage, pageSize: servicePageSize, total: serviceTotal, totalPages: serviceTotalPages }} onSearchKeywordChange={setServiceSearchKeyword} onPageChange={(nextPage) => { void loadServices({ page: nextPage }) }} onPageSizeChange={(size) => { setServicePageSize(size); setServicePage(1) }} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onSaveService={async () => {
         if (!serviceForm.categoryId) {
           await AlertJs.error('Thiếu danh mục', 'Vui lòng chọn danh mục cho dịch vụ.')
           return

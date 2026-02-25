@@ -102,7 +102,12 @@ export class BookingController {
 
   @Get('services')
   services(@Query() query: BookingFilterQueryDto) {
-    return this.booking.listServices(query.branchId)
+    return this.booking.listServices({
+      branchId: query.branchId,
+      q: query.q,
+      page: query.page,
+      pageSize: query.pageSize,
+    })
   }
 
   @Post('services')

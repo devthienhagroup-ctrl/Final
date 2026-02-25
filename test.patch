@@ -1,14 +1,13 @@
 diff --git a/ayanavita-fontend/src/api/spaAdmin.api.ts b/ayanavita-fontend/src/api/spaAdmin.api.ts
-index a96fc5b85accf098303964db0c071ad2f75305b3..730f0b12a954879f1cdae8720edb0ad279b12850 100644
+index 730f0b12a954879f1cdae8720edb0ad279b12850..1d3cd2ef1c44c0de91e95fff9a936c137c7e080f 100644
 --- a/ayanavita-fontend/src/api/spaAdmin.api.ts
 +++ b/ayanavita-fontend/src/api/spaAdmin.api.ts
-@@ -1,31 +1,30 @@
+@@ -1,84 +1,100 @@
  import { del, get, patch, post, request } from './http'
- 
+
  export type Branch = { id: number; code: string; name: string; address: string; phone?: string; isActive: boolean }
  export type SpaService = {
    id: number
--  code: string
    name: string
    description?: string
    categoryId?: number
@@ -24,6 +23,14 @@ index a96fc5b85accf098303964db0c071ad2f75305b3..730f0b12a954879f1cdae8720edb0ad2
    tag?: string
    branchIds: number[]
  }
++export type PaginatedServiceResponse = {
++  items: SpaService[]
++  total: number
++  page: number
++  pageSize: number
++  totalPages: number
++}
++
  export type ServiceCategory = {
    id: number
    name: string
@@ -34,25 +41,174 @@ index a96fc5b85accf098303964db0c071ad2f75305b3..730f0b12a954879f1cdae8720edb0ad2
    code: string
    name: string
    level: string
+   bio?: string
+   branchIds: number[]
+   serviceIds: number[]
+ }
+ export type ServiceReview = {
+   id: number
+   serviceId: number
+   userId?: number
+   stars: number
+   comment?: string
+   customerName?: string
+   createdAt: string
+ }
+ export type Appointment = {
+   id: number
+   customerName: string
+   customerPhone: string
+   customerEmail?: string
+   appointmentAt: string
+   status: string
+   note?: string
+   branch?: { id: number; name: string }
+   service?: { id: number; name: string }
+   specialist?: { id: number; name: string }
+ }
+
+ export const spaAdminApi = {
+   branches: (includeInactive = false) => get<Branch[]>(`/booking/branches${includeInactive ? '?includeInactive=true' : ''}`, { auth: false }),
+-  services: () => get<SpaService[]>('/booking/services', { auth: false }),
++  services: (params?: { q?: string; page?: number; pageSize?: number; branchId?: number }) => {
++    const query = new URLSearchParams()
++    if (params?.q?.trim()) query.set('q', params.q.trim())
++    if (params?.page) query.set('page', String(params.page))
++    if (params?.pageSize) query.set('pageSize', String(params.pageSize))
++    if (params?.branchId) query.set('branchId', String(params.branchId))
++    const queryString = query.toString()
++    return get<PaginatedServiceResponse>(`/booking/services${queryString ? `?${queryString}` : ''}`, { auth: false })
++  },
+   serviceCategories: () => get<ServiceCategory[]>('/booking/service-categories', { auth: false }),
+   specialists: () => get<Specialist[]>('/booking/specialists', { auth: false }),
+   reviews: () => get<ServiceReview[]>('/booking/service-reviews', { auth: false }),
+   appointments: () => get<Appointment[]>('/booking/appointments', { auth: false }),
+
+   createBranch: (data: Partial<Branch>) => post('/booking/branches', data, { auth: false }),
+   updateBranch: (id: number, data: Partial<Branch>) => patch(`/booking/branches/${id}`, data, { auth: false }),
+   deleteBranch: (id: number) => del(`/booking/branches/${id}`, { auth: false }),
+
+   createService: (data: Record<string, any>, file?: File | null) => {
+     const form = new FormData()
+     Object.entries(data).forEach(([key, value]) => {
+       form.append(key, typeof value === 'string' ? value : JSON.stringify(value))
+     })
+     if (file) form.append('file', file)
+     return request('/booking/services', { method: 'POST', body: form, auth: false })
+   },
+   updateService: (id: number, data: Record<string, any>, file?: File | null) => {
+     const form = new FormData()
+     Object.entries(data).forEach(([key, value]) => {
+       form.append(key, typeof value === 'string' ? value : JSON.stringify(value))
+     })
+     if (file) form.append('file', file)
+     return request(`/booking/services/${id}`, { method: 'PATCH', body: form, auth: false })
+   },
 diff --git a/ayanavita-fontend/src/pages/admin/AdminSpaPage.css b/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
-index 184a011661102bf7e3a89e360cde77fa94dfb2f9..f6b6f3045241da32d763c56423f1783f3644583d 100644
+index a41e730c2ae3ca5437c0df136efb59ed6ced6f63..f495dc7250ccc9155b54e4500bc7191b94577a4d 100644
 --- a/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
 +++ b/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
-@@ -377,62 +377,79 @@
-   color: transparent;
+@@ -336,67 +336,110 @@
+ .admin-btn-icon-info { background: linear-gradient(135deg, #14b8a6, #0d9488); box-shadow: 0 8px 18px rgba(13, 148, 136, .25); }
+
+ .admin-badge {
+   display: inline-flex;
+   align-items: center;
+   padding: 3px 9px;
+   border-radius: 999px;
+   font-size: 12px;
+   font-weight: 800;
+   border: 1px solid transparent;
+   white-space: nowrap;
  }
- 
+ .admin-badge-green { background: #eafbf0; color: #0f8a3b; border-color: #b7efc8; }
+ .admin-badge-red { background: #fff1f2; color: #c02636; border-color: #fecdd3; }
+ .admin-badge-purple { background: #f3e8ff; color: #7e22ce; border-color: #e9d5ff; }
+ .admin-badge-blue { background: #e0f2fe; color: #0369a1; border-color: #bae6fd; }
+ .admin-badge-yellow { background: #fff7ed; color: #b45309; border-color: #fed7aa; }
+ .admin-badge-orange { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+ .admin-badge-pastel { background: #fdf2f8; color: #be185d; border-color: #fbcfe8; }
+ .admin-badge-pink { background: #fdf2f8; color: #be185d; border-color: #fbcfe8; }
+ .admin-badge-rose { background: #ffe4e6; color: #be123c; border-color: #fecdd3; }
+ .admin-badge-cyan { background: #ecfeff; color: #0e7490; border-color: #a5f3fc; }
+ .admin-badge-sky { background: #e0f2fe; color: #0369a1; border-color: #bae6fd; }
+ .admin-badge-amber { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+
++
++.admin-badge-ellipsis {
++  max-width: 160px;
++  overflow: hidden;
++  text-overflow: ellipsis;
++}
++
++.services-toolbar {
++  margin: 14px 0;
++  gap: 12px;
++  align-items: flex-end;
++}
++
++.services-search-field {
++  min-width: min(420px, 100%);
++  flex: 1;
++}
++
++.services-size-field {
++  width: 160px;
++}
++
++.services-empty-state {
++  text-align: center;
++  color: #64748b;
++  font-weight: 600;
++}
++
+ .services-table th,
+ .services-table td {
+   white-space: nowrap;
+ }
+
+ .services-name-cell {
+-  min-width: 280px;
+-  max-width: 360px;
++  min-width: 190px;
++  max-width: 220px;
+   font-weight: 800;
++  overflow: hidden;
++  text-overflow: ellipsis;
++}
++
++.services-category-cell {
++  max-width: 180px;
++  overflow: hidden;
++  text-overflow: ellipsis;
+ }
+
+ .services-rating {
+   font-weight: 800;
+   background: linear-gradient(135deg, #f59e0b, #fde047);
+   -webkit-background-clip: text;
+   background-clip: text;
+   color: transparent;
++  display: inline-flex;
++  align-items: center;
++  gap: 4px;
++}
++
++.services-rating-icon {
++  font-size: 12px;
+ }
+
  .services-booked {
    font-weight: 800;
    color: #16a34a;
  }
- 
+
  .service-action-menu {
    position: relative;
    display: inline-flex;
    align-items: center;
  }
- 
+
  .service-action-trigger {
    width: 34px;
    height: 34px;
@@ -60,55 +216,16 @@ index 184a011661102bf7e3a89e360cde77fa94dfb2f9..f6b6f3045241da32d763c56423f1783f
    justify-content: center;
    padding: 0;
  }
- 
+
  .service-action-list {
    position: absolute;
    right: 0;
--  top: calc(100% + 8px);
-+  top: calc(100% + 2px);
-   display: none;
--  align-items: center;
-+  flex-direction: column;
-+  align-items: flex-start;
-   gap: 6px;
-   padding: 8px;
-   border-radius: 12px;
-   background: #fff;
-   border: 1px solid #dbe3f2;
-   box-shadow: 0 12px 26px rgba(15, 23, 42, 0.18);
-   z-index: 5;
- }
- 
-+.service-action-item {
-+  display: inline-flex;
-+  align-items: center;
-+  gap: 8px;
-+  border: 0;
-+  background: transparent;
-+  padding: 0;
-+  cursor: pointer;
-+}
-+
-+.service-action-text {
-+  font-size: 13px;
-+  font-weight: 600;
-+  color: #1f2a44;
-+}
-+
- .service-action-menu:hover .service-action-list,
- .service-action-menu:focus-within .service-action-list {
-   display: inline-flex;
- }
- 
- @media (max-width: 1100px) {
-   .admin-overview { grid-template-columns: repeat(2, minmax(170px, 1fr)); }
-   .admin-grid { grid-template-columns: 1fr; }
- }
- 
+   top: calc(100% - 1px);
+@@ -441,25 +484,34 @@
  .admin-card-full { width: 100%; }
  .admin-row-space { justify-content: space-between; }
  .admin-field-full { grid-column: 1 / -1; }
- 
+
  .admin-modal-overlay {
    position: fixed;
    inset: 0;
@@ -119,59 +236,33 @@ index 184a011661102bf7e3a89e360cde77fa94dfb2f9..f6b6f3045241da32d763c56423f1783f
    z-index: 1000;
    padding: 20px;
  }
- 
+
+ .admin-modal {
+   width: min(920px, 96vw);
+   max-height: 90vh;
+   overflow: auto;
+   background: #fff;
+   border-radius: 14px;
+   border: 1px solid #dbe3f2;
+   box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
+   padding: 16px;
+ }
++
++.services-pagination {
++  margin-top: 12px;
++}
++
++.services-pagination-controls {
++  gap: 8px;
++  align-items: center;
++}
 diff --git a/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx b/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
-index 224274a5603d4a93f2c4b4197aff4952ac87ab03..b7f6c728bfa57819eee1dfb54763a6be6a8b1985 100644
+index b7f6c728bfa57819eee1dfb54763a6be6a8b1985..3fdd52b6bb008cba2122340be4f4f8b0dd84ee2d 100644
 --- a/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
 +++ b/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
-@@ -1,71 +1,59 @@
- import { useEffect, useMemo, useState } from 'react'
- import { spaAdminApi, type Appointment, type Branch, type ServiceCategory, type ServiceReview, type SpaService, type Specialist } from '../../api/spaAdmin.api'
- import { AlertJs } from '../../utils/alertJs'
- import './AdminSpaPage.css'
- import { BranchesTab } from './tabs/BranchesTab'
- import { CategoriesTab } from './tabs/CategoriesTab'
- import { ReviewsTab } from './tabs/ReviewsTab'
- import { ServicesTab } from './tabs/ServicesTab'
- import { SpecialistsTab } from './tabs/SpecialistsTab'
- import type { BranchForm, CategoryForm, RelationForm, ReviewForm, ServiceForm, SpecialistForm } from './tabs/types'
- import { useAuth } from '../../state/auth.store'
- 
- type TabKey = 'branches' | 'categories' | 'services' | 'specialists' | 'reviews'
- 
--const defaultServiceForm: ServiceForm = { code: '', name: '', description: '', categoryId: 0, goals: '', suitableFor: '', process: '', durationMin: 60, price: 0, tag: 'Spa' }
-+const defaultServiceForm: ServiceForm = { name: '', description: '', categoryId: 0, goals: '', suitableFor: '', process: '', durationMin: 60, price: 0, tag: 'Spa' }
- const defaultCategoryForm: CategoryForm = { name: '' }
- const defaultSpecialistForm: SpecialistForm = { code: '', name: '', level: 'SENIOR', bio: '' }
- const defaultReviewForm: ReviewForm = { serviceId: 0, stars: 5, comment: '', customerName: '' }
- const defaultBranchForm: BranchForm = { code: '', name: '', address: '', phone: '', isActive: true }
- 
- 
- const normalizeBranchCode = (name: string) => {
-   const base = name
-     .normalize('NFD')
-     .replace(/[̀-ͯ]/g, '')
-     .replace(/đ/gi, 'd')
-     .toUpperCase()
-     .replace(/[^A-Z0-9]+/g, '_')
-     .replace(/^_+|_+$/g, '')
- 
-   return base || 'BRANCH'
- }
- 
- 
--const normalizeServiceCode = (name: string) => {
--  const base = name
--    .normalize('NFD')
--    .replace(/[̀-ͯ]/g, '')
--    .replace(/đ/gi, 'd')
--    .toUpperCase()
--    .replace(/[^A-Z0-9]+/g, '_')
--    .replace(/^_+|_+$/g, '')
--
--  return `SRV_${base || 'SERVICE'}`
--}
--
+@@ -33,108 +33,141 @@ const normalizeBranchCode = (name: string) => {
+
+
  const isValidPhoneNumber = (phone: string) => {
    const cleaned = phone.trim()
    if (!cleaned) return true
@@ -179,7 +270,7 @@ index 224274a5603d4a93f2c4b4197aff4952ac87ab03..b7f6c728bfa57819eee1dfb54763a6be
    const digitsCount = cleaned.replace(/\D/g, '').length
    return digitsCount >= 6 && digitsCount <= 20
  }
- 
+
  const getVietnameseError = (error: unknown, fallback: string) => {
    if (typeof error === 'object' && error && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
      const message = (error as { message: string }).message
@@ -188,16 +279,178 @@ index 224274a5603d4a93f2c4b4197aff4952ac87ab03..b7f6c728bfa57819eee1dfb54763a6be
    }
    return fallback
  }
- 
+
  export default function AdminSpaPage() {
    const { user } = useAuth()
    const [tab, setTab] = useState<TabKey>('branches')
    const [loading, setLoading] = useState(false)
    const [branches, setBranches] = useState<Branch[]>([])
    const [services, setServices] = useState<SpaService[]>([])
++  const [servicePageItems, setServicePageItems] = useState<SpaService[]>([])
++  const [serviceSearchKeyword, setServiceSearchKeyword] = useState('')
++  const [servicePage, setServicePage] = useState(1)
++  const [servicePageSize, setServicePageSize] = useState(10)
++  const [serviceTotal, setServiceTotal] = useState(0)
++  const [serviceTotalPages, setServiceTotalPages] = useState(1)
    const [categories, setCategories] = useState<ServiceCategory[]>([])
    const [specialists, setSpecialists] = useState<Specialist[]>([])
-@@ -257,91 +245,87 @@ export default function AdminSpaPage() {
+   const [reviews, setReviews] = useState<ServiceReview[]>([])
+   const [appointments, setAppointments] = useState<Appointment[]>([])
+   const [selectedImage, setSelectedImage] = useState<File | null>(null)
+
+   const [branchForm, setBranchForm] = useState<BranchForm>(defaultBranchForm)
+   const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
+   const [serviceForm, setServiceForm] = useState<ServiceForm>(defaultServiceForm)
+   const [editingService, setEditingService] = useState<SpaService | null>(null)
+   const [categoryForm, setCategoryForm] = useState<CategoryForm>(defaultCategoryForm)
+   const [editingCategory, setEditingCategory] = useState<ServiceCategory | null>(null)
+   const [specialistForm, setSpecialistForm] = useState<SpecialistForm>(defaultSpecialistForm)
+   const [editingSpecialist, setEditingSpecialist] = useState<Specialist | null>(null)
+   const [reviewForm, setReviewForm] = useState<ReviewForm>(defaultReviewForm)
+   const [relationForm, setRelationForm] = useState<RelationForm>({ branchId: 0, serviceId: 0, specialistId: 0 })
+
+   const activeBranches = useMemo(() => branches.filter((item) => item.isActive), [branches])
+   const selectedServiceReviews = useMemo(() => {
+     if (!reviewForm.serviceId) return reviews
+     return reviews.filter((item) => item.serviceId === Number(reviewForm.serviceId))
+   }, [reviewForm.serviceId, reviews])
+   const displayName = useMemo(() => {
+     if (!user?.email) return 'Admin User'
+     const baseName = user.email.split('@')[0]?.replace(/[._-]+/g, ' ').trim()
+     return baseName ? baseName.replace(/\b\w/g, (char) => char.toUpperCase()) : user.email
+   }, [user?.email])
+   const roleLabel = user?.role === 'ADMIN' ? 'Administrator' : user?.role ?? 'User'
+   const avatarLetter = (displayName[0] || 'A').toUpperCase()
+
++  const loadServices = async (params?: { page?: number; q?: string; pageSize?: number }) => {
++    const response = await spaAdminApi.services({
++      q: params?.q ?? serviceSearchKeyword,
++      page: params?.page ?? servicePage,
++      pageSize: params?.pageSize ?? servicePageSize,
++    })
++    setServicePageItems(response.items)
++    setServiceTotal(response.total)
++    setServiceTotalPages(response.totalPages)
++    setServicePage(response.page)
++    setServicePageSize(response.pageSize)
++  }
++
+   const loadAll = async () => {
+     setLoading(true)
+     try {
+-      const [b, c, s, sp, r, a] = await Promise.all([
++      const [b, c, sAll, s, sp, r, a] = await Promise.all([
+         spaAdminApi.branches(true),
+         spaAdminApi.serviceCategories(),
+-        spaAdminApi.services(),
++        spaAdminApi.services({ page: 1, pageSize: 100 }),
++        spaAdminApi.services({ q: serviceSearchKeyword, page: servicePage, pageSize: servicePageSize }),
+         spaAdminApi.specialists(),
+         spaAdminApi.reviews(),
+         spaAdminApi.appointments(),
+       ])
+       setBranches(b)
+       setCategories(c)
+-      setServices(s)
++      setServices(sAll.items)
++      setServicePageItems(s.items)
++      setServiceTotal(s.total)
++      setServicePage(s.page)
++      setServicePageSize(s.pageSize)
++      setServiceTotalPages(s.totalPages)
+       setSpecialists(sp)
+       setReviews(r)
+       setAppointments(a)
+     } catch (error) {
+       await AlertJs.error('Không thể tải dữ liệu', getVietnameseError(error, 'Hệ thống tạm thời gián đoạn, vui lòng thử lại.'))
+     } finally {
+       setLoading(false)
+     }
+   }
+
+   useEffect(() => {
+     loadAll()
+   }, [])
+
++  useEffect(() => {
++    const timer = window.setTimeout(() => {
++      void loadServices({ page: 1 })
++    }, 300)
++
++    return () => window.clearTimeout(timer)
++  }, [serviceSearchKeyword, servicePageSize])
++
+   const saveBranch = async () => {
+     const normalizedName = (branchForm.name || '').trim()
+     const normalizedAddress = (branchForm.address || '').trim()
+     const normalizedPhone = (branchForm.phone || '').trim()
+     const generatedCode = normalizeBranchCode(normalizedName)
+
+     if (!normalizedName) {
+       await AlertJs.error('Thiếu tên chi nhánh', 'Vui lòng nhập tên chi nhánh trước khi lưu.')
+       return
+     }
+
+     if (normalizedName.length < 2) {
+       await AlertJs.error('Tên chi nhánh chưa hợp lệ', 'Tên chi nhánh cần có ít nhất 2 ký tự.')
+       return
+     }
+
+     if (!normalizedAddress) {
+       await AlertJs.error('Thiếu địa chỉ', 'Vui lòng nhập địa chỉ chi nhánh.')
+       return
+     }
+
+     if (!isValidPhoneNumber(normalizedPhone)) {
+       await AlertJs.error('Số điện thoại chưa hợp lệ', 'Vui lòng nhập đúng định dạng số điện thoại quốc tế (không giới hạn quốc gia).')
+       return
+     }
+@@ -201,95 +234,95 @@ export default function AdminSpaPage() {
+           <i className='overview-icon fa-solid fa-building' />
+         </article>
+         <article className='overview-card'>
+           <span>Dịch vụ</span>
+           <strong>{services.length}</strong>
+           <small>Spa catalog</small>
+           <i className='overview-icon fa-solid fa-spa' />
+         </article>
+         <article className='overview-card'>
+           <span>Chuyên viên</span>
+           <strong>{specialists.length}</strong>
+           <small>Đủ năng lực vận hành</small>
+           <i className='overview-icon fa-solid fa-user-nurse' />
+         </article>
+         <article className='overview-card'>
+           <span>Lịch hẹn</span>
+           <strong>{appointments.length}</strong>
+           <small>Reviews: {reviews.length}</small>
+           <i className='overview-icon fa-solid fa-calendar-check' />
+         </article>
+       </section>
+
+       <nav className='admin-tabs'>
+         <button className={`admin-tab ${tab === 'branches' ? 'active' : ''}`} onClick={() => setTab('branches')}><i className='fa-solid fa-building-circle-check' />Chi nhánh ({branches.length})</button>
+         <button className={`admin-tab ${tab === 'categories' ? 'active' : ''}`} onClick={() => setTab('categories')}><i className='fa-solid fa-layer-group' />Danh mục dịch vụ ({categories.length})</button>
+-        <button className={`admin-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => setTab('services')}><i className='fa-solid fa-leaf' />Dịch vụ ({services.length})</button>
++        <button className={`admin-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => setTab('services')}><i className='fa-solid fa-leaf' />Dịch vụ ({serviceTotal})</button>
+         <button className={`admin-tab ${tab === 'specialists' ? 'active' : ''}`} onClick={() => setTab('specialists')}><i className='fa-solid fa-people-group' />Chuyên viên + Quan hệ</button>
+         <button className={`admin-tab ${tab === 'reviews' ? 'active' : ''}`} onClick={() => setTab('reviews')}><i className='fa-solid fa-star-half-stroke' />Review + Lịch hẹn</button>
+       </nav>
+
+       {loading && <section className='admin-card'>Đang tải dữ liệu...</section>}
+
+       {tab === 'branches' && <BranchesTab loading={loading} branches={branches} branchForm={branchForm} editingBranch={editingBranch} onBranchFormChange={(next) => {
+         const nextName = next.name ?? branchForm.name ?? ''
+         setBranchForm({ ...next, code: normalizeBranchCode(nextName) })
+       }} onSaveBranch={saveBranch} onEditBranch={(branch) => { setEditingBranch(branch); setBranchForm(branch) }} onDeleteBranch={deleteBranch} onCancelEdit={() => { setEditingBranch(null); setBranchForm(defaultBranchForm) }} />}
+
+       {tab === 'categories' && <CategoriesTab loading={loading} categories={categories} categoryForm={categoryForm} editingCategory={editingCategory} onCategoryFormChange={setCategoryForm} onSaveCategory={async () => {
+         if (!categoryForm.name.trim()) {
+           await AlertJs.error('Thiếu dữ liệu', 'Vui lòng nhập tên danh mục.')
+           return
+         }
+         try {
+           if (editingCategory) await spaAdminApi.updateServiceCategory(editingCategory.id, categoryForm)
            else await spaAdminApi.createServiceCategory(categoryForm)
            setEditingCategory(null)
            setCategoryForm(defaultCategoryForm)
@@ -222,12 +475,9 @@ index 224274a5603d4a93f2c4b4197aff4952ac87ab03..b7f6c728bfa57819eee1dfb54763a6be
            await AlertJs.error('Xóa danh mục thất bại', getVietnameseError(error, 'Không thể xóa danh mục vào lúc này.'))
          }
        }} onCancelEdit={() => { setEditingCategory(null); setCategoryForm(defaultCategoryForm) }} />}
- 
--      {tab === 'services' && <ServicesTab loading={loading} services={services} categories={categories} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} onServiceFormChange={(next) => {
--        const nextName = next.name ?? serviceForm.name ?? ''
--        setServiceForm({ ...next, code: normalizeServiceCode(nextName) })
--      }} onSelectImage={setSelectedImage} onSaveService={async () => {
-+      {tab === 'services' && <ServicesTab loading={loading} services={services} categories={categories} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onSaveService={async () => {
+
+-      {tab === 'services' && <ServicesTab loading={loading} services={services} categories={categories} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onSaveService={async () => {
++      {tab === 'services' && <ServicesTab loading={loading} services={servicePageItems} categories={categories} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} searchKeyword={serviceSearchKeyword} pagination={{ page: servicePage, pageSize: servicePageSize, total: serviceTotal, totalPages: serviceTotalPages }} onSearchKeywordChange={setServiceSearchKeyword} onPageChange={(nextPage) => { void loadServices({ page: nextPage }) }} onPageSizeChange={(size) => { setServicePageSize(size); setServicePage(1) }} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onSaveService={async () => {
          if (!serviceForm.categoryId) {
            await AlertJs.error('Thiếu danh mục', 'Vui lòng chọn danh mục cho dịch vụ.')
            return
@@ -236,7 +486,7 @@ index 224274a5603d4a93f2c4b4197aff4952ac87ab03..b7f6c728bfa57819eee1dfb54763a6be
          const duplicatedService = services.find((service) => (
            service.id !== editingService?.id && service.name.trim().toLocaleLowerCase('vi') === normalizedServiceName
          ))
- 
+
          if (duplicatedService) {
            await AlertJs.error('Tên dịch vụ bị trùng', `Tên dịch vụ "${serviceForm.name.trim()}" đã tồn tại. Vui lòng nhập tên khác.`)
            return
@@ -253,94 +503,132 @@ index 224274a5603d4a93f2c4b4197aff4952ac87ab03..b7f6c728bfa57819eee1dfb54763a6be
            setEditingService(null)
            setServiceForm(defaultServiceForm)
            setSelectedImage(null)
-           await loadAll()
-           await AlertJs.success('Đã lưu dịch vụ')
-         } catch (error) {
-           await AlertJs.error('Lưu dịch vụ thất bại', getVietnameseError(error, 'Vui lòng kiểm tra lại thông tin dịch vụ.'))
-         }
-       }} onEditService={(service) => {
-         setEditingService(service)
-         setSelectedImage(null)
-         setServiceForm({
-           ...defaultServiceForm,
-           ...service,
--          code: service.code || normalizeServiceCode(service.name),
-           categoryId: service.categoryId || 0,
-           goals: service.goals?.join(', ') || '',
-           suitableFor: service.suitableFor?.join(', ') || '',
-           process: service.process?.join(', ') || '',
-         })
-       }} onDeleteService={async (service) => {
-         try {
-           await spaAdminApi.deleteService(service.id)
-           await loadAll()
-           await AlertJs.success('Đã xóa dịch vụ')
-         } catch (error) {
-           await AlertJs.error('Xóa dịch vụ thất bại', getVietnameseError(error, 'Dịch vụ đang được sử dụng hoặc có lỗi hệ thống.'))
-         }
-       }} onCancelEdit={() => { setEditingService(null); setServiceForm(defaultServiceForm); setSelectedImage(null) }} />}
- 
-       {tab === 'specialists' && <SpecialistsTab loading={loading} branches={activeBranches} services={services} specialists={specialists} specialistForm={specialistForm} relationForm={relationForm} editingSpecialist={editingSpecialist} onSpecialistFormChange={setSpecialistForm} onRelationFormChange={setRelationForm} onSaveSpecialist={async () => {
-         try {
-           if (editingSpecialist) await spaAdminApi.updateSpecialist(editingSpecialist.id, specialistForm)
-           else await spaAdminApi.createSpecialist(specialistForm)
-           setEditingSpecialist(null)
-           setSpecialistForm(defaultSpecialistForm)
-           await loadAll()
-           await AlertJs.success('Đã lưu chuyên viên')
-         } catch (error) {
-           await AlertJs.error('Lưu chuyên viên thất bại', getVietnameseError(error, 'Thông tin chuyên viên chưa hợp lệ.'))
 diff --git a/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
-index 8e57633a0a84ac0538dea151d4fd9248c28e355b..e47928acdd386fda6f6caf6a1feb0fdbc447e837 100644
+index ded3428487c8dc495a338643bcd44607ec61c095..7c881b1bc241bb56917e89918ecedbf3ddf35e1d 100644
 --- a/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
 +++ b/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
-@@ -22,141 +22,146 @@ export function ServicesTab({ services, categories, serviceForm, editingService,
+@@ -1,127 +1,199 @@
+-import { useState } from 'react'
++import { useMemo, useState } from 'react'
+ import type { SpaService } from '../../../api/spaAdmin.api'
+ import type { ServicesTabProps } from './types'
+
+ const renderJsonPreview = (items: string[], badgeClass: string, extraBadgeClass: string) => {
+   if (!items?.length) return '-'
+   const [first, ...rest] = items
+   return (
+     <div className='admin-row admin-row-nowrap'>
+-      <span className={`admin-badge ${badgeClass}`}>{first}</span>
++      <span className={`admin-badge admin-badge-ellipsis ${badgeClass}`} title={first}>{first}</span>
+       {rest.length > 0 && <span className={`admin-badge ${extraBadgeClass}`}>+{rest.length}</span>}
+     </div>
+   )
+ }
+
+-export function ServicesTab({ services, categories, serviceForm, editingService, selectedImageName, onServiceFormChange, onSelectImage, onSaveService, onEditService, onDeleteService, onCancelEdit }: ServicesTabProps) {
++const pageSizeOptions = [5, 10, 20, 50]
++
++export function ServicesTab({
++  services,
++  categories,
++  serviceForm,
++  editingService,
++  selectedImageName,
++  searchKeyword,
++  pagination,
++  onSearchKeywordChange,
++  onPageChange,
++  onPageSizeChange,
++  onServiceFormChange,
++  onSelectImage,
++  onSaveService,
++  onEditService,
++  onDeleteService,
++  onCancelEdit,
++}: ServicesTabProps) {
+   const [isEditModalOpen, setEditModalOpen] = useState(false)
+   const [detailService, setDetailService] = useState<SpaService | null>(null)
+
+   const handleOpenCreate = () => {
+     onCancelEdit()
      setEditModalOpen(true)
    }
- 
+
    const handleOpenEdit = (service: SpaService) => {
      onEditService(service)
      setEditModalOpen(true)
    }
- 
+
    const handleCloseEdit = () => {
      onCancelEdit()
      setEditModalOpen(false)
    }
- 
+
++  const pageInfoLabel = useMemo(() => {
++    if (!pagination.total) return 'Không có dữ liệu'
++    const start = (pagination.page - 1) * pagination.pageSize + 1
++    const end = Math.min(pagination.page * pagination.pageSize, pagination.total)
++    return `${start}-${end} / ${pagination.total}`
++  }, [pagination.page, pagination.pageSize, pagination.total])
++
    return (
      <section className='admin-card admin-card-full'>
        <div className='admin-row admin-row-space'>
          <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> Quản lý dịch vụ</h3>
          <button className='admin-btn admin-btn-primary' onClick={handleOpenCreate}><i className='fa-solid fa-plus' /> Thêm dịch vụ</button>
        </div>
- 
+
++      <div className='admin-row services-toolbar'>
++        <label className='admin-field services-search-field'>
++          <span className='admin-label'><i className='fa-solid fa-magnifying-glass' /> Tìm tên dịch vụ</span>
++          <input
++            className='admin-input'
++            placeholder='Nhập tên dịch vụ...'
++            value={searchKeyword}
++            onChange={(e) => onSearchKeywordChange(e.target.value)}
++          />
++        </label>
++        <label className='admin-field services-size-field'>
++          <span className='admin-label'><i className='fa-solid fa-list-ol' /> Size trang</span>
++          <select className='admin-input' value={pagination.pageSize} onChange={(e) => onPageSizeChange(Number(e.target.value))}>
++            {pageSizeOptions.map((size) => (
++              <option key={size} value={size}>{size} / trang</option>
++            ))}
++          </select>
++        </label>
++      </div>
++
        <div className='admin-table-wrap'>
          <table className='admin-table services-table'>
            <thead>
              <tr>
                <th>Tên dịch vụ</th>
--              <th>Code</th>
                <th>Danh mục</th>
                <th>Thời lượng</th>
                <th>Giá</th>
                <th>Rating</th>
                <th>Lượt đặt</th>
-               <th>Mục tiêu (JSON)</th>
-               <th>Phù hợp (JSON)</th>
-               <th>Quy trình (JSON)</th>
+               <th>Mục tiêu </th>
+               <th>Phù hợp </th>
+               <th>Quy trình </th>
                <th>Thao tác</th>
              </tr>
            </thead>
            <tbody>
              {services.map((service) => (
                <tr key={service.id}>
-                 <td className='td-strong services-name-cell'>{service.name}</td>
--                <td><span className='admin-badge admin-badge-purple'>{service.code}</span></td>
-                 <td>{service.category || '-'}</td>
+-                <td className='td-strong services-name-cell'>{service.name}</td>
+-                <td>{service.category || '-'}</td>
++                <td className='td-strong services-name-cell' title={service.name}>{service.name}</td>
++                <td className='services-category-cell' title={service.category || '-'}>{service.category || '-'}</td>
                  <td>{service.durationMin} phút</td>
                  <td><span className='admin-badge admin-badge-blue'>{service.price.toLocaleString('vi-VN')}đ</span></td>
-                 <td><span className='services-rating'>{service.ratingAvg.toFixed(1)}</span></td>
+-                <td><span className='services-rating'>{service.ratingAvg.toFixed(1)}</span></td>
++                <td>
++                  <span className='services-rating'>
++                    <i className='fa-solid fa-star services-rating-icon' /> {service.ratingAvg.toFixed(1)}
++                  </span>
++                </td>
                  <td><span className='services-booked'>{service.bookedCount ?? 0}</span></td>
                  <td>{renderJsonPreview(service.goals || [], 'admin-badge-pink', 'admin-badge-rose')}</td>
                  <td>{renderJsonPreview(service.suitableFor || [], 'admin-badge-cyan', 'admin-badge-sky')}</td>
@@ -351,39 +639,55 @@ index 8e57633a0a84ac0538dea151d4fd9248c28e355b..e47928acdd386fda6f6caf6a1feb0fdb
                        <i className='fa-solid fa-ellipsis' />
                      </button>
                      <div className='service-action-list'>
--                      <button className='admin-btn-icon admin-btn-icon-info' onClick={() => setDetailService(service)} title='Chi tiết'>
--                        <i className='fa-solid fa-circle-info' />
-+                      <button className='service-action-item' onClick={() => setDetailService(service)} title='Chi tiết'>
-+                        <span className='admin-btn-icon admin-btn-icon-info'>
-+                          <i className='fa-solid fa-circle-info' />
-+                        </span>
-+                        <span className='service-action-text'>Chi tiết</span>
+                       <button className='service-action-item' onClick={() => setDetailService(service)} title='Chi tiết'>
+                         <span className='admin-btn-icon admin-btn-icon-info'>
+                           <i className='fa-solid fa-circle-info' />
+                         </span>
+                         <span className='service-action-text'>Chi tiết</span>
                        </button>
--                      <button className='admin-btn-icon admin-btn-icon-edit' onClick={() => handleOpenEdit(service)} title='Sửa'>
--                        <i className='fa-solid fa-pen-to-square' />
-+                      <button className='service-action-item' onClick={() => handleOpenEdit(service)} title='Sửa'>
-+                        <span className='admin-btn-icon admin-btn-icon-edit'>
-+                          <i className='fa-solid fa-pen-to-square' />
-+                        </span>
-+                        <span className='service-action-text'>Sửa</span>
+                       <button className='service-action-item' onClick={() => handleOpenEdit(service)} title='Sửa'>
+                         <span className='admin-btn-icon admin-btn-icon-edit'>
+                           <i className='fa-solid fa-pen-to-square' />
+                         </span>
+                         <span className='service-action-text'>Sửa</span>
                        </button>
--                      <button className='admin-btn-icon admin-btn-icon-delete' onClick={() => onDeleteService(service)} title='Xóa'>
--                        <i className='fa-solid fa-trash' />
-+                      <button className='service-action-item' onClick={() => onDeleteService(service)} title='Xóa'>
-+                        <span className='admin-btn-icon admin-btn-icon-delete'>
-+                          <i className='fa-solid fa-trash' />
-+                        </span>
-+                        <span className='service-action-text'>Xóa</span>
+                       <button className='service-action-item' onClick={() => onDeleteService(service)} title='Xóa'>
+                         <span className='admin-btn-icon admin-btn-icon-delete'>
+                           <i className='fa-solid fa-trash' />
+                         </span>
+                         <span className='service-action-text'>Xóa</span>
                        </button>
                      </div>
                    </div>
                  </td>
                </tr>
              ))}
++            {services.length === 0 && (
++              <tr>
++                <td colSpan={10} className='services-empty-state'>Không có dịch vụ phù hợp.</td>
++              </tr>
++            )}
            </tbody>
          </table>
        </div>
- 
+
++      <div className='admin-row admin-row-space services-pagination'>
++        <span className='admin-helper'>Hiển thị: {pageInfoLabel}</span>
++        <div className='admin-row services-pagination-controls'>
++          <button className='admin-btn admin-btn-ghost' disabled={pagination.page <= 1} onClick={() => onPageChange(pagination.page - 1)}>
++            <i className='fa-solid fa-chevron-left' /> Trước
++          </button>
++          <span className='admin-helper'>Trang {pagination.page}/{Math.max(1, pagination.totalPages)}</span>
++          <button
++            className='admin-btn admin-btn-ghost'
++            disabled={pagination.page >= pagination.totalPages}
++            onClick={() => onPageChange(pagination.page + 1)}
++          >
++            Sau <i className='fa-solid fa-chevron-right' />
++          </button>
++        </div>
++      </div>
++
        {isEditModalOpen && (
          <div className='admin-modal-overlay' onClick={handleCloseEdit}>
            <div className='admin-modal' onClick={(e) => e.stopPropagation()}>
@@ -392,7 +696,6 @@ index 8e57633a0a84ac0538dea151d4fd9248c28e355b..e47928acdd386fda6f6caf6a1feb0fdb
                <button className='admin-btn admin-btn-ghost' onClick={handleCloseEdit}><i className='fa-solid fa-xmark' /> Đóng</button>
              </div>
              <div className='admin-form-grid'>
--              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-id-card' /> Mã dịch vụ</span><input className='admin-input' value={serviceForm.code} disabled /></label>
                <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-sparkles' /> Tên dịch vụ</span><input className='admin-input' value={serviceForm.name} onChange={(e) => onServiceFormChange({ ...serviceForm, name: e.target.value })} /></label>
                <label className='admin-field'>
                  <span className='admin-label'><i className='fa-solid fa-layer-group' /> Danh mục</span>
@@ -403,364 +706,178 @@ index 8e57633a0a84ac0538dea151d4fd9248c28e355b..e47928acdd386fda6f6caf6a1feb0fdb
                    ))}
                  </select>
                </label>
-               <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-bullseye' /> Mục tiêu (JSON)</span><input className='admin-input' placeholder='Relax, Detox' value={serviceForm.goals} onChange={(e) => onServiceFormChange({ ...serviceForm, goals: e.target.value })} /></label>
-               <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-users' /> Những ai phù hợp (JSON)</span><input className='admin-input' placeholder='Người stress, Mất ngủ' value={serviceForm.suitableFor} onChange={(e) => onServiceFormChange({ ...serviceForm, suitableFor: e.target.value })} /></label>
-               <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-list-check' /> Quy trình (JSON)</span><input className='admin-input' placeholder='B1 chào hỏi, B2 tư vấn, B3 trị liệu' value={serviceForm.process} onChange={(e) => onServiceFormChange({ ...serviceForm, process: e.target.value })} /></label>
+               <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-bullseye' /> Mục tiêu </span><input className='admin-input' placeholder='Relax, Detox' value={serviceForm.goals} onChange={(e) => onServiceFormChange({ ...serviceForm, goals: e.target.value })} /></label>
+               <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-users' /> Những ai phù hợp </span><input className='admin-input' placeholder='Người stress, Mất ngủ' value={serviceForm.suitableFor} onChange={(e) => onServiceFormChange({ ...serviceForm, suitableFor: e.target.value })} /></label>
+               <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-list-check' /> Quy trình </span><input className='admin-input' placeholder='B1 chào hỏi, B2 tư vấn, B3 trị liệu' value={serviceForm.process} onChange={(e) => onServiceFormChange({ ...serviceForm, process: e.target.value })} /></label>
                <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-clock' /> Thời lượng (phút)</span><input className='admin-input' type='number' value={serviceForm.durationMin} onChange={(e) => onServiceFormChange({ ...serviceForm, durationMin: Number(e.target.value) })} /></label>
                <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-coins' /> Giá</span><input className='admin-input' type='number' value={serviceForm.price} onChange={(e) => onServiceFormChange({ ...serviceForm, price: Number(e.target.value) })} /></label>
                <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-tag' /> Tag</span><input className='admin-input' value={serviceForm.tag} onChange={(e) => onServiceFormChange({ ...serviceForm, tag: e.target.value })} /></label>
                <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-star' /> Rating trung bình</span><input className='admin-input' value={editingService?.ratingAvg?.toFixed(1) || '5.0'} disabled /></label>
-               <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-pen-to-square' /> Mô tả</span><textarea className='admin-input' value={serviceForm.description} onChange={(e) => onServiceFormChange({ ...serviceForm, description: e.target.value })} /></label>
-               <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-cloud-arrow-up' /> Upload ảnh</span><input type='file' accept='image/*' onChange={(e) => onSelectImage(e.target.files?.[0] || null)} /></label>
-               {selectedImageName && <span className='admin-helper'>Đã chọn: {selectedImageName}</span>}
-             </div>
-             <div className='admin-row'>
-               <button className='admin-btn admin-btn-primary' onClick={async () => { await onSaveService(); setEditModalOpen(false) }}>{editingService ? 'Lưu thay đổi' : 'Thêm dịch vụ'}</button>
-               <button className='admin-btn admin-btn-ghost' onClick={handleCloseEdit}>Hủy</button>
-             </div>
-           </div>
-         </div>
-       )}
- 
-       {detailService && (
-         <div className='admin-modal-overlay' onClick={() => setDetailService(null)}>
-           <div className='admin-modal' onClick={(e) => e.stopPropagation()}>
-             <div className='admin-row admin-row-space'>
-               <h3 className='admin-card-title'><i className='fa-solid fa-circle-info' /> Chi tiết dịch vụ</h3>
-               <button className='admin-btn admin-btn-ghost' onClick={() => setDetailService(null)}><i className='fa-solid fa-xmark' /> Đóng</button>
-             </div>
-             <div className='admin-form-grid'>
-               <p><b>ID:</b> {detailService.id}</p>
-               <p><b>Tên dịch vụ:</b> {detailService.name}</p>
--              <p><b>Code:</b> {detailService.code}</p>
-               <p><b>Danh mục:</b> {detailService.category || '-'}</p>
-               <p><b>Thời lượng:</b> {detailService.durationMin} phút</p>
-               <p><b>Giá:</b> {detailService.price.toLocaleString('vi-VN')}đ</p>
-               <p><b>Rating:</b> {detailService.ratingAvg.toFixed(1)}</p>
-               <p><b>Lượt đặt:</b> {detailService.bookedCount ?? 0}</p>
-               <p><b>Tag:</b> {detailService.tag || '-'}</p>
-               <p><b>Mô tả:</b> {detailService.description || '-'}</p>
-               <p><b>Mục tiêu:</b> {(detailService.goals || []).join(', ') || '-'}</p>
-               <p><b>Phù hợp:</b> {(detailService.suitableFor || []).join(', ') || '-'}</p>
-               <p><b>Quy trình:</b> {(detailService.process || []).join(', ') || '-'}</p>
-               <p><b>Ảnh:</b> {detailService.imageUrl || '-'}</p>
-             </div>
-           </div>
-         </div>
-       )}
-     </section>
-   )
- }
 diff --git a/ayanavita-fontend/src/pages/admin/tabs/types.ts b/ayanavita-fontend/src/pages/admin/tabs/types.ts
-index 0328daeff6d4936d1aa42789876a2f51e3807e16..6e6dfa15ba95ee5da3690c8a3352d1f8da4f99a6 100644
+index 6e6dfa15ba95ee5da3690c8a3352d1f8da4f99a6..2de291577767bdb485107db4da5ecb0f04ddb4ff 100644
 --- a/ayanavita-fontend/src/pages/admin/tabs/types.ts
 +++ b/ayanavita-fontend/src/pages/admin/tabs/types.ts
-@@ -1,30 +1,29 @@
- import type { Appointment, Branch, ServiceCategory, ServiceReview, SpaService, Specialist } from '../../../api/spaAdmin.api'
- 
- export type BranchForm = Partial<Branch>
- export type ServiceForm = {
--  code: string
-   name: string
-   description: string
-   categoryId: number
-   goals: string
-   suitableFor: string
-   process: string
-   durationMin: number
-   price: number
-   tag: string
- }
- export type CategoryForm = {
-   name: string
- }
- 
+@@ -19,50 +19,55 @@ export type CategoryForm = {
  export type SpecialistForm = { code: string; name: string; level: string; bio: string }
  export type ReviewForm = { serviceId: number; stars: number; comment: string; customerName: string }
  export type RelationForm = { branchId: number; serviceId: number; specialistId: number }
- 
+
  export type CommonTabProps = {
    loading: boolean
  }
- 
+
  export type BranchesTabProps = CommonTabProps & {
    branches: Branch[]
    branchForm: BranchForm
-diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202602260003_drop_service_code/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202602260003_drop_service_code/migration.sql
-new file mode 100644
-index 0000000000000000000000000000000000000000..7f771d4ce6a7218fa76b31a13116a1e5efb238e5
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/prisma/migrations/202602260003_drop_service_code/migration.sql
-@@ -0,0 +1,5 @@
-+-- Drop unique index first, then remove service code column
-+DROP INDEX `Service_code_key` ON `Service`;
-+
-+ALTER TABLE `Service`
-+  DROP COLUMN `code`;
-diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-index 9b7b25d3a0a9fafc156a9fe2914f1aab71db9876..038c2e110fd45649e884f5341d5caf64837c4d1a 100644
---- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
-+++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-@@ -34,51 +34,50 @@ model User {
- 
- model Branch {
-   id          Int                @id @default(autoincrement())
-   code        String             @unique @db.VarChar(32)
-   name        String             @db.VarChar(255)
-   address     String             @db.VarChar(255)
-   phone       String?            @db.VarChar(30)
-   isActive    Boolean            @default(true)
-   createdAt   DateTime           @default(now())
-   updatedAt   DateTime           @updatedAt
-   services    BranchService[]
-   specialists BranchSpecialist[]
-   appointments Appointment[]
+   editingBranch: Branch | null
+   onBranchFormChange: (next: BranchForm) => void
+   onSaveBranch: () => Promise<void>
+   onEditBranch: (branch: Branch) => void
+   onDeleteBranch: (branch: Branch) => Promise<void>
+   onCancelEdit: () => void
  }
- 
- model ServiceCategory {
-   id        Int      @id @default(autoincrement())
-   name      String   @unique @db.VarChar(255)
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
-   services  Service[]
+
+ export type ServicesTabProps = CommonTabProps & {
+   services: SpaService[]
+   categories: ServiceCategory[]
+   serviceForm: ServiceForm
+   editingService: SpaService | null
+   selectedImageName: string
++  searchKeyword: string
++  pagination: { page: number; pageSize: number; total: number; totalPages: number }
++  onSearchKeywordChange: (value: string) => void
++  onPageChange: (page: number) => void
++  onPageSizeChange: (size: number) => void
+   onServiceFormChange: (next: ServiceForm) => void
+   onSelectImage: (file: File | null) => void
+   onSaveService: () => Promise<void>
+   onEditService: (service: SpaService) => void
+   onDeleteService: (service: SpaService) => Promise<void>
+   onCancelEdit: () => void
  }
- 
- model Service {
-   id           Int                 @id @default(autoincrement())
--  code         String              @unique @db.VarChar(32)
-   name         String              @db.VarChar(255)
-   description  String?             @db.Text
-   categoryId   Int?
-   goals        Json?
-   suitableFor  Json?
-   process      Json?
-   durationMin  Int
-   price        Int                 @default(0)
-   ratingAvg    Float               @default(5)
-   bookedCount  Int                 @default(0)
-   tag          String?             @db.VarChar(80)
-   imageUrl     String?             @db.VarChar(500)
-   isActive     Boolean             @default(true)
-   createdAt    DateTime            @default(now())
-   updatedAt    DateTime            @updatedAt
-   category     ServiceCategory?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-   branches     BranchService[]
-   specialists  ServiceSpecialist[]
-   appointments Appointment[]
-   reviews      ServiceReview[]
- 
-   @@index([categoryId])
+
+ export type CategoriesTabProps = CommonTabProps & {
+   categories: ServiceCategory[]
+   categoryForm: CategoryForm
+   editingCategory: ServiceCategory | null
+   onCategoryFormChange: (next: CategoryForm) => void
+   onSaveCategory: () => Promise<void>
+   onEditCategory: (category: ServiceCategory) => void
+   onDeleteCategory: (category: ServiceCategory) => Promise<void>
+   onCancelEdit: () => void
  }
- 
- model Specialist {
-diff --git a/backend/ayanavitabackend/app/api/prisma/seed.ts b/backend/ayanavitabackend/app/api/prisma/seed.ts
-index ef30651305d111bf29d23235cbfb24e9d6319b60..1dd1ed6446674e576af1c3f26a0da43620c862c9 100644
---- a/backend/ayanavitabackend/app/api/prisma/seed.ts
-+++ b/backend/ayanavitabackend/app/api/prisma/seed.ts
-@@ -21,141 +21,141 @@ async function main() {
-     update: {},
-     create: {
-       email: 'test@ayanavita.com',
-       password: passwordHash,
-       name: 'Test User',
-       role: 'USER',
-     },
-   })
- 
-   const seedCourses = [
-     { title: 'Course 1 - Basic', price: 99000 },
-     { title: 'Course 2 - Pro', price: 199000 },
-     { title: 'Course 3 - Master', price: 299000 },
-   ].map((c) => ({ ...c, slug: slugify(c.title) }))
- 
-   await prisma.course.createMany({ data: seedCourses, skipDuplicates: true })
- 
-   const branchSeeds = [
-     { code: 'HCM_Q1', name: 'AYANAVITA • Quận 1 (HCM)', address: '12 Nguyễn Huệ, Quận 1, TP.HCM', phone: '0900000001' },
-     { code: 'HN_CG', name: 'AYANAVITA • Cầu Giấy (HN)', address: '88 Trần Thái Tông, Cầu Giấy, Hà Nội', phone: '0900000002' },
-     { code: 'DN_HC', name: 'AYANAVITA • Hải Châu (ĐN)', address: '25 Bạch Đằng, Hải Châu, Đà Nẵng', phone: '0900000003' },
-   ]
- 
-   const serviceSeeds = [
-     {
--      code: 'SV-01',
-       name: 'Chăm sóc da chuyên sâu 👏',
-       categoryName: 'Chăm sóc da',
-       goals: ['restore', 'bright'],
-       suitableFor: ['Da xỉn màu', 'Da thiếu ẩm'],
-       durationMin: 75,
-       price: 590000,
-       ratingAvg: 4.9,
-       bookedCount: 1320,
-       tag: 'Best seller',
-       imageUrl: 'https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&w=1200&q=70',
-       description: 'Liệu trình làm sạch và phục hồi da chuyên sâu.',
-     },
-     {
--      code: 'SV-03',
-       name: 'Massage thư giãn toàn thân 🤗',
-       categoryName: 'Chăm sóc cơ thể',
-       goals: ['relax'],
-       suitableFor: ['Người stress', 'Mất ngủ'],
-       durationMin: 60,
-       price: 450000,
-       ratingAvg: 4.7,
-       bookedCount: 1640,
-       tag: 'Relax',
-       imageUrl: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=1200&q=70',
-       description: 'Massage toàn thân giúp thư giãn và giảm căng cơ.',
-     },
-     {
--      code: 'SV-04',
-       name: 'Gội đầu dưỡng sinh 🌿',
-       categoryName: 'Dưỡng sinh',
-       goals: ['relax', 'pain'],
-       suitableFor: ['Dân văn phòng', 'Hay đau đầu'],
-       durationMin: 60,
-       price: 320000,
-       ratingAvg: 4.8,
-       bookedCount: 2100,
-       tag: 'Hot',
-       imageUrl: 'https://images.unsplash.com/photo-1596178060671-7a80dc8059ea?auto=format&fit=crop&w=1200&q=70',
-       description: 'Kết hợp massage da đầu và tinh dầu giúp giảm căng thẳng.',
-     },
-     {
--      code: 'SV-06',
-       name: 'Combo da + massage ✨',
-       categoryName: 'Combo liệu trình',
-       goals: ['restore', 'relax'],
-       suitableFor: ['Cần phục hồi toàn diện', 'Thiếu thời gian'],
-       durationMin: 120,
-       price: 1050000,
-       ratingAvg: 4.9,
-       bookedCount: 420,
-       tag: 'Combo',
-       imageUrl: 'https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?auto=format&fit=crop&w=1200&q=70',
-       description: 'Kết hợp chăm sóc da và massage trị liệu trong một buổi.',
-     },
-   ]
- 
-   const specialistSeeds: Array<{ code: string; name: string; level: SpecialistLevel; bio: string }> = [
-     { code: 'LINH', name: 'Chuyên viên Linh', level: SpecialistLevel.SENIOR, bio: '8 năm kinh nghiệm chăm sóc da.' },
-     { code: 'TRANG', name: 'Chuyên viên Trang', level: SpecialistLevel.EXPERT, bio: 'Chuyên gia massage trị liệu.' },
-     { code: 'MAI', name: 'Chuyên viên Mai', level: SpecialistLevel.SENIOR, bio: 'Tư vấn liệu trình phục hồi da.' },
-     { code: 'NAM', name: 'Chuyên viên Nam', level: SpecialistLevel.THERAPIST, bio: 'Kỹ thuật viên trị liệu cổ vai gáy.' },
-   ]
- 
-   for (const b of branchSeeds) {
-     await prisma.branch.upsert({ where: { code: b.code }, update: b, create: b })
+
+ export type SpecialistsTabProps = CommonTabProps & {
+   branches: Branch[]
+   services: SpaService[]
+   specialists: Specialist[]
+   specialistForm: SpecialistForm
+   relationForm: RelationForm
+diff --git a/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts b/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
+index c4a89b3135a707e5d201b8bc235119a3e01e16ec..f54bda390c35f47fc74871d507c9fd477ca9ac7f 100644
+--- a/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/booking/booking.controller.ts
+@@ -80,51 +80,56 @@ export class BookingController {
+     return this.booking.deleteCloudImage(input)
    }
- 
-   const categorySeeds = [
-     { name: 'Chăm sóc da' },
-     { name: 'Chăm sóc cơ thể' },
-     { name: 'Dưỡng sinh' },
-     { name: 'Combo liệu trình' },
-     { name: 'Khác' },
-   ]
- 
-   for (const c of categorySeeds) {
-     await prisma.serviceCategory.upsert({ where: { name: c.name }, update: c, create: c })
+
+   @Get('branches')
+   branches(@Query('includeInactive') includeInactive?: string) {
+     return this.booking.listBranches(includeInactive === 'true')
    }
- 
-   const categories = await prisma.serviceCategory.findMany()
-   const categoryMap = new Map(categories.map((c) => [c.name, c.id]))
- 
-   for (const s of serviceSeeds) {
-     const { categoryName, ...serviceData } = s
-     const categoryId = categoryMap.get(categoryName) ?? categoryMap.get('Khác')
--    await prisma.service.upsert({
--      where: { code: s.code },
--      update: { ...serviceData, categoryId },
--      create: { ...serviceData, categoryId },
--    })
-+    const existingService = await prisma.service.findFirst({ where: { name: s.name } })
-+    if (existingService) {
-+      await prisma.service.update({
-+        where: { id: existingService.id },
-+        data: { ...serviceData, categoryId },
-+      })
-+    } else {
-+      await prisma.service.create({ data: { ...serviceData, categoryId } })
-+    }
+
+   @Post('branches')
+   createBranch(@Body() data: any) {
+     return this.booking.createBranch(data)
    }
- 
-   for (const st of specialistSeeds) {
-     await prisma.specialist.upsert({ where: { code: st.code }, update: st, create: st })
+
+   @Patch('branches/:id')
+   updateBranch(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
+     return this.booking.updateBranch(id, data)
    }
- 
-   const branches = await prisma.branch.findMany()
-   const services = await prisma.service.findMany()
-   const specialists = await prisma.specialist.findMany()
- 
-   for (const branch of branches) {
-     for (const service of services) {
-       await prisma.branchService.upsert({
-         where: { branchId_serviceId: { branchId: branch.id, serviceId: service.id } },
-         update: {},
-         create: { branchId: branch.id, serviceId: service.id },
-       })
-     }
- 
-     for (const specialist of specialists) {
-       await prisma.branchSpecialist.upsert({
-         where: { branchId_specialistId: { branchId: branch.id, specialistId: specialist.id } },
-         update: {},
-         create: { branchId: branch.id, specialistId: specialist.id },
-       })
+
+   @Delete('branches/:id')
+   deleteBranch(@Param('id', ParseIntPipe) id: number) {
+     return this.booking.deleteBranch(id)
+   }
+
+   @Get('services')
+   services(@Query() query: BookingFilterQueryDto) {
+-    return this.booking.listServices(query.branchId)
++    return this.booking.listServices({
++      branchId: query.branchId,
++      q: query.q,
++      page: query.page,
++      pageSize: query.pageSize,
++    })
+   }
+
+   @Post('services')
+   @UseInterceptors(
+     FileInterceptor('file', {
+       storage: memoryStorage(),
+       limits: { fileSize: 10 * 1024 * 1024 },
+     }),
+   )
+   createService(@Body() data: any, @UploadedFile() file?: any) {
+     return this.booking.createService(parseMultipartData(data), file)
+   }
+
+   @Patch('services/:id')
+   @UseInterceptors(
+     FileInterceptor('file', {
+       storage: memoryStorage(),
+       limits: { fileSize: 10 * 1024 * 1024 },
+     }),
+   )
+   updateService(@Param('id', ParseIntPipe) id: number, @Body() data: any, @UploadedFile() file?: any) {
+     return this.booking.updateService(id, parseMultipartData(data), file)
+   }
+
+   @Delete('services/:id')
 diff --git a/backend/ayanavitabackend/app/api/src/booking/booking.service.ts b/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
-index 7311aac963e5049cd8c4d054cfd632e233de3763..4d26419b55062d87700fcfd707bb849b7990f776 100644
+index 4d26419b55062d87700fcfd707bb849b7990f776..9acb2048832460fedba68d591339e44870445c2f 100644
 --- a/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
 +++ b/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
-@@ -148,127 +148,124 @@ export class BookingService {
-     const key = this.extractCloudKey(input)
-     if (!key) throw new BadRequestException('fileName or url is required')
-     await this.signedS3Request('DELETE', key)
-     return { ok: true }
+@@ -1,36 +1,37 @@
+ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+ import { Prisma } from '@prisma/client'
+ import { promises as fs } from 'fs'
+ import { createHash, createHmac } from 'crypto'
+ import { extname, join } from 'path'
+ import { PrismaService } from '../prisma/prisma.service'
+ import { CreateAppointmentDto } from './dto/create-appointment.dto'
+ import {
+   BranchResponseDto,
+   ServiceCatalogItemDto,
+   ServiceCategoryResponseDto,
++  ServiceListResponseDto,
+   ServiceResponseDto,
+   ServiceReviewResponseDto,
+   SpecialistResponseDto,
+   TempImageResponseDto,
+ } from './dto/booking-response.dto'
+
+ @Injectable()
+ export class BookingService {
+   constructor(private readonly prisma: PrismaService) {}
+
+   private readonly s3Bucket = process.env.CLOUDFLY_BUCKET || 'ayanavita-dev'
+   private readonly s3Region = process.env.CLOUDFLY_REGION || 'auto'
+   private readonly s3Endpoint = process.env.CLOUDFLY_ENDPOINT || 'https://s3.cloudfly.vn'
+   private readonly s3PublicBaseUrl = process.env.CLOUDFLY_PUBLIC_BASE_URL
+   private readonly s3AccessKey = process.env.CLOUDFLY_ACCESS_KEY || '67NZA2R2X53AYJU5I036'
+   private readonly s3SecretKey = process.env.CLOUDFLY_SECRET_KEY || '56f8Erg7KoBiIedMrvbe0cBNjy3OIPKHdX0vAW4N'
+
+   private toStringArray(value: Prisma.JsonValue | null | undefined): string[] {
+     return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
    }
- 
-   async deleteTempImage(fileName: string) {
-     if (!/^[a-zA-Z0-9._-]+$/.test(fileName)) {
-       throw new BadRequestException('Invalid file name')
-     }
- 
-     const filePath = join(this.tempImageDir, fileName)
-     try {
-       await fs.unlink(filePath)
-       return { ok: true }
-     } catch {
-       return { ok: false }
-     }
-   }
- 
-   async listServicesCatalog(): Promise<ServiceCatalogItemDto[]> {
-     const rows = await this.prisma.service.findMany({
-       where: { isActive: true },
-       select: {
-         id: true,
--        code: true,
-         name: true,
-         category: { select: { name: true } },
-         goals: true,
-         suitableFor: true,
-         durationMin: true,
-         price: true,
-         ratingAvg: true,
-         bookedCount: true,
-         imageUrl: true,
-         tag: true,
-       },
-       orderBy: { id: 'asc' },
-     })
- 
-     return rows.map((s) => ({
--      id: s.code,
-+      id: String(s.id),
-       dbId: s.id,
-       name: s.name,
-       cat: (s.category?.name ?? 'health').toLowerCase().replace(/\s+/g, '-'),
-       goal: this.toStringArray(s.goals),
-       duration: s.durationMin,
+
+   private readonly tempImageDir = join(process.cwd(), 'temp-images')
+
+   async saveTempImage(file: any): Promise<TempImageResponseDto> {
+     await fs.mkdir(this.tempImageDir, { recursive: true })
+@@ -194,93 +195,114 @@ export class BookingService {
        price: s.price,
        rating: s.ratingAvg,
        booked: s.bookedCount,
@@ -768,14 +885,14 @@ index 7311aac963e5049cd8c4d054cfd632e233de3763..4d26419b55062d87700fcfd707bb849b
        tag: s.tag ?? 'Spa',
      }))
    }
- 
+
    async listBranches(includeInactive = false): Promise<BranchResponseDto[]> {
      const rows = await this.prisma.branch.findMany({
        where: includeInactive ? {} : { isActive: true },
        select: { id: true, code: true, name: true, address: true, phone: true, isActive: true },
        orderBy: { id: 'asc' },
      })
- 
+
      return rows.map((b) => ({
        id: b.id,
        code: b.code,
@@ -785,37 +902,74 @@ index 7311aac963e5049cd8c4d054cfd632e233de3763..4d26419b55062d87700fcfd707bb849b
        isActive: b.isActive,
      }))
    }
- 
-   async listServices(branchId?: number): Promise<ServiceResponseDto[]> {
-     const rows = await this.prisma.service.findMany({
-       where: {
-         isActive: true,
-         ...(branchId ? { branches: { some: { branchId } } } : {}),
-       },
-       select: {
-         id: true,
--        code: true,
-         name: true,
-         description: true,
-         categoryId: true,
-         category: { select: { name: true } },
-         goals: true,
-         suitableFor: true,
-         process: true,
-         durationMin: true,
-         price: true,
-         ratingAvg: true,
-         bookedCount: true,
-         tag: true,
-         imageUrl: true,
-         branches: { select: { branchId: true } },
-       },
-       orderBy: { id: 'asc' },
-     })
- 
-     return rows.map((s) => ({
+
+-  async listServices(branchId?: number): Promise<ServiceResponseDto[]> {
+-    const rows = await this.prisma.service.findMany({
+-      where: {
+-        isActive: true,
+-        ...(branchId ? { branches: { some: { branchId } } } : {}),
+-      },
+-      select: {
+-        id: true,
+-        name: true,
+-        description: true,
+-        categoryId: true,
+-        category: { select: { name: true } },
+-        goals: true,
+-        suitableFor: true,
+-        process: true,
+-        durationMin: true,
+-        price: true,
+-        ratingAvg: true,
+-        bookedCount: true,
+-        tag: true,
+-        imageUrl: true,
+-        branches: { select: { branchId: true } },
+-      },
+-      orderBy: { id: 'asc' },
+-    })
++  async listServices(params: { branchId?: number; q?: string; page?: number; pageSize?: number }): Promise<ServiceListResponseDto> {
++    const page = params.page && params.page > 0 ? params.page : 1
++    const pageSize = params.pageSize && params.pageSize > 0 ? Math.min(params.pageSize, 100) : 10
++    const skip = (page - 1) * pageSize
++    const query = params.q?.trim()
+
+-    return rows.map((s) => ({
++    const where = {
++      isActive: true,
++      ...(params.branchId ? { branches: { some: { branchId: params.branchId } } } : {}),
++      ...(query ? { name: { contains: query } } : {}),
++    }
++
++    const [rows, total] = await Promise.all([
++      this.prisma.service.findMany({
++        where,
++        select: {
++          id: true,
++          name: true,
++          description: true,
++          categoryId: true,
++          category: { select: { name: true } },
++          goals: true,
++          suitableFor: true,
++          process: true,
++          durationMin: true,
++          price: true,
++          ratingAvg: true,
++          bookedCount: true,
++          tag: true,
++          imageUrl: true,
++          branches: { select: { branchId: true } },
++        },
++        orderBy: { id: 'asc' },
++        skip,
++        take: pageSize,
++      }),
++      this.prisma.service.count({ where }),
++    ])
++
++    const items: ServiceResponseDto[] = rows.map((s) => ({
        id: s.id,
--      code: s.code,
        name: s.name,
        description: s.description,
        categoryId: s.categoryId,
@@ -831,8 +985,16 @@ index 7311aac963e5049cd8c4d054cfd632e233de3763..4d26419b55062d87700fcfd707bb849b
        imageUrl: s.imageUrl,
        branchIds: s.branches.map((b) => b.branchId),
      }))
++
++    return {
++      items,
++      total,
++      page,
++      pageSize,
++      totalPages: Math.max(1, Math.ceil(total / pageSize)),
++    }
    }
- 
+
    async listSpecialists(branchId?: number, serviceId?: number): Promise<SpecialistResponseDto[]> {
      const rows = await this.prisma.specialist.findMany({
        where: {
@@ -841,106 +1003,80 @@ index 7311aac963e5049cd8c4d054cfd632e233de3763..4d26419b55062d87700fcfd707bb849b
          ...(serviceId ? { services: { some: { serviceId } } } : {}),
        },
        select: {
-@@ -375,68 +372,55 @@ export class BookingService {
-         branchId: dto.branchId,
-         serviceId: dto.serviceId,
-         specialistId: dto.specialistId,
-         userId: dto.userId,
+         id: true,
+         code: true,
+         name: true,
+         level: true,
+         bio: true,
+         branches: { select: { branchId: true } },
+         services: { select: { serviceId: true } },
        },
-       include: {
-         branch: { select: { id: true, name: true } },
-         service: { select: { id: true, name: true, durationMin: true, price: true } },
-         specialist: { select: { id: true, name: true, level: true } },
-       },
+       orderBy: { id: 'asc' },
      })
- 
-     return created
-   }
- 
-   async updateAppointment(id: number, data: any) {
-     return this.prisma.appointment.update({ where: { id }, data })
-   }
- 
-   async deleteAppointment(id: number) {
-     await this.prisma.appointment.delete({ where: { id } })
-     return { ok: true }
-   }
- 
- 
--  private normalizeServiceCode(name?: string) {
--    const base = (name || '')
--      .normalize('NFD')
--      .replace(/[̀-ͯ]/g, '')
--      .replace(/đ/gi, 'd')
--      .toUpperCase()
--      .replace(/[^A-Z0-9]+/g, '_')
--      .replace(/^_+|_+$/g, '')
--
--    return `SRV_${base || Date.now()}`
--  }
--
-   private sanitizeServiceData(data: any) {
-     const goalsInput = Array.isArray(data.goals) ? data.goals : []
-     const suitableForInput = Array.isArray(data.suitableFor) ? data.suitableFor : []
-     const processInput = Array.isArray(data.process) ? data.process : []
-     return {
--      code: data.code || this.normalizeServiceCode(data.name),
-       name: data.name,
-       description: data.description,
-       categoryId: data.categoryId ? Number(data.categoryId) : null,
-       goals: goalsInput,
-       suitableFor: suitableForInput,
-       process: processInput,
-       durationMin: Number(data.durationMin ?? 60),
-       price: Number(data.price ?? 0),
-       tag: data.tag,
-     }
-   }
- 
-   async createService(data: any, file?: any) {
-     if (!data.categoryId) {
-       throw new BadRequestException('categoryId is required')
-     }
-     let imageUrl: string | undefined
-     if (file) {
-       const uploaded = await this.uploadImageToCloud(file)
-       imageUrl = uploaded.url
-     }
-     return this.prisma.service.create({ data: { ...this.sanitizeServiceData(data), imageUrl } })
-   }
- 
-   async updateService(id: number, data: any, file?: any) {
+
+     return rows.map((s) => ({
+       id: s.id,
+       code: s.code,
+       name: s.name,
+diff --git a/backend/ayanavitabackend/app/api/src/booking/dto/booking-query.dto.ts b/backend/ayanavitabackend/app/api/src/booking/dto/booking-query.dto.ts
+index 65ccc505f09c68ae0a384db3022a043ed95944d5..16017c818b4c29245b65e63ed11a5b564b53e971 100644
+--- a/backend/ayanavitabackend/app/api/src/booking/dto/booking-query.dto.ts
++++ b/backend/ayanavitabackend/app/api/src/booking/dto/booking-query.dto.ts
+@@ -1,22 +1,39 @@
+ import { Type } from 'class-transformer'
+-import { IsInt, IsOptional, Min } from 'class-validator'
++import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
+
+ export class BookingFilterQueryDto {
+   @IsOptional()
+   @Type(() => Number)
+   @IsInt()
+   @Min(1)
+   branchId?: number
+
+   @IsOptional()
+   @Type(() => Number)
+   @IsInt()
+   @Min(1)
+   serviceId?: number
+
+   @IsOptional()
+   @Type(() => Number)
+   @IsInt()
+   @Min(1)
+   userId?: number
++
++  @IsOptional()
++  @IsString()
++  q?: string
++
++  @IsOptional()
++  @Type(() => Number)
++  @IsInt()
++  @Min(1)
++  page?: number
++
++  @IsOptional()
++  @Type(() => Number)
++  @IsInt()
++  @Min(1)
++  @Max(100)
++  pageSize?: number
+ }
 diff --git a/backend/ayanavitabackend/app/api/src/booking/dto/booking-response.dto.ts b/backend/ayanavitabackend/app/api/src/booking/dto/booking-response.dto.ts
-index c7165fb7bfbfb5d86132ff08d2fff3332f46b944..f6811c62fd190a068a947a95f76cd014b65cc488 100644
+index f6811c62fd190a068a947a95f76cd014b65cc488..b1a5a251f5c775a41253f6e30f2dbcd1245c377a 100644
 --- a/backend/ayanavitabackend/app/api/src/booking/dto/booking-response.dto.ts
 +++ b/backend/ayanavitabackend/app/api/src/booking/dto/booking-response.dto.ts
-@@ -1,51 +1,50 @@
- export class BranchResponseDto {
-   id!: number
-   code!: string
-   name!: string
-   address!: string
-   phone?: string | null
-   isActive!: boolean
- }
- 
- export class ServiceCatalogItemDto {
-   id!: string
-   dbId!: number
-   name!: string
-   cat!: string
-   goal!: string[]
-   duration!: number
+@@ -17,50 +17,58 @@ export class ServiceCatalogItemDto {
    price!: number
    rating!: number
    booked!: number
    img?: string | null
    tag!: string
  }
- 
+
  export class ServiceResponseDto {
    id!: number
--  code!: string
    name!: string
    description?: string | null
    categoryId?: number | null
@@ -956,13 +1092,37 @@ index c7165fb7bfbfb5d86132ff08d2fff3332f46b944..f6811c62fd190a068a947a95f76cd014
    imageUrl?: string | null
    branchIds!: number[]
  }
- 
+
++export class ServiceListResponseDto {
++  items!: ServiceResponseDto[]
++  total!: number
++  page!: number
++  pageSize!: number
++  totalPages!: number
++}
++
  export class ServiceCategoryResponseDto {
    id!: number
    name!: string
    serviceCount!: number
  }
- 
+
  export class SpecialistResponseDto {
    id!: number
    code!: string
+   name!: string
+   level!: string
+   bio?: string | null
+   branchIds!: number[]
+   serviceIds!: number[]
+ }
+
+ export class ServiceReviewResponseDto {
+   id!: number
+   serviceId!: number
+   userId?: number | null
+   stars!: number
+   comment?: string | null
+   customerName?: string | null
+   createdAt!: Date
+ }

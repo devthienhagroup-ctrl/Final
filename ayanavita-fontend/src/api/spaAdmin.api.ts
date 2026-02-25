@@ -18,6 +18,14 @@ export type SpaService = {
   tag?: string
   branchIds: number[]
 }
+export type PaginatedServiceResponse = {
+  items: SpaService[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
 export type ServiceCategory = {
   id: number
   name: string
@@ -56,7 +64,15 @@ export type Appointment = {
 
 export const spaAdminApi = {
   branches: (includeInactive = false) => get<Branch[]>(`/booking/branches${includeInactive ? '?includeInactive=true' : ''}`, { auth: false }),
-  services: () => get<SpaService[]>('/booking/services', { auth: false }),
+  services: (params?: { q?: string; page?: number; pageSize?: number; branchId?: number }) => {
+    const query = new URLSearchParams()
+    if (params?.q?.trim()) query.set('q', params.q.trim())
+    if (params?.page) query.set('page', String(params.page))
+    if (params?.pageSize) query.set('pageSize', String(params.pageSize))
+    if (params?.branchId) query.set('branchId', String(params.branchId))
+    const queryString = query.toString()
+    return get<PaginatedServiceResponse>(`/booking/services${queryString ? `?${queryString}` : ''}`, { auth: false })
+  },
   serviceCategories: () => get<ServiceCategory[]>('/booking/service-categories', { auth: false }),
   specialists: () => get<Specialist[]>('/booking/specialists', { auth: false }),
   reviews: () => get<ServiceReview[]>('/booking/service-reviews', { auth: false }),

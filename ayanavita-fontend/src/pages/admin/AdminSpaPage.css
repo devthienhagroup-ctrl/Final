@@ -358,15 +358,51 @@
 .admin-badge-sky { background: #e0f2fe; color: #0369a1; border-color: #bae6fd; }
 .admin-badge-amber { background: #fffbeb; color: #b45309; border-color: #fde68a; }
 
+
+.admin-badge-ellipsis {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.services-toolbar {
+  margin: 14px 0;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.services-search-field {
+  min-width: min(420px, 100%);
+  flex: 1;
+}
+
+.services-size-field {
+  width: 160px;
+}
+
+.services-empty-state {
+  text-align: center;
+  color: #64748b;
+  font-weight: 600;
+}
+
 .services-table th,
 .services-table td {
   white-space: nowrap;
 }
 
 .services-name-cell {
-  min-width: 280px;
-  max-width: 360px;
+  min-width: 190px;
+  max-width: 220px;
   font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.services-category-cell {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .services-rating {
@@ -375,6 +411,13 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.services-rating-icon {
+  font-size: 12px;
 }
 
 .services-booked {
@@ -462,4 +505,13 @@
   border: 1px solid #dbe3f2;
   box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
   padding: 16px;
+}
+
+.services-pagination {
+  margin-top: 12px;
+}
+
+.services-pagination-controls {
+  gap: 8px;
+  align-items: center;
 }

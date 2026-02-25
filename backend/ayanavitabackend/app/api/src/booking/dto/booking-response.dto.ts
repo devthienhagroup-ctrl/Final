@@ -39,6 +39,14 @@ export class ServiceResponseDto {
   branchIds!: number[]
 }
 
+export class ServiceListResponseDto {
+  items!: ServiceResponseDto[]
+  total!: number
+  page!: number
+  pageSize!: number
+  totalPages!: number
+}
+
 export class ServiceCategoryResponseDto {
   id!: number
   name!: string

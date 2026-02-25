@@ -9,6 +9,7 @@ import {
   BranchResponseDto,
   ServiceCatalogItemDto,
   ServiceCategoryResponseDto,
+  ServiceListResponseDto,
   ServiceResponseDto,
   ServiceReviewResponseDto,
   SpecialistResponseDto,
@@ -216,33 +217,46 @@ export class BookingService {
     }))
   }
 
-  async listServices(branchId?: number): Promise<ServiceResponseDto[]> {
-    const rows = await this.prisma.service.findMany({
-      where: {
-        isActive: true,
-        ...(branchId ? { branches: { some: { branchId } } } : {}),
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        categoryId: true,
-        category: { select: { name: true } },
-        goals: true,
-        suitableFor: true,
-        process: true,
-        durationMin: true,
-        price: true,
-        ratingAvg: true,
-        bookedCount: true,
-        tag: true,
-        imageUrl: true,
-        branches: { select: { branchId: true } },
-      },
-      orderBy: { id: 'asc' },
-    })
+  async listServices(params: { branchId?: number; q?: string; page?: number; pageSize?: number }): Promise<ServiceListResponseDto> {
+    const page = params.page && params.page > 0 ? params.page : 1
+    const pageSize = params.pageSize && params.pageSize > 0 ? Math.min(params.pageSize, 100) : 10
+    const skip = (page - 1) * pageSize
+    const query = params.q?.trim()
 
-    return rows.map((s) => ({
+    const where = {
+      isActive: true,
+      ...(params.branchId ? { branches: { some: { branchId: params.branchId } } } : {}),
+      ...(query ? { name: { contains: query } } : {}),
+    }
+
+    const [rows, total] = await Promise.all([
+      this.prisma.service.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          categoryId: true,
+          category: { select: { name: true } },
+          goals: true,
+          suitableFor: true,
+          process: true,
+          durationMin: true,
+          price: true,
+          ratingAvg: true,
+          bookedCount: true,
+          tag: true,
+          imageUrl: true,
+          branches: { select: { branchId: true } },
+        },
+        orderBy: { id: 'asc' },
+        skip,
+        take: pageSize,
+      }),
+      this.prisma.service.count({ where }),
+    ])
+
+    const items: ServiceResponseDto[] = rows.map((s) => ({
       id: s.id,
       name: s.name,
       description: s.description,
@@ -259,6 +273,14 @@ export class BookingService {
       imageUrl: s.imageUrl,
       branchIds: s.branches.map((b) => b.branchId),
     }))
+
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    }
   }
 
   async listSpecialists(branchId?: number, serviceId?: number): Promise<SpecialistResponseDto[]> {

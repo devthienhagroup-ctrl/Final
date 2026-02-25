@@ -142,6 +142,7 @@ async function main() {
   for (const st of specialistSeeds) {
     const branchId = branchByCode.get(st.branchCode)
     if (!branchId) continue
+    const specialistData = (({ email, branchCode, ...rest }) => rest)(st)
 
     const staffUser = await prisma.user.upsert({
       where: { email: st.email },
@@ -159,18 +160,14 @@ async function main() {
       await prisma.specialist.update({
         where: { id: existingSpecialist.id },
         data: {
-          name: st.name,
-          level: st.level,
-          bio: st.bio,
+          ...specialistData,
           branch: { connect: { id: branchId } },
         },
       })
     } else {
       await prisma.specialist.create({
         data: {
-          name: st.name,
-          level: st.level,
-          bio: st.bio,
+          ...specialistData,
           branch: { connect: { id: branchId } },
           user: { connect: { id: staffUser.id } },
         },

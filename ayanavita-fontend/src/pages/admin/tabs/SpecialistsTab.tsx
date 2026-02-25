@@ -64,7 +64,7 @@ export function SpecialistsTab({ branches, services, specialists, specialistForm
 
       <section className='admin-card'>
         <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> Danh sách chuyên viên</h3>
-        <div className='admin-row admin-row-between'>
+        <div className='admin-row admin-row-between mb-2'>
           <label className='admin-field-inline'>
             <span className='admin-label'><i className='fa-solid fa-magnifying-glass' /> Tìm tên</span>
             <input
@@ -89,7 +89,7 @@ export function SpecialistsTab({ branches, services, specialists, specialistForm
           </label>
         </div>
 
-        <div className='admin-table-wrap'>
+        <div className='admin-table-wrap !mt-2' >
           <table className='admin-table'>
             <thead>
               <tr>

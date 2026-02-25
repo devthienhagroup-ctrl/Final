@@ -8,6 +8,7 @@ import { CreateAppointmentDto } from './dto/create-appointment.dto'
 import {
   BranchResponseDto,
   ServiceCatalogItemDto,
+  ServiceCategoryResponseDto,
   ServiceResponseDto,
   ServiceReviewResponseDto,
   SpecialistResponseDto,

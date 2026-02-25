@@ -9,7 +9,7 @@ diff a/backend/ayanavitabackend/app/api/src/booking/booking.service.ts b/backend
  import { CreateAppointmentDto } from './dto/create-appointment.dto'
  import {
    BranchResponseDto,
-+  ServiceCategoryResponseDto,
+   ServiceCategoryResponseDto,
    ServiceCatalogItemDto,
    ServiceResponseDto,
    ServiceReviewResponseDto,

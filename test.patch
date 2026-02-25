@@ -1,231 +1,269 @@
-diff --git a/Home/ayanavita-fontend-final/.env b/Home/ayanavita-fontend-final/.env
-new file mode 100644
-index 0000000000000000000000000000000000000000..dc27dbcb5aa7cca87f6ff295b2687edd738127cb
---- /dev/null
-+++ b/Home/ayanavita-fontend-final/.env
-@@ -0,0 +1 @@
-+VITE_API_URL=http://localhost:8090
-diff --git a/Home/ayanavita-fontend-final/.env.example b/Home/ayanavita-fontend-final/.env.example
-new file mode 100644
-index 0000000000000000000000000000000000000000..dc27dbcb5aa7cca87f6ff295b2687edd738127cb
---- /dev/null
-+++ b/Home/ayanavita-fontend-final/.env.example
-@@ -0,0 +1 @@
-+VITE_API_URL=http://localhost:8090
-diff --git a/Home/ayanavita-fontend-final/src/api/http.ts b/Home/ayanavita-fontend-final/src/api/http.ts
-index 45371651580a823ca0b37f9959007de4f39112a7..b3aa89b3c3abe9028005c69362a6913ef4c8f125 100644
---- a/Home/ayanavita-fontend-final/src/api/http.ts
-+++ b/Home/ayanavita-fontend-final/src/api/http.ts
-@@ -1,19 +1,19 @@
- import axios from "axios";
- 
--const baseURL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
-+const baseURL = import.meta.env.VITE_API_URL ?? "http://localhost:8090";
- 
- export const http = axios.create({
-   baseURL,
-   timeout: 20000,
-   headers: { "Content-Type": "application/json" },
- });
- 
- http.interceptors.request.use((config) => {
-   const token = localStorage.getItem("aya_access_token");
-   if (token) {
-     // axios v1 headers có thể là object hoặc AxiosHeaders -> normalize
-     config.headers = (config.headers ?? {}) as any;
-     (config.headers as any).Authorization = `Bearer ${token}`;
-   }
-   return config;
- });
-diff --git a/Home/ayanavita-fontend-final/vite.config.ts b/Home/ayanavita-fontend-final/vite.config.ts
-index 1d8fa73113c5a29503dd6b486a844d6f467760f1..e0c03eafc6b63cf4000155f3381a99cee631d851 100644
---- a/Home/ayanavita-fontend-final/vite.config.ts
-+++ b/Home/ayanavita-fontend-final/vite.config.ts
-@@ -1,7 +1,10 @@
--// vite.config.ts
- import { defineConfig } from "vite";
- import react from "@vitejs/plugin-react";
- 
- export default defineConfig({
-   plugins: [react()],
-+  server: {
-+    host: "0.0.0.0",
-+    port: 5176,
-+  },
- });
-diff --git a/backend/ayanavitabackend/app/api/src/main.ts b/backend/ayanavitabackend/app/api/src/main.ts
-index 0bb67b92130df77c8041c4c19d43695865d4fb46..f2a1da3d887b653b2f8aa0fd71a7ffdcf2bace4c 100644
---- a/backend/ayanavitabackend/app/api/src/main.ts
-+++ b/backend/ayanavitabackend/app/api/src/main.ts
-@@ -5,50 +5,52 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
- import { AppModule } from "./app.module";
- import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
- 
- async function bootstrap() {
-   const app = await NestFactory.create(AppModule, {
-     logger: ["log", "error", "warn", "debug", "verbose"],
-   });
- 
-   // ✅ CORS – chuẩn cho cả production + admin + dev
-   const allow = new Set<string>([
-     // 🌍 Production main domain
-     "http://ayanavita-germany.com",
-     "https://ayanavita-germany.com",
- 
-     // 🔐 Admin subdomain
-     "http://admin.ayanavita.com",
-     "https://admin.ayanavita.com",
- 
-     // 🧪 Dev local
-     "http://localhost:5173",
-     "http://127.0.0.1:5173",
-     "http://localhost:5174",
-     "http://127.0.0.1:5174",
-     "http://localhost:5175",
-     "http://127.0.0.1:5175",
-+    "http://localhost:5176",
-+    "http://127.0.0.1:5176",
-     "http://localhost:5050",
-     "http://127.0.0.1:5050",
-   ]);
- 
-   app.enableCors({
-     origin: (origin, callback) => {
-       // Cho phép server-to-server hoặc curl
-       if (!origin) return callback(null, true);
- 
-       if (allow.has(origin)) {
-         return callback(null, true);
-       }
- 
-       console.error(`❌ CORS blocked for origin: ${origin}`);
-       return callback(new Error(`CORS blocked for origin: ${origin}`), false);
-     },
-     credentials: true,
-     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-     allowedHeaders: ["Content-Type", "Authorization"],
-     optionsSuccessStatus: 204,
-   });
- 
-   // ✅ Global Exception Filter
-   app.useGlobalFilters(new AllExceptionsFilter());
- 
-diff --git a/docker-compose.yml b/docker-compose.yml
-index 84bbd274ffc5642f43e811d493815421f1c1cdd0..14ec190f8efff5b73be2f0bb2de173edc000b366 100644
---- a/docker-compose.yml
-+++ b/docker-compose.yml
-@@ -1,94 +1,103 @@
- services:
-   mysql:
-     image: mysql:8.0
-     container_name: ayanavita-mysql
-     command: --default-authentication-plugin=mysql_native_password
-     environment:
-       MYSQL_ROOT_PASSWORD: rootpassword
-       MYSQL_DATABASE: ayanavita
-       MYSQL_USER: ayanavita
-       MYSQL_PASSWORD: ayanavita_pw
-       TZ: Asia/Ho_Chi_Minh
-     volumes:
-       - mysql_data:/var/lib/mysql
-     ports:
-       - "3306:3306"
-     restart: unless-stopped
-     networks:
-       - aya_net
- 
--  # =====================
--  # BACKEND (DEV MODE)
--  # =====================
-   backend:
-     image: node:20-alpine
-     container_name: ayanavita-backend
-     working_dir: /app
-     volumes:
-       - ./backend/ayanavitabackend/app/api:/app
-       - /app/node_modules
-     command: sh -c "npm install && npx prisma generate && npm run start:dev"
-     env_file:
-       - ./backend/ayanavitabackend/app/api/.env
-     environment:
-       NODE_ENV: development
-       PORT: 8090
-     depends_on:
-       - mysql
-     ports:
-       - "8090:8090"
-     networks:
-       - aya_net
- 
--  # =====================
--  # FRONTEND (VITE DEV)
--  # =====================
-   frontend:
-     image: node:20-alpine
-     container_name: ayanavita-frontend
-     working_dir: /app
-     volumes:
-       - ./frontend:/app
-       - ./frontend/landingpageayanavita:/app
-       - /app/node_modules
-     command: sh -c "npm install && npm run dev"
-     environment:
-       NODE_ENV: development
-     ports:
-       - "5174:5174"
-     networks:
-       - aya_net
- 
--  # =====================
--  # ADMIN (REACT DEV)
--  # =====================
-+  frontend-final:
-+    image: node:20-alpine
-+    container_name: ayanavita-frontend-final
-+    working_dir: /app
-+    volumes:
-+      - ./Home/ayanavita-fontend-final:/app
-+      - /app/node_modules
-+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5176"
-+    environment:
-+      NODE_ENV: development
-+      VITE_API_URL: http://backend:8090
-+    depends_on:
-+      - backend
-+    ports:
-+      - "5176:5176"
-+    networks:
-+      - aya_net
+diff --git a/Home/ayanavita-fontend-final/src/pages/ContactPage.tsx b/Home/ayanavita-fontend-final/src/pages/ContactPage.tsx
+index 057f09af8cb6a8d2fb37db7b5359bb69bf09959f..234558970b4b592f17289468fa64737df0554ef3 100644
+--- a/Home/ayanavita-fontend-final/src/pages/ContactPage.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/ContactPage.tsx
+@@ -1,115 +1,223 @@
+-import React from "react";
++import React, { useEffect, useMemo, useState } from "react";
++import { http } from "../api/http";
 +
-   admin:
-     image: node:20-alpine
-     container_name: ayanavita-admin
-     working_dir: /app
-     volumes:
-       - ./backend/ayanavitabackend/app/admin:/app
-       - /app/node_modules
-     command: sh -c "npm install && npm run dev -- --host"
-     environment:
-       NODE_ENV: development
-       VITE_API_BASE: http://localhost:8090
-     ports:
-       - "5050:5173"
-     networks:
-       - aya_net
- 
-   adminer:
-     image: adminer
-     container_name: ayanavita-adminer
-     ports:
-       - "8081:8080"
-     networks:
-       - aya_net
- 
- volumes:
-   mysql_data:
- 
- networks:
-   aya_net:
--    driver: bridge
++type CmsData = {
++    hero: {
++        eyebrow: string;
++        title: string;
++        description: string;
++    };
++    form: {
++        fullNameLabel: string;
++        fullNamePlaceholder: string;
++        phoneLabel: string;
++        phonePlaceholder: string;
++        emailLabel: string;
++        emailPlaceholder: string;
++        messageLabel: string;
++        messagePlaceholder: string;
++        submitLabel: string;
++    };
++    info: {
++        title: string;
++        hotlineLabel: string;
++        hotlineValue: string;
++        emailLabel: string;
++        emailValue: string;
++        addressLabel: string;
++        addressValue: string;
++        note: string;
++        mapLinkLabel: string;
++        mapLinkHref: string;
++    };
++};
++
++const cmsDataDefault: CmsData = {
++    hero: {
++        eyebrow: "Liên hệ AYANAVITA",
++        title: "Kết nối với đội ngũ tư vấn trong 24 giờ",
++        description:
++            "Nếu bạn cần tư vấn dịch vụ spa, khoá học hoặc hợp tác nhượng quyền, hãy để lại thông tin. Đội ngũ AYANAVITA sẽ liên hệ để hỗ trợ lộ trình phù hợp nhất cho bạn.",
++    },
++    form: {
++        fullNameLabel: "Họ và tên",
++        fullNamePlaceholder: "Nhập họ và tên của bạn",
++        phoneLabel: "Số điện thoại",
++        phonePlaceholder: "Nhập số điện thoại",
++        emailLabel: "Email",
++        emailPlaceholder: "Nhập email (không bắt buộc)",
++        messageLabel: "Nội dung cần tư vấn",
++        messagePlaceholder: "Mô tả nhu cầu của bạn...",
++        submitLabel: "Gửi thông tin",
++    },
++    info: {
++        title: "Thông tin liên hệ",
++        hotlineLabel: "Hotline",
++        hotlineValue: "0900 000 000",
++        emailLabel: "Email",
++        emailValue: "contact@ayanavita.vn",
++        addressLabel: "Địa chỉ",
++        addressValue: "123 Nguyễn Huệ, Quận 1, TP.HCM",
++        note: "Đội ngũ tư vấn sẽ phản hồi trong vòng 24 giờ làm việc. Vui lòng đảm bảo thông tin chính xác để được hỗ trợ nhanh nhất.",
++        mapLinkLabel: "Xem bản đồ",
++        mapLinkHref: "https://maps.google.com",
++    },
++};
+
+ export default function ContactPage() {
++    const [currentLanguage, setCurrentLanguage] = useState<string>(() => {
++        return localStorage.getItem("preferred-language") || "vi";
++    });
++    const [cmsDataFromApi, setCmsDataFromApi] = useState<Partial<CmsData> | null>(null);
++
++    useEffect(() => {
++        const handleLanguageChange = (event: CustomEvent) => {
++            setCurrentLanguage(event.detail.language);
++        };
++
++        window.addEventListener("languageChange", handleLanguageChange as EventListener);
++        return () => {
++            window.removeEventListener("languageChange", handleLanguageChange as EventListener);
++        };
++    }, []);
++
++    useEffect(() => {
++        let cancelled = false;
++
++        const fetchCmsContact = async () => {
++            try {
++                const res = await http.get(`/public/pages/contact?lang=${currentLanguage}`);
++                if (!cancelled) {
++                    const sectionData = res?.data?.sections?.[0]?.data ?? null;
++                    setCmsDataFromApi(sectionData);
++                }
++            } catch {
++                if (!cancelled) setCmsDataFromApi(null);
++            }
++        };
++
++        fetchCmsContact();
++
++        return () => {
++            cancelled = true;
++        };
++    }, [currentLanguage]);
++
++    const cmsData: CmsData = useMemo(() => {
++        return {
++            ...cmsDataDefault,
++            ...cmsDataFromApi,
++            hero: {
++                ...cmsDataDefault.hero,
++                ...(cmsDataFromApi?.hero || {}),
++            },
++            form: {
++                ...cmsDataDefault.form,
++                ...(cmsDataFromApi?.form || {}),
++            },
++            info: {
++                ...cmsDataDefault.info,
++                ...(cmsDataFromApi?.info || {}),
++            },
++        };
++    }, [cmsDataFromApi]);
++
+     return (
+         <div className="min-h-screen bg-slate-50 text-slate-900">
+             <section className="mx-auto max-w-7xl px-4 pt-8 pb-2">
+                 <div className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm md:p-8">
+                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-indigo-600">
+-                        Liên hệ AYANAVITA
++                        {cmsData.hero.eyebrow}
+                     </p>
+-                    <h1 className="mt-2 text-2xl font-extrabold md:text-4xl">
+-                        Kết nối với đội ngũ tư vấn trong 24 giờ
+-                    </h1>
++                    <h1 className="mt-2 text-2xl font-extrabold md:text-4xl">{cmsData.hero.title}</h1>
+                     <p className="mt-3 max-w-3xl text-sm text-slate-600 md:text-base">
+-                        Nếu bạn cần tư vấn dịch vụ spa, khoá học hoặc hợp tác nhượng quyền,
+-                        hãy để lại thông tin. Đội ngũ AYANAVITA sẽ liên hệ để hỗ trợ lộ trình
+-                        phù hợp nhất cho bạn.
++                        {cmsData.hero.description}
+                     </p>
+                 </div>
+             </section>
+
+-            {/* Contact Section */}
+             <section className="mx-auto max-w-7xl px-4 pb-16">
+                 <div className="mt-8 grid gap-8 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 md:grid-cols-2 md:p-10">
+-
+-                    {/* Form */}
+                     <form
+                         className="space-y-5"
+                         onSubmit={(e) => {
+                             e.preventDefault();
+                             console.log("Form submitted");
+                         }}
+                     >
+                         <div>
+-                            <label className="block text-sm font-medium mb-1">
+-                                Họ và tên
+-                            </label>
++                            <label className="mb-1 block text-sm font-medium">{cmsData.form.fullNameLabel}</label>
+                             <input
+                                 type="text"
+                                 required
+                                 className="w-full rounded-xl border border-slate-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+-                                placeholder="Nhập họ và tên của bạn"
++                                placeholder={cmsData.form.fullNamePlaceholder}
+                             />
+                         </div>
+
+                         <div>
+-                            <label className="block text-sm font-medium mb-1">
+-                                Số điện thoại
+-                            </label>
++                            <label className="mb-1 block text-sm font-medium">{cmsData.form.phoneLabel}</label>
+                             <input
+                                 type="tel"
+                                 required
+                                 className="w-full rounded-xl border border-slate-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+-                                placeholder="Nhập số điện thoại"
++                                placeholder={cmsData.form.phonePlaceholder}
+                             />
+                         </div>
+
+                         <div>
+-                            <label className="block text-sm font-medium mb-1">
+-                                Email
+-                            </label>
++                            <label className="mb-1 block text-sm font-medium">{cmsData.form.emailLabel}</label>
+                             <input
+                                 type="email"
+                                 className="w-full rounded-xl border border-slate-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+-                                placeholder="Nhập email (không bắt buộc)"
++                                placeholder={cmsData.form.emailPlaceholder}
+                             />
+                         </div>
+
+                         <div>
+-                            <label className="block text-sm font-medium mb-1">
+-                                Nội dung cần tư vấn
+-                            </label>
++                            <label className="mb-1 block text-sm font-medium">{cmsData.form.messageLabel}</label>
+                             <textarea
+                                 rows={4}
+                                 required
+                                 className="w-full rounded-xl border border-slate-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+-                                placeholder="Mô tả nhu cầu của bạn..."
++                                placeholder={cmsData.form.messagePlaceholder}
+                             />
+                         </div>
+
+                         <button
+                             type="submit"
+                             className="w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white transition hover:bg-indigo-700"
+                         >
+-                            Gửi thông tin
++                            {cmsData.form.submitLabel}
+                         </button>
+                     </form>
+
+-                    {/* Info */}
+                     <div className="space-y-6">
+                         <div>
+-                            <h3 className="text-lg font-bold">
+-                                Thông tin liên hệ
+-                            </h3>
++                            <h3 className="text-lg font-bold">{cmsData.info.title}</h3>
+                             <p className="mt-2 text-sm text-slate-600">
+-                                Hotline: 0900 000 000
++                                {cmsData.info.hotlineLabel}: {cmsData.info.hotlineValue}
+                             </p>
+                             <p className="text-sm text-slate-600">
+-                                Email: contact@ayanavita.vn
++                                {cmsData.info.emailLabel}: {cmsData.info.emailValue}
+                             </p>
+                             <p className="text-sm text-slate-600">
+-                                Địa chỉ: 123 Nguyễn Huệ, Quận 1, TP.HCM
++                                {cmsData.info.addressLabel}: {cmsData.info.addressValue}
+                             </p>
++                            <a
++                                href={cmsData.info.mapLinkHref}
++                                target="_blank"
++                                rel="noreferrer"
++                                className="mt-2 inline-flex text-sm font-semibold text-indigo-600 hover:text-indigo-700"
++                            >
++                                {cmsData.info.mapLinkLabel}
++                            </a>
+                         </div>
+
+-                        <div className="rounded-2xl bg-indigo-50 p-5 text-sm text-slate-700">
+-                            Đội ngũ tư vấn sẽ phản hồi trong vòng 24 giờ làm việc.
+-                            Vui lòng đảm bảo thông tin chính xác để được hỗ trợ nhanh nhất.
+-                        </div>
++                        <div className="rounded-2xl bg-indigo-50 p-5 text-sm text-slate-700">{cmsData.info.note}</div>
+                     </div>
+                 </div>
+             </section>
+         </div>
+     );
+-}
 \ No newline at end of file
-+    driver: bridge
++}

@@ -355,3 +355,29 @@
   .admin-overview { grid-template-columns: repeat(2, minmax(170px, 1fr)); }
   .admin-grid { grid-template-columns: 1fr; }
 }
+
+.admin-card-full { width: 100%; }
+.admin-row-space { justify-content: space-between; }
+.admin-field-full { grid-column: 1 / -1; }
+
+.admin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.admin-modal {
+  width: min(920px, 96vw);
+  max-height: 90vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #dbe3f2;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
+  padding: 16px;
+}

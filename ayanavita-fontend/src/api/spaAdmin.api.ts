@@ -10,10 +10,13 @@ export type SpaService = {
   category?: string
   goals: string[]
   suitableFor: string[]
+  process: string[]
   durationMin: number
   price: number
   ratingAvg: number
+  bookedCount: number
   imageUrl?: string
+  tag?: string
   branchIds: number[]
 }
 export type ServiceCategory = {

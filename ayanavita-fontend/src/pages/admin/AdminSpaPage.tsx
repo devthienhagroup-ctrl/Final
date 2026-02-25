@@ -12,7 +12,7 @@ import { useAuth } from '../../state/auth.store'
 
 type TabKey = 'branches' | 'categories' | 'services' | 'specialists' | 'reviews'
 
-const defaultServiceForm: ServiceForm = { code: '', name: '', description: '', categoryId: 0, goals: '', suitableFor: '', durationMin: 60, price: 0, tag: 'Spa' }
+const defaultServiceForm: ServiceForm = { code: '', name: '', description: '', categoryId: 0, goals: '', suitableFor: '', process: '', durationMin: 60, price: 0, tag: 'Spa' }
 const defaultCategoryForm: CategoryForm = { name: '' }
 const defaultSpecialistForm: SpecialistForm = { code: '', name: '', level: 'SENIOR', bio: '' }
 const defaultReviewForm: ReviewForm = { serviceId: 0, stars: 5, comment: '', customerName: '' }
@@ -300,6 +300,7 @@ export default function AdminSpaPage() {
           ...serviceForm,
           goals: serviceForm.goals.split(',').map((item) => item.trim()).filter(Boolean),
           suitableFor: serviceForm.suitableFor.split(',').map((item) => item.trim()).filter(Boolean),
+          process: serviceForm.process.split(',').map((item) => item.trim()).filter(Boolean),
         }
         try {
           if (editingService) await spaAdminApi.updateService(editingService.id, payload, selectedImage)
@@ -322,6 +323,7 @@ export default function AdminSpaPage() {
           categoryId: service.categoryId || 0,
           goals: service.goals?.join(', ') || '',
           suitableFor: service.suitableFor?.join(', ') || '',
+          process: service.process?.join(', ') || '',
         })
       }} onDeleteService={async (service) => {
         try {

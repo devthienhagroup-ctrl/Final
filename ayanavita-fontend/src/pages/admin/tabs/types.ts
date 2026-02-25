@@ -8,6 +8,7 @@ export type ServiceForm = {
   categoryId: number
   goals: string
   suitableFor: string
+  process: string
   durationMin: number
   price: number
   tag: string

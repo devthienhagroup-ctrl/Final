@@ -232,6 +232,7 @@ export class BookingService {
         category: { select: { name: true } },
         goals: true,
         suitableFor: true,
+        process: true,
         durationMin: true,
         price: true,
         ratingAvg: true,
@@ -252,6 +253,7 @@ export class BookingService {
       category: s.category?.name,
       goals: this.toStringArray(s.goals),
       suitableFor: this.toStringArray(s.suitableFor),
+      process: this.toStringArray(s.process),
       durationMin: s.durationMin,
       price: s.price,
       ratingAvg: s.ratingAvg,
@@ -410,6 +412,7 @@ export class BookingService {
   private sanitizeServiceData(data: any) {
     const goalsInput = Array.isArray(data.goals) ? data.goals : []
     const suitableForInput = Array.isArray(data.suitableFor) ? data.suitableFor : []
+    const processInput = Array.isArray(data.process) ? data.process : []
     return {
       code: data.code || this.normalizeServiceCode(data.name),
       name: data.name,
@@ -417,6 +420,7 @@ export class BookingService {
       categoryId: data.categoryId ? Number(data.categoryId) : null,
       goals: goalsInput,
       suitableFor: suitableForInput,
+      process: processInput,
       durationMin: Number(data.durationMin ?? 60),
       price: Number(data.price ?? 0),
       tag: data.tag,

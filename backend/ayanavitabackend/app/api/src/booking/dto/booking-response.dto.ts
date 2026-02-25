@@ -30,6 +30,7 @@ export class ServiceResponseDto {
   category?: string | null
   goals!: string[]
   suitableFor!: string[]
+  process!: string[]
   durationMin!: number
   price!: number
   ratingAvg!: number

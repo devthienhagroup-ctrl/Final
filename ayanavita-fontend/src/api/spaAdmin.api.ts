@@ -3,7 +3,6 @@ import { del, get, patch, post, request } from './http'
 export type Branch = { id: number; code: string; name: string; address: string; phone?: string; isActive: boolean }
 export type SpaService = {
   id: number
-  code: string
   name: string
   description?: string
   categoryId?: number

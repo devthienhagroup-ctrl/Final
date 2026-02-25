@@ -43,7 +43,6 @@ async function main() {
 
   const serviceSeeds = [
     {
-      code: 'SV-01',
       name: 'Chăm sóc da chuyên sâu 👏',
       categoryName: 'Chăm sóc da',
       goals: ['restore', 'bright'],
@@ -57,7 +56,6 @@ async function main() {
       description: 'Liệu trình làm sạch và phục hồi da chuyên sâu.',
     },
     {
-      code: 'SV-03',
       name: 'Massage thư giãn toàn thân 🤗',
       categoryName: 'Chăm sóc cơ thể',
       goals: ['relax'],
@@ -71,7 +69,6 @@ async function main() {
       description: 'Massage toàn thân giúp thư giãn và giảm căng cơ.',
     },
     {
-      code: 'SV-04',
       name: 'Gội đầu dưỡng sinh 🌿',
       categoryName: 'Dưỡng sinh',
       goals: ['relax', 'pain'],
@@ -85,7 +82,6 @@ async function main() {
       description: 'Kết hợp massage da đầu và tinh dầu giúp giảm căng thẳng.',
     },
     {
-      code: 'SV-06',
       name: 'Combo da + massage ✨',
       categoryName: 'Combo liệu trình',
       goals: ['restore', 'relax'],
@@ -129,11 +125,15 @@ async function main() {
   for (const s of serviceSeeds) {
     const { categoryName, ...serviceData } = s
     const categoryId = categoryMap.get(categoryName) ?? categoryMap.get('Khác')
-    await prisma.service.upsert({
-      where: { code: s.code },
-      update: { ...serviceData, categoryId },
-      create: { ...serviceData, categoryId },
-    })
+    const existingService = await prisma.service.findFirst({ where: { name: s.name } })
+    if (existingService) {
+      await prisma.service.update({
+        where: { id: existingService.id },
+        data: { ...serviceData, categoryId },
+      })
+    } else {
+      await prisma.service.create({ data: { ...serviceData, categoryId } })
+    }
   }
 
   for (const st of specialistSeeds) {

@@ -2,7 +2,6 @@ import type { Appointment, Branch, ServiceCategory, ServiceReview, SpaService, S
 
 export type BranchForm = Partial<Branch>
 export type ServiceForm = {
-  code: string
   name: string
   description: string
   categoryId: number

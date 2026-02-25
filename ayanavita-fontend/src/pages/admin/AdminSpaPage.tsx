@@ -12,7 +12,7 @@ import { useAuth } from '../../state/auth.store'
 
 type TabKey = 'branches' | 'categories' | 'services' | 'specialists' | 'reviews'
 
-const defaultServiceForm: ServiceForm = { code: '', name: '', description: '', categoryId: 0, goals: '', suitableFor: '', process: '', durationMin: 60, price: 0, tag: 'Spa' }
+const defaultServiceForm: ServiceForm = { name: '', description: '', categoryId: 0, goals: '', suitableFor: '', process: '', durationMin: 60, price: 0, tag: 'Spa' }
 const defaultCategoryForm: CategoryForm = { name: '' }
 const defaultSpecialistForm: SpecialistForm = { code: '', name: '', level: 'SENIOR', bio: '' }
 const defaultReviewForm: ReviewForm = { serviceId: 0, stars: 5, comment: '', customerName: '' }
@@ -31,18 +31,6 @@ const normalizeBranchCode = (name: string) => {
   return base || 'BRANCH'
 }
 
-
-const normalizeServiceCode = (name: string) => {
-  const base = name
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/đ/gi, 'd')
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-
-  return `SRV_${base || 'SERVICE'}`
-}
 
 const isValidPhoneNumber = (phone: string) => {
   const cleaned = phone.trim()
@@ -279,10 +267,7 @@ export default function AdminSpaPage() {
         }
       }} onCancelEdit={() => { setEditingCategory(null); setCategoryForm(defaultCategoryForm) }} />}
 
-      {tab === 'services' && <ServicesTab loading={loading} services={services} categories={categories} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} onServiceFormChange={(next) => {
-        const nextName = next.name ?? serviceForm.name ?? ''
-        setServiceForm({ ...next, code: normalizeServiceCode(nextName) })
-      }} onSelectImage={setSelectedImage} onSaveService={async () => {
+      {tab === 'services' && <ServicesTab loading={loading} services={services} categories={categories} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onSaveService={async () => {
         if (!serviceForm.categoryId) {
           await AlertJs.error('Thiếu danh mục', 'Vui lòng chọn danh mục cho dịch vụ.')
           return
@@ -319,7 +304,6 @@ export default function AdminSpaPage() {
         setServiceForm({
           ...defaultServiceForm,
           ...service,
-          code: service.code || normalizeServiceCode(service.name),
           categoryId: service.categoryId || 0,
           goals: service.goals?.join(', ') || '',
           suitableFor: service.suitableFor?.join(', ') || '',

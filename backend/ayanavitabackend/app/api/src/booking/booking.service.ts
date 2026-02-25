@@ -170,7 +170,6 @@ export class BookingService {
       where: { isActive: true },
       select: {
         id: true,
-        code: true,
         name: true,
         category: { select: { name: true } },
         goals: true,
@@ -186,7 +185,7 @@ export class BookingService {
     })
 
     return rows.map((s) => ({
-      id: s.code,
+      id: String(s.id),
       dbId: s.id,
       name: s.name,
       cat: (s.category?.name ?? 'health').toLowerCase().replace(/\s+/g, '-'),
@@ -225,7 +224,6 @@ export class BookingService {
       },
       select: {
         id: true,
-        code: true,
         name: true,
         description: true,
         categoryId: true,
@@ -246,7 +244,6 @@ export class BookingService {
 
     return rows.map((s) => ({
       id: s.id,
-      code: s.code,
       name: s.name,
       description: s.description,
       categoryId: s.categoryId,
@@ -397,24 +394,11 @@ export class BookingService {
   }
 
 
-  private normalizeServiceCode(name?: string) {
-    const base = (name || '')
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/đ/gi, 'd')
-      .toUpperCase()
-      .replace(/[^A-Z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '')
-
-    return `SRV_${base || Date.now()}`
-  }
-
   private sanitizeServiceData(data: any) {
     const goalsInput = Array.isArray(data.goals) ? data.goals : []
     const suitableForInput = Array.isArray(data.suitableFor) ? data.suitableFor : []
     const processInput = Array.isArray(data.process) ? data.process : []
     return {
-      code: data.code || this.normalizeServiceCode(data.name),
       name: data.name,
       description: data.description,
       categoryId: data.categoryId ? Number(data.categoryId) : null,

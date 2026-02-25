@@ -23,7 +23,6 @@ export class ServiceCatalogItemDto {
 
 export class ServiceResponseDto {
   id!: number
-  code!: string
   name!: string
   description?: string | null
   categoryId?: number | null

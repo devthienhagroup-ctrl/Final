@@ -56,7 +56,6 @@ model ServiceCategory {
 
 model Service {
   id           Int                 @id @default(autoincrement())
-  code         String              @unique @db.VarChar(32)
   name         String              @db.VarChar(255)
   description  String?             @db.Text
   categoryId   Int?

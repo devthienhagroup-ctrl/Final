@@ -44,15 +44,14 @@ export function ServicesTab({ services, categories, serviceForm, editingService,
           <thead>
             <tr>
               <th>Tên dịch vụ</th>
-              <th>Code</th>
               <th>Danh mục</th>
               <th>Thời lượng</th>
               <th>Giá</th>
               <th>Rating</th>
               <th>Lượt đặt</th>
-              <th>Mục tiêu (JSON)</th>
-              <th>Phù hợp (JSON)</th>
-              <th>Quy trình (JSON)</th>
+              <th>Mục tiêu </th>
+              <th>Phù hợp </th>
+              <th>Quy trình </th>
               <th>Thao tác</th>
             </tr>
           </thead>
@@ -60,7 +59,6 @@ export function ServicesTab({ services, categories, serviceForm, editingService,
             {services.map((service) => (
               <tr key={service.id}>
                 <td className='td-strong services-name-cell'>{service.name}</td>
-                <td><span className='admin-badge admin-badge-purple'>{service.code}</span></td>
                 <td>{service.category || '-'}</td>
                 <td>{service.durationMin} phút</td>
                 <td><span className='admin-badge admin-badge-blue'>{service.price.toLocaleString('vi-VN')}đ</span></td>
@@ -75,14 +73,23 @@ export function ServicesTab({ services, categories, serviceForm, editingService,
                       <i className='fa-solid fa-ellipsis' />
                     </button>
                     <div className='service-action-list'>
-                      <button className='admin-btn-icon admin-btn-icon-info' onClick={() => setDetailService(service)} title='Chi tiết'>
-                        <i className='fa-solid fa-circle-info' />
+                      <button className='service-action-item' onClick={() => setDetailService(service)} title='Chi tiết'>
+                        <span className='admin-btn-icon admin-btn-icon-info'>
+                          <i className='fa-solid fa-circle-info' />
+                        </span>
+                        <span className='service-action-text'>Chi tiết</span>
                       </button>
-                      <button className='admin-btn-icon admin-btn-icon-edit' onClick={() => handleOpenEdit(service)} title='Sửa'>
-                        <i className='fa-solid fa-pen-to-square' />
+                      <button className='service-action-item' onClick={() => handleOpenEdit(service)} title='Sửa'>
+                        <span className='admin-btn-icon admin-btn-icon-edit'>
+                          <i className='fa-solid fa-pen-to-square' />
+                        </span>
+                        <span className='service-action-text'>Sửa</span>
                       </button>
-                      <button className='admin-btn-icon admin-btn-icon-delete' onClick={() => onDeleteService(service)} title='Xóa'>
-                        <i className='fa-solid fa-trash' />
+                      <button className='service-action-item' onClick={() => onDeleteService(service)} title='Xóa'>
+                        <span className='admin-btn-icon admin-btn-icon-delete'>
+                          <i className='fa-solid fa-trash' />
+                        </span>
+                        <span className='service-action-text'>Xóa</span>
                       </button>
                     </div>
                   </div>
@@ -101,7 +108,6 @@ export function ServicesTab({ services, categories, serviceForm, editingService,
               <button className='admin-btn admin-btn-ghost' onClick={handleCloseEdit}><i className='fa-solid fa-xmark' /> Đóng</button>
             </div>
             <div className='admin-form-grid'>
-              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-id-card' /> Mã dịch vụ</span><input className='admin-input' value={serviceForm.code} disabled /></label>
               <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-sparkles' /> Tên dịch vụ</span><input className='admin-input' value={serviceForm.name} onChange={(e) => onServiceFormChange({ ...serviceForm, name: e.target.value })} /></label>
               <label className='admin-field'>
                 <span className='admin-label'><i className='fa-solid fa-layer-group' /> Danh mục</span>
@@ -112,9 +118,9 @@ export function ServicesTab({ services, categories, serviceForm, editingService,
                   ))}
                 </select>
               </label>
-              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-bullseye' /> Mục tiêu (JSON)</span><input className='admin-input' placeholder='Relax, Detox' value={serviceForm.goals} onChange={(e) => onServiceFormChange({ ...serviceForm, goals: e.target.value })} /></label>
-              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-users' /> Những ai phù hợp (JSON)</span><input className='admin-input' placeholder='Người stress, Mất ngủ' value={serviceForm.suitableFor} onChange={(e) => onServiceFormChange({ ...serviceForm, suitableFor: e.target.value })} /></label>
-              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-list-check' /> Quy trình (JSON)</span><input className='admin-input' placeholder='B1 chào hỏi, B2 tư vấn, B3 trị liệu' value={serviceForm.process} onChange={(e) => onServiceFormChange({ ...serviceForm, process: e.target.value })} /></label>
+              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-bullseye' /> Mục tiêu </span><input className='admin-input' placeholder='Relax, Detox' value={serviceForm.goals} onChange={(e) => onServiceFormChange({ ...serviceForm, goals: e.target.value })} /></label>
+              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-users' /> Những ai phù hợp </span><input className='admin-input' placeholder='Người stress, Mất ngủ' value={serviceForm.suitableFor} onChange={(e) => onServiceFormChange({ ...serviceForm, suitableFor: e.target.value })} /></label>
+              <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-list-check' /> Quy trình </span><input className='admin-input' placeholder='B1 chào hỏi, B2 tư vấn, B3 trị liệu' value={serviceForm.process} onChange={(e) => onServiceFormChange({ ...serviceForm, process: e.target.value })} /></label>
               <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-clock' /> Thời lượng (phút)</span><input className='admin-input' type='number' value={serviceForm.durationMin} onChange={(e) => onServiceFormChange({ ...serviceForm, durationMin: Number(e.target.value) })} /></label>
               <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-coins' /> Giá</span><input className='admin-input' type='number' value={serviceForm.price} onChange={(e) => onServiceFormChange({ ...serviceForm, price: Number(e.target.value) })} /></label>
               <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-tag' /> Tag</span><input className='admin-input' value={serviceForm.tag} onChange={(e) => onServiceFormChange({ ...serviceForm, tag: e.target.value })} /></label>
@@ -141,7 +147,6 @@ export function ServicesTab({ services, categories, serviceForm, editingService,
             <div className='admin-form-grid'>
               <p><b>ID:</b> {detailService.id}</p>
               <p><b>Tên dịch vụ:</b> {detailService.name}</p>
-              <p><b>Code:</b> {detailService.code}</p>
               <p><b>Danh mục:</b> {detailService.category || '-'}</p>
               <p><b>Thời lượng:</b> {detailService.durationMin} phút</p>
               <p><b>Giá:</b> {detailService.price.toLocaleString('vi-VN')}đ</p>

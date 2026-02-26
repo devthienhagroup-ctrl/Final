@@ -26,7 +26,7 @@
   margin-top: 10px;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 14px;
   background: linear-gradient(130deg, #4f46e5, #7c3aed 60%, #ec4899 120%);
   border-radius: 18px;
@@ -38,6 +38,88 @@
 .admin-header h1 { margin: 0 0 6px; font-size: 30px; }
 .admin-header p { margin: 0; opacity: .96; }
 .admin-header-kicker { margin: 0 0 6px; font-size: 12px; font-weight: 900; letter-spacing: .08em; opacity: .95; }
+
+
+.admin-lang-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+}
+
+.admin-lang-option {
+  border: none;
+  background: transparent;
+  color: #e2e8f0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+
+.admin-lang-option.active {
+  background: #fff;
+  color: #312e81;
+  box-shadow: 0 8px 16px rgba(30, 41, 59, .18);
+}
+
+
+.admin-header-side {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-left: auto;
+}
+
+
+.admin-lang-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+}
+
+.admin-lang-option {
+  width: 42px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .2s ease;
+}
+
+.admin-lang-option img {
+  width: 24px;
+  height: 16px;
+  border-radius: 2px;
+  object-fit: cover;
+  opacity: .75;
+  transition: opacity .2s ease;
+}
+
+.admin-lang-option.active {
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 8px 16px rgba(30, 41, 59, .18);
+}
+
+.admin-lang-option.active img {
+  opacity: 1;
+}
 
 .admin-user-badge {
   display: inline-flex;

@@ -1,350 +1,870 @@
 diff --git a/ayanavita-fontend/src/pages/admin/AdminSpaPage.css b/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
-index 2ff2108848e0bd39a0c423f25e76ed2b89d13fe3..133bfac49235ed09a3973d421f0d21694f67c3d5 100644
+index 98bc2e5aa6575085fce515c23b8782723bdbbe72..f7d537a6f85dacd858bde190b49a5eb04f0a0e7b 100644
 --- a/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
 +++ b/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
-@@ -1754,25 +1754,67 @@
- .admin-stats-layout { display: grid; gap: 14px; margin-top: 12px; }
- .admin-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
- .admin-kpi-card { border: 1px solid #dbeafe; background: linear-gradient(180deg, #fff, #f8fbff); border-radius: 12px; padding: 12px; display: grid; gap: 4px; }
- .admin-kpi-card span { font-size: 12px; color: #64748b; }
- .admin-kpi-card strong { font-size: 24px; color: #0f172a; }
- .admin-stats-charts { display: grid; grid-template-columns: repeat(2, minmax(240px, 1fr)); gap: 12px; }
- .admin-stat-card h4 { margin: 0; font-size: 14px; color: #334155; }
- .admin-stat-card-wide { grid-column: span 1; }
- .admin-progress-list { display: grid; gap: 8px; }
- .admin-progress-row { display: grid; gap: 5px; }
- .admin-progress-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: #334155; }
- .admin-progress-meta span { max-width: 75%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
- .admin-progress-row i { display: block; height: 8px; border-radius: 999px; background: #3b82f6; }
- .admin-donut-wrap { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 12px; }
- .admin-donut { width: 120px; height: 120px; border-radius: 50%; display: grid; place-items: center; }
- .admin-donut-center { width: 74px; height: 74px; border-radius: 50%; background: #fff; border: 1px solid #dbeafe; display: grid; place-items: center; color: #0f172a; font-weight: 700; }
- .admin-donut-legend { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
- .admin-donut-legend li { display: grid; grid-template-columns: 10px 1fr auto; gap: 8px; align-items: center; font-size: 13px; }
- .admin-donut-legend i { width: 10px; height: 10px; border-radius: 50%; }
-
- @media (max-width: 900px) {
-   .admin-stats-charts { grid-template-columns: 1fr; }
-   .admin-donut-wrap { grid-template-columns: 1fr; justify-items: center; }
-   .admin-donut-legend { width: 100%; }
- }
-+
-+/* appointments chart polish */
-+.admin-kpi-card {
-+  border: 1px solid #dbeafe;
-+  background: linear-gradient(145deg, #ffffff 0%, #f8fbff 45%, #eef6ff 100%);
-+  border-radius: 16px;
-+  padding: 14px;
-+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
-+}
-+
-+.admin-kpi-card strong {
-+  font-size: 26px;
-+  letter-spacing: -0.02em;
-+}
-+
-+.admin-stat-card {
-+  border: 1px solid #dbeafe;
-+  border-radius: 16px;
-+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.05);
-+  padding: 14px 14px 12px;
-+}
-+
-+.admin-stat-card h4 {
-+  font-size: 14px;
-+  color: #1e293b;
-+  font-weight: 700;
-+  letter-spacing: 0.01em;
-+  margin-bottom: 10px;
-+}
-+
-+.admin-chart-host-small {
-+  min-height: 250px;
-+}
-+
-+.admin-chart-host-line {
-+  min-height: 320px;
-+}
-+
-+.admin-chart-canvas {
-+  filter: drop-shadow(0 12px 20px rgba(14, 116, 144, 0.08));
-+}
-diff --git a/ayanavita-fontend/src/pages/admin/tabs/AppointmentsTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/AppointmentsTab.tsx
-index 02dcb6b66f313262dbeabb967d2f53315a7c9bca..61158e2d1e6ae66b6c7f39917958194756dc9e5e 100644
---- a/ayanavita-fontend/src/pages/admin/tabs/AppointmentsTab.tsx
-+++ b/ayanavita-fontend/src/pages/admin/tabs/AppointmentsTab.tsx
-@@ -1,126 +1,188 @@
- import { useEffect, useMemo, useRef, useState } from 'react'
- import { spaAdminApi, type Appointment, type AppointmentStatsResponse, type Specialist } from '../../../api/spaAdmin.api'
- import type { AppointmentsTabProps } from './types'
-
- const statusLabelMap: Record<string, string> = {
-   PENDING: 'Chưa xác nhận',
-   CONFIRMED: 'Đã xác nhận',
-   DONE: 'Khách đến',
-   CANCELED: 'Khách không đến',
+@@ -4,63 +4,115 @@
+   --ad-bg:
+     radial-gradient(1200px 700px at 0% 0%, rgba(79, 70, 229, 0.12), transparent 55%),
+     radial-gradient(900px 600px at 100% 10%, rgba(245, 158, 11, 0.12), transparent 55%),
+     linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+   --ad-card: rgba(255, 255, 255, 0.95);
+   --ad-text: #0f172a;
+   --ad-muted: #475569;
+   --ad-border: rgba(148, 163, 184, 0.34);
+   --ad-primary: #4f46e5;
+   --ad-primary-soft: #eef2ff;
+   --ad-danger: #e11d48;
  }
 
- const statusClassMap: Record<string, string> = {
-   PENDING: 'admin-badge-orange',
-   CONFIRMED: 'admin-badge-blue',
-   DONE: 'admin-badge-green',
-   CANCELED: 'admin-badge-pastel',
+ .admin-page {
+   padding: 30px 40px;
+   font-family: Arial, Helvetica, -apple-system, BlinkMacSystemFont,
+   "Segoe UI", Roboto, sans-serif;
+   color: var(--ad-text);
+   background: var(--ad-bg);
  }
 
- type StatusValue = 'PENDING' | 'CONFIRMED' | 'DONE' | 'CANCELED'
--type ChartType = 'line' | 'doughnut' | 'polarArea'
-+type ChartType = 'line' | 'doughnut' | 'bar'
+ .admin-header {
+   margin-top: 10px;
+   display: flex;
+   justify-content: space-between;
+-  align-items: center;
++  align-items: flex-start;
+   gap: 14px;
+   background: linear-gradient(130deg, #4f46e5, #7c3aed 60%, #ec4899 120%);
+   border-radius: 18px;
+   color: #fff;
+   padding: 22px;
+   box-shadow: 0 18px 44px rgba(79, 70, 229, 0.3);
+ }
 
- declare global {
-   interface Window {
-     Chart?: any
-     __chartJsLoading?: Promise<any>
+ .admin-header h1 { margin: 0 0 6px; font-size: 30px; }
+ .admin-header p { margin: 0; opacity: .96; }
+ .admin-header-kicker { margin: 0 0 6px; font-size: 12px; font-weight: 900; letter-spacing: .08em; opacity: .95; }
+
++
++.admin-header-side {
++  display: inline-flex;
++  align-items: flex-start;
++  gap: 10px;
++  margin-left: auto;
++}
++
++
++.admin-lang-switch {
++  position: relative;
++  display: inline-flex;
++  align-items: center;
++  gap: 6px;
++  padding: 6px;
++  border-radius: 999px;
++  background: rgba(15, 23, 42, 0.24);
++  border: 1px solid rgba(255, 255, 255, 0.38);
++}
++
++.admin-lang-option {
++  width: 42px;
++  height: 32px;
++  border: none;
++  background: transparent;
++  border-radius: 999px;
++  padding: 0;
++  cursor: pointer;
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  transition: all .2s ease;
++}
++
++.admin-lang-option img {
++  width: 24px;
++  height: 16px;
++  border-radius: 2px;
++  object-fit: cover;
++  opacity: .75;
++  transition: opacity .2s ease;
++}
++
++.admin-lang-option.active {
++  background: rgba(255, 255, 255, 0.92);
++  box-shadow: 0 8px 16px rgba(30, 41, 59, .18);
++}
++
++.admin-lang-option.active img {
++  opacity: 1;
++}
++
+ .admin-user-badge {
+   display: inline-flex;
+   align-items: center;
+   gap: 12px;
+   padding: 10px 14px;
+ }
+
+ .admin-user-avatar {
+   width: 42px;
+   height: 42px;
+   border-radius: 50%;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(224, 231, 255, 0.95));
+   color: #4338ca;
+   font-size: 18px;
+   font-weight: 900;
+ }
+
+ .admin-user-meta {
+   display: grid;
+   gap: 2px;
+ }
+
+diff --git a/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx b/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
+index 878ae07a723fa3792488db2a05316a35c7fedfdc..2f3980a54f5f45d83aa5ff054d331a42c6d89f9d 100644
+--- a/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
++++ b/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
+@@ -1,101 +1,173 @@
+ import { useEffect, useMemo, useState } from 'react'
+ import { spaAdminApi, type Appointment, type Branch, type ServiceCategory, type SpaService, type Specialist } from '../../api/spaAdmin.api'
+ import { AlertJs } from '../../utils/alertJs'
+ import './AdminSpaPage.css'
+ import { BranchesTab } from './tabs/BranchesTab'
+ import { CategoriesTab } from './tabs/CategoriesTab'
+ import { ServicesTab } from './tabs/ServicesTab'
+ import { SpecialistsTab } from './tabs/SpecialistsTab'
+ import { AppointmentsTab } from './tabs/AppointmentsTab'
+ import type { BranchForm, CategoryForm, ServiceForm, SpecialistForm } from './tabs/types'
+ import { useAuth } from '../../state/auth.store'
+
+ type TabKey = 'branches' | 'categories' | 'services' | 'specialists' | 'appointments'
++type AdminLang = 'vi' | 'en-US' | 'de'
++
++const LANG_STORAGE_KEY = 'lang-admin'
++
++const uiText: Record<AdminLang, Record<string, string>> = {
++  'vi': {
++    kicker: 'SERVIE OPERATIONS HUB',
++    staffTitle: 'Lịch hẹn chuyên viên',
++    adminTitle: 'Bảng điều khiển quản trị Servie',
++    staffDesc: 'Bạn chỉ xem các lịch hẹn được phân công và cập nhật khách có đến hay không.',
++    adminDesc: 'Bảng điều khiển chuẩn hoá vận hành theo phong cách hiện đại, rõ dữ liệu, dễ thao tác.',
++    branches: 'Chi nhánh',
++    services: 'Dịch vụ',
++    specialists: 'Chuyên viên',
++    appointments: 'Lịch hẹn',
++    active: 'Đang hoạt động',
++    serviceCatalog: 'Servie catalog',
++    specialistCapacity: 'Đủ năng lực vận hành',
++    synced: 'Đã đồng bộ hệ thống',
++    serviceCategories: 'Danh mục dịch vụ',
++    assignedAppointments: 'Lịch hẹn phụ trách',
++    loading: 'Đang tải dữ liệu...',
++    specialistRole: 'Chuyên viên',
++  },
++  'en-US': {
++    kicker: 'SERVIE OPERATIONS HUB',
++    staffTitle: 'Specialist appointments',
++    adminTitle: 'Servie Admin Dashboard',
++    staffDesc: 'You can only view assigned appointments and update customer attendance.',
++    adminDesc: 'A modern operations dashboard with standardized data and fast workflows.',
++    branches: 'Branches',
++    services: 'Services',
++    specialists: 'Specialists',
++    appointments: 'Appointments',
++    active: 'Active',
++    serviceCatalog: 'Servie catalog',
++    specialistCapacity: 'Operational capacity ready',
++    synced: 'Synced to system',
++    serviceCategories: 'Service categories',
++    assignedAppointments: 'Assigned appointments',
++    loading: 'Loading data...',
++    specialistRole: 'Specialist',
++  },
++  'de': {
++    kicker: 'SERVIE BETRIEBSZENTRUM',
++    staffTitle: 'Termine für Spezialisten',
++    adminTitle: 'Servie-Adminübersicht',
++    staffDesc: 'Sie sehen nur zugewiesene Termine und aktualisieren die Kundenanwesenheit.',
++    adminDesc: 'Ein modernes Betriebs-Dashboard mit standardisierten Daten und schnellen Abläufen.',
++    branches: 'Filialen',
++    services: 'Leistungen',
++    specialists: 'Spezialisten',
++    appointments: 'Termine',
++    active: 'Aktiv',
++    serviceCatalog: 'Servie-Katalog',
++    specialistCapacity: 'Betriebsbereit',
++    synced: 'Mit System synchronisiert',
++    serviceCategories: 'Leistungskategorien',
++    assignedAppointments: 'Zugewiesene Termine',
++    loading: 'Daten werden geladen...',
++    specialistRole: 'Spezialist',
++  },
++}
+
+ const defaultServiceForm: ServiceForm = { name: '', description: '', categoryId: 0, goals: '', suitableFor: '', process: '', durationMin: 60, price: 0, tag: 'Spa', branchIds: [], isActive: true }
+ const defaultCategoryForm: CategoryForm = { name: '' }
+ const defaultSpecialistForm: SpecialistForm = { name: '', email: '', level: 'SENIOR', bio: '', branchId: 0, serviceIds: [] }
+ const defaultBranchForm: BranchForm = { code: '', name: '', address: '', phone: '', isActive: true }
+
+ const normalizeBranchCode = (name: string) => {
+   const base = name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '')
+   return base || 'BRANCH'
+ }
+
+ const isValidPhoneNumber = (phone: string) => {
+   const cleaned = phone.trim()
+   if (!cleaned) return true
+   if (!/^\+?[\d\s().-]+$/.test(cleaned)) return false
+   const digitsCount = cleaned.replace(/\D/g, '').length
+   return digitsCount >= 6 && digitsCount <= 20
+ }
+
+ const getVietnameseError = (error: unknown, fallback: string) => {
+   if (typeof error === 'object' && error && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
+     const message = (error as { message: string }).message
+     if (message.includes('Unique constraint')) return 'Dữ liệu bị trùng. Vui lòng kiểm tra lại mã hoặc tên.'
+     return message
    }
+   return fallback
  }
 
- const defaultStats: AppointmentStatsResponse = { total: 0, byStatus: {}, byService: [], bySpecialist: [], byMonth: [] }
+ export default function AdminSpaPage() {
+   const { user } = useAuth()
+   const isStaff = user?.role === 'STAFF'
+   const [tab, setTab] = useState<TabKey>(isStaff ? 'appointments' : 'branches')
+   const [loading, setLoading] = useState(false)
+   const [branches, setBranches] = useState<Branch[]>([])
+   const [services, setServices] = useState<SpaService[]>([])
+   const [servicePageItems, setServicePageItems] = useState<SpaService[]>([])
+   const [serviceSearchKeyword, setServiceSearchKeyword] = useState('')
+   const [servicePage, setServicePage] = useState(1)
+   const [servicePageSize, setServicePageSize] = useState(10)
+   const [serviceTotal, setServiceTotal] = useState(0)
+   const [serviceTotalPages, setServiceTotalPages] = useState(1)
+   const [categories, setCategories] = useState<ServiceCategory[]>([])
+   const [specialists, setSpecialists] = useState<Specialist[]>([])
+   const [appointments, setAppointments] = useState<Appointment[]>([])
+   const [selectedImage, setSelectedImage] = useState<File | null>(null)
++  const [lang, setLang] = useState<AdminLang>(() => {
++    const saved = window.localStorage.getItem(LANG_STORAGE_KEY)
++    return saved === 'vi' || saved === 'en-US' || saved === 'de' ? saved : 'vi'
++  })
 
- const loadChartJs = () => {
-   if (typeof window === 'undefined') return Promise.resolve(null)
-   if (window.Chart) return Promise.resolve(window.Chart)
-   if (window.__chartJsLoading) return window.__chartJsLoading
+   const [branchForm, setBranchForm] = useState<BranchForm>(defaultBranchForm)
+   const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
+   const [serviceForm, setServiceForm] = useState<ServiceForm>(defaultServiceForm)
+   const [editingService, setEditingService] = useState<SpaService | null>(null)
+   const [categoryForm, setCategoryForm] = useState<CategoryForm>(defaultCategoryForm)
+   const [editingCategory, setEditingCategory] = useState<ServiceCategory | null>(null)
+   const [specialistForm, setSpecialistForm] = useState<SpecialistForm>(defaultSpecialistForm)
+   const [editingSpecialist, setEditingSpecialist] = useState<Specialist | null>(null)
 
-   window.__chartJsLoading = new Promise((resolve, reject) => {
-     const script = document.createElement('script')
-     script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js'
-     script.async = true
-     script.onload = () => resolve(window.Chart)
-     script.onerror = () => reject(new Error('Không tải được Chart.js từ CDN'))
-     document.head.appendChild(script)
-   })
-
-   return window.__chartJsLoading
- }
-
- function ChartJsPanel(props: {
-   title: string
-   type: ChartType
-   labels: string[]
-   values: number[]
-   colors: string[]
-   fullWidth?: boolean
-   options?: Record<string, unknown>
- }) {
-   const { title, type, labels, values, colors, fullWidth, options } = props
-   const canvasRef = useRef<HTMLCanvasElement | null>(null)
-   const chartRef = useRef<any>(null)
-   const [loadError, setLoadError] = useState('')
-
-   useEffect(() => {
-     let active = true
-     const render = async () => {
-       const canvas = canvasRef.current
-       if (!canvas) return
-       try {
-         const Chart = await loadChartJs()
-         if (!active || !Chart) return
-         chartRef.current?.destroy?.()
-+        const totalInCenterPlugin = type === 'doughnut'
-+          ? {
-+            id: 'totalInCenter',
-+            afterDraw: (chart: any) => {
-+              const { ctx } = chart
-+              const meta = chart.getDatasetMeta(0)
-+              if (!meta?.data?.length) return
-+              const x = meta.data[0].x
-+              const y = meta.data[0].y
-+              const total = values.reduce((sum, value) => sum + value, 0)
-+              ctx.save()
-+              ctx.textAlign = 'center'
-+              ctx.textBaseline = 'middle'
-+              ctx.fillStyle = '#64748b'
-+              ctx.font = '500 11px Inter, system-ui, sans-serif'
-+              ctx.fillText('Tổng', x, y - 9)
-+              ctx.fillStyle = '#0f172a'
-+              ctx.font = '700 20px Inter, system-ui, sans-serif'
-+              ctx.fillText(String(total), x, y + 9)
-+              ctx.restore()
-+            },
-+          }
-+          : null
+   const activeBranches = useMemo(() => branches.filter((item) => item.isActive), [branches])
+   const displayName = useMemo(() => {
+     if (!user?.email) return 'Admin User'
+     const baseName = user.email.split('@')[0]?.replace(/[._-]+/g, ' ').trim()
+     return baseName ? baseName.replace(/\b\w/g, (char) => char.toUpperCase()) : user.email
+   }, [user?.email])
+-  const roleLabel = user?.role === 'ADMIN' ? 'Administrator' : user?.role === 'STAFF' ? 'Chuyên viên' : user?.role ?? 'User'
++  const roleLabel = user?.role === 'ADMIN' ? 'Administrator' : user?.role === 'STAFF' ? uiText[lang].specialistRole : user?.role ?? 'User'
+   const avatarLetter = (displayName[0] || 'A').toUpperCase()
++  const t = uiText[lang]
 +
-         chartRef.current = new Chart(canvas, {
-           type,
-+          plugins: totalInCenterPlugin ? [totalInCenterPlugin] : [],
-           data: {
-             labels,
-             datasets: [{
-               label: title,
-               data: values,
-               backgroundColor: type === 'line' ? 'rgba(14,165,233,0.2)' : colors,
--              borderColor: type === 'line' ? '#0ea5e9' : '#1e293b',
--              borderWidth: type === 'line' ? 3 : 1,
-+              borderColor: type === 'line' ? '#0ea5e9' : colors,
-+              borderWidth: type === 'line' ? 2 : 1.25,
-               pointRadius: type === 'line' ? 3 : 0,
-               pointBackgroundColor: '#0284c7',
-+              pointBorderColor: '#e0f2fe',
-+              pointBorderWidth: 1.5,
-               tension: 0.35,
-               fill: type === 'line',
-+              cutout: type === 'doughnut' ? '78%' : undefined,
-+              spacing: type === 'doughnut' ? 2 : 0,
-+              hoverOffset: type === 'doughnut' ? 6 : 3,
-+              borderRadius: type === 'bar' ? 8 : 0,
-             }],
-           },
-           options: {
-             maintainAspectRatio: false,
-             responsive: true,
-             plugins: {
-               legend: {
-                 display: type !== 'line',
-                 position: 'bottom',
-+                labels: {
-+                  usePointStyle: true,
-+                  pointStyle: 'circle',
-+                  boxWidth: 8,
-+                  boxHeight: 8,
-+                  padding: 16,
-+                  color: '#475569',
-+                  font: {
-+                    family: 'Inter, system-ui, sans-serif',
-+                    size: 12,
-+                  },
-+                },
-+              },
-+              tooltip: {
-+                backgroundColor: 'rgba(15, 23, 42, 0.92)',
-+                titleColor: '#f8fafc',
-+                bodyColor: '#e2e8f0',
-+                cornerRadius: 8,
-+                padding: 10,
-+                displayColors: true,
-               },
-             },
--            scales: type === 'line'
-+            scales: type === 'line' || type === 'bar'
-               ? {
--                x: { ticks: { color: '#475569' }, grid: { color: 'rgba(148,163,184,0.2)' } },
--                y: { beginAtZero: true, ticks: { color: '#475569', precision: 0 }, grid: { color: 'rgba(148,163,184,0.2)' } },
-+                x: {
-+                  beginAtZero: type === 'bar',
-+                  ticks: { color: '#64748b', precision: 0, font: { size: 11 } },
-+                  grid: { display: type === 'line', color: 'rgba(148,163,184,0.18)' },
-+                  border: { display: false },
-+                },
-+                y: {
-+                  beginAtZero: true,
-+                  ticks: { color: '#64748b', precision: 0, font: { size: 11 } },
-+                  grid: { color: 'rgba(148,163,184,0.15)' },
-+                  border: { display: false },
-+                },
-               }
-               : undefined,
-+            layout: type === 'doughnut' ? { padding: 10 } : undefined,
-             ...options,
-           },
-         })
-         setLoadError('')
-       } catch {
-         if (active) setLoadError('Không tải được Chart.js (CDN bị chặn).')
-       }
-     }
-     void render()
++  useEffect(() => {
++    window.localStorage.setItem(LANG_STORAGE_KEY, lang)
++  }, [lang])
 
-     return () => {
-       active = false
-       chartRef.current?.destroy?.()
-       chartRef.current = null
+   const loadServices = async (params?: { page?: number; q?: string; pageSize?: number }) => {
+     const response = await spaAdminApi.services({ q: params?.q ?? serviceSearchKeyword, page: params?.page ?? servicePage, pageSize: params?.pageSize ?? servicePageSize, includeInactive: true })
+     setServicePageItems(response.items)
+     setServiceTotal(response.total)
+     setServiceTotalPages(response.totalPages)
+     setServicePage(response.page)
+     setServicePageSize(response.pageSize)
+   }
+
+   const loadAll = async () => {
+     setLoading(true)
+     try {
+       const [b, c, sAll, s, sp, a] = await Promise.all([
+         spaAdminApi.branches(true),
+         spaAdminApi.serviceCategories(),
+         spaAdminApi.services({ page: 1, pageSize: 100, includeInactive: true }),
+         spaAdminApi.services({ q: serviceSearchKeyword, page: servicePage, pageSize: servicePageSize, includeInactive: true }),
+         spaAdminApi.specialists(),
+         spaAdminApi.appointments(),
+       ])
+       setBranches(b)
+       setCategories(c)
+       setServices(sAll.items)
+       setServicePageItems(s.items)
+@@ -123,95 +195,108 @@ export default function AdminSpaPage() {
+     const normalizedName = (branchForm.name || '').trim()
+     const normalizedAddress = (branchForm.address || '').trim()
+     const normalizedPhone = (branchForm.phone || '').trim()
+     const generatedCode = normalizeBranchCode(normalizedName)
+     if (!normalizedName || normalizedName.length < 2) return AlertJs.error('Tên chi nhánh chưa hợp lệ', 'Tên chi nhánh cần có ít nhất 2 ký tự.')
+     if (!normalizedAddress) return AlertJs.error('Thiếu địa chỉ', 'Vui lòng nhập địa chỉ chi nhánh.')
+     if (!isValidPhoneNumber(normalizedPhone)) return AlertJs.error('Số điện thoại chưa hợp lệ', 'Vui lòng nhập đúng định dạng số điện thoại quốc tế (không giới hạn quốc gia).')
+
+     const payload: BranchForm = { ...branchForm, code: generatedCode, name: normalizedName, address: normalizedAddress, phone: normalizedPhone }
+     try {
+       if (editingBranch) await spaAdminApi.updateBranch(editingBranch.id, payload)
+       else await spaAdminApi.createBranch(payload)
+       setEditingBranch(null)
+       setBranchForm(defaultBranchForm)
+       await loadAll()
+       await AlertJs.success('Đã lưu chi nhánh thành công', `Mã chi nhánh: ${generatedCode}. Dữ liệu đã được đồng bộ lên hệ thống.`)
+     } catch (error) {
+       await AlertJs.error('Lưu chi nhánh thất bại', getVietnameseError(error, 'Vui lòng kiểm tra lại thông tin chi nhánh.'))
      }
-   }, [colors, labels, options, title, type, values])
+   }
 
    return (
-     <article className={`admin-stat-card ${fullWidth ? 'admin-stat-card-full' : ''}`}>
-       <h4>{title}</h4>
-       <div className={`admin-chart-host ${fullWidth ? 'admin-chart-host-line' : 'admin-chart-host-small'}`}>
-         <canvas ref={canvasRef} className='admin-chart-canvas' />
-       </div>
-       {loadError && <small className='admin-helper'>{loadError}</small>}
-     </article>
-@@ -224,70 +286,71 @@ export function AppointmentsTab({ appointments, specialists, branches, services,
-           <div className='admin-filters-grid'>
-             <input className='admin-input' placeholder='Số điện thoại' value={statsPhone} onChange={(e) => setStatsPhone(e.target.value)} />
-             <select className='admin-input' value={statsBranchId} onChange={(e) => setStatsBranchId(Number(e.target.value))}>
-               <option value={0}>Tất cả chi nhánh</option>
-               {branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-             </select>
-             <select className='admin-input' value={statsServiceId} onChange={(e) => setStatsServiceId(Number(e.target.value))}>
-               <option value={0}>Tất cả dịch vụ</option>
-               {services.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-             </select>
-             <select className='admin-input' value={statsSpecialistId} onChange={(e) => setStatsSpecialistId(Number(e.target.value))}>
-               <option value={0}>Tất cả chuyên viên</option>
-               {specialists.map((item: Specialist) => <option key={item.id} value={item.id}>{item.name}</option>)}
-             </select>
-           </div>
+     <main className='admin-page'>
+       <header className='admin-header'>
+         <div>
+-          <p className='admin-header-kicker'>SPA OPERATIONS HUB</p>
+-          <h1>{isStaff ? 'Lịch hẹn chuyên viên' : 'Spa Admin Dashboard'}</h1>
+-          <p>{isStaff ? 'Bạn chỉ xem các lịch hẹn được phân công và cập nhật khách có đến hay không.' : 'Bảng điều khiển chuẩn hoá vận hành theo phong cách hiện đại, rõ dữ liệu, dễ thao tác.'}</p>
++          <p className='admin-header-kicker'>{t.kicker}</p>
++          <h1>{isStaff ? t.staffTitle : t.adminTitle}</h1>
++          <p>{isStaff ? t.staffDesc : t.adminDesc}</p>
+         </div>
+-        <div className='admin-user-badge' aria-label='Thông tin tài khoản đăng nhập'>
++        <div className='admin-header-side'>
++          <div className='admin-lang-switch' role='group' aria-label='Admin language switch'>
++            <button type='button' className={`admin-lang-option ${lang === 'en-US' ? 'active' : ''}`} onClick={() => setLang('en-US')} aria-label='English (US)'>
++              <img src='https://flagcdn.com/w40/us.png' alt='USA flag' loading='lazy' />
++            </button>
++            <button type='button' className={`admin-lang-option ${lang === 'de' ? 'active' : ''}`} onClick={() => setLang('de')} aria-label='Deutsch'>
++              <img src='https://flagcdn.com/w40/de.png' alt='Germany flag' loading='lazy' />
++            </button>
++            <button type='button' className={`admin-lang-option ${lang === 'vi' ? 'active' : ''}`} onClick={() => setLang('vi')} aria-label='Tiếng Việt'>
++              <img src='https://flagcdn.com/w40/vn.png' alt='Vietnam flag' loading='lazy' />
++            </button>
++          </div>
++          <div className='admin-user-badge' aria-label='Thông tin tài khoản đăng nhập'>
+           <div className='admin-user-avatar'>{avatarLetter}</div>
+           <div className='admin-user-meta'><strong>{displayName}</strong><span>{roleLabel}</span></div>
++          </div>
+         </div>
+       </header>
 
-           <div className='admin-kpi-grid'>
-             <article className='admin-kpi-card'><span>Tổng lịch hẹn</span><strong>{stats.total}</strong></article>
-             <article className='admin-kpi-card'><span>Đã hoàn tất</span><strong>{stats.byStatus.DONE || 0}</strong></article>
-             <article className='admin-kpi-card'><span>Chờ xác nhận</span><strong>{stats.byStatus.PENDING || 0}</strong></article>
-             <article className='admin-kpi-card'><span>Đã hủy</span><strong>{stats.byStatus.CANCELED || 0}</strong></article>
-           </div>
-
-           <div className='admin-stats-grid'>
-             <ChartJsPanel
--              title='Theo trạng thái (tròn)'
-+              title='Theo trạng thái'
-               type='doughnut'
-               labels={Object.keys(statusLabelMap).map((key) => statusLabelMap[key])}
-               values={Object.keys(statusLabelMap).map((key) => stats.byStatus[key] || 0)}
--              colors={['#f59e0b', '#3b82f6', '#16a34a', '#ef4444']}
-+              colors={['#fbbf24', '#60a5fa', '#34d399', '#fb7185']}
-             />
-             <ChartJsPanel
--              title='Theo dịch vụ (đa giác)'
--              type='polarArea'
-+              title='Theo dịch vụ'
-+              type='bar'
-               labels={stats.byService.slice(0, 6).map((item) => item.label)}
-               values={stats.byService.slice(0, 6).map((item) => item.value)}
--              colors={['#8b5cf6', '#06b6d4', '#f59e0b', '#16a34a', '#ef4444', '#3b82f6']}
-+              colors={['#a78bfa', '#38bdf8', '#fbbf24', '#34d399', '#fb7185', '#60a5fa']}
-+              options={{ indexAxis: 'y', plugins: { legend: { display: false } } }}
-             />
-             {!isStaff && (
-               <ChartJsPanel
--                title='Theo chuyên viên (tròn)'
-+                title='Theo chuyên viên'
-                 type='doughnut'
-                 labels={stats.bySpecialist.slice(0, 6).map((item) => item.label)}
-                 values={stats.bySpecialist.slice(0, 6).map((item) => item.value)}
--                colors={['#0ea5e9', '#4f46e5', '#22c55e', '#f97316', '#ec4899', '#64748b']}
-+                colors={['#38bdf8', '#818cf8', '#4ade80', '#fb923c', '#f472b6', '#94a3b8']}
-               />
-             )}
-             <ChartJsPanel
-               title='Lịch hẹn theo tháng (line)'
-               type='line'
-               labels={stats.byMonth.slice(-12).map((item) => item.label)}
-               values={stats.byMonth.slice(-12).map((item) => item.value)}
-               colors={['#0ea5e9']}
-               fullWidth
-               options={{ plugins: { legend: { display: false } } }}
-             />
-           </div>
-
-           {statsLoading && <p className='admin-helper'>Đang tải thống kê...</p>}
-           {statsError && <p className='admin-helper'>{statsError}</p>}
-         </>
-       ) : (
+       {!isStaff && (
          <>
-           <div className='admin-filters-grid'>
-             <input className='admin-input' placeholder='Tên khách' value={listSearchName} onChange={(e) => { setListSearchName(e.target.value); setListPage(1) }} />
-             <input className='admin-input' placeholder='Số điện thoại' value={listSearchPhone} onChange={(e) => { setListSearchPhone(e.target.value); setListPage(1) }} />
-             <select className='admin-input' value={listBranchId} onChange={(e) => { setListBranchId(Number(e.target.value)); setListPage(1) }}>
-               <option value={0}>Tất cả chi nhánh</option>
-               {branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+           <section className='admin-overview'>
+-            <article className='overview-card'><span>Chi nhánh</span><strong>{branches.length}</strong><small>Đang active: {activeBranches.length}</small><i className='overview-icon fa-solid fa-building' /></article>
+-            <article className='overview-card'><span>Dịch vụ</span><strong>{services.length}</strong><small>Spa catalog</small><i className='overview-icon fa-solid fa-spa' /></article>
+-            <article className='overview-card'><span>Chuyên viên</span><strong>{specialists.length}</strong><small>Đủ năng lực vận hành</small><i className='overview-icon fa-solid fa-user-nurse' /></article>
+-            <article className='overview-card'><span>Lịch hẹn</span><strong>{appointments.length}</strong><small>Đã đồng bộ hệ thống</small><i className='overview-icon fa-solid fa-calendar-check' /></article>
++            <article className='overview-card'><span>{t.branches}</span><strong>{branches.length}</strong><small>{t.active}: {activeBranches.length}</small><i className='overview-icon fa-solid fa-building' /></article>
++            <article className='overview-card'><span>{t.services}</span><strong>{services.length}</strong><small>{t.serviceCatalog}</small><i className='overview-icon fa-solid fa-spa' /></article>
++            <article className='overview-card'><span>{t.specialists}</span><strong>{specialists.length}</strong><small>{t.specialistCapacity}</small><i className='overview-icon fa-solid fa-user-nurse' /></article>
++            <article className='overview-card'><span>{t.appointments}</span><strong>{appointments.length}</strong><small>{t.synced}</small><i className='overview-icon fa-solid fa-calendar-check' /></article>
+           </section>
+
+           <nav className='admin-tabs'>
+-            <button className={`admin-tab ${tab === 'branches' ? 'active' : ''}`} onClick={() => setTab('branches')}><i className='fa-solid fa-building-circle-check' />Chi nhánh ({branches.length})</button>
+-            <button className={`admin-tab ${tab === 'categories' ? 'active' : ''}`} onClick={() => setTab('categories')}><i className='fa-solid fa-layer-group' />Danh mục dịch vụ ({categories.length})</button>
+-            <button className={`admin-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => setTab('services')}><i className='fa-solid fa-leaf' />Dịch vụ ({serviceTotal})</button>
+-            <button className={`admin-tab ${tab === 'specialists' ? 'active' : ''}`} onClick={() => setTab('specialists')}><i className='fa-solid fa-people-group' />Chuyên viên</button>
+-            <button className={`admin-tab ${tab === 'appointments' ? 'active' : ''}`} onClick={() => setTab('appointments')}><i className='fa-solid fa-calendar-days' />Lịch hẹn</button>
++            <button className={`admin-tab ${tab === 'branches' ? 'active' : ''}`} onClick={() => setTab('branches')}><i className='fa-solid fa-building-circle-check' />{t.branches} ({branches.length})</button>
++            <button className={`admin-tab ${tab === 'categories' ? 'active' : ''}`} onClick={() => setTab('categories')}><i className='fa-solid fa-layer-group' />{t.serviceCategories} ({categories.length})</button>
++            <button className={`admin-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => setTab('services')}><i className='fa-solid fa-leaf' />{t.services} ({serviceTotal})</button>
++            <button className={`admin-tab ${tab === 'specialists' ? 'active' : ''}`} onClick={() => setTab('specialists')}><i className='fa-solid fa-people-group' />{t.specialists}</button>
++            <button className={`admin-tab ${tab === 'appointments' ? 'active' : ''}`} onClick={() => setTab('appointments')}><i className='fa-solid fa-calendar-days' />{t.appointments}</button>
+           </nav>
+         </>
+       )}
+
+-      {isStaff && <nav className='admin-tabs'><button className='admin-tab active'><i className='fa-solid fa-calendar-days' />Lịch hẹn phụ trách</button></nav>}
+-      {loading && <section className='admin-card'>Đang tải dữ liệu...</section>}
++      {isStaff && <nav className='admin-tabs'><button className='admin-tab active'><i className='fa-solid fa-calendar-days' />{t.assignedAppointments}</button></nav>}
++      {loading && <section className='admin-card'>{t.loading}</section>}
+
+-      {!isStaff && tab === 'branches' && <BranchesTab loading={loading} branches={branches} branchForm={branchForm} editingBranch={editingBranch} onBranchFormChange={(next) => { const nextName = next.name ?? branchForm.name ?? ''; setBranchForm({ ...next, code: normalizeBranchCode(nextName) }) }} onSaveBranch={saveBranch} onEditBranch={(branch) => { setEditingBranch(branch); setBranchForm(branch) }} onDeleteBranch={async (branch) => { try { const response = await spaAdminApi.deleteBranch(branch.id); await loadAll(); await AlertJs.success(response?.softDeleted ? 'Không thể xóa cứng' : 'Đã xóa chi nhánh', response?.softDeleted ? 'Chi nhánh đang liên kết dữ liệu nên hệ thống đã chuyển sang trạng thái không hoạt động.' : '') } catch (error) { await AlertJs.error('Xóa chi nhánh thất bại', getVietnameseError(error, 'Không thể xử lý yêu cầu xóa chi nhánh lúc này.')) } }} onCancelEdit={() => { setEditingBranch(null); setBranchForm(defaultBranchForm) }} />}
++      {!isStaff && tab === 'branches' && <BranchesTab lang={lang} loading={loading} branches={branches} branchForm={branchForm} editingBranch={editingBranch} onBranchFormChange={(next) => { const nextName = next.name ?? branchForm.name ?? ''; setBranchForm({ ...next, code: normalizeBranchCode(nextName) }) }} onSaveBranch={saveBranch} onEditBranch={(branch) => { setEditingBranch(branch); setBranchForm(branch) }} onDeleteBranch={async (branch) => { try { const response = await spaAdminApi.deleteBranch(branch.id); await loadAll(); await AlertJs.success(response?.softDeleted ? 'Không thể xóa cứng' : 'Đã xóa chi nhánh', response?.softDeleted ? 'Chi nhánh đang liên kết dữ liệu nên hệ thống đã chuyển sang trạng thái không hoạt động.' : '') } catch (error) { await AlertJs.error('Xóa chi nhánh thất bại', getVietnameseError(error, 'Không thể xử lý yêu cầu xóa chi nhánh lúc này.')) } }} onCancelEdit={() => { setEditingBranch(null); setBranchForm(defaultBranchForm) }} />}
+
+-      {!isStaff && tab === 'categories' && <CategoriesTab loading={loading} categories={categories} categoryForm={categoryForm} editingCategory={editingCategory} onCategoryFormChange={setCategoryForm} onSaveCategory={async () => {
++      {!isStaff && tab === 'categories' && <CategoriesTab lang={lang} loading={loading} categories={categories} categoryForm={categoryForm} editingCategory={editingCategory} onCategoryFormChange={setCategoryForm} onSaveCategory={async () => {
+         if (!categoryForm.name.trim()) return AlertJs.error('Thiếu dữ liệu', 'Vui lòng nhập tên danh mục.')
+         try { if (editingCategory) await spaAdminApi.updateServiceCategory(editingCategory.id, categoryForm); else await spaAdminApi.createServiceCategory(categoryForm); setEditingCategory(null); setCategoryForm(defaultCategoryForm); await loadAll(); await AlertJs.success('Đã lưu danh mục dịch vụ') } catch (error) { await AlertJs.error('Lưu danh mục thất bại', getVietnameseError(error, 'Vui lòng kiểm tra dữ liệu danh mục.')) }
+       }} onEditCategory={(category) => { setEditingCategory(category); setCategoryForm({ name: category.name }) }} onDeleteCategory={async (category) => {
+         if (category.serviceCount > 0) return AlertJs.error('Không thể xóa', 'Danh mục này đang có dịch vụ. Vui lòng chuyển dịch vụ sang danh mục khác trước khi xóa.')
+         try { await spaAdminApi.deleteServiceCategory(category.id); await loadAll(); await AlertJs.success('Đã xóa danh mục') } catch (error) { await AlertJs.error('Xóa danh mục thất bại', getVietnameseError(error, 'Không thể xóa danh mục vào lúc này.')) }
+       }} onCancelEdit={() => { setEditingCategory(null); setCategoryForm(defaultCategoryForm) }} />}
+
+-      {!isStaff && tab === 'services' && <ServicesTab loading={loading} services={servicePageItems} branches={branches} categories={categories} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} searchKeyword={serviceSearchKeyword} pagination={{ page: servicePage, pageSize: servicePageSize, total: serviceTotal, totalPages: serviceTotalPages }} onSearchKeywordChange={setServiceSearchKeyword} onPageChange={(nextPage) => { void loadServices({ page: nextPage }) }} onPageSizeChange={(size) => { setServicePageSize(size); setServicePage(1) }} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onSaveService={async () => {
++      {!isStaff && tab === 'services' && <ServicesTab lang={lang} loading={loading} services={servicePageItems} branches={branches} categories={categories} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} searchKeyword={serviceSearchKeyword} pagination={{ page: servicePage, pageSize: servicePageSize, total: serviceTotal, totalPages: serviceTotalPages }} onSearchKeywordChange={setServiceSearchKeyword} onPageChange={(nextPage) => { void loadServices({ page: nextPage }) }} onPageSizeChange={(size) => { setServicePageSize(size); setServicePage(1) }} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onSaveService={async () => {
+         if (!serviceForm.categoryId) return AlertJs.error('Thiếu danh mục', 'Vui lòng chọn danh mục cho dịch vụ.')
+         if (!serviceForm.branchIds.length) return AlertJs.error('Thiếu chi nhánh', 'Vui lòng chọn ít nhất 1 chi nhánh áp dụng dịch vụ.')
+         const normalizedServiceName = serviceForm.name.trim().toLocaleLowerCase('vi')
+         const duplicatedService = services.find((service) => service.id !== editingService?.id && service.name.trim().toLocaleLowerCase('vi') === normalizedServiceName)
+         if (duplicatedService) return AlertJs.error('Tên dịch vụ bị trùng', `Tên dịch vụ "${serviceForm.name.trim()}" đã tồn tại. Vui lòng nhập tên khác.`)
+         const payload = { ...serviceForm, goals: serviceForm.goals.split(',').map((item) => item.trim()).filter(Boolean), suitableFor: serviceForm.suitableFor.split(',').map((item) => item.trim()).filter(Boolean), process: serviceForm.process.split(',').map((item) => item.trim()).filter(Boolean), branchIds: Array.from(new Set(serviceForm.branchIds)).map(Number).filter((id) => Number.isInteger(id) && id > 0) }
+         try { if (editingService) await spaAdminApi.updateService(editingService.id, payload, selectedImage); else await spaAdminApi.createService(payload, selectedImage); setEditingService(null); setServiceForm(defaultServiceForm); setSelectedImage(null); await loadAll(); await AlertJs.success('Đã lưu dịch vụ') } catch (error) { await AlertJs.error('Lưu dịch vụ thất bại', getVietnameseError(error, 'Vui lòng kiểm tra lại thông tin dịch vụ.')) }
+       }} onEditService={(service) => { setEditingService(service); setSelectedImage(null); setServiceForm({ ...defaultServiceForm, ...service, categoryId: service.categoryId || 0, goals: service.goals?.join(', ') || '', suitableFor: service.suitableFor?.join(', ') || '', process: service.process?.join(', ') || '', branchIds: service.branchIds || [], isActive: service.isActive ?? true }) }} onDeleteService={async (service) => { try { await spaAdminApi.deleteService(service.id); await loadAll(); await AlertJs.success('Đã xóa dịch vụ') } catch (error) { await AlertJs.error('Xóa dịch vụ thất bại', getVietnameseError(error, 'Dịch vụ đang được sử dụng hoặc có lỗi hệ thống.')) } }} onCancelEdit={() => { setEditingService(null); setServiceForm(defaultServiceForm); setSelectedImage(null) }} />}
+
+-      {!isStaff && tab === 'specialists' && <SpecialistsTab loading={loading} branches={activeBranches} services={services} specialists={specialists} specialistForm={specialistForm} editingSpecialist={editingSpecialist} onSpecialistFormChange={setSpecialistForm} onSaveSpecialist={async () => {
++      {!isStaff && tab === 'specialists' && <SpecialistsTab lang={lang} loading={loading} branches={activeBranches} services={services} specialists={specialists} specialistForm={specialistForm} editingSpecialist={editingSpecialist} onSpecialistFormChange={setSpecialistForm} onSaveSpecialist={async () => {
+         if (!specialistForm.branchId) return AlertJs.error('Thiếu chi nhánh', 'Vui lòng chọn chi nhánh cho chuyên viên.')
+         if (!specialistForm.email.trim()) return AlertJs.error('Thiếu email', 'Vui lòng nhập email tài khoản cho chuyên viên.')
+         try { if (editingSpecialist) await spaAdminApi.updateSpecialist(editingSpecialist.id, specialistForm); else await spaAdminApi.createSpecialist(specialistForm); setEditingSpecialist(null); setSpecialistForm(defaultSpecialistForm); await loadAll(); await AlertJs.success('Đã lưu chuyên viên') } catch (error) { await AlertJs.error('Lưu chuyên viên thất bại', getVietnameseError(error, 'Thông tin chuyên viên chưa hợp lệ.')) }
+       }} onEditSpecialist={(specialist) => { setEditingSpecialist(specialist); setSpecialistForm({ name: specialist.name, email: specialist.email, level: specialist.level, bio: specialist.bio || '', branchId: specialist.branchId, serviceIds: specialist.serviceIds || [] }) }} onDeleteSpecialist={async (specialist) => { try { await spaAdminApi.deleteSpecialist(specialist.id); await loadAll(); await AlertJs.success('Đã xóa chuyên viên') } catch (error) { await AlertJs.error('Xóa chuyên viên thất bại', getVietnameseError(error, 'Chuyên viên đang có lịch hẹn hoặc liên kết dữ liệu.')) } }} onCancelEdit={() => { setEditingSpecialist(null); setSpecialistForm(defaultSpecialistForm) }} />}
+
+-      {(isStaff || tab === 'appointments') && <AppointmentsTab loading={loading} appointments={appointments} specialists={specialists} branches={branches} services={services} isStaff={isStaff} onAssignSpecialist={async (appointment, specialistId) => {
++      {(isStaff || tab === 'appointments') && <AppointmentsTab lang={lang} loading={loading} appointments={appointments} specialists={specialists} branches={branches} services={services} isStaff={isStaff} onAssignSpecialist={async (appointment, specialistId) => {
+         if (isStaff) return
+         try { await spaAdminApi.updateAppointment(appointment.id, { specialistId }); await loadAll(); await AlertJs.success('Đã gán chuyên viên và gửi email thông báo') } catch (error) { await AlertJs.error('Gán chuyên viên thất bại', getVietnameseError(error, 'Không thể gán chuyên viên vào lịch hẹn này.')) }
+       }} onUpdateStatus={async (appointment, status) => {
+         try { await spaAdminApi.updateAppointment(appointment.id, { status }); await loadAll(); await AlertJs.success('Đã cập nhật trạng thái lịch hẹn') } catch (error) { await AlertJs.error('Cập nhật thất bại', getVietnameseError(error, 'Không thể cập nhật trạng thái lịch hẹn.')) }
+       }} onDeleteAppointment={async (appointment) => {
+         if (isStaff) return
+         try { await spaAdminApi.deleteAppointment(appointment.id); await loadAll(); await AlertJs.success('Đã xóa lịch hẹn') } catch (error) { await AlertJs.error('Xóa lịch hẹn thất bại', getVietnameseError(error, 'Không thể xóa lịch hẹn vào lúc này.')) }
+       }} />}
+     </main>
+   )
+ }
+diff --git a/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
+index f484d092bc095a951fd2f5efd5e7c1094bc0bb37..edfe4fee514739f00a6a578c82eb368a4c97aaeb 100644
+--- a/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
++++ b/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
+@@ -1,88 +1,94 @@
+ import type { BranchesTabProps } from './types'
+
+-export function BranchesTab({ branches, branchForm, editingBranch, onBranchFormChange, onSaveBranch, onEditBranch, onDeleteBranch, onCancelEdit }: BranchesTabProps) {
++const textMap = {
++  vi: {
++    update: 'Cập nhật chi nhánh', create: 'Tạo chi nhánh mới', code: 'Mã chi nhánh', codePlaceholder: 'Tự động sinh từ tên chi nhánh', codeHelp: 'Mã được tự động tạo từ tên chi nhánh để đảm bảo chuẩn dữ liệu.',
++    name: 'Tên chi nhánh', namePlaceholder: 'Nhập tên chi nhánh', address: 'Địa chỉ', addressPlaceholder: 'Nhập địa chỉ đầy đủ', phone: 'Số điện thoại', phoneHelp: 'Hỗ trợ định dạng số quốc tế (không giới hạn theo từng quốc gia).',
++    active: 'Hoạt động (Active)', save: 'Lưu thay đổi', add: 'Thêm chi nhánh', cancel: 'Hủy', list: 'Danh sách chi nhánh', colName: 'Tên chi nhánh', colCode: 'Mã', colAddress: 'Địa chỉ', colPhone: 'Điện thoại', colStatus: 'Trạng thái', colAction: 'Thao tác', edit: 'Sửa chi nhánh', del: 'Xóa chi nhánh',
++  },
++  'en-US': {
++    update: 'Update branch', create: 'Create new branch', code: 'Branch code', codePlaceholder: 'Auto-generated from branch name', codeHelp: 'Code is generated from branch name for data consistency.',
++    name: 'Branch name', namePlaceholder: 'Enter branch name', address: 'Address', addressPlaceholder: 'Enter full address', phone: 'Phone number', phoneHelp: 'Supports international phone format (all countries).',
++    active: 'Active', save: 'Save changes', add: 'Add branch', cancel: 'Cancel', list: 'Branch list', colName: 'Branch name', colCode: 'Code', colAddress: 'Address', colPhone: 'Phone', colStatus: 'Status', colAction: 'Actions', edit: 'Edit branch', del: 'Delete branch',
++  },
++  de: {
++    update: 'Filiale aktualisieren', create: 'Neue Filiale erstellen', code: 'Filialcode', codePlaceholder: 'Automatisch aus Filialname', codeHelp: 'Code wird aus dem Filialnamen zur Datenkonsistenz erzeugt.',
++    name: 'Filialname', namePlaceholder: 'Filialname eingeben', address: 'Adresse', addressPlaceholder: 'Vollständige Adresse eingeben', phone: 'Telefonnummer', phoneHelp: 'Unterstützt internationales Telefonformat (alle Länder).',
++    active: 'Aktiv', save: 'Änderungen speichern', add: 'Filiale hinzufügen', cancel: 'Abbrechen', list: 'Filialliste', colName: 'Filialname', colCode: 'Code', colAddress: 'Adresse', colPhone: 'Telefon', colStatus: 'Status', colAction: 'Aktionen', edit: 'Filiale bearbeiten', del: 'Filiale löschen',
++  },
++} as const
++
++export function BranchesTab({ lang = 'vi', branches, branchForm, editingBranch, onBranchFormChange, onSaveBranch, onEditBranch, onDeleteBranch, onCancelEdit }: BranchesTabProps) {
+   const isEditing = Boolean(editingBranch)
++  const t = textMap[lang]
+
+   return (
+     <div className='admin-grid'>
+       <section className='admin-card admin-card-glow'>
+-        <h3 className='admin-card-title'><i className='fa-solid fa-building' /> {isEditing ? 'Cập nhật chi nhánh' : 'Tạo chi nhánh mới'}</h3>
++        <h3 className='admin-card-title'><i className='fa-solid fa-building' /> {isEditing ? t.update : t.create}</h3>
+         <div className='admin-form-grid'>
+           <label className='admin-field'>
+-            <span className='admin-label'><i className='fa-solid fa-id-card' /> Mã chi nhánh</span>
+-            <input className='admin-input' placeholder='Tự động sinh từ tên chi nhánh' value={branchForm.code || ''} readOnly />
+-            <small className='admin-helper'>Mã được tự động tạo từ tên chi nhánh để đảm bảo chuẩn dữ liệu.</small>
++            <span className='admin-label'><i className='fa-solid fa-id-card' /> {t.code}</span>
++            <input className='admin-input' placeholder={t.codePlaceholder} value={branchForm.code || ''} readOnly />
++            <small className='admin-helper'>{t.codeHelp}</small>
+           </label>
+           <label className='admin-field'>
+-            <span className='admin-label'><i className='fa-solid fa-tag' /> Tên chi nhánh</span>
+-            <input className='admin-input' placeholder='Nhập tên chi nhánh' value={branchForm.name || ''} onChange={(e) => onBranchFormChange({ ...branchForm, name: e.target.value })} />
++            <span className='admin-label'><i className='fa-solid fa-tag' /> {t.name}</span>
++            <input className='admin-input' placeholder={t.namePlaceholder} value={branchForm.name || ''} onChange={(e) => onBranchFormChange({ ...branchForm, name: e.target.value })} />
+           </label>
+           <label className='admin-field'>
+-            <span className='admin-label'><i className='fa-solid fa-location-dot' /> Địa chỉ</span>
+-            <input className='admin-input' placeholder='Nhập địa chỉ đầy đủ' value={branchForm.address || ''} onChange={(e) => onBranchFormChange({ ...branchForm, address: e.target.value })} />
++            <span className='admin-label'><i className='fa-solid fa-location-dot' /> {t.address}</span>
++            <input className='admin-input' placeholder={t.addressPlaceholder} value={branchForm.address || ''} onChange={(e) => onBranchFormChange({ ...branchForm, address: e.target.value })} />
+           </label>
+           <label className='admin-field'>
+-            <span className='admin-label'><i className='fa-solid fa-phone' /> Số điện thoại</span>
++            <span className='admin-label'><i className='fa-solid fa-phone' /> {t.phone}</span>
+             <input className='admin-input' placeholder='+49 ...' value={branchForm.phone || ''} onChange={(e) => onBranchFormChange({ ...branchForm, phone: e.target.value })} />
+-            <small className='admin-helper'>Hỗ trợ định dạng số quốc tế (không giới hạn theo từng quốc gia).</small>
++            <small className='admin-helper'>{t.phoneHelp}</small>
+           </label>
+           <label className='admin-checkbox'>
+             <input type='checkbox' checked={Boolean(branchForm.isActive ?? true)} onChange={(e) => onBranchFormChange({ ...branchForm, isActive: e.target.checked })} />
+             <span className='admin-checkbox-slider' />
+-            <span className='admin-checkbox-label'>Hoạt động (Active)</span>
++            <span className='admin-checkbox-label'>{t.active}</span>
+           </label>
+         </div>
+         <div className='admin-row'>
+           <button className={`admin-btn ${isEditing ? 'admin-btn-save' : 'admin-btn-primary'}`} onClick={onSaveBranch}>
+             <i className={`fa-solid ${isEditing ? 'fa-floppy-disk' : 'fa-plus'}`} />
+-            {isEditing ? 'Lưu thay đổi' : 'Thêm chi nhánh'}
++            {isEditing ? t.save : t.add}
+           </button>
+-          {isEditing && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>Hủy</button>}
++          {isEditing && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>{t.cancel}</button>}
+         </div>
+       </section>
+
+       <section className='admin-card'>
+-        <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> Danh sách chi nhánh</h3>
++        <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> {t.list}</h3>
+         <div className='admin-table-wrap'>
+           <table className='admin-table'>
+             <thead>
+               <tr>
+-                <th>Tên chi nhánh</th>
+-                <th>Mã</th>
+-                <th>Địa chỉ</th>
+-                <th>Điện thoại</th>
+-                <th>Trạng thái</th>
+-                <th>Thao tác</th>
++                <th>{t.colName}</th><th>{t.colCode}</th><th>{t.colAddress}</th><th>{t.colPhone}</th><th>{t.colStatus}</th><th>{t.colAction}</th>
+               </tr>
+             </thead>
+             <tbody>
+               {branches.map((branch) => (
+                 <tr key={branch.id}>
+                   <td className='td-strong'>{branch.name}</td>
+                   <td><span className='admin-badge admin-badge-purple'>{branch.code}</span></td>
+                   <td>{branch.address}</td>
+                   <td>{branch.phone || '-'}</td>
+-                  <td>
+-                    <span className={`admin-badge ${branch.isActive ? 'admin-badge-green' : 'admin-badge-red'}`}>
+-                      <i className={`fa-solid ${branch.isActive ? 'fa-circle-check' : 'fa-circle-xmark'}`} />
+-                    </span>
+-                  </td>
++                  <td><span className={`admin-badge ${branch.isActive ? 'admin-badge-green' : 'admin-badge-red'}`}><i className={`fa-solid ${branch.isActive ? 'fa-circle-check' : 'fa-circle-xmark'}`} /></span></td>
+                   <td>
+                     <div className='admin-action-row'>
+-                      <button className='admin-btn-icon admin-btn-icon-edit' onClick={() => onEditBranch(branch)} aria-label='Sửa chi nhánh'>
+-                        <i className='fa-solid fa-pen-to-square' />
+-                      </button>
+-                      <button className='admin-btn-icon admin-btn-icon-delete' onClick={() => onDeleteBranch(branch)} aria-label='Xóa chi nhánh'>
+-                        <i className='fa-solid fa-trash-can' />
+-                      </button>
++                      <button className='admin-btn-icon admin-btn-icon-edit' onClick={() => onEditBranch(branch)} aria-label={t.edit}><i className='fa-solid fa-pen-to-square' /></button>
++                      <button className='admin-btn-icon admin-btn-icon-delete' onClick={() => onDeleteBranch(branch)} aria-label={t.del}><i className='fa-solid fa-trash-can' /></button>
+                     </div>
+                   </td>
+                 </tr>
+               ))}
+             </tbody>
+           </table>
+         </div>
+       </section>
+     </div>
+   )
+ }
+diff --git a/ayanavita-fontend/src/pages/admin/tabs/CategoriesTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/CategoriesTab.tsx
+index 2b45bbfb6078f45629bd028ddeec9a7e0bf5a142..c20ad818e619db8c6518228ca452ef90f5680ced 100644
+--- a/ayanavita-fontend/src/pages/admin/tabs/CategoriesTab.tsx
++++ b/ayanavita-fontend/src/pages/admin/tabs/CategoriesTab.tsx
+@@ -1,59 +1,52 @@
+ import type { CategoriesTabProps } from './types'
+
+-export function CategoriesTab({ categories, categoryForm, editingCategory, onCategoryFormChange, onSaveCategory, onEditCategory, onDeleteCategory, onCancelEdit }: CategoriesTabProps) {
++const textMap = {
++  vi: { update: 'Cập nhật danh mục dịch vụ', create: 'Tạo danh mục dịch vụ', name: 'Tên danh mục', namePlaceholder: 'VD: Chăm sóc da', save: 'Lưu thay đổi', add: 'Thêm danh mục', cancel: 'Hủy', list: 'Danh sách danh mục', colName: 'Tên danh mục', colCount: 'Số dịch vụ', colAction: 'Thao tác', edit: 'Sửa', del: 'Xóa', disabledDelete: 'Danh mục đang có dịch vụ nên không thể xóa', deleteTitle: 'Xóa danh mục' },
++  'en-US': { update: 'Update service category', create: 'Create service category', name: 'Category name', namePlaceholder: 'Ex: Skin care', save: 'Save changes', add: 'Add category', cancel: 'Cancel', list: 'Category list', colName: 'Category name', colCount: 'Service count', colAction: 'Actions', edit: 'Edit', del: 'Delete', disabledDelete: 'Cannot delete category with services', deleteTitle: 'Delete category' },
++  de: { update: 'Leistungskategorie aktualisieren', create: 'Leistungskategorie erstellen', name: 'Kategoriename', namePlaceholder: 'Bsp: Hautpflege', save: 'Änderungen speichern', add: 'Kategorie hinzufügen', cancel: 'Abbrechen', list: 'Kategorieliste', colName: 'Kategoriename', colCount: 'Anzahl Leistungen', colAction: 'Aktionen', edit: 'Bearbeiten', del: 'Löschen', disabledDelete: 'Kategorie mit Leistungen kann nicht gelöscht werden', deleteTitle: 'Kategorie löschen' },
++} as const
++
++export function CategoriesTab({ lang = 'vi', categories, categoryForm, editingCategory, onCategoryFormChange, onSaveCategory, onEditCategory, onDeleteCategory, onCancelEdit }: CategoriesTabProps) {
++  const t = textMap[lang]
+   return (
+     <div className='admin-grid'>
+       <section className='admin-card admin-card-glow'>
+-        <h3 className='admin-card-title'><i className='fa-solid fa-layer-group' /> {editingCategory ? 'Cập nhật danh mục dịch vụ' : 'Tạo danh mục dịch vụ'}</h3>
++        <h3 className='admin-card-title'><i className='fa-solid fa-layer-group' /> {editingCategory ? t.update : t.create}</h3>
+         <div className='admin-form-grid'>
+-          <label className='admin-field'><span className='admin-label'>Tên danh mục</span><input className='admin-input' placeholder='VD: Chăm sóc da' value={categoryForm.name} onChange={(e) => onCategoryFormChange({ ...categoryForm, name: e.target.value })} /></label>
++          <label className='admin-field'><span className='admin-label'>{t.name}</span><input className='admin-input' placeholder={t.namePlaceholder} value={categoryForm.name} onChange={(e) => onCategoryFormChange({ ...categoryForm, name: e.target.value })} /></label>
+         </div>
+         <div className='admin-row'>
+-          <button className='admin-btn admin-btn-primary' onClick={onSaveCategory}>{editingCategory ? 'Lưu thay đổi' : 'Thêm danh mục'}</button>
+-          {editingCategory && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>Hủy</button>}
++          <button className='admin-btn admin-btn-primary' onClick={onSaveCategory}>{editingCategory ? t.save : t.add}</button>
++          {editingCategory && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>{t.cancel}</button>}
+         </div>
+       </section>
+
+       <section className='admin-card'>
+-        <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> Danh sách danh mục</h3>
++        <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> {t.list}</h3>
+         <div className='admin-table-wrap'>
+           <table className='admin-table'>
+-            <thead>
+-              <tr>
+-                <th>Tên danh mục</th>
+-                <th>Số dịch vụ</th>
+-                <th>Thao tác</th>
+-              </tr>
+-            </thead>
++            <thead><tr><th>{t.colName}</th><th>{t.colCount}</th><th>{t.colAction}</th></tr></thead>
+             <tbody>
+               {categories.map((category) => {
+                 const hasServices = category.serviceCount > 0
+                 const deleteButtonClass = hasServices ? 'admin-btn admin-btn-ghost' : 'admin-btn admin-btn-danger'
+-
+                 return (
+                   <tr key={category.id}>
+                     <td className='td-strong'>{category.name}</td>
+                     <td>{category.serviceCount}</td>
+                     <td>
+                       <div className='admin-row'>
+-                        <button className='admin-btn admin-btn-ghost' onClick={() => onEditCategory(category)}>Sửa</button>
+-                        <button
+-                          className={deleteButtonClass}
+-                          onClick={() => onDeleteCategory(category)}
+-                          disabled={hasServices}
+-                          title={hasServices ? 'Danh mục đang có dịch vụ nên không thể xóa' : 'Xóa danh mục'}
+-                        >
+-                          Xóa
+-                        </button>
++                        <button className='admin-btn admin-btn-ghost' onClick={() => onEditCategory(category)}>{t.edit}</button>
++                        <button className={deleteButtonClass} onClick={() => onDeleteCategory(category)} disabled={hasServices} title={hasServices ? t.disabledDelete : t.deleteTitle}>{t.del}</button>
+                       </div>
+                     </td>
+                   </tr>
+                 )
+               })}
+             </tbody>
+           </table>
+         </div>
+       </section>
+     </div>
+   )
+ }
+diff --git a/ayanavita-fontend/src/pages/admin/tabs/SpecialistsTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/SpecialistsTab.tsx
+index 217620d2eabfecbc696b7e1f40e0cca5a8b198e0..d4d5fb2583d7a7caed28162a2c49fa0992620c14 100644
+--- a/ayanavita-fontend/src/pages/admin/tabs/SpecialistsTab.tsx
++++ b/ayanavita-fontend/src/pages/admin/tabs/SpecialistsTab.tsx
+@@ -1,134 +1,106 @@
+ import { useMemo, useState } from 'react'
+ import type { SpecialistsTabProps } from './types'
+
+-export function SpecialistsTab({ branches, services, specialists, specialistForm, editingSpecialist, onSpecialistFormChange, onSaveSpecialist, onEditSpecialist, onDeleteSpecialist, onCancelEdit }: SpecialistsTabProps) {
+-  const branchServices = specialistForm.branchId
+-    ? services.filter((service) => service.branchIds.includes(specialistForm.branchId))
+-    : []
++const textMap = {
++  vi: { update: 'Cập nhật chuyên viên', add: 'Thêm chuyên viên', name: 'Tên chuyên viên', email: 'Email tài khoản', branch: 'Chi nhánh', chooseBranch: 'Chọn chi nhánh', level: 'Cấp độ', bio: 'Bio', bioPlaceholder: 'Mô tả năng lực chuyên viên', branchServices: 'Dịch vụ theo chi nhánh', chooseBranchHelp: 'Vui lòng chọn chi nhánh để tải dịch vụ.', save: 'Lưu thay đổi', cancel: 'Hủy', list: 'Danh sách chuyên viên', searchName: 'Tìm tên', searchPlaceholder: 'Nhập tên chuyên viên', perPage: '/Trang', colName: 'Tên', colEmail: 'Email', colLevel: 'Cấp độ', colBranch: 'Chi nhánh', colServices: 'Dịch vụ', colAction: 'Thao tác', edit: 'Sửa', del: 'Xóa', showing: 'Hiển thị', specialists: 'chuyên viên', prev: 'Trước', page: 'Trang', next: 'Sau' },
++  'en-US': { update: 'Update specialist', add: 'Add specialist', name: 'Specialist name', email: 'Account email', branch: 'Branch', chooseBranch: 'Select branch', level: 'Level', bio: 'Bio', bioPlaceholder: 'Describe specialist capabilities', branchServices: 'Services by branch', chooseBranchHelp: 'Select a branch to load services.', save: 'Save changes', cancel: 'Cancel', list: 'Specialist list', searchName: 'Search name', searchPlaceholder: 'Enter specialist name', perPage: '/Page', colName: 'Name', colEmail: 'Email', colLevel: 'Level', colBranch: 'Branch', colServices: 'Services', colAction: 'Actions', edit: 'Edit', del: 'Delete', showing: 'Showing', specialists: 'specialists', prev: 'Prev', page: 'Page', next: 'Next' },
++  de: { update: 'Spezialist aktualisieren', add: 'Spezialist hinzufügen', name: 'Name des Spezialisten', email: 'Konto-E-Mail', branch: 'Filiale', chooseBranch: 'Filiale wählen', level: 'Stufe', bio: 'Bio', bioPlaceholder: 'Fähigkeiten des Spezialisten beschreiben', branchServices: 'Leistungen nach Filiale', chooseBranchHelp: 'Bitte Filiale wählen, um Leistungen zu laden.', save: 'Änderungen speichern', cancel: 'Abbrechen', list: 'Spezialistenliste', searchName: 'Name suchen', searchPlaceholder: 'Name des Spezialisten eingeben', perPage: '/Seite', colName: 'Name', colEmail: 'E-Mail', colLevel: 'Stufe', colBranch: 'Filiale', colServices: 'Leistungen', colAction: 'Aktionen', edit: 'Bearbeiten', del: 'Löschen', showing: 'Anzeige', specialists: 'Spezialisten', prev: 'Zurück', page: 'Seite', next: 'Weiter' },
++} as const
+
++export function SpecialistsTab({ lang = 'vi', branches, services, specialists, specialistForm, editingSpecialist, onSpecialistFormChange, onSaveSpecialist, onEditSpecialist, onDeleteSpecialist, onCancelEdit }: SpecialistsTabProps) {
++  const t = textMap[lang]
++  const branchServices = specialistForm.branchId ? services.filter((service) => service.branchIds.includes(specialistForm.branchId)) : []
+   const toggleService = (serviceId: number) => {
+     const exists = specialistForm.serviceIds.includes(serviceId)
+-    onSpecialistFormChange({
+-      ...specialistForm,
+-      serviceIds: exists
+-        ? specialistForm.serviceIds.filter((item) => item !== serviceId)
+-        : [...specialistForm.serviceIds, serviceId],
+-    })
++    onSpecialistFormChange({ ...specialistForm, serviceIds: exists ? specialistForm.serviceIds.filter((item) => item !== serviceId) : [...specialistForm.serviceIds, serviceId] })
+   }
+
+   const [searchName, setSearchName] = useState('')
+   const [page, setPage] = useState(1)
+   const [pageSize, setPageSize] = useState(10)
+
+   const filteredSpecialists = useMemo(() => {
+     const keyword = searchName.trim().toLowerCase()
+     if (!keyword) return specialists
+     return specialists.filter((item) => item.name.toLowerCase().includes(keyword))
+   }, [searchName, specialists])
+
+   const totalPages = Math.max(1, Math.ceil(filteredSpecialists.length / pageSize))
+   const safePage = Math.min(page, totalPages)
+   const pagedSpecialists = useMemo(() => {
+     const start = (safePage - 1) * pageSize
+     return filteredSpecialists.slice(start, start + pageSize)
+   }, [filteredSpecialists, pageSize, safePage])
+
+   return (
+     <div className='admin-grid'>
+       <section className='admin-card admin-card-glow'>
+-        <h3 className='admin-card-title'><i className='fa-solid fa-user-nurse' /> {editingSpecialist ? 'Cập nhật chuyên viên' : 'Thêm chuyên viên'}</h3>
++        <h3 className='admin-card-title'><i className='fa-solid fa-user-nurse' /> {editingSpecialist ? t.update : t.add}</h3>
+         <div className='admin-form-grid'>
+-          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-user' /> Tên chuyên viên</span><input className='admin-input' placeholder='Tên chuyên viên' value={specialistForm.name} onChange={(e) => onSpecialistFormChange({ ...specialistForm, name: e.target.value })} /></label>
+-          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-envelope' /> Email tài khoản</span><input className='admin-input' type='email' placeholder='staff@example.com' value={specialistForm.email} onChange={(e) => onSpecialistFormChange({ ...specialistForm, email: e.target.value })} /></label>
+-          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-building' /> Chi nhánh</span><select className='admin-input' value={specialistForm.branchId} onChange={(e) => onSpecialistFormChange({ ...specialistForm, branchId: Number(e.target.value), serviceIds: [] })}><option value={0}>Chọn chi nhánh</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+-          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-medal' /> Cấp độ</span><select className='admin-input' value={specialistForm.level} onChange={(e) => onSpecialistFormChange({ ...specialistForm, level: e.target.value })}><option value='THERAPIST'>THERAPIST</option><option value='SENIOR'>SENIOR</option><option value='EXPERT'>EXPERT</option></select></label>
+-          <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-address-card' /> Bio</span><textarea className='admin-input admin-textarea' placeholder='Mô tả năng lực chuyên viên' value={specialistForm.bio} onChange={(e) => onSpecialistFormChange({ ...specialistForm, bio: e.target.value })} /></label>
++          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-user' /> {t.name}</span><input className='admin-input' placeholder={t.name} value={specialistForm.name} onChange={(e) => onSpecialistFormChange({ ...specialistForm, name: e.target.value })} /></label>
++          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-envelope' /> {t.email}</span><input className='admin-input' type='email' placeholder='staff@example.com' value={specialistForm.email} onChange={(e) => onSpecialistFormChange({ ...specialistForm, email: e.target.value })} /></label>
++          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-building' /> {t.branch}</span><select className='admin-input' value={specialistForm.branchId} onChange={(e) => onSpecialistFormChange({ ...specialistForm, branchId: Number(e.target.value), serviceIds: [] })}><option value={0}>{t.chooseBranch}</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
++          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-medal' /> {t.level}</span><select className='admin-input' value={specialistForm.level} onChange={(e) => onSpecialistFormChange({ ...specialistForm, level: e.target.value })}><option value='THERAPIST'>THERAPIST</option><option value='SENIOR'>SENIOR</option><option value='EXPERT'>EXPERT</option></select></label>
++          <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-address-card' /> {t.bio}</span><textarea className='admin-input admin-textarea' placeholder={t.bioPlaceholder} value={specialistForm.bio} onChange={(e) => onSpecialistFormChange({ ...specialistForm, bio: e.target.value })} /></label>
+
+           <div className='admin-field admin-field-full'>
+-            <span className='admin-label'><i className='fa-solid fa-list-check' /> Dịch vụ theo chi nhánh</span>
++            <span className='admin-label'><i className='fa-solid fa-list-check' /> {t.branchServices}</span>
+             <div className='admin-multi-select'>
+               {branchServices.length > 0 ? branchServices.map((service) => (
+                 <label key={service.id} className='admin-checkbox-row'>
+                   <input type='checkbox' checked={specialistForm.serviceIds.includes(service.id)} onChange={() => toggleService(service.id)} />
+                   <span>{service.name}</span>
+                 </label>
+-              )) : <span className='admin-helper'>Vui lòng chọn chi nhánh để tải dịch vụ.</span>}
++              )) : <span className='admin-helper'>{t.chooseBranchHelp}</span>}
+             </div>
+           </div>
+         </div>
+         <div className='admin-row'>
+-          <button className='admin-btn admin-btn-primary' onClick={onSaveSpecialist}>{editingSpecialist ? 'Lưu thay đổi' : 'Thêm chuyên viên'}</button>
+-          {editingSpecialist && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>Hủy</button>}
++          <button className='admin-btn admin-btn-primary' onClick={onSaveSpecialist}>{editingSpecialist ? t.save : t.add}</button>
++          {editingSpecialist && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>{t.cancel}</button>}
+         </div>
+       </section>
+
+       <section className='admin-card'>
+-        <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> Danh sách chuyên viên</h3>
++        <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> {t.list}</h3>
+         <div className='admin-row admin-row-between admin-filter-toolbar'>
+           <label className='admin-field-inline'>
+-            <span className='admin-label'><i className='fa-solid fa-magnifying-glass' /> Tìm tên</span>
+-            <input
+-              className='admin-input admin-input-sm'
+-              placeholder='Nhập tên chuyên viên'
+-              value={searchName}
+-              onChange={(e) => { setSearchName(e.target.value); setPage(1) }}
+-            />
++            <span className='admin-label'><i className='fa-solid fa-magnifying-glass' /> {t.searchName}</span>
++            <input className='admin-input admin-input-sm' placeholder={t.searchPlaceholder} value={searchName} onChange={(e) => { setSearchName(e.target.value); setPage(1) }} />
+           </label>
+
+           <label className='admin-field-inline'>
+-            <span className='admin-label'><i className='fa-solid fa-list-ol' /> /Trang</span>
+-            <select
+-              className='admin-input admin-input-sm'
+-              value={pageSize}
+-              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1) }}
+-            >
+-              <option value={5}>5</option>
+-              <option value={10}>10</option>
+-              <option value={20}>20</option>
++            <span className='admin-label'><i className='fa-solid fa-list-ol' /> {t.perPage}</span>
++            <select className='admin-input admin-input-sm' value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1) }}>
++              <option value={5}>5</option><option value={10}>10</option><option value={20}>20</option>
              </select>
+           </label>
+         </div>
+
+         <div className='admin-table-wrap' >
+           <table className='admin-table'>
+-            <thead>
+-              <tr>
+-                <th>Tên</th>
+-                <th>Email</th>
+-                <th>Cấp độ</th>
+-                <th>Chi nhánh</th>
+-                <th>Dịch vụ</th>
+-                <th>Thao tác</th>
+-              </tr>
+-            </thead>
++            <thead><tr><th>{t.colName}</th><th>{t.colEmail}</th><th>{t.colLevel}</th><th>{t.colBranch}</th><th>{t.colServices}</th><th>{t.colAction}</th></tr></thead>
+             <tbody>
+               {pagedSpecialists.map((item) => (
+                 <tr key={item.id}>
+-                  <td className='td-strong'>{item.name}</td>
+-                  <td>{item.email}</td>
++                  <td className='td-strong'>{item.name}</td><td>{item.email}</td>
+                   <td><span className={`admin-badge ${item.level === 'EXPERT' ? 'admin-badge-purple' : item.level === 'SENIOR' ? 'admin-badge-blue' : 'admin-badge-pastel'}`}>{item.level}</span></td>
+-                  <td>{branches.find((branch) => branch.id === item.branchId)?.name || '-'}</td>
+-                  <td>{item.serviceIds.length}</td>
+-                  <td>
+-                    <div className='admin-row'>
+-                      <button className='admin-btn admin-btn-ghost' onClick={() => onEditSpecialist(item)}>Sửa</button>
+-                      <button className='admin-btn admin-btn-danger' onClick={() => onDeleteSpecialist(item)}>Xóa</button>
+-                    </div>
+-                  </td>
++                  <td>{branches.find((branch) => branch.id === item.branchId)?.name || '-'}</td><td>{item.serviceIds.length}</td>
++                  <td><div className='admin-row'><button className='admin-btn admin-btn-ghost' onClick={() => onEditSpecialist(item)}>{t.edit}</button><button className='admin-btn admin-btn-danger' onClick={() => onDeleteSpecialist(item)}>{t.del}</button></div></td>
+                 </tr>
+               ))}
+             </tbody>
+           </table>
+         </div>
+         <div className='admin-row admin-row-between'>
+-          <span className='admin-helper'>Hiển thị {pagedSpecialists.length}/{filteredSpecialists.length} chuyên viên</span>
++          <span className='admin-helper'>{t.showing} {pagedSpecialists.length}/{filteredSpecialists.length} {t.specialists}</span>
+           <div className='admin-row'>
+-            <button className='admin-btn admin-btn-ghost' disabled={safePage <= 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))}>Trước</button>
+-            <span className='admin-helper'>Trang {safePage}/{totalPages}</span>
+-            <button className='admin-btn admin-btn-ghost' disabled={safePage >= totalPages} onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}>Sau</button>
++            <button className='admin-btn admin-btn-ghost' disabled={safePage <= 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))}>{t.prev}</button>
++            <span className='admin-helper'>{t.page} {safePage}/{totalPages}</span>
++            <button className='admin-btn admin-btn-ghost' disabled={safePage >= totalPages} onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}>{t.next}</button>
+           </div>
+         </div>
+       </section>
+     </div>
+   )
+ }
+diff --git a/ayanavita-fontend/src/pages/admin/tabs/types.ts b/ayanavita-fontend/src/pages/admin/tabs/types.ts
+index 15e68c0103920e1717cf94ed3b03fc5d40650eed..bf1daf09cfffc4efdaf019827097a1bffa63159e 100644
+--- a/ayanavita-fontend/src/pages/admin/tabs/types.ts
++++ b/ayanavita-fontend/src/pages/admin/tabs/types.ts
+@@ -1,50 +1,53 @@
+ import type { Appointment, Branch, ServiceCategory, ServiceReview, SpaService, Specialist } from '../../../api/spaAdmin.api'
+
+ export type BranchForm = Partial<Branch>
+ export type ServiceForm = {
+   name: string
+   description: string
+   categoryId: number
+   goals: string
+   suitableFor: string
+   process: string
+   durationMin: number
+   price: number
+   tag: string
+   branchIds: number[]
+   isActive: boolean
+ }
+ export type CategoryForm = {
+   name: string
+ }
+
+ export type SpecialistForm = { name: string; email: string; level: string; bio: string; branchId: number; serviceIds: number[] }
+ export type ReviewForm = { serviceId: number; stars: number; comment: string; customerName: string }
+
++export type AdminLang = 'vi' | 'en-US' | 'de'
++
+ export type CommonTabProps = {
+   loading: boolean
++  lang?: AdminLang
+ }
+
+ export type BranchesTabProps = CommonTabProps & {
+   branches: Branch[]
+   branchForm: BranchForm
+   editingBranch: Branch | null
+   onBranchFormChange: (next: BranchForm) => void
+   onSaveBranch: () => Promise<void>
+   onEditBranch: (branch: Branch) => void
+   onDeleteBranch: (branch: Branch) => Promise<void>
+   onCancelEdit: () => void
+ }
+
+ export type ServicesTabProps = CommonTabProps & {
+   services: SpaService[]
+   branches: Branch[]
+   categories: ServiceCategory[]
+   serviceForm: ServiceForm
+   editingService: SpaService | null
+   selectedImageName: string
+   searchKeyword: string
+   pagination: { page: number; pageSize: number; total: number; totalPages: number }
+   onSearchKeywordChange: (value: string) => void
+   onPageChange: (page: number) => void
+   onPageSizeChange: (size: number) => void

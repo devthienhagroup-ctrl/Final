@@ -21,8 +21,11 @@ export type CategoryForm = {
 export type SpecialistForm = { name: string; email: string; level: string; bio: string; branchId: number; serviceIds: number[] }
 export type ReviewForm = { serviceId: number; stars: number; comment: string; customerName: string }
 
+export type AdminLang = 'vi' | 'en-US' | 'de'
+
 export type CommonTabProps = {
   loading: boolean
+  lang?: AdminLang
 }
 
 export type BranchesTabProps = CommonTabProps & {

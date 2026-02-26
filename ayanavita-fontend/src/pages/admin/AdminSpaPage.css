@@ -1662,6 +1662,67 @@
   .admin-donut-legend { width: 100%; }
 }
 
+.admin-stats-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.admin-stat-card-full {
+  grid-column: 1 / -1;
+}
+
+.admin-chart-host-small {
+  min-height: 230px;
+}
+
+.admin-chart-host-line {
+  min-height: 300px;
+}
+
+@media (max-width: 1100px) {
+  .admin-stats-grid {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .admin-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-chart-host-line {
+    min-height: 240px;
+  }
+}
+
+/* appointments stats redesign */
+.admin-stats-layout { display: grid; gap: 14px; margin-top: 12px; }
+.admin-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.admin-kpi-card { border: 1px solid #dbeafe; background: linear-gradient(180deg, #fff, #f8fbff); border-radius: 12px; padding: 12px; display: grid; gap: 4px; }
+.admin-kpi-card span { font-size: 12px; color: #64748b; }
+.admin-kpi-card strong { font-size: 24px; color: #0f172a; }
+.admin-stats-charts { display: grid; grid-template-columns: repeat(2, minmax(240px, 1fr)); gap: 12px; }
+.admin-stat-card h4 { margin: 0; font-size: 14px; color: #334155; }
+.admin-stat-card-wide { grid-column: span 1; }
+.admin-progress-list { display: grid; gap: 8px; }
+.admin-progress-row { display: grid; gap: 5px; }
+.admin-progress-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: #334155; }
+.admin-progress-meta span { max-width: 75%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-progress-row i { display: block; height: 8px; border-radius: 999px; background: #3b82f6; }
+.admin-donut-wrap { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 12px; }
+.admin-donut { width: 120px; height: 120px; border-radius: 50%; display: grid; place-items: center; }
+.admin-donut-center { width: 74px; height: 74px; border-radius: 50%; background: #fff; border: 1px solid #dbeafe; display: grid; place-items: center; color: #0f172a; font-weight: 700; }
+.admin-donut-legend { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.admin-donut-legend li { display: grid; grid-template-columns: 10px 1fr auto; gap: 8px; align-items: center; font-size: 13px; }
+.admin-donut-legend i { width: 10px; height: 10px; border-radius: 50%; }
+
+@media (max-width: 900px) {
+  .admin-stats-charts { grid-template-columns: 1fr; }
+  .admin-donut-wrap { grid-template-columns: 1fr; justify-items: center; }
+  .admin-donut-legend { width: 100%; }
+}
+
 /* appointments stats redesign */
 .admin-stats-layout { display: grid; gap: 14px; margin-top: 12px; }
 .admin-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }

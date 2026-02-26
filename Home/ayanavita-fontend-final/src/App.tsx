@@ -15,8 +15,7 @@ import LessonDetailPage from "./pages/LessonDetailPage";
 import ProductCategoryPage from "./pages/ProductCategoryPage";
 import ProductCheckoutPage from "./pages/ProductCheckoutPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
-import ProductAdminDetailPage from "./pages/ProductAdminDetailPage";
-import ProductAdminListPage from "./pages/ProductAdminListPage";
+
 import ProductsPage from "./pages/ProductsPage";
 import ReviewsCenterPage from "./pages/ReviewsCenterPage";
 import ServiceDetailPage from "./pages/ServiceDetailPage";
@@ -50,8 +49,6 @@ export default function App() {
         <Route path="/blog" element={<BlogPage />} />
         <Route path="/contact" element={<ContactPage />} />
 
-        <Route path="/admin/products" element={<ProductAdminListPage />} />
-        <Route path="/admin/products/:productId" element={<ProductAdminDetailPage />} />
 
         <Route path="/franchise" element={<div className="p-6">Franchise (todo)</div>} />
         <Route path="/account" element={<div className="p-6">Account (todo)</div>} />

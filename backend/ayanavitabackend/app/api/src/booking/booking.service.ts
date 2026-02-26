@@ -39,6 +39,18 @@ export class BookingService {
       ?? translations.find((item) => item.locale === 'en-US')
       ?? translations[0]
   }
+
+  private toTranslationRecord<T extends { locale: string }, TData>(
+    translations: T[] | undefined,
+    mapper: (item: T) => TData,
+  ): Partial<Record<'en-US' | 'vi' | 'de', TData>> {
+    if (!translations?.length) return {}
+    return translations.reduce<Partial<Record<'en-US' | 'vi' | 'de', TData>>>((acc, item) => {
+      if (!this.supportedLocales.includes(item.locale as any)) return acc
+      acc[item.locale as 'en-US' | 'vi' | 'de'] = mapper(item)
+      return acc
+    }, {})
+  }
   constructor(private readonly prisma: PrismaService) {}
 
   private toPositiveIntArray(value: unknown): number[] {
@@ -246,6 +258,7 @@ export class BookingService {
         address: trans?.address || b.address,
         phone: b.phone,
         isActive: b.isActive,
+        translations: this.toTranslationRecord(b.translations, (item) => ({ name: item.name, address: item.address })),
       }
     })
   }
@@ -257,10 +270,17 @@ export class BookingService {
     const query = params.q?.trim()
     const locale = this.normalizeLocale(params.lang)
 
-    const where = {
+    const where: Prisma.ServiceWhereInput = {
       ...(params.includeInactive ? {} : { isActive: true }),
       ...(params.branchId ? { branches: { some: { branchId: params.branchId } } } : {}),
-      ...(query ? { name: { contains: query } } : {}),
+      ...(query
+        ? {
+            OR: [
+              { name: { contains: query } },
+              { translations: { some: { locale, name: { contains: query } } } },
+            ],
+          }
+        : {}),
     }
 
     const [rows, total] = await Promise.all([
@@ -311,6 +331,14 @@ export class BookingService {
       imageUrl: s.imageUrl,
       branchIds: s.branches.map((b) => b.branchId),
         isActive: s.isActive,
+        translations: this.toTranslationRecord(s.translations, (item) => ({
+          name: item.name,
+          description: item.description,
+          goals: this.toStringArray(item.goals),
+          suitableFor: this.toStringArray(item.suitableFor),
+          process: this.toStringArray(item.process),
+          tag: item.tag,
+        })),
       }
     })
 
@@ -381,6 +409,14 @@ export class BookingService {
       imageUrl: row.imageUrl,
       branchIds: row.branches.map((b) => b.branchId),
         isActive: row.isActive,
+      translations: this.toTranslationRecord(row.translations, (item) => ({
+        name: item.name,
+        description: item.description,
+        goals: this.toStringArray(item.goals),
+        suitableFor: this.toStringArray(item.suitableFor),
+        process: this.toStringArray(item.process),
+        tag: item.tag,
+      })),
       reviews: row.reviews,
     }
   }
@@ -416,6 +452,7 @@ export class BookingService {
       bio: trans?.bio || s.bio,
       branchId: s.branchId,
       serviceIds: [...new Set(s.serviceLinks.map((srv) => srv.serviceId))],
+      translations: this.toTranslationRecord(s.translations, (item) => ({ name: item.name, bio: item.bio })),
       }
     })
   }
@@ -990,7 +1027,8 @@ export class BookingService {
       return {
         id: item.id,
         name: trans?.name || item.name,
-      serviceCount: item._count.services,
+        serviceCount: item._count.services,
+        translations: this.toTranslationRecord(item.translations, (entry) => ({ name: entry.name })),
       }
     })
   }

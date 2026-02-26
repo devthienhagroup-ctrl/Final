@@ -1,94 +1,40 @@
-diff --git a/ayanavita-fontend/src/pages/admin/AdminSpaPage.css b/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
-index ac31d65ad24559f7c2c48600af49f48a06a2787c..44ef8f088d7d7758b9c4eb3e688d62ea050d1169 100644
---- a/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
-+++ b/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
-@@ -410,50 +410,54 @@
-   height: 0;
- }
- .admin-checkbox-slider {
-   width: 44px;
-   height: 24px;
-   border-radius: 99px;
-   background: #cbd5e1;
-   position: relative;
-   transition: all .2s ease;
- }
- .admin-checkbox-slider::after {
-   content: '';
-   position: absolute;
-   width: 18px;
-   height: 18px;
-   border-radius: 50%;
-   background: #fff;
-   top: 3px;
-   left: 3px;
-   box-shadow: 0 3px 8px rgba(15, 23, 42, 0.2);
-   transition: all .2s ease;
- }
- .admin-checkbox input:checked + .admin-checkbox-slider { background: #22c55e; }
- .admin-checkbox input:checked + .admin-checkbox-slider::after { transform: translateX(20px); }
- .admin-checkbox-label { font-size: 14px; font-weight: 700; }
-+
-+.admin-branch-status-toggle {
-+  margin-top: 12px;
-+}
- .admin-badge-wrap { display: flex; gap: 6px; flex-wrap: wrap; }
-
- .admin-action-row {
-   display: inline-flex;
-   align-items: center;
-   gap: 8px;
- }
-
- .admin-btn-icon {
-   width: 34px;
-   height: 34px;
-   border-radius: 10px;
-   border: none;
-   color: #fff;
-   display: inline-flex;
-   align-items: center;
-   justify-content: center;
-   cursor: pointer;
-   transition: transform .15s ease, box-shadow .15s ease;
- }
- .admin-btn-icon:hover { transform: translateY(-1px); }
- .admin-btn-icon-edit { background: linear-gradient(135deg, #0ea5e9, #2563eb); box-shadow: 0 8px 18px rgba(37, 99, 235, .25); }
- .admin-btn-icon-delete { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 8px 18px rgba(220, 38, 38, .24); }
- .admin-btn-icon-info { background: linear-gradient(135deg, #14b8a6, #0d9488); box-shadow: 0 8px 18px rgba(13, 148, 136, .25); }
-
 diff --git a/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
-index 1e566f1bece613190161821b4271284e6855075c..038920db522dd70f8ad3f2418b895b160c33c84f 100644
+index 038920db522dd70f8ad3f2418b895b160c33c84f..830b41f5705c1c2f1ba3d98afe78fc5fcb0fe24c 100644
 --- a/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
 +++ b/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
-@@ -1,45 +1,60 @@
--import { useState } from 'react'
-+import { useRef, useState } from 'react'
+@@ -1,60 +1,60 @@
+ import { useRef, useState } from 'react'
  import type { BranchesTabProps } from './types'
- import { autoTranslateFromEnglish, type LocaleMode } from './i18nForm'
+-import { autoTranslateFromEnglish, type LocaleMode } from './i18nForm'
++import { autoTranslateFromVietnamese, type LocaleMode } from './i18nForm'
 
- const locales: LocaleMode[] = ['en-US', 'vi', 'de']
+-const locales: LocaleMode[] = ['en-US', 'vi', 'de']
++const locales: LocaleMode[] = ['vi', 'en-US', 'de']
 
  export function BranchesTab({ lang = 'vi', branches, branchForm, editingBranch, onBranchFormChange, onSaveBranch, onEditBranch, onDeleteBranch, onCancelEdit }: BranchesTabProps) {
-   const [mode, setMode] = useState<LocaleMode>('en-US')
-+  const translateReqRef = useRef(0)
+-  const [mode, setMode] = useState<LocaleMode>('en-US')
++  const [mode, setMode] = useState<LocaleMode>('vi')
+   const translateReqRef = useRef(0)
    const trans = branchForm.translations || {}
    const current = trans[mode] || { name: '', address: '' }
 
    const updateLocalized = (field: 'name' | 'address', value: string) => {
      const nextTranslations = { ...trans, [mode]: { ...current, [field]: value } }
      const nextForm = { ...branchForm, translations: nextTranslations }
-     if (mode === 'en-US') {
-+      translateReqRef.current += 1
-+      const reqId = translateReqRef.current
+-    if (mode === 'en-US') {
++    if (mode === 'vi') {
+       translateReqRef.current += 1
+       const reqId = translateReqRef.current
        onBranchFormChange({ ...nextForm, [field]: value })
-       void Promise.all([autoTranslateFromEnglish(value, 'vi'), autoTranslateFromEnglish(value, 'de')]).then(([vi, de]) => {
-+        if (reqId !== translateReqRef.current) return
+-      void Promise.all([autoTranslateFromEnglish(value, 'vi'), autoTranslateFromEnglish(value, 'de')]).then(([vi, de]) => {
++      void Promise.all([autoTranslateFromVietnamese(value, 'en-US'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => {
+         if (reqId !== translateReqRef.current) return
          onBranchFormChange({
            ...nextForm,
            translations: {
              ...nextTranslations,
-             vi: { ...(nextTranslations.vi || { name: '', address: '' }), [field]: vi },
+-            vi: { ...(nextTranslations.vi || { name: '', address: '' }), [field]: vi },
++            'en-US': { ...(nextTranslations['en-US'] || { name: '', address: '' }), [field]: en },
              de: { ...(nextTranslations.de || { name: '', address: '' }), [field]: de },
            },
          })
@@ -98,169 +44,321 @@ index 1e566f1bece613190161821b4271284e6855075c..038920db522dd70f8ad3f2418b895b16
      onBranchFormChange(nextForm)
    }
 
-+  const handleReset = () => {
-+    translateReqRef.current += 1
-+    onCancelEdit()
-+  }
-+
+   const handleReset = () => {
+     translateReqRef.current += 1
+     onCancelEdit()
+   }
+
    return <div className='admin-grid'><section className='admin-card admin-card-glow'>
      <h3 className='admin-card-title'>{editingBranch ? 'Cập nhật chi nhánh' : 'Tạo chi nhánh mới'}</h3>
      <div className='admin-row'>{locales.map((l)=><button key={l} className={`admin-btn ${mode===l?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode(l)}>{l}</button>)}</div>
-     <p className='admin-helper'>Mặc định nhập tiếng Anh, hệ thống tự dịch sang Việt/Đức. Khi lưu vui lòng kiểm tra lại bản dịch.</p>
+-    <p className='admin-helper'>Mặc định nhập tiếng Anh, hệ thống tự dịch sang Việt/Đức. Khi lưu vui lòng kiểm tra lại bản dịch.</p>
++    <p className='admin-helper'>Mặc định nhập tiếng Việt, hệ thống tự dịch sang Anh/Đức. Khi lưu vui lòng kiểm tra lại bản dịch.</p>
      <div className='admin-form-grid'>
        <label className='admin-field'><span className='admin-label'>Mã chi nhánh</span><input className='admin-input' value={branchForm.code || ''} readOnly /></label>
        <label className='admin-field'><span className='admin-label'>Tên chi nhánh ({mode})</span><input className='admin-input' value={current.name} onChange={(e)=>updateLocalized('name', e.target.value)} /></label>
        <label className='admin-field'><span className='admin-label'>Địa chỉ ({mode})</span><input className='admin-input' value={current.address} onChange={(e)=>updateLocalized('address', e.target.value)} /></label>
        <label className='admin-field'><span className='admin-label'>Số điện thoại</span><input className='admin-input' value={branchForm.phone || ''} onChange={(e)=>onBranchFormChange({ ...branchForm, phone: e.target.value })} /></label>
      </div>
--    <div className='admin-row'><button className='admin-btn admin-btn-primary' onClick={onSaveBranch}>{editingBranch ? 'Lưu thay đổi' : 'Thêm chi nhánh'}</button>{editingBranch && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>Hủy</button>}</div>
-+    <label className='admin-checkbox admin-branch-status-toggle'>
-+      <input type='checkbox' checked={Boolean(branchForm.isActive)} onChange={(e)=>onBranchFormChange({ ...branchForm, isActive: e.target.checked })} />
-+      <span className='admin-checkbox-slider' />
-+      <span className='admin-checkbox-label'>{branchForm.isActive ? 'Đang hoạt động' : 'Đang tắt'}</span>
-+    </label>
-+    <div className='admin-row'><button className='admin-btn admin-btn-primary' onClick={onSaveBranch}>{editingBranch ? 'Lưu thay đổi' : 'Thêm chi nhánh'}</button><button className='admin-btn admin-btn-ghost' onClick={handleReset}>{editingBranch ? 'Hủy' : 'Làm mới'}</button></div>
+     <label className='admin-checkbox admin-branch-status-toggle'>
+       <input type='checkbox' checked={Boolean(branchForm.isActive)} onChange={(e)=>onBranchFormChange({ ...branchForm, isActive: e.target.checked })} />
+       <span className='admin-checkbox-slider' />
+       <span className='admin-checkbox-label'>{branchForm.isActive ? 'Đang hoạt động' : 'Đang tắt'}</span>
+     </label>
+     <div className='admin-row'><button className='admin-btn admin-btn-primary' onClick={onSaveBranch}>{editingBranch ? 'Lưu thay đổi' : 'Thêm chi nhánh'}</button><button className='admin-btn admin-btn-ghost' onClick={handleReset}>{editingBranch ? 'Hủy' : 'Làm mới'}</button></div>
    </section>
--  <section className='admin-card'><h3 className='admin-card-title'>Danh sách chi nhánh</h3><div className='admin-table-wrap'><table className='admin-table'><thead><tr><th>Tên</th><th>Mã</th><th>Địa chỉ</th><th>Điện thoại</th><th>Thao tác</th></tr></thead><tbody>{branches.map((branch)=><tr key={branch.id}><td>{branch.name}</td><td>{branch.code}</td><td>{branch.address}</td><td>{branch.phone||'-'}</td><td><button className='admin-btn admin-btn-ghost' onClick={()=>onEditBranch(branch)}>Sửa</button><button className='admin-btn admin-btn-danger' onClick={()=>onDeleteBranch(branch)}>Xóa</button></td></tr>)}</tbody></table></div></section></div>
-+  <section className='admin-card'><h3 className='admin-card-title'>Danh sách chi nhánh</h3><div className='admin-table-wrap'><table className='admin-table'><thead><tr><th>Tên</th><th>Mã</th><th>Địa chỉ</th><th>Điện thoại</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>{branches.map((branch)=>{const cannotDelete = !branch.isActive
-+  return <tr key={branch.id}><td>{branch.name}</td><td>{branch.code}</td><td>{branch.address}</td><td>{branch.phone||'-'}</td><td><span className={`services-status-icon ${branch.isActive ? 'is-active' : 'is-inactive'}`} title={branch.isActive ? 'Đang hoạt động' : 'Đang tắt'}><i className={`fa-solid ${branch.isActive ? 'fa-circle-check' : 'fa-circle-xmark'}`} /></span></td><td><div className='admin-row admin-row-nowrap'><button className='admin-btn admin-btn-ghost' onClick={()=>onEditBranch(branch)}>Sửa</button><button className='admin-btn admin-btn-danger' onClick={()=>onDeleteBranch(branch)} disabled={cannotDelete} title={cannotDelete ? 'Chi nhánh đã ngưng hoạt động, không thể xóa thêm.' : undefined}>Xóa</button></div></td></tr>})}</tbody></table></div></section></div>
+   <section className='admin-card'><h3 className='admin-card-title'>Danh sách chi nhánh</h3><div className='admin-table-wrap'><table className='admin-table'><thead><tr><th>Tên</th><th>Mã</th><th>Địa chỉ</th><th>Điện thoại</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>{branches.map((branch)=>{const cannotDelete = !branch.isActive
+   return <tr key={branch.id}><td>{branch.name}</td><td>{branch.code}</td><td>{branch.address}</td><td>{branch.phone||'-'}</td><td><span className={`services-status-icon ${branch.isActive ? 'is-active' : 'is-inactive'}`} title={branch.isActive ? 'Đang hoạt động' : 'Đang tắt'}><i className={`fa-solid ${branch.isActive ? 'fa-circle-check' : 'fa-circle-xmark'}`} /></span></td><td><div className='admin-row admin-row-nowrap'><button className='admin-btn admin-btn-ghost' onClick={()=>onEditBranch(branch)}>Sửa</button><button className='admin-btn admin-btn-danger' onClick={()=>onDeleteBranch(branch)} disabled={cannotDelete} title={cannotDelete ? 'Chi nhánh đã ngưng hoạt động, không thể xóa thêm.' : undefined}>Xóa</button></div></td></tr>})}</tbody></table></div></section></div>
  }
 diff --git a/ayanavita-fontend/src/pages/admin/tabs/CategoriesTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/CategoriesTab.tsx
-index 04211f96d5c018b45980f5a4136c95249f18da36..449fd9f5636fc99885f7c811a605aaa06b281737 100644
+index 449fd9f5636fc99885f7c811a605aaa06b281737..80a3d06a381ed29d44713b7dd731ffa6dbe1ad49 100644
 --- a/ayanavita-fontend/src/pages/admin/tabs/CategoriesTab.tsx
 +++ b/ayanavita-fontend/src/pages/admin/tabs/CategoriesTab.tsx
-@@ -1,28 +1,38 @@
--import { useState } from 'react'
-+import { useRef, useState } from 'react'
+@@ -1,38 +1,39 @@
+ import { useRef, useState } from 'react'
  import type { CategoriesTabProps } from './types'
- import { autoTranslateFromEnglish, type LocaleMode } from './i18nForm'
+-import { autoTranslateFromEnglish, type LocaleMode } from './i18nForm'
++import { autoTranslateFromVietnamese, type LocaleMode } from './i18nForm'
 
  export function CategoriesTab({ categories, categoryForm, editingCategory, onCategoryFormChange, onSaveCategory, onEditCategory, onDeleteCategory, onCancelEdit }: CategoriesTabProps) {
-   const [mode, setMode] = useState<LocaleMode>('en-US')
-+  const translateReqRef = useRef(0)
+-  const [mode, setMode] = useState<LocaleMode>('en-US')
++  const [mode, setMode] = useState<LocaleMode>('vi')
+   const translateReqRef = useRef(0)
    const trans = categoryForm.translations || {}
    const value = trans[mode]?.name || ''
 
    const onChangeName = (name: string) => {
      const next = { ...trans, [mode]: { name } }
-     const base = { ...categoryForm, name: mode === 'en-US' ? name : categoryForm.name, translations: next }
+-    const base = { ...categoryForm, name: mode === 'en-US' ? name : categoryForm.name, translations: next }
++    const base = { ...categoryForm, name: mode === 'vi' ? name : categoryForm.name, translations: next }
      onCategoryFormChange(base)
-     if (mode === 'en-US') {
-+      translateReqRef.current += 1
-+      const reqId = translateReqRef.current
-       void Promise.all([autoTranslateFromEnglish(name, 'vi'), autoTranslateFromEnglish(name, 'de')]).then(([vi, de]) => {
-+        if (reqId !== translateReqRef.current) return
-         onCategoryFormChange({ ...base, translations: { ...next, vi: { name: vi }, de: { name: de } } })
+-    if (mode === 'en-US') {
++    if (mode === 'vi') {
+       translateReqRef.current += 1
+       const reqId = translateReqRef.current
+-      void Promise.all([autoTranslateFromEnglish(name, 'vi'), autoTranslateFromEnglish(name, 'de')]).then(([vi, de]) => {
++      void Promise.all([autoTranslateFromVietnamese(name, 'en-US'), autoTranslateFromVietnamese(name, 'de')]).then(([en, de]) => {
+         if (reqId !== translateReqRef.current) return
+-        onCategoryFormChange({ ...base, translations: { ...next, vi: { name: vi }, de: { name: de } } })
++        onCategoryFormChange({ ...base, translations: { ...next, 'en-US': { name: en }, de: { name: de } } })
        })
      }
    }
 
-+  const handleReset = () => {
-+    translateReqRef.current += 1
-+    onCancelEdit()
-+  }
-+
-   return <div className='admin-grid'><section className='admin-card admin-card-glow'>
-     <h3 className='admin-card-title'>{editingCategory ? 'Cập nhật danh mục' : 'Tạo danh mục mới'}</h3>
-     <div className='admin-row'><button className={`admin-btn ${mode==='en-US'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('en-US')}>EN</button><button className={`admin-btn ${mode==='vi'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('vi')}>VI</button><button className={`admin-btn ${mode==='de'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('de')}>DE</button></div>
-     <label className='admin-field'><span className='admin-label'>Tên danh mục ({mode})</span><input className='admin-input' value={value} onChange={(e)=>onChangeName(e.target.value)} /></label>
--    <div className='admin-row'><button className='admin-btn admin-btn-primary' onClick={onSaveCategory}>{editingCategory ? 'Lưu thay đổi' : 'Thêm danh mục'}</button>{editingCategory && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>Hủy</button>}</div>
-+    <div className='admin-row'><button className='admin-btn admin-btn-primary' onClick={onSaveCategory}>{editingCategory ? 'Lưu thay đổi' : 'Thêm danh mục'}</button><button className='admin-btn admin-btn-ghost' onClick={handleReset}>{editingCategory ? 'Hủy' : 'Làm mới'}</button></div>
-   </section>
--  <section className='admin-card'><h3 className='admin-card-title'>Danh sách danh mục</h3><table className='admin-table'><thead><tr><th>Tên</th><th>SL dịch vụ</th><th>Thao tác</th></tr></thead><tbody>{categories.map((item)=><tr key={item.id}><td>{item.name}</td><td>{item.serviceCount}</td><td><button className='admin-btn admin-btn-ghost' onClick={()=>onEditCategory(item)}>Sửa</button><button className='admin-btn admin-btn-danger' onClick={()=>onDeleteCategory(item)}>Xóa</button></td></tr>)}</tbody></table></section></div>
-+  <section className='admin-card'><h3 className='admin-card-title'>Danh sách danh mục</h3><table className='admin-table'><thead><tr><th>Tên</th><th>SL dịch vụ</th><th>Thao tác</th></tr></thead><tbody>{categories.map((item)=>{const cannotDelete = item.serviceCount > 0
-+  return <tr key={item.id}><td>{item.name}</td><td>{item.serviceCount}</td><td><div className='admin-row admin-row-nowrap'><button className='admin-btn admin-btn-ghost' onClick={()=>onEditCategory(item)}>Sửa</button><button className='admin-btn admin-btn-danger' onClick={()=>onDeleteCategory(item)} disabled={cannotDelete} title={cannotDelete ? 'Danh mục đang có dịch vụ, không thể xóa.' : undefined}>Xóa</button></div></td></tr>})}</tbody></table></section></div>
- }
-diff --git a/ayanavita-fontend/src/pages/admin/tabs/SpecialistsTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/SpecialistsTab.tsx
-index d4d5fb2583d7a7caed28162a2c49fa0992620c14..00807bb24c4f6d86433b55164e70ae29116013ab 100644
---- a/ayanavita-fontend/src/pages/admin/tabs/SpecialistsTab.tsx
-+++ b/ayanavita-fontend/src/pages/admin/tabs/SpecialistsTab.tsx
-@@ -1,32 +1,32 @@
- import { useMemo, useState } from 'react'
- import type { SpecialistsTabProps } from './types'
-
- const textMap = {
--  vi: { update: 'Cập nhật chuyên viên', add: 'Thêm chuyên viên', name: 'Tên chuyên viên', email: 'Email tài khoản', branch: 'Chi nhánh', chooseBranch: 'Chọn chi nhánh', level: 'Cấp độ', bio: 'Bio', bioPlaceholder: 'Mô tả năng lực chuyên viên', branchServices: 'Dịch vụ theo chi nhánh', chooseBranchHelp: 'Vui lòng chọn chi nhánh để tải dịch vụ.', save: 'Lưu thay đổi', cancel: 'Hủy', list: 'Danh sách chuyên viên', searchName: 'Tìm tên', searchPlaceholder: 'Nhập tên chuyên viên', perPage: '/Trang', colName: 'Tên', colEmail: 'Email', colLevel: 'Cấp độ', colBranch: 'Chi nhánh', colServices: 'Dịch vụ', colAction: 'Thao tác', edit: 'Sửa', del: 'Xóa', showing: 'Hiển thị', specialists: 'chuyên viên', prev: 'Trước', page: 'Trang', next: 'Sau' },
--  'en-US': { update: 'Update specialist', add: 'Add specialist', name: 'Specialist name', email: 'Account email', branch: 'Branch', chooseBranch: 'Select branch', level: 'Level', bio: 'Bio', bioPlaceholder: 'Describe specialist capabilities', branchServices: 'Services by branch', chooseBranchHelp: 'Select a branch to load services.', save: 'Save changes', cancel: 'Cancel', list: 'Specialist list', searchName: 'Search name', searchPlaceholder: 'Enter specialist name', perPage: '/Page', colName: 'Name', colEmail: 'Email', colLevel: 'Level', colBranch: 'Branch', colServices: 'Services', colAction: 'Actions', edit: 'Edit', del: 'Delete', showing: 'Showing', specialists: 'specialists', prev: 'Prev', page: 'Page', next: 'Next' },
--  de: { update: 'Spezialist aktualisieren', add: 'Spezialist hinzufügen', name: 'Name des Spezialisten', email: 'Konto-E-Mail', branch: 'Filiale', chooseBranch: 'Filiale wählen', level: 'Stufe', bio: 'Bio', bioPlaceholder: 'Fähigkeiten des Spezialisten beschreiben', branchServices: 'Leistungen nach Filiale', chooseBranchHelp: 'Bitte Filiale wählen, um Leistungen zu laden.', save: 'Änderungen speichern', cancel: 'Abbrechen', list: 'Spezialistenliste', searchName: 'Name suchen', searchPlaceholder: 'Name des Spezialisten eingeben', perPage: '/Seite', colName: 'Name', colEmail: 'E-Mail', colLevel: 'Stufe', colBranch: 'Filiale', colServices: 'Leistungen', colAction: 'Aktionen', edit: 'Bearbeiten', del: 'Löschen', showing: 'Anzeige', specialists: 'Spezialisten', prev: 'Zurück', page: 'Seite', next: 'Weiter' },
-+  vi: { update: 'Cập nhật chuyên viên', add: 'Thêm chuyên viên', name: 'Tên chuyên viên', email: 'Email tài khoản', branch: 'Chi nhánh', chooseBranch: 'Chọn chi nhánh', level: 'Cấp độ', bio: 'Bio', bioPlaceholder: 'Mô tả năng lực chuyên viên', branchServices: 'Dịch vụ theo chi nhánh', chooseBranchHelp: 'Vui lòng chọn chi nhánh để tải dịch vụ.', save: 'Lưu thay đổi', cancel: 'Hủy', list: 'Danh sách chuyên viên', searchName: 'Tìm tên', searchPlaceholder: 'Nhập tên chuyên viên', perPage: '/Trang', colName: 'Tên', colEmail: 'Email', colLevel: 'Cấp độ', colBranch: 'Chi nhánh', colServices: 'Dịch vụ', colAction: 'Thao tác', edit: 'Sửa', del: 'Xóa', showing: 'Hiển thị', specialists: 'chuyên viên', prev: 'Trước', page: 'Trang', next: 'Sau', reset: 'Làm mới' },
-+  'en-US': { update: 'Update specialist', add: 'Add specialist', name: 'Specialist name', email: 'Account email', branch: 'Branch', chooseBranch: 'Select branch', level: 'Level', bio: 'Bio', bioPlaceholder: 'Describe specialist capabilities', branchServices: 'Services by branch', chooseBranchHelp: 'Select a branch to load services.', save: 'Save changes', cancel: 'Cancel', list: 'Specialist list', searchName: 'Search name', searchPlaceholder: 'Enter specialist name', perPage: '/Page', colName: 'Name', colEmail: 'Email', colLevel: 'Level', colBranch: 'Branch', colServices: 'Services', colAction: 'Actions', edit: 'Edit', del: 'Delete', showing: 'Showing', specialists: 'specialists', prev: 'Prev', page: 'Page', next: 'Next', reset: 'Reset' },
-+  de: { update: 'Spezialist aktualisieren', add: 'Spezialist hinzufügen', name: 'Name des Spezialisten', email: 'Konto-E-Mail', branch: 'Filiale', chooseBranch: 'Filiale wählen', level: 'Stufe', bio: 'Bio', bioPlaceholder: 'Fähigkeiten des Spezialisten beschreiben', branchServices: 'Leistungen nach Filiale', chooseBranchHelp: 'Bitte Filiale wählen, um Leistungen zu laden.', save: 'Änderungen speichern', cancel: 'Abbrechen', list: 'Spezialistenliste', searchName: 'Name suchen', searchPlaceholder: 'Name des Spezialisten eingeben', perPage: '/Seite', colName: 'Name', colEmail: 'E-Mail', colLevel: 'Stufe', colBranch: 'Filiale', colServices: 'Leistungen', colAction: 'Aktionen', edit: 'Bearbeiten', del: 'Löschen', showing: 'Anzeige', specialists: 'Spezialisten', prev: 'Zurück', page: 'Seite', next: 'Weiter', reset: 'Zurücksetzen' },
- } as const
-
- export function SpecialistsTab({ lang = 'vi', branches, services, specialists, specialistForm, editingSpecialist, onSpecialistFormChange, onSaveSpecialist, onEditSpecialist, onDeleteSpecialist, onCancelEdit }: SpecialistsTabProps) {
-   const t = textMap[lang]
-   const branchServices = specialistForm.branchId ? services.filter((service) => service.branchIds.includes(specialistForm.branchId)) : []
-   const toggleService = (serviceId: number) => {
-     const exists = specialistForm.serviceIds.includes(serviceId)
-     onSpecialistFormChange({ ...specialistForm, serviceIds: exists ? specialistForm.serviceIds.filter((item) => item !== serviceId) : [...specialistForm.serviceIds, serviceId] })
+   const handleReset = () => {
+     translateReqRef.current += 1
+     onCancelEdit()
    }
 
-   const [searchName, setSearchName] = useState('')
-   const [page, setPage] = useState(1)
-   const [pageSize, setPageSize] = useState(10)
+   return <div className='admin-grid'><section className='admin-card admin-card-glow'>
+     <h3 className='admin-card-title'>{editingCategory ? 'Cập nhật danh mục' : 'Tạo danh mục mới'}</h3>
+-    <div className='admin-row'><button className={`admin-btn ${mode==='en-US'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('en-US')}>EN</button><button className={`admin-btn ${mode==='vi'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('vi')}>VI</button><button className={`admin-btn ${mode==='de'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('de')}>DE</button></div>
++    <div className='admin-row'><button className={`admin-btn ${mode==='vi'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('vi')}>VI</button><button className={`admin-btn ${mode==='en-US'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('en-US')}>EN</button><button className={`admin-btn ${mode==='de'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('de')}>DE</button></div>
++    <p className='admin-helper'>Mặc định nhập tiếng Việt, hệ thống tự dịch sang Anh/Đức. Khi lưu vui lòng kiểm tra lại bản dịch.</p>
+     <label className='admin-field'><span className='admin-label'>Tên danh mục ({mode})</span><input className='admin-input' value={value} onChange={(e)=>onChangeName(e.target.value)} /></label>
+     <div className='admin-row'><button className='admin-btn admin-btn-primary' onClick={onSaveCategory}>{editingCategory ? 'Lưu thay đổi' : 'Thêm danh mục'}</button><button className='admin-btn admin-btn-ghost' onClick={handleReset}>{editingCategory ? 'Hủy' : 'Làm mới'}</button></div>
+   </section>
+   <section className='admin-card'><h3 className='admin-card-title'>Danh sách danh mục</h3><table className='admin-table'><thead><tr><th>Tên</th><th>SL dịch vụ</th><th>Thao tác</th></tr></thead><tbody>{categories.map((item)=>{const cannotDelete = item.serviceCount > 0
+   return <tr key={item.id}><td>{item.name}</td><td>{item.serviceCount}</td><td><div className='admin-row admin-row-nowrap'><button className='admin-btn admin-btn-ghost' onClick={()=>onEditCategory(item)}>Sửa</button><button className='admin-btn admin-btn-danger' onClick={()=>onDeleteCategory(item)} disabled={cannotDelete} title={cannotDelete ? 'Danh mục đang có dịch vụ, không thể xóa.' : undefined}>Xóa</button></div></td></tr>})}</tbody></table></section></div>
+ }
+diff --git a/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
+index f3316b70af9addf45d4282c01e45fd2c11f48d56..c67fbfe4d3f212d8dcd58c9f4a0a414cd19c1a84 100644
+--- a/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
++++ b/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
+@@ -109,68 +109,68 @@ export function ServicesTab({
+       })
 
-   const filteredSpecialists = useMemo(() => {
-     const keyword = searchName.trim().toLowerCase()
-     if (!keyword) return specialists
-     return specialists.filter((item) => item.name.toLowerCase().includes(keyword))
-   }, [searchName, specialists])
+     return () => {
+       active = false
+     }
+   }, [detailService])
 
-   const totalPages = Math.max(1, Math.ceil(filteredSpecialists.length / pageSize))
-   const safePage = Math.min(page, totalPages)
-   const pagedSpecialists = useMemo(() => {
-     const start = (safePage - 1) * pageSize
-     return filteredSpecialists.slice(start, start + pageSize)
-@@ -35,51 +35,51 @@ export function SpecialistsTab({ lang = 'vi', branches, services, specialists, s
    return (
-     <div className='admin-grid'>
-       <section className='admin-card admin-card-glow'>
-         <h3 className='admin-card-title'><i className='fa-solid fa-user-nurse' /> {editingSpecialist ? t.update : t.add}</h3>
-         <div className='admin-form-grid'>
-           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-user' /> {t.name}</span><input className='admin-input' placeholder={t.name} value={specialistForm.name} onChange={(e) => onSpecialistFormChange({ ...specialistForm, name: e.target.value })} /></label>
-           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-envelope' /> {t.email}</span><input className='admin-input' type='email' placeholder='staff@example.com' value={specialistForm.email} onChange={(e) => onSpecialistFormChange({ ...specialistForm, email: e.target.value })} /></label>
-           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-building' /> {t.branch}</span><select className='admin-input' value={specialistForm.branchId} onChange={(e) => onSpecialistFormChange({ ...specialistForm, branchId: Number(e.target.value), serviceIds: [] })}><option value={0}>{t.chooseBranch}</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
-           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-medal' /> {t.level}</span><select className='admin-input' value={specialistForm.level} onChange={(e) => onSpecialistFormChange({ ...specialistForm, level: e.target.value })}><option value='THERAPIST'>THERAPIST</option><option value='SENIOR'>SENIOR</option><option value='EXPERT'>EXPERT</option></select></label>
-           <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-address-card' /> {t.bio}</span><textarea className='admin-input admin-textarea' placeholder={t.bioPlaceholder} value={specialistForm.bio} onChange={(e) => onSpecialistFormChange({ ...specialistForm, bio: e.target.value })} /></label>
+     <section className='admin-card admin-card-full'>
+       <div className='admin-row admin-row-space'>
+         <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> Quản lý dịch vụ</h3>
+         <button className='admin-btn admin-btn-primary' onClick={handleOpenCreate}><i className='fa-solid fa-plus' /> Thêm dịch vụ</button>
+       </div>
 
-           <div className='admin-field admin-field-full'>
-             <span className='admin-label'><i className='fa-solid fa-list-check' /> {t.branchServices}</span>
-             <div className='admin-multi-select'>
-               {branchServices.length > 0 ? branchServices.map((service) => (
-                 <label key={service.id} className='admin-checkbox-row'>
-                   <input type='checkbox' checked={specialistForm.serviceIds.includes(service.id)} onChange={() => toggleService(service.id)} />
-                   <span>{service.name}</span>
-                 </label>
-               )) : <span className='admin-helper'>{t.chooseBranchHelp}</span>}
+       <div className='admin-row services-toolbar'>
+         <label className='admin-field services-search-field'>
+           <span className='admin-label'><i className='fa-solid fa-magnifying-glass' /> Tìm tên dịch vụ</span>
+           <input
+             className='admin-input'
+             placeholder='Nhập tên dịch vụ...'
+             value={searchKeyword}
+             onChange={(e) => onSearchKeywordChange(e.target.value)}
+           />
+         </label>
+         <label className='admin-field services-size-field'>
+-          <span className='admin-label'><i className='fa-solid fa-list-ol' /> Size trang</span>
++          <span className='admin-label'><i className='fa-solid fa-list-ol' /> Số mục/trang</span>
+           <select className='admin-input' value={pagination.pageSize} onChange={(e) => onPageSizeChange(Number(e.target.value))}>
+             {pageSizeOptions.map((size) => (
+               <option key={size} value={size}>{size} / trang</option>
+             ))}
+           </select>
+         </label>
+       </div>
+
+       <div className='admin-table-wrap'>
+         <table className='admin-table services-table'>
+           <thead>
+             <tr>
+               <th>Tên dịch vụ</th>
+               <th>Danh mục</th>
+               <th>Thời lượng</th>
+               <th>Giá</th>
+-              <th>Rating</th>
++              <th>Đánh giá</th>
+               <th>Lượt đặt</th>
+               <th>Mục tiêu </th>
+               <th>Phù hợp </th>
+               <th>Trạng thái</th>
+               <th>Thao tác</th>
+             </tr>
+           </thead>
+           <tbody>
+             {services.map((service) => (
+               <tr key={service.id}>
+                 <td className='td-strong services-name-cell' title={service.name}>{service.name}</td>
+                 <td className='services-category-cell' title={service.category || '-'}>{service.category || '-'}</td>
+                 <td>{service.durationMin} phút</td>
+                 <td><span className='admin-badge admin-badge-blue'>{service.price.toLocaleString('vi-VN')}đ</span></td>
+                 <td>
+                   <span className='services-rating'>
+                     <i className='fa-solid fa-star services-rating-icon' /> {service.ratingAvg.toFixed(1)}
+                   </span>
+                 </td>
+                 <td><span className='services-booked'>{service.bookedCount ?? 0}</span></td>
+                 <td>{renderJsonPreview(service.goals || [], 'admin-badge-pink', 'admin-badge-rose')}</td>
+                 <td>{renderJsonPreview(service.suitableFor || [], 'admin-badge-cyan', 'admin-badge-sky')}</td>
+                 <td>
+                   <span className={`services-status-icon ${service.isActive ? 'is-active' : 'is-inactive'}`} title={service.isActive ? 'Đang hoạt động' : 'Đang tắt'}>
+                     <i className={`fa-solid ${service.isActive ? 'fa-circle-check' : 'fa-circle-xmark'}`} />
+@@ -240,51 +240,51 @@ export function ServicesTab({
+             </div>
+             <p className='admin-helper'><b className='admin-required'>*</b> là thông tin bắt buộc.</p>
+             <div className='admin-form-grid services-edit-grid'>
+               <label className='admin-field'>
+                 <span className='admin-label'><i className='fa-solid fa-sparkles' /> Tên dịch vụ <b className='admin-required'>*</b></span>
+                 <input className='admin-input' value={serviceForm.name} onChange={(e) => onServiceFormChange({ ...serviceForm, name: e.target.value })} />
+               </label>
+               <label className='admin-field'>
+                 <span className='admin-label'><i className='fa-solid fa-layer-group' /> Danh mục <b className='admin-required'>*</b></span>
+                 <select className='admin-input' value={serviceForm.categoryId || 0} onChange={(e) => onServiceFormChange({ ...serviceForm, categoryId: Number(e.target.value) })}>
+                   <option value={0}>Chọn danh mục</option>
+                   {categories.map((item) => (
+                     <option key={item.id} value={item.id}>{item.name}</option>
+                   ))}
+                 </select>
+               </label>
+               <label className='admin-field'>
+                 <span className='admin-label'><i className='fa-solid fa-clock' /> Thời lượng (phút) <b className='admin-required'>*</b></span>
+                 <input className='admin-input' type='number' min={1} value={serviceForm.durationMin} onChange={(e) => onServiceFormChange({ ...serviceForm, durationMin: Number(e.target.value) })} />
+               </label>
+               <label className='admin-field'>
+                 <span className='admin-label'><i className='fa-solid fa-coins' /> Giá (VNĐ) <b className='admin-required'>*</b></span>
+                 <input className='admin-input' type='number' min={0} value={serviceForm.price} onChange={(e) => onServiceFormChange({ ...serviceForm, price: Number(e.target.value) })} />
+               </label>
+               <label className='admin-field'>
+-                <span className='admin-label'><i className='fa-solid fa-tag' /> Tag hiển thị</span>
++                <span className='admin-label'><i className='fa-solid fa-tag' /> Nhãn hiển thị</span>
+                 <input className='admin-input' value={serviceForm.tag} onChange={(e) => onServiceFormChange({ ...serviceForm, tag: e.target.value })} />
+               </label>
+               <label className='admin-field'>
+                 <span className='admin-label'><i className='fa-solid fa-power-off' /> Trạng thái hoạt động</span>
+                 <span className='admin-checkbox'>
+                   <input type='checkbox' checked={Boolean(serviceForm.isActive)} onChange={(e) => onServiceFormChange({ ...serviceForm, isActive: e.target.checked })} />
+                   <span className='admin-checkbox-slider' />
+                   <span className='admin-checkbox-label'>{serviceForm.isActive ? 'Đang hoạt động' : 'Đang tắt'}</span>
+                 </span>
+               </label>
+               <label className='admin-field admin-field-full'>
+                 <span className='admin-label'><i className='fa-solid fa-building' /> Chi nhánh áp dụng <b className='admin-required'>*</b></span>
+                 <div className='services-branch-checklist'>
+                   {branches.map((branch) => {
+                     const checked = serviceForm.branchIds.includes(branch.id)
+                     return (
+                       <label key={branch.id} className={`services-branch-option ${branch.isActive ? '' : 'is-disabled'}`}>
+                         <input
+                           type='checkbox'
+                           checked={checked}
+                           disabled={!branch.isActive}
+                           onChange={(e) => {
+                             const nextBranchIds = e.target.checked
+                               ? [...serviceForm.branchIds, branch.id]
+                               : serviceForm.branchIds.filter((id) => id !== branch.id)
+@@ -305,82 +305,82 @@ export function ServicesTab({
+               <label className='admin-field admin-field-full'>
+                 <span className='admin-label'><i className='fa-solid fa-users' /> Phù hợp với (phân tách bằng dấu phẩy ",")</span>
+                 <input className='admin-input' placeholder='Người stress, Mất ngủ' value={serviceForm.suitableFor} onChange={(e) => onServiceFormChange({ ...serviceForm, suitableFor: e.target.value })} />
+               </label>
+               <label className='admin-field admin-field-full'>
+                 <span className='admin-label'><i className='fa-solid fa-list-check' /> Quy trình (phân tách bằng dấu phẩy ",")</span>
+                 <input className='admin-input' placeholder='B1 chào hỏi, B2 tư vấn, B3 trị liệu' value={serviceForm.process} onChange={(e) => onServiceFormChange({ ...serviceForm, process: e.target.value })} />
+               </label>
+               <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-pen-to-square' /> Mô tả</span><textarea className='admin-input' value={serviceForm.description} onChange={(e) => onServiceFormChange({ ...serviceForm, description: e.target.value })} /></label>
+               <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-cloud-arrow-up' /> Upload ảnh</span><input type='file' accept='image/*' onChange={(e) => onSelectImage(e.target.files?.[0] || null)} /></label>
+               {selectedImageName && <span className='admin-helper'>Đã chọn: {selectedImageName}</span>}
+             </div>
+             <div className='admin-row'>
+               <button className='admin-btn admin-btn-primary' onClick={async () => { await onSaveService(); setEditModalOpen(false) }}>{editingService ? 'Lưu thay đổi' : 'Thêm dịch vụ'}</button>
+               <button className='admin-btn admin-btn-ghost' onClick={handleCloseEdit}>Hủy</button>
              </div>
            </div>
          </div>
-         <div className='admin-row'>
-           <button className='admin-btn admin-btn-primary' onClick={onSaveSpecialist}>{editingSpecialist ? t.save : t.add}</button>
--          {editingSpecialist && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>{t.cancel}</button>}
-+          <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>{editingSpecialist ? t.cancel : t.reset}</button>
-         </div>
-       </section>
+       )}
 
-       <section className='admin-card'>
-         <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> {t.list}</h3>
-         <div className='admin-row admin-row-between admin-filter-toolbar'>
-           <label className='admin-field-inline'>
-             <span className='admin-label'><i className='fa-solid fa-magnifying-glass' /> {t.searchName}</span>
-             <input className='admin-input admin-input-sm' placeholder={t.searchPlaceholder} value={searchName} onChange={(e) => { setSearchName(e.target.value); setPage(1) }} />
-           </label>
+       {detailService && (
+         <div className='admin-modal-overlay' onClick={() => setDetailService(null)}>
+           <div className='admin-modal service-detail-modal' onClick={(e) => e.stopPropagation()}>
+             <div className='service-detail-header'>
+               <div>
+-                <p className='service-detail-eyebrow'>SERVICE PROFILE</p>
++                <p className='service-detail-eyebrow'>HỒ SƠ DỊCH VỤ</p>
+                 <h3 className='admin-card-title'><i className='fa-solid fa-circle-info' /> {detailService.name}</h3>
+               </div>
+               <button className='admin-btn admin-btn-ghost' onClick={() => setDetailService(null)}><i className='fa-solid fa-xmark' /> Đóng</button>
+             </div>
 
-           <label className='admin-field-inline'>
-             <span className='admin-label'><i className='fa-solid fa-list-ol' /> {t.perPage}</span>
-             <select className='admin-input admin-input-sm' value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1) }}>
-               <option value={5}>5</option><option value={10}>10</option><option value={20}>20</option>
-             </select>
-           </label>
-         </div>
+             {detailLoading && <p className='admin-helper'>Đang tải chuyên viên và chi nhánh liên quan...</p>}
+             {detailError && <p className='service-detail-error'>{detailError}</p>}
 
-         <div className='admin-table-wrap' >
-           <table className='admin-table'>
-             <thead><tr><th>{t.colName}</th><th>{t.colEmail}</th><th>{t.colLevel}</th><th>{t.colBranch}</th><th>{t.colServices}</th><th>{t.colAction}</th></tr></thead>
-             <tbody>
-               {pagedSpecialists.map((item) => (
-                 <tr key={item.id}>
+             <div className='service-detail-layout'>
+               <section className='service-detail-image-panel'>
+                 {detailService.imageUrl
+                   ? <img className='service-detail-image' src={detailService.imageUrl} alt={`Dịch vụ ${detailService.name}`} />
+                   : <div className='service-detail-image-empty'>Chưa có hình ảnh dịch vụ</div>}
+                 <div className='service-detail-metrics'>
+                   <span className='admin-badge admin-badge-blue'>Giá: {detailService.price.toLocaleString('vi-VN')}đ</span>
+                   <span className='admin-badge admin-badge-yellow'>Thời lượng: {detailService.durationMin} phút</span>
+-                  <span className='admin-badge admin-badge-pink'>Rating: {detailService.ratingAvg.toFixed(1)}</span>
++                  <span className='admin-badge admin-badge-pink'>Đánh giá: {detailService.ratingAvg.toFixed(1)}</span>
+                   <span className={`admin-badge ${detailService.isActive ? 'admin-badge-green' : 'admin-badge-red'}`}>
+                     Trạng thái: {detailService.isActive ? 'Đang hoạt động' : 'Đang tắt'}
+                   </span>
+                   <span className='admin-badge admin-badge-green'>Lượt đặt: {detailService.bookedCount ?? 0}</span>
+                 </div>
+               </section>
+
+               <section className='service-detail-content'>
+                 <div className='service-detail-grid'>
+                   <article className='service-detail-card'>
+                     <h4><i className='fa-solid fa-clipboard-list' /> Thông tin nhanh</h4>
+-                    <p><b>ID:</b> {detailService.id}</p>
++                    <p><b>Mã:</b> {detailService.id}</p>
+                     <p><b>Danh mục:</b> {detailService.category || '-'}</p>
+-                    <p><b>Tag:</b> {detailService.tag || '-'}</p>
++                    <p><b>Nhãn:</b> {detailService.tag || '-'}</p>
+                     <p><b>Trạng thái:</b> <span className={`admin-badge ${detailService.isActive ? 'admin-badge-green' : 'admin-badge-red'}`}>{detailService.isActive ? 'Đang hoạt động' : 'Đang tắt'}</span></p>
+                     <p><b>Mô tả:</b> {detailService.description || '-'}</p>
+                   </article>
+
+                   <article className='service-detail-card'>
+                     <h4><i className='fa-solid fa-file-lines' /> Nội dung dịch vụ</h4>
+                     <p><b>Mục tiêu:</b></p>
+                     {renderDetailLines(detailService.goals || [])}
+                     <p><b>Phù hợp:</b></p>
+                     {renderDetailLines(detailService.suitableFor || [])}
+                     <p><b>Quy trình:</b></p>
+                     {renderDetailLines(detailService.process || [])}
+                   </article>
+
+                   <article className='service-detail-card service-branch-specialists-card'>
+                     <h4><i className='fa-solid fa-building-circle-check' /> Chi nhánh & chuyên viên theo dịch vụ</h4>
+                     {detailBranches.length > 0
+                       ? (
+                         <ul className='service-branch-list'>
+                           {detailBranches.map((branch) => {
+                             const specialistsByBranch = detailSpecialists.filter((specialist) => specialist.branchId === branch.id)
+                             return (
+                               <li key={branch.id} className='service-branch-item'>
+                                 <div className='service-branch-line'>
+                                   <i className='fa-solid fa-building service-branch-icon' />
+diff --git a/ayanavita-fontend/src/pages/admin/tabs/i18nForm.ts b/ayanavita-fontend/src/pages/admin/tabs/i18nForm.ts
+index 61ac62c793d1b7f4903efd7cc61bdf5dd9a5fa9c..c76f4ecb72a8fa204cd08640a716d80008b64927 100644
+--- a/ayanavita-fontend/src/pages/admin/tabs/i18nForm.ts
++++ b/ayanavita-fontend/src/pages/admin/tabs/i18nForm.ts
+@@ -1,16 +1,18 @@
+-export type LocaleMode = 'en-US' | 'vi' | 'de'
++export type LocaleMode = 'vi' | 'en-US' | 'de'
+
+-export async function autoTranslateFromEnglish(text: string, target: 'vi' | 'de'): Promise<string> {
++export async function autoTranslateFromVietnamese(text: string, target: 'en-US' | 'de'): Promise<string> {
+   const source = text.trim()
+   if (!source) return ''
++
++  const targetLocale = target === 'en-US' ? 'en' : target
+   try {
+-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${target}&dt=t&q=${encodeURIComponent(source)}`
++    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=vi&tl=${targetLocale}&dt=t&q=${encodeURIComponent(source)}`
+     const response = await fetch(url)
+     if (!response.ok) throw new Error('translate-failed')
+     const data = await response.json()
+     const translated = Array.isArray(data?.[0]) ? data[0].map((part: any) => part?.[0] || '').join('') : ''
+     return translated || source
+   } catch {
+     return source
+   }
+ }

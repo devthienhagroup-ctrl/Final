@@ -1,23 +1,23 @@
 import { useRef, useState } from 'react'
 import type { CategoriesTabProps } from './types'
-import { autoTranslateFromEnglish, type LocaleMode } from './i18nForm'
+import { autoTranslateFromVietnamese, type LocaleMode } from './i18nForm'
 
 export function CategoriesTab({ categories, categoryForm, editingCategory, onCategoryFormChange, onSaveCategory, onEditCategory, onDeleteCategory, onCancelEdit }: CategoriesTabProps) {
-  const [mode, setMode] = useState<LocaleMode>('en-US')
+  const [mode, setMode] = useState<LocaleMode>('vi')
   const translateReqRef = useRef(0)
   const trans = categoryForm.translations || {}
   const value = trans[mode]?.name || ''
 
   const onChangeName = (name: string) => {
     const next = { ...trans, [mode]: { name } }
-    const base = { ...categoryForm, name: mode === 'en-US' ? name : categoryForm.name, translations: next }
+    const base = { ...categoryForm, name: mode === 'vi' ? name : categoryForm.name, translations: next }
     onCategoryFormChange(base)
-    if (mode === 'en-US') {
+    if (mode === 'vi') {
       translateReqRef.current += 1
       const reqId = translateReqRef.current
-      void Promise.all([autoTranslateFromEnglish(name, 'vi'), autoTranslateFromEnglish(name, 'de')]).then(([vi, de]) => {
+      void Promise.all([autoTranslateFromVietnamese(name, 'en-US'), autoTranslateFromVietnamese(name, 'de')]).then(([en, de]) => {
         if (reqId !== translateReqRef.current) return
-        onCategoryFormChange({ ...base, translations: { ...next, vi: { name: vi }, de: { name: de } } })
+        onCategoryFormChange({ ...base, translations: { ...next, 'en-US': { name: en }, de: { name: de } } })
       })
     }
   }
@@ -29,7 +29,8 @@ export function CategoriesTab({ categories, categoryForm, editingCategory, onCat
 
   return <div className='admin-grid'><section className='admin-card admin-card-glow'>
     <h3 className='admin-card-title'>{editingCategory ? 'Cập nhật danh mục' : 'Tạo danh mục mới'}</h3>
-    <div className='admin-row'><button className={`admin-btn ${mode==='en-US'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('en-US')}>EN</button><button className={`admin-btn ${mode==='vi'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('vi')}>VI</button><button className={`admin-btn ${mode==='de'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('de')}>DE</button></div>
+    <div className='admin-row'><button className={`admin-btn ${mode==='vi'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('vi')}>VI</button><button className={`admin-btn ${mode==='en-US'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('en-US')}>EN</button><button className={`admin-btn ${mode==='de'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('de')}>DE</button></div>
+    <p className='admin-helper'>Mặc định nhập tiếng Việt, hệ thống tự dịch sang Anh/Đức. Khi lưu vui lòng kiểm tra lại bản dịch.</p>
     <label className='admin-field'><span className='admin-label'>Tên danh mục ({mode})</span><input className='admin-input' value={value} onChange={(e)=>onChangeName(e.target.value)} /></label>
     <div className='admin-row'><button className='admin-btn admin-btn-primary' onClick={onSaveCategory}>{editingCategory ? 'Lưu thay đổi' : 'Thêm danh mục'}</button><button className='admin-btn admin-btn-ghost' onClick={handleReset}>{editingCategory ? 'Hủy' : 'Làm mới'}</button></div>
   </section>

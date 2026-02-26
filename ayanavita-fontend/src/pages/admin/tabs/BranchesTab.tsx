@@ -1,11 +1,11 @@
 import { useRef, useState } from 'react'
 import type { BranchesTabProps } from './types'
-import { autoTranslateFromEnglish, type LocaleMode } from './i18nForm'
+import { autoTranslateFromVietnamese, type LocaleMode } from './i18nForm'
 
-const locales: LocaleMode[] = ['en-US', 'vi', 'de']
+const locales: LocaleMode[] = ['vi', 'en-US', 'de']
 
 export function BranchesTab({ lang = 'vi', branches, branchForm, editingBranch, onBranchFormChange, onSaveBranch, onEditBranch, onDeleteBranch, onCancelEdit }: BranchesTabProps) {
-  const [mode, setMode] = useState<LocaleMode>('en-US')
+  const [mode, setMode] = useState<LocaleMode>('vi')
   const translateReqRef = useRef(0)
   const trans = branchForm.translations || {}
   const current = trans[mode] || { name: '', address: '' }
@@ -13,17 +13,17 @@ export function BranchesTab({ lang = 'vi', branches, branchForm, editingBranch, 
   const updateLocalized = (field: 'name' | 'address', value: string) => {
     const nextTranslations = { ...trans, [mode]: { ...current, [field]: value } }
     const nextForm = { ...branchForm, translations: nextTranslations }
-    if (mode === 'en-US') {
+    if (mode === 'vi') {
       translateReqRef.current += 1
       const reqId = translateReqRef.current
       onBranchFormChange({ ...nextForm, [field]: value })
-      void Promise.all([autoTranslateFromEnglish(value, 'vi'), autoTranslateFromEnglish(value, 'de')]).then(([vi, de]) => {
+      void Promise.all([autoTranslateFromVietnamese(value, 'en-US'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => {
         if (reqId !== translateReqRef.current) return
         onBranchFormChange({
           ...nextForm,
           translations: {
             ...nextTranslations,
-            vi: { ...(nextTranslations.vi || { name: '', address: '' }), [field]: vi },
+            'en-US': { ...(nextTranslations['en-US'] || { name: '', address: '' }), [field]: en },
             de: { ...(nextTranslations.de || { name: '', address: '' }), [field]: de },
           },
         })
@@ -41,7 +41,7 @@ export function BranchesTab({ lang = 'vi', branches, branchForm, editingBranch, 
   return <div className='admin-grid'><section className='admin-card admin-card-glow'>
     <h3 className='admin-card-title'>{editingBranch ? 'Cập nhật chi nhánh' : 'Tạo chi nhánh mới'}</h3>
     <div className='admin-row'>{locales.map((l)=><button key={l} className={`admin-btn ${mode===l?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode(l)}>{l}</button>)}</div>
-    <p className='admin-helper'>Mặc định nhập tiếng Anh, hệ thống tự dịch sang Việt/Đức. Khi lưu vui lòng kiểm tra lại bản dịch.</p>
+    <p className='admin-helper'>Mặc định nhập tiếng Việt, hệ thống tự dịch sang Anh/Đức. Khi lưu vui lòng kiểm tra lại bản dịch.</p>
     <div className='admin-form-grid'>
       <label className='admin-field'><span className='admin-label'>Mã chi nhánh</span><input className='admin-input' value={branchForm.code || ''} readOnly /></label>
       <label className='admin-field'><span className='admin-label'>Tên chi nhánh ({mode})</span><input className='admin-input' value={current.name} onChange={(e)=>updateLocalized('name', e.target.value)} /></label>

@@ -131,7 +131,7 @@ export function ServicesTab({
           />
         </label>
         <label className='admin-field services-size-field'>
-          <span className='admin-label'><i className='fa-solid fa-list-ol' /> Size trang</span>
+          <span className='admin-label'><i className='fa-solid fa-list-ol' /> Số mục/trang</span>
           <select className='admin-input' value={pagination.pageSize} onChange={(e) => onPageSizeChange(Number(e.target.value))}>
             {pageSizeOptions.map((size) => (
               <option key={size} value={size}>{size} / trang</option>
@@ -148,7 +148,7 @@ export function ServicesTab({
               <th>Danh mục</th>
               <th>Thời lượng</th>
               <th>Giá</th>
-              <th>Rating</th>
+              <th>Đánh giá</th>
               <th>Lượt đặt</th>
               <th>Mục tiêu </th>
               <th>Phù hợp </th>
@@ -262,7 +262,7 @@ export function ServicesTab({
                 <input className='admin-input' type='number' min={0} value={serviceForm.price} onChange={(e) => onServiceFormChange({ ...serviceForm, price: Number(e.target.value) })} />
               </label>
               <label className='admin-field'>
-                <span className='admin-label'><i className='fa-solid fa-tag' /> Tag hiển thị</span>
+                <span className='admin-label'><i className='fa-solid fa-tag' /> Nhãn hiển thị</span>
                 <input className='admin-input' value={serviceForm.tag} onChange={(e) => onServiceFormChange({ ...serviceForm, tag: e.target.value })} />
               </label>
               <label className='admin-field'>
@@ -327,7 +327,7 @@ export function ServicesTab({
           <div className='admin-modal service-detail-modal' onClick={(e) => e.stopPropagation()}>
             <div className='service-detail-header'>
               <div>
-                <p className='service-detail-eyebrow'>SERVICE PROFILE</p>
+                <p className='service-detail-eyebrow'>HỒ SƠ DỊCH VỤ</p>
                 <h3 className='admin-card-title'><i className='fa-solid fa-circle-info' /> {detailService.name}</h3>
               </div>
               <button className='admin-btn admin-btn-ghost' onClick={() => setDetailService(null)}><i className='fa-solid fa-xmark' /> Đóng</button>
@@ -344,7 +344,7 @@ export function ServicesTab({
                 <div className='service-detail-metrics'>
                   <span className='admin-badge admin-badge-blue'>Giá: {detailService.price.toLocaleString('vi-VN')}đ</span>
                   <span className='admin-badge admin-badge-yellow'>Thời lượng: {detailService.durationMin} phút</span>
-                  <span className='admin-badge admin-badge-pink'>Rating: {detailService.ratingAvg.toFixed(1)}</span>
+                  <span className='admin-badge admin-badge-pink'>Đánh giá: {detailService.ratingAvg.toFixed(1)}</span>
                   <span className={`admin-badge ${detailService.isActive ? 'admin-badge-green' : 'admin-badge-red'}`}>
                     Trạng thái: {detailService.isActive ? 'Đang hoạt động' : 'Đang tắt'}
                   </span>
@@ -356,9 +356,9 @@ export function ServicesTab({
                 <div className='service-detail-grid'>
                   <article className='service-detail-card'>
                     <h4><i className='fa-solid fa-clipboard-list' /> Thông tin nhanh</h4>
-                    <p><b>ID:</b> {detailService.id}</p>
+                    <p><b>Mã:</b> {detailService.id}</p>
                     <p><b>Danh mục:</b> {detailService.category || '-'}</p>
-                    <p><b>Tag:</b> {detailService.tag || '-'}</p>
+                    <p><b>Nhãn:</b> {detailService.tag || '-'}</p>
                     <p><b>Trạng thái:</b> <span className={`admin-badge ${detailService.isActive ? 'admin-badge-green' : 'admin-badge-red'}`}>{detailService.isActive ? 'Đang hoạt động' : 'Đang tắt'}</span></p>
                     <p><b>Mô tả:</b> {detailService.description || '-'}</p>
                   </article>

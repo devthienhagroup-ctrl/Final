@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   createAdminProduct,
@@ -9,6 +11,7 @@ import {
   fetchAdminCategories,
   fetchAdminProductById,
   fetchCatalogLanguages,
+  slugify,
   updateAdminProduct,
   updateProductImage,
   uploadProductImage,
@@ -62,23 +65,6 @@ function normalizeStepOrders(steps: { order: number; content: string }[]) {
   return steps.map((s, idx) => ({ ...s, order: idx + 1 }));
 }
 
-type DialogState =
-    | null
-    | {
-  kind: "alert";
-  title: string;
-  message: string;
-  confirmText?: string;
-}
-    | {
-  kind: "confirm";
-  title: string;
-  message: string;
-  confirmText?: string;
-  cancelText?: string;
-  danger?: boolean;
-  onConfirm: () => void | Promise<void>;
-};
 
 function classNames(...v: Array<string | false | null | undefined>) {
   return v.filter(Boolean).join(" ");
@@ -89,6 +75,7 @@ type ValidationErrors = {
   categoryId?: boolean;
   price?: boolean;
   translationNameByLang: Record<string, boolean>;
+  translationSlugByLang: Record<string, boolean>;
 };
 
 const createEmptyProduct = (langs: AdminLanguage[]): ProductAdminItem => {
@@ -105,6 +92,7 @@ const createEmptyProduct = (langs: AdminLanguage[]): ProductAdminItem => {
     translations: nextLangs.map((lang) => ({
       lang: lang.code,
       name: "",
+      slug: `new-${lang.code}-${Date.now().toString(36)}`,
       shortDescription: "",
       description: "",
       guideContent: { intro: "", steps: [] },
@@ -114,6 +102,17 @@ const createEmptyProduct = (langs: AdminLanguage[]): ProductAdminItem => {
     images: [],
     updatedAt: now,
   };
+};
+
+
+const buildSlugEditedMap = (current: ProductAdminItem | null, original: ProductAdminItem | null): Record<string, boolean> => {
+  if (!current) return {};
+  return Object.fromEntries(
+      current.translations.map((row) => {
+        const originalSlug = original?.translations.find((item) => item.lang === row.lang)?.slug?.trim() || "";
+        return [row.lang, Boolean(originalSlug) && row.slug.trim() !== originalSlug];
+      }),
+  );
 };
 
 export function ProductAdminDetailPage() {
@@ -131,9 +130,8 @@ export function ProductAdminDetailPage() {
 
   const [pendingImageFiles, setPendingImageFiles] = useState<PendingImageFileMap>({});
   const [deletedPersistedImageIds, setDeletedPersistedImageIds] = useState<string[]>([]);
-
-  const [dialog, setDialog] = useState<DialogState>(null);
   const [showValidation, setShowValidation] = useState(false);
+  const [slugEditedByLang, setSlugEditedByLang] = useState<Record<string, boolean>>({});
 
   const originalRef = useRef<ProductAdminItem | null>(null);
 
@@ -150,8 +148,44 @@ export function ProductAdminDetailPage() {
     document.head.appendChild(link);
   }, []);
 
+  const MySwal = useMemo(() => withReactContent(Swal), []);
+
+  const swal = useMemo(
+      () =>
+          MySwal.mixin({
+            background: "#ffffff",
+            color: "#0f172a",
+            buttonsStyling: false,
+            customClass: {
+              popup: "x-swal-popup",
+              title: "x-swal-title",
+              htmlContainer: "x-swal-text",
+              actions: "x-swal-actions",
+              confirmButton: "x-swal-btn x-swal-btn--confirm",
+              cancelButton: "x-swal-btn x-swal-btn--cancel",
+            },
+          }),
+      [MySwal],
+  );
+
+  const toast = useMemo(
+      () =>
+          swal.mixin({
+            toast: true,
+            position: "top-end",
+            showConfirmButton: false,
+            timer: 2200,
+            timerProgressBar: true,
+          }),
+      [swal],
+  );
+
   const showNotice = (title: string, message = "") => {
-    setDialog({ kind: "alert", title, message });
+    void toast.fire({
+      icon: "success",
+      title,
+      text: message || undefined,
+    });
   };
 
   const cleanupTempObjectUrls = (p: ProductAdminItem | null) => {
@@ -191,12 +225,13 @@ export function ProductAdminDetailPage() {
       setActiveLang(nextLang);
 
       originalRef.current = deepClone(detail);
+      setSlugEditedByLang(buildSlugEditedMap(detail, detail));
       setPendingImageFiles({});
       setDeletedPersistedImageIds([]);
       setShowValidation(false);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Không thể tải dữ liệu";
-      setDialog({ kind: "alert", title: "Lỗi tải trang", message: msg });
+      void swal.fire({ icon: "error", title: "Lỗi tải trang", text: msg });
     } finally {
       setIsLoading(false);
     }
@@ -223,23 +258,46 @@ export function ProductAdminDetailPage() {
   }, [product, pendingImageFiles, deletedPersistedImageIds]);
 
   const validationErrors = useMemo<ValidationErrors>(() => {
-    if (!product) return { translationNameByLang: {} };
-    const translationNameByLang = Object.fromEntries(
-      product.translations.map((row) => [row.lang, !row.name.trim()]),
-    );
+    if (!product) {
+      return {
+        sku: false,
+        categoryId: false,
+        price: false,
+        translationNameByLang: {},
+        translationSlugByLang: {},
+      };
+    }
+
+    const translationNameByLang: Record<string, boolean> =
+        Object.fromEntries(
+            product.translations.map((row) => [
+              row.lang,
+              !row.name.trim(),
+            ]),
+        );
+
+    const translationSlugByLang: Record<string, boolean> =
+        Object.fromEntries(
+            product.translations.map((row) => [
+              row.lang,
+              !row.slug.trim(),
+            ]),
+        );
+
     return {
       sku: !product.sku.trim(),
       categoryId: !product.categoryId,
       price: Number.isNaN(product.price) || product.price <= 0,
       translationNameByLang,
+      translationSlugByLang,
     };
   }, [product]);
-
   const hasValidationError = useMemo(
-    () =>
-      Boolean(validationErrors.sku || validationErrors.categoryId || validationErrors.price) ||
-      Object.values(validationErrors.translationNameByLang).some(Boolean),
-    [validationErrors],
+      () =>
+          Boolean(validationErrors.sku || validationErrors.categoryId || validationErrors.price) ||
+          Object.values(validationErrors.translationNameByLang).some(Boolean) ||
+          Object.values(validationErrors.translationSlugByLang).some(Boolean),
+      [validationErrors],
   );
 
   const statusText = saving ? "Đang lưu..." : isDirty ? "Có thay đổi" : "Đã lưu";
@@ -258,14 +316,19 @@ export function ProductAdminDetailPage() {
 
     if (!isDirty) return doReset();
 
-    setDialog({
-      kind: "confirm",
-      title: "Hoàn tác thay đổi?",
-      message: "Mọi chỉnh sửa chưa lưu sẽ bị mất.",
-      confirmText: "Hoàn tác",
-      cancelText: "Hủy",
-      onConfirm: doReset,
-    });
+    void (async () => {
+      const res = await swal.fire({
+        icon: "warning",
+        title: "Hoàn tác thay đổi?",
+        text: "Mọi chỉnh sửa chưa lưu sẽ bị mất.",
+        showCancelButton: true,
+        confirmButtonText: "Hoàn tác",
+        cancelButtonText: "Hủy",
+        reverseButtons: true,
+        focusCancel: true,
+      });
+      if (res.isConfirmed) doReset();
+    })();
   };
 
   const setPrimaryImage = (imageId: string) => {
@@ -405,7 +468,7 @@ export function ProductAdminDetailPage() {
     if (!product) return;
     setShowValidation(true);
     if (hasValidationError) {
-      showNotice("Thiếu dữ liệu bắt buộc", "Vui lòng nhập đầy đủ các trường đang được tô đỏ.");
+      showNotice("Thiếu dữ liệu bắt buộc", "Vui lòng nhập đầy đủ tất cả trường bắt buộc (SKU, category, giá, tên và slug theo từng ngôn ngữ).");
       return;
     }
 
@@ -446,16 +509,16 @@ export function ProductAdminDetailPage() {
       }
 
       if (productId === "new") {
-        showNotice("Đã tạo sản phẩm mới");
+        showNotice("Đã tạo sản phẩm mới", "Bạn có thể tiếp tục cập nhật thông tin SEO (slug) sau khi tạo.");
         navigate(`/catalog/products/${savedProductId}`);
         return;
       }
 
       await load();
-      showNotice("Đã lưu thay đổi");
+      showNotice("Đã lưu thay đổi", "Dữ liệu sản phẩm đã được cập nhật thành công.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Không thể lưu thay đổi";
-      setDialog({ kind: "alert", title: "Lưu thất bại", message });
+      void swal.fire({ icon: "error", title: "Lưu thất bại", text: message });
     } finally {
       setSaving(false);
     }
@@ -464,27 +527,31 @@ export function ProductAdminDetailPage() {
   const onDeleteProduct = async () => {
     if (!product) return;
 
-    setDialog({
-      kind: "confirm",
-      title: "Xóa sản phẩm?",
-      message: "Thao tác này không thể hoàn tác.",
-      confirmText: "Xóa",
-      cancelText: "Hủy",
-      danger: true,
-      onConfirm: async () => {
-        try {
-          await deleteAdminProduct(product.id);
-          navigate("/catalog/products");
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Không thể xóa sản phẩm";
-          setDialog({
-            kind: "alert",
-            title: "Không thể xóa",
-            message: `${message}\n\nGợi ý: nếu sản phẩm đang được tham chiếu, hãy tắt trạng thái hoạt động.`,
-          });
-        }
-      },
-    });
+    void (async () => {
+      const res = await swal.fire({
+        icon: "warning",
+        title: "Xóa sản phẩm?",
+        text: "Thao tác này không thể hoàn tác.",
+        showCancelButton: true,
+        confirmButtonText: "Xóa",
+        cancelButtonText: "Hủy",
+        reverseButtons: true,
+        focusCancel: true,
+      });
+      if (!res.isConfirmed) return;
+      try {
+        await deleteAdminProduct(product.id);
+        void toast.fire({ icon: "success", title: "Đã xóa sản phẩm" });
+        navigate("/catalog/products");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Không thể xóa sản phẩm";
+        void swal.fire({
+          icon: "error",
+          title: "Không thể xóa",
+          text: `${message}\n\nGợi ý: nếu sản phẩm đang được tham chiếu, hãy tắt trạng thái hoạt động.`,
+        });
+      }
+    })();
   };
 
   const langStatus = (code: string) => {
@@ -598,14 +665,54 @@ export function ProductAdminDetailPage() {
               <input
                   className={classNames("x-input", showValidation && validationErrors.translationNameByLang[activeLang] && "x-input-invalid")}
                   value={translation?.name || ""}
-                  onChange={(e) =>
-                      setProduct((prev) =>
-                          prev ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { name: e.target.value }) } : prev,
-                      )
-                  }
+                  onChange={(e) => {
+                    const nextName = e.target.value;
+                    setProduct((prev) => {
+                      if (!prev) return prev;
+                      const nextSlugPatch =
+                          productId === "new" && !slugEditedByLang[activeLang]
+                              ? { slug: slugify(nextName || `${prev.sku}-${activeLang}`) }
+                              : {};
+                      return {
+                        ...prev,
+                        translations: upsertTranslation(prev.translations, activeLang, { name: nextName, ...nextSlugPatch }),
+                      };
+                    });
+                  }}
                   placeholder="Nhập tên theo ngôn ngữ đang chọn…"
               />
               {showValidation && validationErrors.translationNameByLang[activeLang] && <div className="x-error-text">Tên sản phẩm là bắt buộc.</div>}
+            </label>
+
+            <label className="x-field">
+              <div className="x-label">Slug</div>
+              <input
+                  className={classNames("x-input", showValidation && validationErrors.translationSlugByLang[activeLang] && "x-input-invalid")}
+                  value={translation?.slug || ""}
+                  onChange={(e) => {
+                    const rawSlug = e.target.value;
+                    const nextSlug = rawSlug ? slugify(rawSlug) : "";
+                    setProduct((prev) =>
+                        prev
+                            ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { slug: nextSlug }) }
+                            : prev,
+                    );
+                    if (productId === "new") {
+                      setSlugEditedByLang((prev) => ({ ...prev, [activeLang]: Boolean(rawSlug.trim()) }));
+                    } else {
+                      const originalSlug = originalRef.current?.translations.find((item) => item.lang === activeLang)?.slug?.trim() || "";
+                      setSlugEditedByLang((prev) => ({ ...prev, [activeLang]: Boolean(originalSlug) && nextSlug !== originalSlug }));
+                    }
+                  }}
+                  placeholder="vi-du-slug"
+              />
+              {showValidation && validationErrors.translationSlugByLang[activeLang] && <div className="x-error-text">Slug là bắt buộc.</div>}
+              {productId !== "new" && slugEditedByLang[activeLang] && (
+                  <div className="x-help x-help-warn">Hạn chế sửa slug vì có thể ảnh hưởng SEO và các liên kết hiện có.</div>
+              )}
+              {productId === "new" && (
+                  <div className="x-help">Slug tự sinh theo tên sản phẩm, bạn vẫn có thể chỉnh sửa thủ công.</div>
+              )}
             </label>
 
             <label className="x-field">
@@ -1249,41 +1356,6 @@ export function ProductAdminDetailPage() {
               </div>
             </div>
         )}
-        {/* Dialog */}
-        {dialog && (
-            <div className="x-dialog-backdrop" role="presentation" onMouseDown={() => dialog.kind === "alert" && setDialog(null)}>
-              <div className="x-dialog" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
-                <div className="x-dialog-title">
-                  <i className={dialog.kind === "confirm" ? "fa-solid fa-circle-question" : "fa-solid fa-circle-exclamation"} />{" "}
-                  {dialog.title}
-                </div>
-                <div className="x-dialog-msg">{dialog.message}</div>
-                <div className="x-dialog-actions">
-                  {dialog.kind === "confirm" ? (
-                      <>
-                        <button className="x-btn x-btn-ghost" onClick={() => setDialog(null)}>
-                          <i className="fa-solid fa-xmark" /> <span>{dialog.cancelText || "Hủy"}</span>
-                        </button>
-                        <button
-                            className={classNames("x-btn", dialog.danger ? "x-btn-danger" : "x-btn-primary")}
-                            onClick={async () => {
-                              const fn = dialog.onConfirm;
-                              setDialog(null);
-                              await fn();
-                            }}
-                        >
-                          <i className={dialog.danger ? "fa-solid fa-trash" : "fa-solid fa-check"} /> <span>{dialog.confirmText || "Xác nhận"}</span>
-                        </button>
-                      </>
-                  ) : (
-                      <button className="x-btn x-btn-primary" onClick={() => setDialog(null)}>
-                        <i className="fa-solid fa-check" /> <span>{dialog.confirmText || "OK"}</span>
-                      </button>
-                  )}
-                </div>
-              </div>
-            </div>
-        )}
       </div>
   );
 }
@@ -1458,6 +1530,7 @@ const styles = `
 
 .x-subtitle{ font-weight: 800; display:flex; gap:8px; align-items:center; color: var(--text); }
 .x-help{ color: var(--muted); margin-top: 4px; line-height: 1.35; }
+.x-help-warn{ color: #b45309; font-weight: 600; }
 .x-warn{
   margin-top: 8px;
   color: var(--warn);

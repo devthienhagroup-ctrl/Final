@@ -16,7 +16,7 @@ import {
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
-const slugify = (text: string) =>
+export const slugify = (text: string) =>
   text
     .toLowerCase()
     .trim()
@@ -78,6 +78,7 @@ const ensureTranslations = (
   rows: Array<{
     languageCode: string;
     name?: string;
+    slug?: string;
     shortDescription?: string;
     description?: string;
     guideContent?: unknown;
@@ -88,6 +89,7 @@ const ensureTranslations = (
     return {
       lang: lang.code,
       name: found?.name || "",
+      slug: found?.slug || slugify(found?.name || `${lang.code}-${uid()}`),
       shortDescription: found?.shortDescription || "",
       description: found?.description || "",
       guideContent: normalizeGuideContent(found?.guideContent),
@@ -144,6 +146,7 @@ type ApiProduct = {
   translations?: Array<{
     languageCode: string;
     name: string;
+    slug?: string;
     shortDescription?: string;
     description?: string;
     guideContent?: unknown;
@@ -213,7 +216,7 @@ const toProductPayload = (item: ProductAdminItem) => ({
   translations: item.translations.map((row) => ({
     languageCode: row.lang,
     name: row.name || "",
-    slug: slugify(row.name || `${item.sku}-${row.lang}`),
+    slug: row.slug?.trim() || slugify(row.name || `${item.sku}-${row.lang}`),
     shortDescription: row.shortDescription || "",
     description: row.description || "",
     guideContent: row.guideContent,
@@ -470,7 +473,7 @@ export function upsertTranslation(
 ): ProductTranslation[] {
   const existing = translations.find((item) => item.lang === lang);
   if (!existing) {
-    return [...translations, { lang, name: "", shortDescription: "", description: "", guideContent: emptyGuideContent(), ...patch }];
+    return [...translations, { lang, name: "", slug: "", shortDescription: "", description: "", guideContent: emptyGuideContent(), ...patch }];
   }
   return translations.map((item) => (item.lang === lang ? { ...item, ...patch } : item));
 }

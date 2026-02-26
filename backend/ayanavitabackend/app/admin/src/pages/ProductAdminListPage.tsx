@@ -14,86 +14,6 @@ function classNames(...v: Array<string | false | null | undefined>) {
   return v.filter(Boolean).join(" ");
 }
 
-function CategoryRow({
-                       category,
-                       languages,
-                       activeLang,
-                       onSave,
-                       onDelete,
-                     }: {
-  category: ProductCategory;
-  languages: AdminLanguage[];
-  activeLang: string;
-  onSave: (item: ProductCategory) => void;
-  onDelete: (id: string) => void;
-}) {
-  const [draft, setDraft] = useState(category);
-
-  useEffect(() => setDraft(category), [category]);
-
-  const activeTranslation = draft.translations.find((item) => item.lang === activeLang);
-
-  return (
-      <div className="x-card">
-        <div className="x-stack" style={{ marginTop: 0 }}>
-          <label className="x-field">
-            <div className="x-label">Tên danh mục ({activeLang.toUpperCase()})</div>
-            <input
-                className="x-input"
-                placeholder={`Tên danh mục (${activeLang})`}
-                value={activeTranslation?.name || ""}
-                onChange={(e) =>
-                    setDraft((prev) => ({
-                      ...prev,
-                      translations: prev.translations.map((row) =>
-                          row.lang === activeLang ? { ...row, name: e.target.value } : row,
-                      ),
-                    }))
-                }
-            />
-          </label>
-
-          <label className="x-field">
-            <div className="x-label">Mô tả ({activeLang.toUpperCase()})</div>
-            <input
-                className="x-input"
-                placeholder={`Mô tả (${activeLang})`}
-                value={activeTranslation?.description || ""}
-                onChange={(e) =>
-                    setDraft((prev) => ({
-                      ...prev,
-                      translations: prev.translations.map((row) =>
-                          row.lang === activeLang ? { ...row, description: e.target.value } : row,
-                      ),
-                    }))
-                }
-            />
-          </label>
-
-          <div className="x-row x-row-wrap" style={{ gap: 8 }}>
-            {languages.map((lang) => {
-              const t = draft.translations.find((item) => item.lang === lang.code);
-              return (
-                  <span key={lang.code} className="x-chip">
-                <strong>{lang.code.toUpperCase()}:</strong> {t?.name || "-"}
-              </span>
-              );
-            })}
-          </div>
-
-          <div className="x-row" style={{ justifyContent: "space-between" }}>
-            <button className="x-btn x-btn-primary" onClick={() => onSave(draft)}>
-              <i className="fa-solid fa-floppy-disk" /> <span>Lưu</span>
-            </button>
-            <button className="x-btn x-btn-danger" onClick={() => onDelete(category.id)}>
-              <i className="fa-solid fa-trash" /> <span>Xóa</span>
-            </button>
-          </div>
-        </div>
-      </div>
-  );
-}
-
 export function ProductAdminListPage() {
   const navigate = useNavigate();
   const [products, setProducts] = useState<ProductAdminItem[]>([]);
@@ -111,6 +31,9 @@ export function ProductAdminListPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [openCategoryModal, setOpenCategoryModal] = useState(false);
   const [newCategory, setNewCategory] = useState<ProductCategory>({ id: "new", translations: [] });
+  const [categoryTab, setCategoryTab] = useState<"list" | "detail">("list");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [categoryDraft, setCategoryDraft] = useState<ProductCategory | null>(null);
 
   const categoryMap = useMemo(
       () =>
@@ -179,7 +102,25 @@ export function ProductAdminListPage() {
       product.translations.find((item) => item.lang === "vi")?.name ||
       "(chưa đặt tên)";
 
-  const hasAnyCategoryName = newCategory.translations.some((row) => row.name.trim());
+  const openCategoryEditor = (category: ProductCategory) => {
+    setSelectedCategoryId(category.id);
+    setCategoryDraft(JSON.parse(JSON.stringify(category)) as ProductCategory);
+    setCategoryTab("detail");
+  };
+
+  const openCategoryCreator = () => {
+    const draft = JSON.parse(JSON.stringify(newCategory)) as ProductCategory;
+    setSelectedCategoryId("new");
+    setCategoryDraft(draft);
+    setCategoryTab("detail");
+  };
+
+  const closeCategoryModal = () => {
+    setOpenCategoryModal(false);
+    setCategoryTab("list");
+    setSelectedCategoryId(null);
+    setCategoryDraft(null);
+  };
 
   return (
       <div className="x-wrap">
@@ -230,7 +171,15 @@ export function ProductAdminListPage() {
             <button className="x-btn x-btn-primary" onClick={onCreateProduct}>
               <i className="fa-solid fa-plus" /> <span>Thêm sản phẩm</span>
             </button>
-            <button className="x-btn" onClick={() => setOpenCategoryModal(true)}>
+            <button
+                className="x-btn"
+                onClick={() => {
+                  setOpenCategoryModal(true);
+                  setCategoryTab("list");
+                  setSelectedCategoryId(null);
+                  setCategoryDraft(null);
+                }}
+            >
               <i className="fa-solid fa-folder-tree" /> <span>Quản lý category</span>
             </button>
           </div>
@@ -238,25 +187,6 @@ export function ProductAdminListPage() {
 
         {/* Language selector + status filter */}
         <div className="x-toolbar">
-          <div className="x-langbar">
-            <div className="x-toolbar-label">
-              <i className="fa-solid fa-globe" /> Ngôn ngữ
-            </div>
-            <div className="x-lang-pills">
-              {languages.map((l) => (
-                  <button
-                      key={l.code}
-                      className={classNames("x-pill-btn", activeLang === l.code && "x-pill-btn-active")}
-                      onClick={() => setActiveLang(l.code)}
-                  >
-                    <span className="x-pill-btn-dot" />
-                    {l.label}
-                    {activeLang === l.code ? <i className="fa-solid fa-check" /> : <i className="fa-regular fa-circle" />}
-                  </button>
-              ))}
-            </div>
-          </div>
-
           <div className="x-tabs" style={{ justifyContent: "space-between" }}>
             <div className="x-row x-row-wrap" style={{ gap: 8 }}>
               <button
@@ -288,18 +218,27 @@ export function ProductAdminListPage() {
               </button>
             </div>
           </div>
+          <div className="x-langbar">
+            <div className="x-toolbar-label">
+              <i className="fa-solid fa-globe" /> Ngôn ngữ
+            </div>
+            <div className="x-lang-pills">
+              {languages.map((l) => (
+                  <button
+                      key={l.code}
+                      className={classNames("x-pill-btn", activeLang === l.code && "x-pill-btn-active")}
+                      onClick={() => setActiveLang(l.code)}
+                  >
+                    <span className="x-pill-btn-dot" />
+                    {l.label}
+                    {activeLang === l.code ? <i className="fa-solid fa-check" /> : <i className="fa-regular fa-circle" />}
+                  </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="x-content">
-          {/* Notice */}
-          <div className="x-card">
-            <div className="x-section-title" style={{ marginBottom: 6 }}>
-              <i className="fa-solid fa-triangle-exclamation" /> Lưu ý dữ liệu
-            </div>
-            <div className="x-warn" style={{ marginTop: 0 }}>
-              <i className="fa-solid fa-circle-info" /> Hãy chọn đúng ngôn ngữ trước khi chỉnh sửa để tránh ghi đè bản dịch ngoài ý muốn.
-            </div>
-          </div>
 
           {/* Filters */}
           <div className="x-card">
@@ -460,7 +399,7 @@ export function ProductAdminListPage() {
 
         {/* Category modal */}
         {openCategoryModal ? (
-            <div className="x-dialog-backdrop" onClick={() => setOpenCategoryModal(false)}>
+            <div className="x-dialog-backdrop" onClick={closeCategoryModal}>
               <div className="x-dialog x-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="x-row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div>
@@ -469,7 +408,7 @@ export function ProductAdminListPage() {
                     </div>
                     <div className="x-help">Sửa theo ngôn ngữ đang chọn. Các nhãn khác chỉ để đối chiếu.</div>
                   </div>
-                  <button className="x-icon-btn" onClick={() => setOpenCategoryModal(false)} title="Đóng">
+                  <button className="x-icon-btn" onClick={closeCategoryModal} title="Đóng">
                     <i className="fa-solid fa-xmark" />
                   </button>
                 </div>
@@ -493,83 +432,188 @@ export function ProductAdminListPage() {
                   </div>
                 </div>
 
-                <div className="x-card x-card-inner" style={{ marginTop: 12, padding: 12 }}>
-                  <div className="x-section-title" style={{ marginBottom: 6 }}>
-                    <i className="fa-solid fa-plus" /> Tạo category mới
-                  </div>
-
-                  <div className="x-grid2">
-                    <label className="x-field">
-                      <div className="x-label">Tên ({activeLang.toUpperCase()})</div>
-                      <input
-                          className="x-input"
-                          placeholder={`Tên category (${activeLang})`}
-                          value={newCategory.translations.find((item) => item.lang === activeLang)?.name || ""}
-                          onChange={(e) =>
-                              setNewCategory((prev) => ({
-                                ...prev,
-                                translations: prev.translations.map((row) =>
-                                    row.lang === activeLang ? { ...row, name: e.target.value } : row,
-                                ),
-                              }))
-                          }
-                      />
-                    </label>
-                    <label className="x-field">
-                      <div className="x-label">Mô tả ({activeLang.toUpperCase()})</div>
-                      <input
-                          className="x-input"
-                          placeholder={`Mô tả (${activeLang})`}
-                          value={newCategory.translations.find((item) => item.lang === activeLang)?.description || ""}
-                          onChange={(e) =>
-                              setNewCategory((prev) => ({
-                                ...prev,
-                                translations: prev.translations.map((row) =>
-                                    row.lang === activeLang ? { ...row, description: e.target.value } : row,
-                                ),
-                              }))
-                          }
-                      />
-                    </label>
-                  </div>
-
-                  <div className="x-row" style={{ marginTop: 10 }}>
-                    <button
-                        className="x-btn x-btn-primary"
-                        disabled={!hasAnyCategoryName}
-                        onClick={async () => {
-                          if (!hasAnyCategoryName) return;
-                          await createAdminCategory(newCategory);
-                          setNewCategory({
-                            id: "new",
-                            translations: languages.map((lang) => ({ lang: lang.code, name: "", description: "" })),
-                          });
-                          void loadData();
-                        }}
-                    >
-                      <i className="fa-solid fa-plus" /> <span>Tạo</span>
-                    </button>
-                  </div>
+                {/* Tabs */}
+                <div className="x-row" style={{ marginTop: 12, gap: 8 }}>
+                  <button
+                      className={classNames("x-tab-btn", categoryTab === "list" && "x-tab-btn-active")}
+                      onClick={() => setCategoryTab("list")}
+                  >
+                    <i className="fa-solid fa-list" /> <span>Danh sách</span>
+                  </button>
+                  <button
+                      className={classNames("x-tab-btn", categoryTab === "detail" && "x-tab-btn-active")}
+                      onClick={() => setCategoryTab("detail")}
+                      disabled={!categoryDraft}
+                      title={!categoryDraft ? "Chọn một category ở tab Danh sách" : ""}
+                  >
+                    <i className="fa-solid fa-pen-to-square" /> <span>Chi tiết</span>
+                  </button>
+                  <div style={{ flex: 1 }} />
+                  <button className="x-btn x-btn-primary" onClick={openCategoryCreator}>
+                    <i className="fa-solid fa-plus" /> <span>Tạo mới</span>
+                  </button>
                 </div>
 
-                <div className="x-stack" style={{ marginTop: 12 }}>
-                  {categories.map((category) => (
-                      <CategoryRow
-                          key={category.id}
-                          category={category}
-                          languages={languages}
-                          activeLang={activeLang}
-                          onSave={async (item) => {
-                            await updateAdminCategory(item);
-                            void loadData();
-                          }}
-                          onDelete={async (id) => {
-                            await deleteAdminCategory(id);
-                            void loadData();
-                          }}
-                      />
-                  ))}
-                </div>
+                {/* Tab: List */}
+                {categoryTab === "list" ? (
+                    <div className="x-card x-card-inner" style={{ marginTop: 12, padding: 12 }}>
+                      <div className="x-row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+                        <div className="x-section-title" style={{ marginBottom: 0 }}>
+                          <i className="fa-solid fa-folder-open" /> Danh sách category
+                        </div>
+                        <div className="x-help" style={{ marginTop: 0 }}>
+                          Nhấn <strong>Sửa</strong> để qua tab Chi tiết.
+                        </div>
+                      </div>
+
+                      <div className="x-stack" style={{ marginTop: 10 }}>
+                        {categories.map((c) => {
+                          const name =
+                              c.translations.find((t) => t.lang === activeLang)?.name ||
+                              c.translations[0]?.name ||
+                              "(chưa đặt tên)";
+
+                          return (
+                              <div key={c.id} className="x-cat-row">
+                                <div className="x-cat-main">
+                                  <div className="x-cat-name">{name}</div>
+                                  <div className="x-cat-meta">ID: {c.id}</div>
+                                </div>
+                                <button className="x-btn" onClick={() => openCategoryEditor(c)}>
+                                  <i className="fa-solid fa-pen" /> <span>Sửa</span>
+                                </button>
+                              </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                ) : null}
+
+                {/* Tab: Detail */}
+                {categoryTab === "detail" ? (
+                    <div className="x-card x-card-inner" style={{ marginTop: 12, padding: 12 }}>
+                      {!categoryDraft ? (
+                          <div className="x-empty">
+                            <i className="fa-regular fa-folder-open" /> Chọn một category ở tab <strong>Danh sách</strong>
+                          </div>
+                      ) : (
+                          <>
+                            <div className="x-row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+                              <div className="x-section-title" style={{ marginBottom: 0 }}>
+                                <i className="fa-solid fa-pen-to-square" />
+                                {selectedCategoryId === "new" ? "Tạo category" : `Sửa category #${selectedCategoryId}`}
+                              </div>
+                              {selectedCategoryId !== "new" ? (
+                                  <button
+                                      className="x-btn x-btn-danger"
+                                      onClick={async () => {
+                                        if (!selectedCategoryId) return;
+                                        await deleteAdminCategory(selectedCategoryId);
+                                        await loadData();
+                                        setCategoryTab("list");
+                                        setSelectedCategoryId(null);
+                                        setCategoryDraft(null);
+                                      }}
+                                  >
+                                    <i className="fa-solid fa-trash" /> <span>Xóa</span>
+                                  </button>
+                              ) : null}
+                            </div>
+
+                            <div className="x-grid2" style={{ marginTop: 10 }}>
+                              <label className="x-field">
+                                <div className="x-label">Tên ({activeLang.toUpperCase()})</div>
+                                <input
+                                    className="x-input"
+                                    placeholder={`Tên category (${activeLang})`}
+                                    value={categoryDraft.translations.find((t) => t.lang === activeLang)?.name || ""}
+                                    onChange={(e) =>
+                                        setCategoryDraft((prev) =>
+                                            prev
+                                                ? {
+                                                  ...prev,
+                                                  translations: prev.translations.map((row) =>
+                                                      row.lang === activeLang ? { ...row, name: e.target.value } : row,
+                                                  ),
+                                                }
+                                                : prev,
+                                        )
+                                    }
+                                />
+                              </label>
+                              <label className="x-field">
+                                <div className="x-label">Mô tả ({activeLang.toUpperCase()})</div>
+                                <input
+                                    className="x-input"
+                                    placeholder={`Mô tả (${activeLang})`}
+                                    value={
+                                        categoryDraft.translations.find((t) => t.lang === activeLang)?.description || ""
+                                    }
+                                    onChange={(e) =>
+                                        setCategoryDraft((prev) =>
+                                            prev
+                                                ? {
+                                                  ...prev,
+                                                  translations: prev.translations.map((row) =>
+                                                      row.lang === activeLang
+                                                          ? { ...row, description: e.target.value }
+                                                          : row,
+                                                  ),
+                                                }
+                                                : prev,
+                                        )
+                                    }
+                                />
+                              </label>
+                            </div>
+
+                            <div className="x-row x-row-wrap" style={{ gap: 8, marginTop: 10 }}>
+                              {languages.map((lang) => {
+                                const t = categoryDraft.translations.find((item) => item.lang === lang.code);
+                                return (
+                                    <span key={lang.code} className="x-chip">
+                                      <strong>{lang.code.toUpperCase()}:</strong> {t?.name || "-"}
+                                    </span>
+                                );
+                              })}
+                            </div>
+
+                            <div className="x-row" style={{ marginTop: 12, justifyContent: "space-between" }}>
+                              <button
+                                  className="x-btn"
+                                  onClick={() => {
+                                    setCategoryTab("list");
+                                  }}
+                              >
+                                <i className="fa-solid fa-arrow-left" /> <span>Quay lại</span>
+                              </button>
+                              <button
+                                  className="x-btn x-btn-primary"
+                                  disabled={!categoryDraft.translations.some((row) => row.name.trim())}
+                                  onClick={async () => {
+                                    if (!categoryDraft.translations.some((row) => row.name.trim())) return;
+                                    if (selectedCategoryId === "new") {
+                                      await createAdminCategory(categoryDraft);
+                                      setNewCategory({
+                                        id: "new",
+                                        translations: languages.map((lang) => ({ lang: lang.code, name: "", description: "" })),
+                                      });
+                                    } else {
+                                      await updateAdminCategory(categoryDraft);
+                                    }
+                                    await loadData();
+                                    setCategoryTab("list");
+                                    setSelectedCategoryId(null);
+                                    setCategoryDraft(null);
+                                  }}
+                              >
+                                <i className="fa-solid fa-floppy-disk" /> <span>Lưu</span>
+                              </button>
+                            </div>
+                          </>
+                      )}
+                    </div>
+                ) : null}
               </div>
             </div>
         ) : null}
@@ -649,15 +693,16 @@ const styles = `
   background: rgba(255,255,255,0.6);
   border-radius: 16px;
   padding: 10px;
-  display: grid;
-  gap: 10px;
+  display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .x-langbar{
   display:flex;
   gap: 10px;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-end;
   flex-wrap: wrap;
 }
 
@@ -857,7 +902,7 @@ const styles = `
 .x-dialog-backdrop{
   position: fixed;
   inset: 0;
-  background: rgba(255,255,255,0.6);
+  background: rgb(0 0 0 / 60%);
   z-index: 80;
   display:flex;
   align-items:center;
@@ -889,6 +934,55 @@ const styles = `
 
 /* ===== List page extras ===== */
 .x-modal{ width: min(980px, 100%); max-height: 90vh; overflow:auto; }
+
+.x-tab-btn{
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  color: var(--muted);
+  padding: 10px 12px;
+  border-radius: 14px;
+  display:inline-flex;
+  align-items:center;
+  gap: 8px;
+  cursor:pointer;
+  font-weight: 900;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
+}
+.x-tab-btn:hover{ transform: translateY(-1px); background: rgba(0,0,0,0.02); }
+.x-tab-btn:active{ transform: translateY(0px) scale(0.98); }
+.x-tab-btn:disabled{ opacity:0.55; cursor:not-allowed; transform:none; }
+.x-tab-btn-active{
+  color: #ffffff;
+  border-color: rgba(109,94,252,0.55);
+  background: linear-gradient(135deg, var(--brand1), var(--brand2));
+  box-shadow: 0 6px 14px rgba(109,94,252,0.18);
+}
+
+.x-cat-row{
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--stroke);
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+.x-cat-main{ min-width: 0; display:grid; gap: 2px; }
+.x-cat-name{ font-weight: 950; color: var(--text); }
+.x-cat-meta{ font-size: 12px; color: var(--muted); }
+
+.x-empty{
+  border: 1px dashed rgba(0,0,0,0.15);
+  background: rgba(0,0,0,0.02);
+  border-radius: 14px;
+  padding: 14px;
+  color: var(--muted);
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  font-weight: 800;
+}
 
 .x-prod-table{ display:grid; gap: 10px; }
 .x-prod-tr{

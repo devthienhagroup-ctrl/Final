@@ -8,6 +8,7 @@ export type AdminLanguage = {
 export type ProductTranslation = {
   lang: LanguageCode;
   name: string;
+  slug: string;
   shortDescription: string;
   description: string;
   guideContent: ProductGuideContent;

@@ -1,804 +1,807 @@
 diff --git a/ayanavita-fontend/src/api/adminCourses.api.ts b/ayanavita-fontend/src/api/adminCourses.api.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..5c9a73ab906dcc450de748ff7f4a1a23d75c4918
---- /dev/null
+index 5c9a73ab906dcc450de748ff7f4a1a23d75c4918..8dadf09184750b19b99d2469dc1275352b126441 100644
+--- a/ayanavita-fontend/src/api/adminCourses.api.ts
 +++ b/ayanavita-fontend/src/api/adminCourses.api.ts
-@@ -0,0 +1,26 @@
-+import { del, get, patch, post } from './http'
+@@ -1,26 +1,39 @@
+ import { del, get, patch, post } from './http'
+
++export type CourseTopicTranslations = Record<string, { name?: string; description?: string | null }>
 +
-+export type CourseTopic = {
-+  id: number
-+  name: string
-+  description?: string | null
-+  _count?: { courses: number }
+ export type CourseTopic = {
+   id: number
+   name: string
+   description?: string | null
++  translations?: CourseTopicTranslations
+   _count?: { courses: number }
+ }
+
+ export type CourseAdmin = {
+   id: number
+   topicId?: number | null
+   title: string
+   slug: string
+   published: boolean
+   price: number
+   topic?: { id: number; name: string } | null
+ }
+
++export type TopicPayload = {
++  name?: string
++  description?: string
++  translations?: {
++    vi?: { name?: string; description?: string }
++    'en-US'?: { name?: string; description?: string }
++    de?: { name?: string; description?: string }
++  }
 +}
 +
-+export type CourseAdmin = {
-+  id: number
-+  topicId?: number | null
-+  title: string
-+  slug: string
-+  published: boolean
-+  price: number
-+  topic?: { id: number; name: string } | null
-+}
-+
-+export const adminCoursesApi = {
-+  listTopics: () => get<CourseTopic[]>('/admin/course-topics', { auth: true }),
-+  createTopic: (body: { name: string; description?: string }) => post<CourseTopic>('/admin/course-topics', body, { auth: true }),
-+  updateTopic: (id: number, body: { name?: string; description?: string }) => patch<CourseTopic>(`/admin/course-topics/${id}`, body, { auth: true }),
-+  deleteTopic: (id: number) => del<{ id: number }>(`/admin/course-topics/${id}`, { auth: true }),
-+  listCourses: () => get<CourseAdmin[]>('/courses', { auth: true }),
-+}
-diff --git a/ayanavita-fontend/src/pages/CoursesPage.tsx b/ayanavita-fontend/src/pages/CoursesPage.tsx
-index b63976fb92db77fd57f9d24de5805cbe645e07a9..4b99adf204d1cf32c1063dbc86736426b9b4ac1e 100644
---- a/ayanavita-fontend/src/pages/CoursesPage.tsx
-+++ b/ayanavita-fontend/src/pages/CoursesPage.tsx
-@@ -11,50 +11,51 @@ export function CoursesPage() {
-   useEffect(() => {
-     (async () => {
-       try {
-         setErr(null);
-         const data = await coursesApi.list();
-         setItems(data);
-       } catch (e: any) {
-         setErr(e?.message || "Load courses failed");
-       }
-     })();
-   }, []);
-
-   return (
-     <div style={{ maxWidth: 960, margin: "24px auto", padding: 16 }}>
-       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-         <h2>Khoá học</h2>
-
-         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-           <span>{user?.email}</span>
-
-           <Link to="/me/courses">Khoá học của tôi</Link>
-           <Link to="/me/orders">Đơn hàng của tôi</Link>
-
-
-           {user?.role === "ADMIN" && <Link to="/admin/orders">Admin Orders</Link>}
-+          {user?.role === "ADMIN" && <Link to="/admin/cources">Admin Courses</Link>}
-
-           <button onClick={logout}>Logout</button>
-         </div>
-       </div>
-
-       {err && (
-         <div style={{ color: "crimson", marginTop: 10 }}>
-           {err}
-         </div>
-       )}
-
-       <div
-         style={{
-           display: "grid",
-           gridTemplateColumns: "repeat(3, 1fr)",
-           gap: 12,
-           marginTop: 12,
-         }}
-       >
-         {items.map((c: Course) => (
-           <div
-             key={c.id}
-             style={{
-               border: "1px solid #ddd",
-               borderRadius: 12,
+ export const adminCoursesApi = {
+   listTopics: () => get<CourseTopic[]>('/admin/course-topics', { auth: true }),
+-  createTopic: (body: { name: string; description?: string }) => post<CourseTopic>('/admin/course-topics', body, { auth: true }),
+-  updateTopic: (id: number, body: { name?: string; description?: string }) => patch<CourseTopic>(`/admin/course-topics/${id}`, body, { auth: true }),
++  createTopic: (body: TopicPayload) => post<CourseTopic>('/admin/course-topics', body, { auth: true }),
++  updateTopic: (id: number, body: TopicPayload) => patch<CourseTopic>(`/admin/course-topics/${id}`, body, { auth: true }),
+   deleteTopic: (id: number) => del<{ id: number }>(`/admin/course-topics/${id}`, { auth: true }),
+   listCourses: () => get<CourseAdmin[]>('/courses', { auth: true }),
+ }
 diff --git a/ayanavita-fontend/src/pages/admin/AdminCoursesPage.css b/ayanavita-fontend/src/pages/admin/AdminCoursesPage.css
-new file mode 100644
-index 0000000000000000000000000000000000000000..ac43f53cc0caf21ff19ba24b5c8d6f0bf0c15827
---- /dev/null
+index b7608183f1b6d7043ee2e4792596253d2e5c8c14..b37662f35f781cd7c147e49f3f04da16250cc1a5 100644
+--- a/ayanavita-fontend/src/pages/admin/AdminCoursesPage.css
 +++ b/ayanavita-fontend/src/pages/admin/AdminCoursesPage.css
-@@ -0,0 +1,223 @@
-+.admin-courses-theme {
-+  --ad-bg:
-+    radial-gradient(1200px 700px at 0% 0%, rgba(20, 184, 166, 0.15), transparent 55%),
-+    radial-gradient(900px 600px at 100% 10%, rgba(59, 130, 246, 0.14), transparent 55%),
-+    linear-gradient(180deg, #f0fdfa 0%, #ecfeff 55%, #eff6ff 100%);
-+  --ad-primary: #0f766e;
-+  --ad-primary-soft: #ccfbf1;
-+}
-+
-+.admin-courses-theme .admin-header {
-+  background: linear-gradient(130deg, #0f766e, #0d9488 60%, #0284c7 120%);
-+  box-shadow: 0 18px 44px rgba(13, 148, 136, 0.32);
-+}
-+
-+.admin-courses-theme .admin-card-glow {
-+  box-shadow: 0 14px 30px rgba(13, 148, 136, 0.18);
-+}
-+
-+.admin-courses-theme .admin-tab:hover {
-+  box-shadow: 0 8px 18px rgba(13, 148, 136, 0.2);
-+}
-+
-+.admin-courses-theme .admin-tab.active {
-+  background: linear-gradient(135deg, #2dd4bf, #14b8a6);
-+  color: #083344;
-+  box-shadow: 0 10px 20px rgba(20, 184, 166, 0.32);
-+}
-+
-+.admin-courses-theme .admin-btn-primary {
-+  background: linear-gradient(135deg, #0f766e, #0d9488);
-+}
-+
-+.admin-courses-theme .admin-btn-save {
-+  background: linear-gradient(135deg, #14b8a6, #0284c7);
-+  box-shadow: 0 8px 18px rgba(2, 132, 199, 0.26);
-+}
-+
-+.admin-courses-grid {
-+  grid-template-columns: minmax(320px, 1fr) minmax(640px, 1.8fr);
-+}
-+
-+.admin-topic-form-card {
+@@ -49,58 +49,103 @@
+   right: 18px;
+   bottom: 10px;
+   pointer-events: none;
+   user-select: none;
+ }
+
+ .admin-topic-form-watermark span {
+   display: inline-block;
+   font-size: 276px;
+   font-weight: 900;
+   letter-spacing: 0.08em;
+   color: rgba(22, 163, 74, 0.18);
+   transform: skew(-8deg);
+   text-shadow: 0 2px 12px rgba(22, 163, 74, 0.12);
+ }
+
+ .admin-courses-theme .admin-header {
+   display: flex;
+   align-items: flex-start;
+   justify-content: space-between;
+ }
+
+ .admin-courses-theme-switch {
+   display: inline-flex;
+   align-items: center;
++  flex-wrap: wrap;
+   gap: 10px;
+   padding: 8px 12px;
+   border-radius: 999px;
+   border: 1px solid rgba(255, 255, 255, 0.45);
+   background: rgba(255, 255, 255, 0.16);
+   backdrop-filter: blur(8px);
+ }
+
++.admin-lang-switch {
 +  position: relative;
-+  overflow: hidden;
-+}
-+
-+.admin-topic-form-watermark {
-+  position: absolute;
-+  right: 18px;
-+  bottom: 10px;
-+  pointer-events: none;
-+  user-select: none;
-+}
-+
-+.admin-topic-form-watermark span {
-+  display: inline-block;
-+  font-size: 276px;
-+  font-weight: 900;
-+  letter-spacing: 0.08em;
-+  color: rgba(22, 163, 74, 0.18);
-+  transform: skew(-8deg);
-+  text-shadow: 0 2px 12px rgba(22, 163, 74, 0.12);
-+}
-+
-+.admin-courses-theme .admin-header {
-+  display: flex;
-+  align-items: flex-start;
-+  justify-content: space-between;
-+}
-+
-+.admin-courses-theme-switch {
 +  display: inline-flex;
 +  align-items: center;
-+  gap: 10px;
-+  padding: 8px 12px;
++  gap: 6px;
++  padding: 6px;
 +  border-radius: 999px;
-+  border: 1px solid rgba(255, 255, 255, 0.45);
-+  background: rgba(255, 255, 255, 0.16);
-+  backdrop-filter: blur(8px);
++  background: rgba(15, 23, 42, 0.24);
++  border: 1px solid rgba(255, 255, 255, 0.38);
 +}
 +
-+.admin-courses-theme-switch-label {
-+  font-size: 12px;
-+  font-weight: 800;
-+  letter-spacing: 0.06em;
-+  text-transform: uppercase;
-+  color: #dffcff;
-+}
-+
-+.admin-courses-theme-toggle {
-+  width: 50px;
-+  height: 28px;
-+  border: 1px solid rgba(255, 255, 255, 0.4);
++.admin-lang-option {
++  width: 42px;
++  height: 32px;
++  border: none;
++  background: transparent;
 +  border-radius: 999px;
-+  background: rgba(15, 23, 42, 0.3);
-+  cursor: pointer;
-+  position: relative;
 +  padding: 0;
-+  transition: all 0.2s ease;
++  cursor: pointer;
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  transition: all .2s ease;
 +}
 +
-+.admin-courses-theme-toggle-thumb {
-+  width: 20px;
-+  height: 20px;
-+  position: absolute;
-+  left: 3px;
-+  top: 3px;
-+  border-radius: 50%;
-+  background: #ffffff;
-+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.25);
-+  transition: transform 0.2s ease;
++.admin-lang-option img {
++  width: 24px;
++  height: 16px;
++  border-radius: 2px;
++  object-fit: cover;
++  opacity: .75;
++  transition: opacity .2s ease;
 +}
 +
-+.admin-courses-theme-toggle.active {
-+  background: linear-gradient(135deg, #22c55e, #16a34a);
++.admin-lang-option.active {
++  background: rgba(255, 255, 255, 0.92);
++  box-shadow: 0 8px 16px rgba(30, 41, 59, .18);
 +}
 +
-+.admin-courses-theme-toggle.active .admin-courses-theme-toggle-thumb {
-+  transform: translateX(22px);
++.admin-lang-option.active img {
++  opacity: 1;
 +}
 +
-+.admin-courses-theme-dark {
-+  --ad-bg:
-+    radial-gradient(1200px 700px at 0% 0%, rgba(30, 64, 175, 0.24), transparent 55%),
-+    radial-gradient(900px 600px at 100% 10%, rgba(20, 184, 166, 0.18), transparent 55%),
-+    linear-gradient(180deg, #0b1220 0%, #111827 45%, #0f172a 100%);
-+  --ad-card: rgba(15, 23, 42, 0.92);
-+  --ad-text: #e2e8f0;
-+  --ad-muted: #94a3b8;
-+  --ad-border: rgba(51, 65, 85, 0.7);
-+}
 +
-+.admin-courses-theme-dark .admin-header {
-+  background: linear-gradient(130deg, #0f172a, #155e75 65%, #0f766e 120%);
-+  box-shadow: 0 18px 44px rgba(2, 132, 199, 0.22);
-+}
-+
-+.admin-courses-theme-dark .overview-card {
-+  background: rgba(15, 23, 42, 0.9);
-+  border: 1px solid rgba(30, 41, 59, 0.9);
-+  box-shadow: 0 12px 24px rgba(2, 6, 23, 0.4);
-+}
-+
-+.admin-courses-theme-dark .overview-card strong {
-+  color: #f8fafc;
-+}
-+
-+.admin-courses-theme-dark .overview-card small {
-+  color: #94a3b8;
-+}
-+
-+.admin-courses-theme-dark .admin-card {
-+  background: rgba(15, 23, 42, 0.92);
-+  border-color: rgba(51, 65, 85, 0.7);
-+  box-shadow: 0 12px 26px rgba(2, 6, 23, 0.38);
-+}
-+
-+.admin-courses-theme-dark .admin-card-title,
-+.admin-courses-theme-dark .td-strong {
-+  color: #f8fafc;
-+}
-+
-+.admin-courses-theme-dark .admin-label,
-+.admin-courses-theme-dark .admin-helper,
-+.admin-courses-theme-dark .admin-subtitle {
-+  color: #cbd5e1;
-+}
-+
-+.admin-courses-theme-dark .admin-input {
-+  background: linear-gradient(180deg, #0f172a, #111827);
-+  border-color: #334155;
-+  color: #e2e8f0;
-+}
-+
-+.admin-courses-theme-dark .admin-input::placeholder {
-+  color: #94a3b8;
-+}
-+
-+.admin-courses-theme-dark .admin-btn-ghost {
-+  background: #0f172a;
-+  border-color: #334155;
-+  color: #e2e8f0;
-+}
-+
-+.admin-courses-theme-dark .admin-table-wrap {
-+  border-color: #334155;
-+}
-+
-+.admin-courses-theme-dark .admin-table {
-+  background: #0f172a;
-+  color: #cbd5e1;
-+}
-+
-+.admin-courses-theme-dark .admin-table thead tr {
-+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
-+}
-+
-+.admin-courses-theme-dark .admin-table th {
-+  color: #93c5fd;
-+}
-+
-+.admin-courses-theme-dark .admin-table td {
-+  border-top-color: #1e293b;
-+}
-+
-+.admin-courses-theme-dark .admin-table tbody tr:hover {
-+  background: rgba(30, 41, 59, 0.5);
-+}
-+
-+.admin-courses-theme-dark .admin-tab {
-+  background: #0f172a;
-+  border-color: #334155;
-+  color: #cbd5e1;
-+}
-+
-+.admin-courses-theme-dark .admin-tab.active {
-+  background: linear-gradient(135deg, #0ea5e9, #14b8a6);
-+  color: #052f3a;
-+}
-+
-+.admin-courses-theme-dark .admin-topic-form-watermark span {
-+  color: rgba(74, 222, 128, 0.18);
-+}
+ .admin-courses-theme-switch-label {
+   font-size: 12px;
+   font-weight: 800;
+   letter-spacing: 0.06em;
+   text-transform: uppercase;
+   color: #dffcff;
+ }
+
+ .admin-courses-theme-toggle {
+   width: 50px;
+   height: 28px;
+   border: 1px solid rgba(255, 255, 255, 0.4);
+   border-radius: 999px;
+   background: rgba(15, 23, 42, 0.3);
+   cursor: pointer;
+   position: relative;
+   padding: 0;
+   transition: all 0.2s ease;
+ }
+
+ .admin-courses-theme-toggle-thumb {
+   width: 20px;
+   height: 20px;
+   position: absolute;
+   left: 3px;
 diff --git a/ayanavita-fontend/src/pages/admin/AdminCoursesPage.tsx b/ayanavita-fontend/src/pages/admin/AdminCoursesPage.tsx
-new file mode 100644
-index 0000000000000000000000000000000000000000..beb46ca5064f38760ed5fd591e58b7e6e88c9559
---- /dev/null
+index beb46ca5064f38760ed5fd591e58b7e6e88c9559..96d1e94d44b46a15859f1e4f9d073fa9305ec02a 100644
+--- a/ayanavita-fontend/src/pages/admin/AdminCoursesPage.tsx
 +++ b/ayanavita-fontend/src/pages/admin/AdminCoursesPage.tsx
-@@ -0,0 +1,176 @@
-+import { useEffect, useMemo, useState } from 'react'
-+import { adminCoursesApi, type CourseAdmin, type CourseTopic } from '../../api/adminCourses.api'
-+import { AlertJs } from '../../utils/alertJs'
-+import { CoursesTab } from './courseTabs/CoursesTab'
-+import { TopicsTab } from './courseTabs/TopicsTab'
-+import './AdminSpaPage.css'
-+import './AdminCoursesPage.css'
+@@ -1,176 +1,373 @@
+ import { useEffect, useMemo, useState } from 'react'
+ import { adminCoursesApi, type CourseAdmin, type CourseTopic } from '../../api/adminCourses.api'
+ import { AlertJs } from '../../utils/alertJs'
+ import { CoursesTab } from './courseTabs/CoursesTab'
+ import { TopicsTab } from './courseTabs/TopicsTab'
+ import './AdminSpaPage.css'
+ import './AdminCoursesPage.css'
+
+ type TabKey = 'topics' | 'courses'
+ type ThemeMode = 'light' | 'dark'
++type AdminLang = 'vi' | 'en-US' | 'de'
++type TopicI18nForm = Record<AdminLang, { name: string; description: string }>
+
+ const THEME_STORAGE_KEY = 'admin-courses-theme-mode'
++const LANG_STORAGE_KEY = 'admin-courses-lang'
 +
-+type TabKey = 'topics' | 'courses'
-+type ThemeMode = 'light' | 'dark'
++const emptyTopicForm = (): TopicI18nForm => ({
++  vi: { name: '', description: '' },
++  'en-US': { name: '', description: '' },
++  de: { name: '', description: '' },
++})
 +
-+const THEME_STORAGE_KEY = 'admin-courses-theme-mode'
++const uiText: Record<AdminLang, Record<string, string>> = {
++  vi: {
++    kicker: 'TRUNG TÂM QUẢN TRỊ KHÓA HỌC',
++    title: 'Quản trị chủ đề & danh mục khóa học',
++    subtitle: 'Giao diện đồng bộ với quản trị dịch vụ, hỗ trợ nhập liệu đa ngôn ngữ và hiển thị theo ngôn ngữ quản trị.',
++    darkMode: 'Dark mode',
++    topicCount: 'Chủ đề khóa học',
++    topicCountDesc: 'Danh mục chủ đề hiện có',
++    courseCount: 'Tổng khóa học',
++    courseCountDesc: 'Khoá học đang quản lý',
++    publishedCount: 'Đã xuất bản',
++    publishedCountDesc: 'Khoá học trạng thái Published',
++    draftCount: 'Bản nháp',
++    draftCountDesc: 'Khoá học trạng thái Draft',
++    topicsTab: 'Chủ đề khóa học',
++    coursesTab: 'Khoá học hiện có',
++    loading: 'Đang tải dữ liệu...',
++    topicForm: 'Form chủ đề khóa học',
++    topicName: 'Tên chủ đề',
++    topicNamePlaceholder: 'Nhập tên chủ đề',
++    topicDescription: 'Mô tả ngắn',
++    topicDescriptionPlaceholder: 'Mô tả tuỳ chọn',
++    updateTopic: 'Cập nhật chủ đề',
++    createTopic: 'Tạo chủ đề',
++    cancelEdit: 'Huỷ chỉnh sửa',
++    topicList: 'Danh sách chủ đề',
++    courseCountCol: 'Số khoá học',
++    actions: 'Thao tác',
++    editTopic: 'Sửa chủ đề',
++    deleteTopic: 'Xoá chủ đề',
++    validateName: 'Vui lòng nhập tên chủ đề cho ngôn ngữ hiện tại',
++    updateSuccess: 'Đã cập nhật chủ đề',
++    createSuccess: 'Đã tạo chủ đề mới',
++    deleteSuccess: 'Đã xóa chủ đề thành công',
++    loadFailed: 'Không thể tải dữ liệu quản trị khóa học',
++    saveFailed: 'Lưu chủ đề thất bại',
++    deleteFailed: 'Không thể xóa chủ đề',
++    displayMode: 'Chế độ hiển thị',
++  },
++  'en-US': {
++    kicker: 'COURSE ADMIN CENTER',
++    title: 'Manage course topics & categories',
++    subtitle: 'Service-admin style interface with multilingual input and language-based display for operators.',
++    darkMode: 'Dark mode',
++    topicCount: 'Course topics',
++    topicCountDesc: 'Existing topic groups',
++    courseCount: 'Total courses',
++    courseCountDesc: 'Courses under management',
++    publishedCount: 'Published',
++    publishedCountDesc: 'Courses in Published status',
++    draftCount: 'Draft',
++    draftCountDesc: 'Courses in Draft status',
++    topicsTab: 'Course topics',
++    coursesTab: 'Current courses',
++    loading: 'Loading data...',
++    topicForm: 'Course topic form',
++    topicName: 'Topic name',
++    topicNamePlaceholder: 'Enter topic name',
++    topicDescription: 'Short description',
++    topicDescriptionPlaceholder: 'Optional description',
++    updateTopic: 'Update topic',
++    createTopic: 'Create topic',
++    cancelEdit: 'Cancel edit',
++    topicList: 'Topic list',
++    courseCountCol: 'Course count',
++    actions: 'Actions',
++    editTopic: 'Edit topic',
++    deleteTopic: 'Delete topic',
++    validateName: 'Please enter topic name for active language',
++    updateSuccess: 'Topic updated',
++    createSuccess: 'Topic created',
++    deleteSuccess: 'Topic deleted successfully',
++    loadFailed: 'Unable to load course admin data',
++    saveFailed: 'Failed to save topic',
++    deleteFailed: 'Unable to delete topic',
++    displayMode: 'Display mode',
++  },
++  de: {
++    kicker: 'KURS-ADMIN-ZENTRUM',
++    title: 'Kursthemen & Kategorien verwalten',
++    subtitle: 'Service-Management-Stil mit mehrsprachiger Eingabe und sprachabhängiger Anzeige für Admins.',
++    darkMode: 'Dark mode',
++    topicCount: 'Kursthemen',
++    topicCountDesc: 'Vorhandene Themengruppen',
++    courseCount: 'Gesamte Kurse',
++    courseCountDesc: 'Verwaltete Kurse',
++    publishedCount: 'Veröffentlicht',
++    publishedCountDesc: 'Kurse im Status Published',
++    draftCount: 'Entwurf',
++    draftCountDesc: 'Kurse im Status Draft',
++    topicsTab: 'Kursthemen',
++    coursesTab: 'Aktuelle Kurse',
++    loading: 'Daten werden geladen...',
++    topicForm: 'Kursthema-Formular',
++    topicName: 'Themenname',
++    topicNamePlaceholder: 'Themenname eingeben',
++    topicDescription: 'Kurzbeschreibung',
++    topicDescriptionPlaceholder: 'Optionale Beschreibung',
++    updateTopic: 'Thema aktualisieren',
++    createTopic: 'Thema erstellen',
++    cancelEdit: 'Bearbeitung abbrechen',
++    topicList: 'Themenliste',
++    courseCountCol: 'Kursanzahl',
++    actions: 'Aktionen',
++    editTopic: 'Thema bearbeiten',
++    deleteTopic: 'Thema löschen',
++    validateName: 'Bitte Themenname für aktive Sprache eingeben',
++    updateSuccess: 'Thema wurde aktualisiert',
++    createSuccess: 'Thema wurde erstellt',
++    deleteSuccess: 'Thema erfolgreich gelöscht',
++    loadFailed: 'Kursverwaltungsdaten konnten nicht geladen werden',
++    saveFailed: 'Thema konnte nicht gespeichert werden',
++    deleteFailed: 'Thema konnte nicht gelöscht werden',
++    displayMode: 'Anzeigemodus',
++  },
++}
 +
-+export default function AdminCoursesPage() {
-+  const [tab, setTab] = useState<TabKey>('topics')
-+  const [topics, setTopics] = useState<CourseTopic[]>([])
-+  const [courses, setCourses] = useState<CourseAdmin[]>([])
-+  const [name, setName] = useState('')
-+  const [description, setDescription] = useState('')
-+  const [editingId, setEditingId] = useState<number | null>(null)
-+  const [loading, setLoading] = useState(false)
-+  const [theme, setTheme] = useState<ThemeMode>(() => {
-+    const saved = window.localStorage.getItem(THEME_STORAGE_KEY)
-+    return saved === 'dark' ? 'dark' : 'light'
++const languageMeta: Record<AdminLang, { label: string; flagUrl: string; alt: string }> = {
++  'en-US': { label: 'English (US)', flagUrl: 'https://flagcdn.com/w40/us.png', alt: 'USA flag' },
++  de: { label: 'Deutsch', flagUrl: 'https://flagcdn.com/w40/de.png', alt: 'Germany flag' },
++  vi: { label: 'Tiếng Việt', flagUrl: 'https://flagcdn.com/w40/vn.png', alt: 'Vietnam flag' },
++}
++
++const toTopicForm = (topic?: CourseTopic | null): TopicI18nForm => ({
++  vi: {
++    name: topic?.translations?.vi?.name || topic?.name || '',
++    description: topic?.translations?.vi?.description || topic?.description || '',
++  },
++  'en-US': {
++    name: topic?.translations?.['en-US']?.name || topic?.name || '',
++    description: topic?.translations?.['en-US']?.description || topic?.description || '',
++  },
++  de: {
++    name: topic?.translations?.de?.name || topic?.name || '',
++    description: topic?.translations?.de?.description || topic?.description || '',
++  },
++})
+
+ export default function AdminCoursesPage() {
+   const [tab, setTab] = useState<TabKey>('topics')
+   const [topics, setTopics] = useState<CourseTopic[]>([])
+   const [courses, setCourses] = useState<CourseAdmin[]>([])
+-  const [name, setName] = useState('')
+-  const [description, setDescription] = useState('')
++  const [topicForm, setTopicForm] = useState<TopicI18nForm>(() => emptyTopicForm())
+   const [editingId, setEditingId] = useState<number | null>(null)
+   const [loading, setLoading] = useState(false)
+   const [theme, setTheme] = useState<ThemeMode>(() => {
+     const saved = window.localStorage.getItem(THEME_STORAGE_KEY)
+     return saved === 'dark' ? 'dark' : 'light'
+   })
++  const [lang, setLang] = useState<AdminLang>(() => {
++    const saved = window.localStorage.getItem(LANG_STORAGE_KEY)
++    return saved === 'en-US' || saved === 'de' ? saved : 'vi'
 +  })
 +
-+  const loadAll = async () => {
-+    setLoading(true)
-+    try {
-+      const [topicItems, courseItems] = await Promise.all([adminCoursesApi.listTopics(), adminCoursesApi.listCourses()])
-+      setTopics(topicItems)
-+      setCourses(courseItems)
-+    } catch (e: any) {
-+      AlertJs.error(e?.message || 'Không thể tải dữ liệu quản trị khóa học')
-+    } finally {
-+      setLoading(false)
-+    }
-+  }
-+
++  const t = uiText[lang]
+
+   const loadAll = async () => {
+     setLoading(true)
+     try {
+       const [topicItems, courseItems] = await Promise.all([adminCoursesApi.listTopics(), adminCoursesApi.listCourses()])
+       setTopics(topicItems)
+       setCourses(courseItems)
+     } catch (e: any) {
+-      AlertJs.error(e?.message || 'Không thể tải dữ liệu quản trị khóa học')
++      AlertJs.error(e?.message || t.loadFailed)
+     } finally {
+       setLoading(false)
+     }
+   }
+
+   useEffect(() => {
+     void loadAll()
++    // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [])
+
+   useEffect(() => {
+     window.localStorage.setItem(THEME_STORAGE_KEY, theme)
+   }, [theme])
+
 +  useEffect(() => {
-+    void loadAll()
-+  }, [])
++    window.localStorage.setItem(LANG_STORAGE_KEY, lang)
++  }, [lang])
 +
-+  useEffect(() => {
-+    window.localStorage.setItem(THEME_STORAGE_KEY, theme)
-+  }, [theme])
-+
-+  const resetForm = () => {
-+    setName('')
-+    setDescription('')
-+    setEditingId(null)
+   const resetForm = () => {
+-    setName('')
+-    setDescription('')
++    setTopicForm(emptyTopicForm())
+     setEditingId(null)
+   }
+
+   const coursesByTopic = useMemo(() => {
+     const map: Record<number, number> = {}
+     courses.forEach((course) => {
+       if (course.topicId) map[course.topicId] = (map[course.topicId] || 0) + 1
+     })
+     return map
+   }, [courses])
+
++  const setTopicField = (activeLang: AdminLang, field: 'name' | 'description', value: string) => {
++    setTopicForm((prev) => ({
++      ...prev,
++      [activeLang]: {
++        ...prev[activeLang],
++        [field]: value,
++      },
++    }))
 +  }
 +
-+  const coursesByTopic = useMemo(() => {
-+    const map: Record<number, number> = {}
-+    courses.forEach((course) => {
-+      if (course.topicId) map[course.topicId] = (map[course.topicId] || 0) + 1
-+    })
-+    return map
-+  }, [courses])
+   const saveTopic = async () => {
+-    if (!name.trim()) {
+-      AlertJs.error('Vui lòng nhập tên chủ đề khóa học')
++    const fallbackName = topicForm.vi.name || topicForm['en-US'].name || topicForm.de.name
++    if (!fallbackName.trim()) {
++      AlertJs.error(t.validateName)
+       return
+     }
 +
-+  const saveTopic = async () => {
-+    if (!name.trim()) {
-+      AlertJs.error('Vui lòng nhập tên chủ đề khóa học')
-+      return
++    const payload = {
++      name: fallbackName.trim(),
++      description: (topicForm.vi.description || topicForm['en-US'].description || topicForm.de.description || '').trim() || undefined,
++      translations: {
++        vi: { name: topicForm.vi.name.trim(), description: topicForm.vi.description.trim() },
++        'en-US': { name: topicForm['en-US'].name.trim(), description: topicForm['en-US'].description.trim() },
++        de: { name: topicForm.de.name.trim(), description: topicForm.de.description.trim() },
++      },
 +    }
-+    try {
-+      if (editingId) {
-+        await adminCoursesApi.updateTopic(editingId, { name: name.trim(), description: description.trim() || undefined })
-+        AlertJs.success('Đã cập nhật chủ đề')
-+      } else {
-+        await adminCoursesApi.createTopic({ name: name.trim(), description: description.trim() || undefined })
-+        AlertJs.success('Đã tạo chủ đề mới')
-+      }
-+      resetForm()
-+      await loadAll()
-+    } catch (e: any) {
-+      AlertJs.error(e?.message || 'Lưu chủ đề thất bại')
-+    }
-+  }
 +
-+  const deleteTopic = async (topic: CourseTopic) => {
-+    try {
-+      await adminCoursesApi.deleteTopic(topic.id)
-+      AlertJs.success('Đã xóa chủ đề thành công')
-+      await loadAll()
-+    } catch (e: any) {
-+      AlertJs.error(e?.message || 'Không thể xóa chủ đề')
-+    }
-+  }
-+
-+  const startEditTopic = (topic: CourseTopic) => {
-+    setEditingId(topic.id)
-+    setName(topic.name)
-+    setDescription(topic.description || '')
-+  }
-+
-+  return (
-+    <main className={`admin-page admin-courses-theme ${theme === 'dark' ? 'admin-courses-theme-dark' : ''}`}>
-+      <section className='admin-header'>
-+        <div>
-+          <p className='admin-header-kicker'>TRUNG TÂM QUẢN TRỊ KHÓA HỌC</p>
-+          <h1>Quản trị chủ đề & danh mục khóa học</h1>
-+          <p>Giao diện đồng bộ với quản trị dịch vụ, tập trung CRUD chủ đề và theo dõi khóa học theo từng chủ đề.</p>
-+        </div>
-+
-+        <div className='admin-courses-theme-switch' role='group' aria-label='Chuyển chế độ giao diện'>
-+          <span className='admin-courses-theme-switch-label'>Dark mode</span>
-+          <button
-+            type='button'
-+            className={`admin-courses-theme-toggle ${theme === 'dark' ? 'active' : ''}`}
-+            onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
-+            aria-label={theme === 'dark' ? 'Chuyển sang chế độ sáng' : 'Chuyển sang chế độ tối'}
-+            aria-pressed={theme === 'dark'}
-+          >
-+            <span className='admin-courses-theme-toggle-thumb' />
-+          </button>
-+        </div>
-+      </section>
-+
-+      <section className='admin-overview'>
-+        <article className='overview-card'>
-+          <span><i className='fa-solid fa-layer-group' /> Chủ đề khóa học</span>
-+          <strong>{topics.length}</strong>
-+          <small>Danh mục chủ đề hiện có</small>
-+        </article>
-+        <article className='overview-card'>
-+          <span><i className='fa-solid fa-book-open-reader' /> Tổng khóa học</span>
-+          <strong>{courses.length}</strong>
-+          <small>Khoá học đang quản lý</small>
-+        </article>
-+        <article className='overview-card'>
-+          <span><i className='fa-solid fa-circle-check' /> Đã xuất bản</span>
-+          <strong>{courses.filter((course) => course.published).length}</strong>
-+          <small>Khoá học trạng thái Published</small>
-+        </article>
-+        <article className='overview-card'>
-+          <span><i className='fa-solid fa-pen-to-square' /> Bản nháp</span>
-+          <strong>{courses.filter((course) => !course.published).length}</strong>
-+          <small>Khoá học trạng thái Draft</small>
-+        </article>
-+      </section>
-+
-+      <section className='admin-tabs'>
-+        <button className={`admin-tab ${tab === 'topics' ? 'active' : ''}`} onClick={() => setTab('topics')}>
-+          <i className='fa-solid fa-tags' /> Chủ đề khóa học
-+        </button>
-+        <button className={`admin-tab ${tab === 'courses' ? 'active' : ''}`} onClick={() => setTab('courses')}>
-+          <i className='fa-solid fa-graduation-cap' /> Khoá học hiện có
-+        </button>
-+      </section>
-+
-+      {loading && <p className='admin-helper'>Đang tải dữ liệu...</p>}
-+
-+      {!loading && tab === 'topics' && (
-+        <TopicsTab
-+          topics={topics}
-+          coursesByTopic={coursesByTopic}
-+          name={name}
-+          description={description}
-+          editingId={editingId}
-+          setName={setName}
-+          setDescription={setDescription}
-+          onSave={saveTopic}
-+          onReset={resetForm}
-+          onEdit={startEditTopic}
-+          onDelete={(topic) => {
-+            void deleteTopic(topic)
-+          }}
-+        />
-+      )}
-+
-+      {!loading && tab === 'courses' && <CoursesTab courses={courses} />}
-+    </main>
-+  )
-+}
-diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx
-new file mode 100644
-index 0000000000000000000000000000000000000000..12bf9d2186a2504caa5b8938cb1c1e385e937946
---- /dev/null
-+++ b/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx
-@@ -0,0 +1,39 @@
-+import type { CourseAdmin } from '../../../api/adminCourses.api'
-+
-+type Props = {
-+  courses: CourseAdmin[]
-+}
-+
-+export function CoursesTab({ courses }: Props) {
-+  return (
-+    <section className='admin-card admin-card-glow'>
-+      <h3 className='admin-card-title'><i className='fa-solid fa-book' /> Khoá học hiện có ({courses.length})</h3>
-+      <div className='admin-table-wrap'>
-+        <table className='admin-table'>
-+          <thead>
-+            <tr>
-+              <th>ID</th>
-+              <th>Tiêu đề</th>
-+              <th>Slug</th>
-+              <th>Chủ đề</th>
-+              <th>Giá</th>
-+              <th>Trạng thái</th>
-+            </tr>
-+          </thead>
-+          <tbody>
-+            {courses.map((course) => (
-+              <tr key={course.id}>
-+                <td>{course.id}</td>
-+                <td className='td-strong'>{course.title}</td>
-+                <td>{course.slug}</td>
-+                <td>{course.topic?.name || 'Chưa gán'}</td>
-+                <td>{course.price.toLocaleString('vi-VN')}đ</td>
-+                <td>{course.published ? 'Published' : 'Draft'}</td>
-+              </tr>
-+            ))}
-+          </tbody>
-+        </table>
-+      </div>
-+    </section>
-+  )
-+}
-diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/TopicsTab.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/TopicsTab.tsx
-new file mode 100644
-index 0000000000000000000000000000000000000000..eb872ea9c5705016ef1eb14ab45f53a2876aa42b
---- /dev/null
-+++ b/ayanavita-fontend/src/pages/admin/courseTabs/TopicsTab.tsx
-@@ -0,0 +1,103 @@
-+import type { CourseAdmin, CourseTopic } from '../../../api/adminCourses.api'
-+
-+type Props = {
-+  topics: CourseTopic[]
-+  coursesByTopic: Record<number, number>
-+  name: string
-+  description: string
-+  editingId: number | null
-+  setName: (value: string) => void
-+  setDescription: (value: string) => void
-+  onSave: () => void
-+  onReset: () => void
-+  onEdit: (topic: CourseTopic) => void
-+  onDelete: (topic: CourseTopic) => void
-+}
-+
-+export function TopicsTab({
-+  topics,
-+  coursesByTopic,
-+  name,
-+  description,
-+  editingId,
-+  setName,
-+  setDescription,
-+  onSave,
-+  onReset,
-+  onEdit,
-+  onDelete,
-+}: Props) {
-+  return (
-+    <section className='admin-grid admin-courses-grid'>
-+      <article className='admin-card admin-card-glow admin-topic-form-card'>
-+        <h3 className='admin-card-title'><i className='fa-solid fa-pen-ruler' /> Form chủ đề khóa học</h3>
-+        <div className='admin-form-grid'>
-+          <label className='admin-field'>
-+            <span className='admin-label'>Tên chủ đề</span>
-+            <input value={name} onChange={(event) => setName(event.target.value)} placeholder='Nhập tên chủ đề' className='admin-input' />
-+          </label>
-+
-+          <label className='admin-field'>
-+            <span className='admin-label'>Mô tả ngắn</span>
-+            <input value={description} onChange={(event) => setDescription(event.target.value)} placeholder='Mô tả tuỳ chọn' className='admin-input' />
-+          </label>
-+
-+          <div className='admin-row'>
-+            <button onClick={onSave} className='admin-btn admin-btn-save'>
-+              <i className='fa-solid fa-floppy-disk' /> {editingId ? 'Cập nhật chủ đề' : 'Tạo chủ đề'}
-+            </button>
-+            {editingId && (
-+              <button onClick={onReset} className='admin-btn admin-btn-ghost'>
-+                <i className='fa-solid fa-rotate-left' /> Huỷ chỉnh sửa
-+              </button>
-+            )}
-+          </div>
-+        </div>
-+
-+        <div className='admin-topic-form-watermark' aria-hidden='true'>
-+          <span>A</span>
-+        </div>
-+      </article>
-+
-+      <article className='admin-card admin-card-glow'>
-+        <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> Danh sách chủ đề ({topics.length})</h3>
-+        <div className='admin-table-wrap'>
-+          <table className='admin-table'>
-+            <thead>
-+              <tr>
-+                <th>ID</th>
-+                <th>Tên chủ đề</th>
-+                <th>Mô tả</th>
-+                <th>Số khoá học</th>
-+                <th>Thao tác</th>
-+              </tr>
-+            </thead>
-+            <tbody>
-+              {topics.map((topic) => {
-+                const total = coursesByTopic[topic.id] || topic._count?.courses || 0
-+                return (
-+                  <tr key={topic.id}>
-+                    <td>{topic.id}</td>
-+                    <td className='td-strong'>{topic.name}</td>
-+                    <td>{topic.description || '-'}</td>
-+                    <td>{total}</td>
-+                    <td>
-+                      <div className='admin-row'>
-+                        <button className='admin-btn-icon admin-btn-icon-edit' onClick={() => onEdit(topic)} title='Sửa chủ đề'>
-+                          <i className='fa-solid fa-pen' />
-+                        </button>
-+                        <button className='admin-btn-icon admin-btn-icon-delete' onClick={() => onDelete(topic)} title='Xoá chủ đề'>
-+                          <i className='fa-solid fa-trash' />
-+                        </button>
-+                      </div>
-+                    </td>
-+                  </tr>
-+                )
-+              })}
-+            </tbody>
-+          </table>
-+        </div>
-+      </article>
-+    </section>
-+  )
-+}
-diff --git a/ayanavita-fontend/src/routes/AppRoutes.tsx b/ayanavita-fontend/src/routes/AppRoutes.tsx
-index 9c4fe21401b114aef965b15b4d606410fc725eee..87fb10f04e2be93b6709708ddb6fe6e097f2d81d 100644
---- a/ayanavita-fontend/src/routes/AppRoutes.tsx
-+++ b/ayanavita-fontend/src/routes/AppRoutes.tsx
-@@ -1,42 +1,43 @@
- import React from "react";
- import { Navigate, Route, Routes } from "react-router-dom";
+     try {
+       if (editingId) {
+-        await adminCoursesApi.updateTopic(editingId, { name: name.trim(), description: description.trim() || undefined })
+-        AlertJs.success('Đã cập nhật chủ đề')
++        await adminCoursesApi.updateTopic(editingId, payload)
++        AlertJs.success(t.updateSuccess)
+       } else {
+-        await adminCoursesApi.createTopic({ name: name.trim(), description: description.trim() || undefined })
+-        AlertJs.success('Đã tạo chủ đề mới')
++        await adminCoursesApi.createTopic(payload)
++        AlertJs.success(t.createSuccess)
+       }
+       resetForm()
+       await loadAll()
+     } catch (e: any) {
+-      AlertJs.error(e?.message || 'Lưu chủ đề thất bại')
++      AlertJs.error(e?.message || t.saveFailed)
+     }
+   }
 
- import { RequireAuth } from "../components/RequireAuth";
- import { RequireRole } from "../auth/RequireRole";
+   const deleteTopic = async (topic: CourseTopic) => {
+     try {
+       await adminCoursesApi.deleteTopic(topic.id)
+-      AlertJs.success('Đã xóa chủ đề thành công')
++      AlertJs.success(t.deleteSuccess)
+       await loadAll()
+     } catch (e: any) {
+-      AlertJs.error(e?.message || 'Không thể xóa chủ đề')
++      AlertJs.error(e?.message || t.deleteFailed)
+     }
+   }
 
+   const startEditTopic = (topic: CourseTopic) => {
+     setEditingId(topic.id)
+-    setName(topic.name)
+-    setDescription(topic.description || '')
++    setTopicForm(toTopicForm(topic))
+   }
 
- import { RegisterPage } from "../pages/RegisterPage";
- import { CoursesPage } from "../pages/CoursesPage";
- import { CourseDetailPage } from "../pages/CourseDetailPage";
- import { LessonPage } from "../pages/LessonPage";
- import { MyCoursesPage } from "../pages/MyCoursesPage";
- import { MyOrdersPage } from "../pages/MyOrdersPage";
- import { LessonDetailPage } from "../pages/LessonDetailPage";
- import { AdminOrdersPage } from "../pages/admin/AdminOrdersPage";
- import AdminSpaPage from "../pages/admin/AdminSpaPage";
- import LoginPage from "../pages/LoginPage";
-+import AdminCoursesPage from "../pages/admin/AdminCoursesPage";
-
- export function AppRoutes() {
    return (
-     <Routes>
-       {/* Public */}
-       <Route path="/login" element={<LoginPage />} />
-       <Route path="/register" element={<RegisterPage />} />
-       <Route path="/lessons/:id" element={<LessonDetailPage />} />
+     <main className={`admin-page admin-courses-theme ${theme === 'dark' ? 'admin-courses-theme-dark' : ''}`}>
+       <section className='admin-header'>
+         <div>
+-          <p className='admin-header-kicker'>TRUNG TÂM QUẢN TRỊ KHÓA HỌC</p>
+-          <h1>Quản trị chủ đề & danh mục khóa học</h1>
+-          <p>Giao diện đồng bộ với quản trị dịch vụ, tập trung CRUD chủ đề và theo dõi khóa học theo từng chủ đề.</p>
++          <p className='admin-header-kicker'>{t.kicker}</p>
++          <h1>{t.title}</h1>
++          <p>{t.subtitle}</p>
+         </div>
 
-       {/* Default */}
-       <Route path="/" element={<Navigate to="/courses" replace />} />
-
-       {/* Protected */}
-       <Route
-         path="/courses"
-         element={
-           <RequireAuth>
-             <RequireRole roles={["ADMIN", "USER"]}>
-               <CoursesPage />
-             </RequireRole>
-           </RequireAuth>
-         }
-       />
-       <Route
-         path="/courses/:id"
-@@ -80,30 +81,42 @@ export function AppRoutes() {
-       />
-
-       {/* Admin */}
-       <Route
-         path="/admin/orders"
-         element={
-           <RequireAuth>
-             <RequireRole roles={["ADMIN"]}>
-               <AdminOrdersPage />
-             </RequireRole>
-           </RequireAuth>
-         }
-       />
-
-       <Route
-         path="/admin/spa"
-         element={
-           <RequireAuth>
-             <RequireRole roles={["ADMIN", "STAFF"]}>
-               <AdminSpaPage />
-             </RequireRole>
-           </RequireAuth>
-         }
-       />
-
+-        <div className='admin-courses-theme-switch' role='group' aria-label='Chuyển chế độ giao diện'>
+-          <span className='admin-courses-theme-switch-label'>Dark mode</span>
++        <div className='admin-courses-theme-switch' role='group' aria-label='Display settings'>
++          <span className='admin-courses-theme-switch-label'>{t.darkMode}</span>
+           <button
+             type='button'
+             className={`admin-courses-theme-toggle ${theme === 'dark' ? 'active' : ''}`}
+             onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+-            aria-label={theme === 'dark' ? 'Chuyển sang chế độ sáng' : 'Chuyển sang chế độ tối'}
++            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+             aria-pressed={theme === 'dark'}
+           >
+             <span className='admin-courses-theme-toggle-thumb' />
+           </button>
 +
-+      <Route
-+        path="/admin/cources"
-+        element={
-+          <RequireAuth>
-+            <RequireRole roles={["ADMIN"]}>
-+              <AdminCoursesPage />
-+            </RequireRole>
-+          </RequireAuth>
-+        }
-+      />
-+
-       {/* 404 */}
-       <Route path="*" element={<div style={{ padding: 16 }}>404</div>} />
-     </Routes>
-   );
++          <div className='admin-lang-switch' role='group' aria-label={t.displayMode}>
++            {(['en-US', 'de', 'vi'] as AdminLang[]).map((code) => {
++              const item = languageMeta[code]
++              const active = lang === code
++              return (
++                <button
++                  key={code}
++                  type='button'
++                  className={`admin-lang-option ${active ? 'active' : ''}`}
++                  onClick={() => setLang(code)}
++                  aria-pressed={active}
++                  title={item.label}
++                  aria-label={item.label}
++                >
++                  <img src={item.flagUrl} alt={item.alt} loading='lazy' />
++                </button>
++              )
++            })}
++          </div>
+         </div>
+       </section>
+
+       <section className='admin-overview'>
+         <article className='overview-card'>
+-          <span><i className='fa-solid fa-layer-group' /> Chủ đề khóa học</span>
++          <span><i className='fa-solid fa-layer-group' /> {t.topicCount}</span>
+           <strong>{topics.length}</strong>
+-          <small>Danh mục chủ đề hiện có</small>
++          <small>{t.topicCountDesc}</small>
+         </article>
+         <article className='overview-card'>
+-          <span><i className='fa-solid fa-book-open-reader' /> Tổng khóa học</span>
++          <span><i className='fa-solid fa-book-open-reader' /> {t.courseCount}</span>
+           <strong>{courses.length}</strong>
+-          <small>Khoá học đang quản lý</small>
++          <small>{t.courseCountDesc}</small>
+         </article>
+         <article className='overview-card'>
+-          <span><i className='fa-solid fa-circle-check' /> Đã xuất bản</span>
++          <span><i className='fa-solid fa-circle-check' /> {t.publishedCount}</span>
+           <strong>{courses.filter((course) => course.published).length}</strong>
+-          <small>Khoá học trạng thái Published</small>
++          <small>{t.publishedCountDesc}</small>
+         </article>
+         <article className='overview-card'>
+-          <span><i className='fa-solid fa-pen-to-square' /> Bản nháp</span>
++          <span><i className='fa-solid fa-pen-to-square' /> {t.draftCount}</span>
+           <strong>{courses.filter((course) => !course.published).length}</strong>
+-          <small>Khoá học trạng thái Draft</small>
++          <small>{t.draftCountDesc}</small>
+         </article>
+       </section>
+
+       <section className='admin-tabs'>
+         <button className={`admin-tab ${tab === 'topics' ? 'active' : ''}`} onClick={() => setTab('topics')}>
+-          <i className='fa-solid fa-tags' /> Chủ đề khóa học
++          <i className='fa-solid fa-tags' /> {t.topicsTab}
+         </button>
+         <button className={`admin-tab ${tab === 'courses' ? 'active' : ''}`} onClick={() => setTab('courses')}>
+-          <i className='fa-solid fa-graduation-cap' /> Khoá học hiện có
++          <i className='fa-solid fa-graduation-cap' /> {t.coursesTab}
+         </button>
+       </section>
+
+-      {loading && <p className='admin-helper'>Đang tải dữ liệu...</p>}
++      {loading && <p className='admin-helper'>{t.loading}</p>}
+
+       {!loading && tab === 'topics' && (
+         <TopicsTab
+           topics={topics}
+           coursesByTopic={coursesByTopic}
+-          name={name}
+-          description={description}
++          topicForm={topicForm}
+           editingId={editingId}
+-          setName={setName}
+-          setDescription={setDescription}
++          displayLang={lang}
++          text={{ ...t, courseCount: t.courseCountCol }}
++          setTopicField={setTopicField}
+           onSave={saveTopic}
+           onReset={resetForm}
+           onEdit={startEditTopic}
+           onDelete={(topic) => {
+             void deleteTopic(topic)
+           }}
+         />
+       )}
+
+       {!loading && tab === 'courses' && <CoursesTab courses={courses} />}
+     </main>
+   )
  }
-diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202603060001_add_course_topic/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202603060001_add_course_topic/migration.sql
-new file mode 100644
-index 0000000000000000000000000000000000000000..d230bf4cf2628064e3d7bfa24013d0f9aa6f054a
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/prisma/migrations/202603060001_add_course_topic/migration.sql
-@@ -0,0 +1,19 @@
-+CREATE TABLE `CourseTopic` (
-+  `id` INTEGER NOT NULL AUTO_INCREMENT,
-+  `name` VARCHAR(120) NOT NULL,
-+  `description` VARCHAR(255) NULL,
-+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-+  `updatedAt` DATETIME(3) NOT NULL,
+diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/TopicsTab.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/TopicsTab.tsx
+index eb872ea9c5705016ef1eb14ab45f53a2876aa42b..43fc93b4c1fc1abf314c6cc3480fa5c3cd955d2b 100644
+--- a/ayanavita-fontend/src/pages/admin/courseTabs/TopicsTab.tsx
++++ b/ayanavita-fontend/src/pages/admin/courseTabs/TopicsTab.tsx
+@@ -1,103 +1,173 @@
+-import type { CourseAdmin, CourseTopic } from '../../../api/adminCourses.api'
++import { useRef, useState } from 'react'
++import type { CourseTopic } from '../../../api/adminCourses.api'
++import { autoTranslateFromVietnamese, type LocaleMode } from '../tabs/i18nForm'
 +
-+  UNIQUE INDEX `CourseTopic_name_key`(`name`),
-+  PRIMARY KEY (`id`)
++type AdminLang = 'vi' | 'en-US' | 'de'
++type TopicI18nForm = Record<AdminLang, { name: string; description: string }>
+
+ type Props = {
+   topics: CourseTopic[]
+   coursesByTopic: Record<number, number>
+-  name: string
+-  description: string
++  topicForm: TopicI18nForm
+   editingId: number | null
+-  setName: (value: string) => void
+-  setDescription: (value: string) => void
++  displayLang: AdminLang
++  text: Record<string, string>
++  setTopicField: (lang: AdminLang, field: 'name' | 'description', value: string) => void
+   onSave: () => void
+   onReset: () => void
+   onEdit: (topic: CourseTopic) => void
+   onDelete: (topic: CourseTopic) => void
+ }
+
++const LANGS: LocaleMode[] = ['vi', 'en-US', 'de']
++
+ export function TopicsTab({
+   topics,
+   coursesByTopic,
+-  name,
+-  description,
++  topicForm,
+   editingId,
+-  setName,
+-  setDescription,
++  displayLang,
++  text,
++  setTopicField,
+   onSave,
+   onReset,
+   onEdit,
+   onDelete,
+ }: Props) {
++  const [mode, setMode] = useState<LocaleMode>('vi')
++  const translateNameReqRef = useRef(0)
++  const translateDescReqRef = useRef(0)
++
++  const onChangeName = (value: string) => {
++    setTopicField(mode, 'name', value)
++
++    if (mode !== 'vi') return
++
++    translateNameReqRef.current += 1
++    const reqId = translateNameReqRef.current
++    void Promise.all([autoTranslateFromVietnamese(value, 'en-US'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => {
++      if (reqId !== translateNameReqRef.current) return
++      setTopicField('en-US', 'name', en)
++      setTopicField('de', 'name', de)
++    })
++  }
++
++  const onChangeDescription = (value: string) => {
++    setTopicField(mode, 'description', value)
++
++    if (mode !== 'vi') return
++
++    translateDescReqRef.current += 1
++    const reqId = translateDescReqRef.current
++    void Promise.all([autoTranslateFromVietnamese(value, 'en-US'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => {
++      if (reqId !== translateDescReqRef.current) return
++      setTopicField('en-US', 'description', en)
++      setTopicField('de', 'description', de)
++    })
++  }
++
++  const handleReset = () => {
++    translateNameReqRef.current += 1
++    translateDescReqRef.current += 1
++    onReset()
++  }
++
+   return (
+     <section className='admin-grid admin-courses-grid'>
+       <article className='admin-card admin-card-glow admin-topic-form-card'>
+-        <h3 className='admin-card-title'><i className='fa-solid fa-pen-ruler' /> Form chủ đề khóa học</h3>
++        <h3 className='admin-card-title'><i className='fa-solid fa-pen-ruler' /> {text.topicForm}</h3>
++
++        <div className='admin-row' style={{ marginBottom: 12 }}>
++          {LANGS.map((lang) => (
++            <button
++              key={lang}
++              className={`admin-btn ${mode === lang ? 'admin-btn-primary' : 'admin-btn-ghost'}`}
++              onClick={() => setMode(lang)}
++              type='button'
++            >
++              {lang === 'en-US' ? 'EN' : lang.toUpperCase()}
++            </button>
++          ))}
++        </div>
++
++        <p className='admin-helper'>Mặc định nhập tiếng Việt, hệ thống tự gợi ý bản dịch Anh/Đức. Khi lưu vui lòng kiểm tra lại bản dịch.</p>
++
+         <div className='admin-form-grid'>
+           <label className='admin-field'>
+-            <span className='admin-label'>Tên chủ đề</span>
+-            <input value={name} onChange={(event) => setName(event.target.value)} placeholder='Nhập tên chủ đề' className='admin-input' />
++            <span className='admin-label'>{text.topicName} ({mode})</span>
++            <input
++              value={topicForm[mode].name}
++              onChange={(event) => onChangeName(event.target.value)}
++              placeholder={text.topicNamePlaceholder}
++              className='admin-input'
++            />
+           </label>
+
+           <label className='admin-field'>
+-            <span className='admin-label'>Mô tả ngắn</span>
+-            <input value={description} onChange={(event) => setDescription(event.target.value)} placeholder='Mô tả tuỳ chọn' className='admin-input' />
++            <span className='admin-label'>{text.topicDescription} ({mode})</span>
++            <input
++              value={topicForm[mode].description}
++              onChange={(event) => onChangeDescription(event.target.value)}
++              placeholder={text.topicDescriptionPlaceholder}
++              className='admin-input'
++            />
+           </label>
+
+           <div className='admin-row'>
+             <button onClick={onSave} className='admin-btn admin-btn-save'>
+-              <i className='fa-solid fa-floppy-disk' /> {editingId ? 'Cập nhật chủ đề' : 'Tạo chủ đề'}
++              <i className='fa-solid fa-floppy-disk' /> {editingId ? text.updateTopic : text.createTopic}
++            </button>
++            <button onClick={handleReset} className='admin-btn admin-btn-ghost'>
++              <i className='fa-solid fa-rotate-left' /> {editingId ? text.cancelEdit : 'Làm mới'}
+             </button>
+-            {editingId && (
+-              <button onClick={onReset} className='admin-btn admin-btn-ghost'>
+-                <i className='fa-solid fa-rotate-left' /> Huỷ chỉnh sửa
+-              </button>
+-            )}
+           </div>
+         </div>
+
+         <div className='admin-topic-form-watermark' aria-hidden='true'>
+           <span>A</span>
+         </div>
+       </article>
+
+       <article className='admin-card admin-card-glow'>
+-        <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> Danh sách chủ đề ({topics.length})</h3>
++        <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> {text.topicList} ({topics.length})</h3>
+         <div className='admin-table-wrap'>
+           <table className='admin-table'>
+             <thead>
+               <tr>
+                 <th>ID</th>
+-                <th>Tên chủ đề</th>
+-                <th>Mô tả</th>
+-                <th>Số khoá học</th>
+-                <th>Thao tác</th>
++                <th>{text.topicName}</th>
++                <th>{text.topicDescription}</th>
++                <th>{text.courseCount}</th>
++                <th>{text.actions}</th>
+               </tr>
+             </thead>
+             <tbody>
+               {topics.map((topic) => {
+                 const total = coursesByTopic[topic.id] || topic._count?.courses || 0
++                const localized = topic.translations?.[displayLang]
+                 return (
+                   <tr key={topic.id}>
+                     <td>{topic.id}</td>
+-                    <td className='td-strong'>{topic.name}</td>
+-                    <td>{topic.description || '-'}</td>
++                    <td className='td-strong'>{localized?.name || topic.name}</td>
++                    <td>{localized?.description || topic.description || '-'}</td>
+                     <td>{total}</td>
+                     <td>
+                       <div className='admin-row'>
+-                        <button className='admin-btn-icon admin-btn-icon-edit' onClick={() => onEdit(topic)} title='Sửa chủ đề'>
++                        <button className='admin-btn-icon admin-btn-icon-edit' onClick={() => onEdit(topic)} title={text.editTopic}>
+                           <i className='fa-solid fa-pen' />
+                         </button>
+-                        <button className='admin-btn-icon admin-btn-icon-delete' onClick={() => onDelete(topic)} title='Xoá chủ đề'>
++                        <button className='admin-btn-icon admin-btn-icon-delete' onClick={() => onDelete(topic)} title={text.deleteTopic}>
+                           <i className='fa-solid fa-trash' />
+                         </button>
+                       </div>
+                     </td>
+                   </tr>
+                 )
+               })}
+             </tbody>
+           </table>
+         </div>
+       </article>
+     </section>
+   )
+ }
+diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202603060001_add_course_topic_i18n/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202603060001_add_course_topic_i18n/migration.sql
+new file mode 100644
+index 0000000000000000000000000000000000000000..8fa2e0c2407c72c4c032280f42cc04360af7b2eb
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/prisma/migrations/202603060001_add_course_topic_i18n/migration.sql
+@@ -0,0 +1,17 @@
++-- CreateTable
++CREATE TABLE `CourseTopicTranslation` (
++    `id` INTEGER NOT NULL AUTO_INCREMENT,
++    `topicId` INTEGER NOT NULL,
++    `locale` VARCHAR(10) NOT NULL,
++    `name` VARCHAR(120) NOT NULL,
++    `description` VARCHAR(255) NULL,
++    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
++    `updatedAt` DATETIME(3) NOT NULL,
++
++    INDEX `CourseTopicTranslation_locale_idx`(`locale`),
++    UNIQUE INDEX `CourseTopicTranslation_topicId_locale_key`(`topicId`, `locale`),
++    PRIMARY KEY (`id`)
 +) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 +
-+ALTER TABLE `Course`
-+  ADD COLUMN `topicId` INTEGER NULL,
-+  ADD INDEX `Course_topicId_idx`(`topicId`);
-+
-+ALTER TABLE `Course`
-+  ADD CONSTRAINT `Course_topicId_fkey`
-+  FOREIGN KEY (`topicId`) REFERENCES `CourseTopic`(`id`)
-+  ON DELETE RESTRICT ON UPDATE CASCADE;
++-- AddForeignKey
++ALTER TABLE `CourseTopicTranslation` ADD CONSTRAINT `CourseTopicTranslation_topicId_fkey` FOREIGN KEY (`topicId`) REFERENCES `CourseTopic`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-index 196e18efd94d8ad9ebad63942b68bafd2c4bad6f..2aa382b9a4cc18b416184cf82a7b989d8fc7aca3 100644
+index 2aa382b9a4cc18b416184cf82a7b989d8fc7aca3..06d005c9cdfb352afe6fbba8fe053b1480d61aeb 100644
 --- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
 +++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-@@ -222,64 +222,78 @@ model ServiceReview {
-   stars      Int
-   comment    String?  @db.Text
-   customerName String? @db.VarChar(255)
-   createdAt  DateTime @default(now())
-   updatedAt  DateTime @updatedAt
-
-   service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-   user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-   @@index([serviceId])
- }
-
-
- model RegistrationOtp {
-   id        Int      @id @default(autoincrement())
-   email     String   @unique
-   code      String   @db.VarChar(6)
-   expiresAt DateTime
-   usedAt    DateTime?
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
- }
-
- model Course {
-   id          Int      @id @default(autoincrement())
-+  topicId     Int?
-   title       String
+@@ -249,51 +249,67 @@ model Course {
    slug        String   @unique
    description String?
    thumbnail   String?
@@ -809,22 +812,39 @@ index 196e18efd94d8ad9ebad63942b68bafd2c4bad6f..2aa382b9a4cc18b416184cf82a7b989d
 
    lessons     Lesson[]
    enrollments Enrollment[]
-+  topic       CourseTopic? @relation(fields: [topicId], references: [id], onDelete: Restrict)
+   topic       CourseTopic? @relation(fields: [topicId], references: [id], onDelete: Restrict)
 
    // ✅ ADD
    orderItems OrderItem[] // <— opposite for OrderItem.course
-+
-+  @@index([topicId])
+
+   @@index([topicId])
+ }
+
+ model CourseTopic {
+   id          Int      @id @default(autoincrement())
+   name        String   @unique @db.VarChar(120)
+   description String?  @db.VarChar(255)
+   createdAt   DateTime @default(now())
+   updatedAt   DateTime @updatedAt
+
+-  courses Course[]
++  courses      Course[]
++  translations CourseTopicTranslation[]
 +}
 +
-+model CourseTopic {
++model CourseTopicTranslation {
 +  id          Int      @id @default(autoincrement())
-+  name        String   @unique @db.VarChar(120)
++  topicId     Int
++  locale      String   @db.VarChar(10)
++  name        String   @db.VarChar(120)
 +  description String?  @db.VarChar(255)
 +  createdAt   DateTime @default(now())
 +  updatedAt   DateTime @updatedAt
 +
-+  courses Course[]
++  topic CourseTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
++
++  @@unique([topicId, locale])
++  @@index([locale])
  }
 
  model Lesson {
@@ -850,346 +870,191 @@ index 196e18efd94d8ad9ebad63942b68bafd2c4bad6f..2aa382b9a4cc18b416184cf82a7b989d
    userId   Int
    courseId Int
    orderId  Int
-diff --git a/backend/ayanavitabackend/app/api/src/app.module.ts b/backend/ayanavitabackend/app/api/src/app.module.ts
-index ae4a2fa0891b1b009cfb70fb93f766186920248a..027311b27944b785506735883842eebf8c51c340 100644
---- a/backend/ayanavitabackend/app/api/src/app.module.ts
-+++ b/backend/ayanavitabackend/app/api/src/app.module.ts
-@@ -1,32 +1,29 @@
- import { Module } from '@nestjs/common'
- import { AuthModule } from './auth/auth.module'
- import { BookingModule } from './booking/booking.module'
- import { CoursesModule } from './courses/courses.module'
- import { EnrollmentsModule } from './enrollments/enrollments.module'
- import { LessonsModule } from './lessons/lessons.module'
- import { OrdersModule } from './orders/orders.module'
- import { PrismaModule } from './prisma/prisma.module'
- import { ProgressModule } from './progress/progress.module'
- import { CmsModule } from './cms/cms.module'
--
--
--
-+import { CourseTopicsModule } from './course-topics/course-topics.module'
- import { UsersModule } from './users/users.module'
-
- @Module({
-   imports: [
-     PrismaModule,
-     UsersModule,
-     AuthModule,
-     CoursesModule,
-     LessonsModule,
-     EnrollmentsModule,
-     ProgressModule,
-     OrdersModule,
-     CmsModule,
--
--
-+    CourseTopicsModule,
-     BookingModule,
-   ],
- })
- export class AppModule {}
-\ No newline at end of file
-diff --git a/backend/ayanavitabackend/app/api/src/course-topics/course-topics.controller.ts b/backend/ayanavitabackend/app/api/src/course-topics/course-topics.controller.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..d8152ab882f77812c72bda6ef5b48aaf0020c321
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/course-topics/course-topics.controller.ts
-@@ -0,0 +1,34 @@
-+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common'
-+import { AccessTokenGuard } from '../auth/guards/access-token.guard'
-+import { RolesGuard } from '../auth/guards/roles.guard'
-+import { Roles } from '../auth/decorators/roles.decorator'
-+import { CourseTopicsService } from './course-topics.service'
-+import { CreateCourseTopicDto } from './dto/create-course-topic.dto'
-+import { UpdateCourseTopicDto } from './dto/update-course-topic.dto'
-+
-+@UseGuards(AccessTokenGuard, RolesGuard)
-+@Roles('ADMIN')
-+@Controller('admin/course-topics')
-+export class CourseTopicsController {
-+  constructor(private readonly service: CourseTopicsService) {}
-+
-+  @Get()
-+  list() {
-+    return this.service.list()
-+  }
-+
-+  @Post()
-+  create(@Body() dto: CreateCourseTopicDto) {
-+    return this.service.create(dto)
-+  }
-+
-+  @Patch(':id')
-+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCourseTopicDto) {
-+    return this.service.update(id, dto)
-+  }
-+
-+  @Delete(':id')
-+  remove(@Param('id', ParseIntPipe) id: number) {
-+    return this.service.remove(id)
-+  }
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/course-topics/course-topics.module.ts b/backend/ayanavitabackend/app/api/src/course-topics/course-topics.module.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..cc3564d1580c23c20110e5895c084bb680235e23
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/course-topics/course-topics.module.ts
-@@ -0,0 +1,10 @@
-+import { Module } from '@nestjs/common'
-+import { CourseTopicsController } from './course-topics.controller'
-+import { CourseTopicsService } from './course-topics.service'
-+
-+@Module({
-+  controllers: [CourseTopicsController],
-+  providers: [CourseTopicsService],
-+  exports: [CourseTopicsService],
-+})
-+export class CourseTopicsModule {}
 diff --git a/backend/ayanavitabackend/app/api/src/course-topics/course-topics.service.ts b/backend/ayanavitabackend/app/api/src/course-topics/course-topics.service.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..9b0cc1fd08e9a77968645ec5797a8efded78229f
---- /dev/null
+index 9b0cc1fd08e9a77968645ec5797a8efded78229f..37ef00887ab3e1adb927617019cc51aea2806988 100644
+--- a/backend/ayanavitabackend/app/api/src/course-topics/course-topics.service.ts
 +++ b/backend/ayanavitabackend/app/api/src/course-topics/course-topics.service.ts
-@@ -0,0 +1,43 @@
-+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
-+import { Prisma } from '@prisma/client'
-+import { PrismaService } from '../prisma/prisma.service'
-+import { CreateCourseTopicDto } from './dto/create-course-topic.dto'
-+import { UpdateCourseTopicDto } from './dto/update-course-topic.dto'
+@@ -1,43 +1,124 @@
+ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+ import { Prisma } from '@prisma/client'
+ import { PrismaService } from '../prisma/prisma.service'
+ import { CreateCourseTopicDto } from './dto/create-course-topic.dto'
+ import { UpdateCourseTopicDto } from './dto/update-course-topic.dto'
+
+ @Injectable()
+ export class CourseTopicsService {
++  private readonly supportedLocales = ['vi', 'en-US', 'de'] as const
 +
-+@Injectable()
-+export class CourseTopicsService {
-+  constructor(private readonly prisma: PrismaService) {}
+   constructor(private readonly prisma: PrismaService) {}
+
+-  list() {
+-    return this.prisma.courseTopic.findMany({
++  async list() {
++    const topics = await this.prisma.courseTopic.findMany({
+       orderBy: [{ name: 'asc' }],
+-      include: { _count: { select: { courses: true } } },
++      include: {
++        _count: { select: { courses: true } },
++        translations: true,
++      },
+     })
 +
-+  list() {
-+    return this.prisma.courseTopic.findMany({
-+      orderBy: [{ name: 'asc' }],
-+      include: { _count: { select: { courses: true } } },
++    return topics.map((item) => ({
++      ...item,
++      translations: this.toTranslationMap(item.translations),
++    }))
+   }
+
+-  create(dto: CreateCourseTopicDto) {
+-    return this.prisma.courseTopic.create({ data: dto })
++  async create(dto: CreateCourseTopicDto) {
++    const created = await this.prisma.courseTopic.create({
++      data: {
++        name: dto.name,
++        description: dto.description,
++      },
 +    })
-+  }
 +
-+  create(dto: CreateCourseTopicDto) {
-+    return this.prisma.courseTopic.create({ data: dto })
-+  }
++    await this.upsertTopicTranslations(created.id, dto.translations)
 +
-+  async update(id: number, dto: UpdateCourseTopicDto) {
-+    await this.ensureExists(id)
-+    return this.prisma.courseTopic.update({ where: { id }, data: dto })
-+  }
++    return this.findById(created.id)
+   }
+
+   async update(id: number, dto: UpdateCourseTopicDto) {
+     await this.ensureExists(id)
+-    return this.prisma.courseTopic.update({ where: { id }, data: dto })
 +
-+  async remove(id: number) {
-+    await this.ensureExists(id)
-+    try {
-+      return await this.prisma.courseTopic.delete({ where: { id }, select: { id: true } })
-+    } catch (error) {
-+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
-+        throw new ConflictException('Chỉ được xóa chủ đề khi không có khóa học nào thuộc chủ đề này.')
-+      }
-+      throw error
++    await this.prisma.courseTopic.update({
++      where: { id },
++      data: {
++        ...(dto.name !== undefined ? { name: dto.name } : {}),
++        ...(dto.description !== undefined ? { description: dto.description } : {}),
++      },
++    })
++
++    await this.upsertTopicTranslations(id, dto.translations)
++
++    return this.findById(id)
+   }
+
+   async remove(id: number) {
+     await this.ensureExists(id)
+     try {
+       return await this.prisma.courseTopic.delete({ where: { id }, select: { id: true } })
+     } catch (error) {
+       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+         throw new ConflictException('Chỉ được xóa chủ đề khi không có khóa học nào thuộc chủ đề này.')
+       }
+       throw error
+     }
+   }
+
++  private async findById(id: number) {
++    const item = await this.prisma.courseTopic.findUnique({
++      where: { id },
++      include: {
++        _count: { select: { courses: true } },
++        translations: true,
++      },
++    })
++    if (!item) throw new NotFoundException('Không tìm thấy chủ đề khóa học.')
++
++    return {
++      ...item,
++      translations: this.toTranslationMap(item.translations),
 +    }
 +  }
 +
-+  private async ensureExists(id: number) {
-+    const item = await this.prisma.courseTopic.findUnique({ where: { id }, select: { id: true } })
-+    if (!item) throw new NotFoundException('Không tìm thấy chủ đề khóa học.')
++  private toTranslationMap(rows: Array<{ locale: string; name: string; description: string | null }>) {
++    return rows.reduce<Record<string, { name: string; description: string | null }>>((acc, row) => {
++      acc[row.locale] = {
++        name: row.name,
++        description: row.description,
++      }
++      return acc
++    }, {})
 +  }
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/course-topics/dto/create-course-topic.dto.ts b/backend/ayanavitabackend/app/api/src/course-topics/dto/create-course-topic.dto.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..5f255d6f03e48c5a2177620c9f77630800dfd0c0
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/course-topics/dto/create-course-topic.dto.ts
-@@ -0,0 +1,12 @@
-+import { IsOptional, IsString, MaxLength } from 'class-validator'
 +
-+export class CreateCourseTopicDto {
++  private async upsertTopicTranslations(topicId: number, input: CreateCourseTopicDto['translations']) {
++    if (!input || typeof input !== 'object') return
++
++    for (const locale of this.supportedLocales) {
++      const row = input[locale]
++      if (!row || typeof row !== 'object') continue
++      const name = typeof row.name === 'string' ? row.name.trim() : ''
++      if (!name) continue
++
++      await this.prisma.courseTopicTranslation.upsert({
++        where: { topicId_locale: { topicId, locale } },
++        create: {
++          topicId,
++          locale,
++          name,
++          description: typeof row.description === 'string' ? row.description.trim() || null : null,
++        },
++        update: {
++          name,
++          description: typeof row.description === 'string' ? row.description.trim() || null : null,
++        },
++      })
++    }
++  }
++
+   private async ensureExists(id: number) {
+     const item = await this.prisma.courseTopic.findUnique({ where: { id }, select: { id: true } })
+     if (!item) throw new NotFoundException('Không tìm thấy chủ đề khóa học.')
+   }
+ }
+diff --git a/backend/ayanavitabackend/app/api/src/course-topics/dto/create-course-topic.dto.ts b/backend/ayanavitabackend/app/api/src/course-topics/dto/create-course-topic.dto.ts
+index 5f255d6f03e48c5a2177620c9f77630800dfd0c0..50a279d63234fe3ce7226aa2d6fab64611e04de1 100644
+--- a/backend/ayanavitabackend/app/api/src/course-topics/dto/create-course-topic.dto.ts
++++ b/backend/ayanavitabackend/app/api/src/course-topics/dto/create-course-topic.dto.ts
+@@ -1,12 +1,47 @@
+-import { IsOptional, IsString, MaxLength } from 'class-validator'
++import { Type } from 'class-transformer'
++import { IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator'
++
++class CourseTopicTranslationItemDto {
++  @IsOptional()
 +  @IsString()
 +  @MaxLength(120)
-+  name!: string
++  name?: string
 +
 +  @IsOptional()
 +  @IsString()
 +  @MaxLength(255)
 +  description?: string
 +}
-diff --git a/backend/ayanavitabackend/app/api/src/course-topics/dto/update-course-topic.dto.ts b/backend/ayanavitabackend/app/api/src/course-topics/dto/update-course-topic.dto.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..a88a32a755a0d4e59357c579a4c547d639efff08
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/course-topics/dto/update-course-topic.dto.ts
-@@ -0,0 +1,4 @@
-+import { PartialType } from '@nestjs/mapped-types'
-+import { CreateCourseTopicDto } from './create-course-topic.dto'
 +
-+export class UpdateCourseTopicDto extends PartialType(CreateCourseTopicDto) {}
-diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-index 3470680beb4ae2e6e63bae2558d75215a547a21f..778364facfd7f4f682dcc687fb276695e5fc6458 100644
---- a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-@@ -30,122 +30,129 @@ async lessonsOutline(user: JwtUser, courseId: number) {
-         courseId,
-         ...(user.role === 'ADMIN' ? {} : { published: true }),
-       },
-       select: {
-         id: true,
-         courseId: true,
-         title: true,
-         slug: true,
-         order: true,
-         published: true,
-         createdAt: true,
-         updatedAt: true,
-       },
-       orderBy: [{ order: 'asc' }, { id: 'asc' }],
-     })
-
-     return lessons
-   }
-   // =========================
-   // PUBLIC/COMMON (đã login)
-   // =========================
-   findAll() {
-     return this.prisma.course.findMany({
-       select: {
-         id: true,
-+        topicId: true,
-         title: true,
-         slug: true,
-         description: true,
-         thumbnail: true,
-         price: true,
-         published: true,
-         createdAt: true,
-         updatedAt: true,
-+        topic: { select: { id: true, name: true } },
-         _count: { select: { lessons: true } },
-       },
-       orderBy: { id: "desc" },
-     });
-   }
-
-   async findOne(id: number) {
-     const course = await this.prisma.course.findUnique({
-       where: { id },
-       select: {
-         id: true,
-+        topicId: true,
-         title: true,
-         slug: true,
-         description: true,
-         thumbnail: true,
-         price: true,
-         published: true,
-         createdAt: true,
-         updatedAt: true,
-+        topic: { select: { id: true, name: true } },
-         _count: { select: { lessons: true } },
-       },
-     });
-     if (!course) throw new NotFoundException("Course not found");
-     return course;
-   }
-
-   // =========================
-   // ADMIN CRUD
-   // =========================
-   async create(dto: CreateCourseDto) {
-     try {
-       return await this.prisma.course.create({
-         data: dto,
-         select: {
-           id: true,
-+          topicId: true,
-           title: true,
-           slug: true,
-           description: true,
-           thumbnail: true,
-           price: true,
-           published: true,
-           createdAt: true,
-           updatedAt: true,
-+          topic: { select: { id: true, name: true } },
-         },
-       });
-     } catch (e) {
-       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-         const target = (e.meta as any)?.target;
-         if (Array.isArray(target) ? target.includes("slug") : String(target).includes("slug")) {
-           throw new ConflictException("Slug already exists");
-         }
-         throw new ConflictException("Unique constraint failed");
-       }
-       throw e;
-     }
-   }
-
-   async update(id: number, dto: UpdateCourseDto) {
-     await this.ensureCourseExists(id);
-     return this.prisma.course.update({
-       where: { id },
-       data: dto,
-       select: {
-         id: true,
-+        topicId: true,
-         title: true,
-         slug: true,
-         description: true,
-         thumbnail: true,
-         price: true,
-         published: true,
-         createdAt: true,
-         updatedAt: true,
-       },
-     });
-   }
-
-   async remove(id: number) {
-     await this.ensureCourseExists(id);
-     return this.prisma.course.delete({
-       where: { id },
-       select: { id: true },
-     });
-   }
-
-   async listLessons(user: { sub: number; role: string }, courseId: number) {
-     // 1) course tồn tại
-     const course = await this.prisma.course.findUnique({
-       where: { id: courseId },
-       select: { id: true, published: true },
-diff --git a/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts b/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts
-index 7ef974278728b2b792919fcae8ea2496ca10eb2c..1f1ca41d3472814e4d81a4a6ab42e34290473c50 100644
---- a/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts
-+++ b/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts
-@@ -1,26 +1,31 @@
- import { IsBoolean, IsInt, IsOptional, IsString, Min } from 'class-validator';
-
- export class CreateCourseDto {
-   @IsString()
-   title: string;
-
-   @IsString()
-   slug: string;
-
-   @IsOptional()
-   @IsString()
-   description?: string;
-
-   @IsOptional()
-   @IsString()
-   thumbnail?: string; // URL hoặc path
-
-   @IsOptional()
-   @IsInt()
-   @Min(0)
-   price?: number;
-
-   @IsOptional()
-   @IsBoolean()
-   published?: boolean;
++class CourseTopicTranslationsDto {
 +  @IsOptional()
-+  @IsInt()
-+  @Min(1)
-+  topicId?: number;
- }
++  @ValidateNested()
++  @Type(() => CourseTopicTranslationItemDto)
++  vi?: CourseTopicTranslationItemDto
 +
++  @IsOptional()
++  @ValidateNested()
++  @Type(() => CourseTopicTranslationItemDto)
++  'en-US'?: CourseTopicTranslationItemDto
++
++  @IsOptional()
++  @ValidateNested()
++  @Type(() => CourseTopicTranslationItemDto)
++  de?: CourseTopicTranslationItemDto
++}
+
+ export class CreateCourseTopicDto {
+   @IsString()
+   @MaxLength(120)
+   name!: string
+
+   @IsOptional()
+   @IsString()
+   @MaxLength(255)
+   description?: string
++
++  @IsOptional()
++  @ValidateNested()
++  @Type(() => CourseTopicTranslationsDto)
++  translations?: CourseTopicTranslationsDto
+ }

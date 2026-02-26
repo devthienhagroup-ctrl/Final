@@ -6,22 +6,52 @@ import { UpdateCourseTopicDto } from './dto/update-course-topic.dto'
 
 @Injectable()
 export class CourseTopicsService {
+  private readonly supportedLocales = ['vi', 'en-US', 'de'] as const
+
   constructor(private readonly prisma: PrismaService) {}
 
-  list() {
-    return this.prisma.courseTopic.findMany({
+  async list() {
+    const topics = await this.prisma.courseTopic.findMany({
       orderBy: [{ name: 'asc' }],
-      include: { _count: { select: { courses: true } } },
+      include: {
+        _count: { select: { courses: true } },
+        translations: true,
+      },
     })
+
+    return topics.map((item) => ({
+      ...item,
+      translations: this.toTranslationMap(item.translations),
+    }))
   }
 
-  create(dto: CreateCourseTopicDto) {
-    return this.prisma.courseTopic.create({ data: dto })
+  async create(dto: CreateCourseTopicDto) {
+    const created = await this.prisma.courseTopic.create({
+      data: {
+        name: dto.name,
+        description: dto.description,
+      },
+    })
+
+    await this.upsertTopicTranslations(created.id, dto.translations)
+
+    return this.findById(created.id)
   }
 
   async update(id: number, dto: UpdateCourseTopicDto) {
     await this.ensureExists(id)
-    return this.prisma.courseTopic.update({ where: { id }, data: dto })
+
+    await this.prisma.courseTopic.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name } : {}),
+        ...(dto.description !== undefined ? { description: dto.description } : {}),
+      },
+    })
+
+    await this.upsertTopicTranslations(id, dto.translations)
+
+    return this.findById(id)
   }
 
   async remove(id: number) {
@@ -33,6 +63,57 @@ export class CourseTopicsService {
         throw new ConflictException('Chỉ được xóa chủ đề khi không có khóa học nào thuộc chủ đề này.')
       }
       throw error
+    }
+  }
+
+  private async findById(id: number) {
+    const item = await this.prisma.courseTopic.findUnique({
+      where: { id },
+      include: {
+        _count: { select: { courses: true } },
+        translations: true,
+      },
+    })
+    if (!item) throw new NotFoundException('Không tìm thấy chủ đề khóa học.')
+
+    return {
+      ...item,
+      translations: this.toTranslationMap(item.translations),
+    }
+  }
+
+  private toTranslationMap(rows: Array<{ locale: string; name: string; description: string | null }>) {
+    return rows.reduce<Record<string, { name: string; description: string | null }>>((acc, row) => {
+      acc[row.locale] = {
+        name: row.name,
+        description: row.description,
+      }
+      return acc
+    }, {})
+  }
+
+  private async upsertTopicTranslations(topicId: number, input: CreateCourseTopicDto['translations']) {
+    if (!input || typeof input !== 'object') return
+
+    for (const locale of this.supportedLocales) {
+      const row = input[locale]
+      if (!row || typeof row !== 'object') continue
+      const name = typeof row.name === 'string' ? row.name.trim() : ''
+      if (!name) continue
+
+      await this.prisma.courseTopicTranslation.upsert({
+        where: { topicId_locale: { topicId, locale } },
+        create: {
+          topicId,
+          locale,
+          name,
+          description: typeof row.description === 'string' ? row.description.trim() || null : null,
+        },
+        update: {
+          name,
+          description: typeof row.description === 'string' ? row.description.trim() || null : null,
+        },
+      })
     }
   }
 

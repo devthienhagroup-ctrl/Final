@@ -271,7 +271,23 @@ model CourseTopic {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  courses Course[]
+  courses      Course[]
+  translations CourseTopicTranslation[]
+}
+
+model CourseTopicTranslation {
+  id          Int      @id @default(autoincrement())
+  topicId     Int
+  locale      String   @db.VarChar(10)
+  name        String   @db.VarChar(120)
+  description String?  @db.VarChar(255)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  topic CourseTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([topicId, locale])
+  @@index([locale])
 }
 
 model Lesson {

@@ -96,6 +96,31 @@ function inRange(price: number, r: PriceRange) {
     return true;
 }
 
+
+type ApiCatalogProduct = {
+    id: string | number;
+    sku: string;
+    price: number;
+    name: string;
+    shortDescription?: string | null;
+    image?: string | null;
+};
+
+function toPriceFilter(r: PriceRange): { minPrice?: number; maxPrice?: number } {
+    if (r === "lt200") return { maxPrice: 200_000 };
+    if (r === "200-400") return { minPrice: 200_000, maxPrice: 400_000 };
+    if (r === "gt400") return { minPrice: 400_000 };
+    return {};
+}
+
+function toApiSort(sort: SortKey): "newest" | "priceAsc" | "priceDesc" | "nameAsc" {
+    if (sort === "new") return "newest";
+    if (sort === "priceAsc") return "priceAsc";
+    if (sort === "priceDesc") return "priceDesc";
+    if (sort === "rating") return "nameAsc";
+    return "newest";
+}
+
 export default function ProductsPage() {
     // ====== language ======
     const [currentLanguage, setCurrentLanguage] = useState<string>(() => {
@@ -151,34 +176,89 @@ export default function ProductsPage() {
     const [page, setPage] = useState(1);
     const pageSize = 6;
 
+    const [apiItems, setApiItems] = useState<ApiCatalogProduct[]>([]);
+    const [apiTotal, setApiTotal] = useState<number>(0);
+    const [apiTotalPages, setApiTotalPages] = useState<number>(1);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const fetchProducts = async () => {
+            try {
+                const priceFilter = toPriceFilter(priceRange);
+                const params: any = {
+                    lang: currentLanguage,
+                    page,
+                    pageSize,
+                    search: q || undefined,
+                    sort: toApiSort(sort),
+                    ...priceFilter,
+                };
+
+                const res = await http.get('/public/catalog/products', { params });
+                if (cancelled) return;
+                setApiItems(Array.isArray(res.data?.items) ? res.data.items : []);
+                setApiTotal(Number(res.data?.total ?? 0));
+                setApiTotalPages(Number(res.data?.totalPages ?? 1));
+            } catch (error) {
+                console.error('GET /public/catalog/products failed:', error);
+                if (cancelled) {
+                    return;
+                }
+                const qq = q.trim().toLowerCase();
+                let fallback = CATEGORY_PRODUCTS.filter((p) => {
+                    const okQ = !qq || p.name.toLowerCase().includes(qq) || p.id.toLowerCase().includes(qq);
+                    const okT = !types.length || types.includes(p.type);
+                    const okC = concern === 'all' ? true : (p.concerns || []).includes(concern);
+                    const okP = inRange(p.price, priceRange);
+                    return okQ && okT && okC && okP;
+                });
+
+                if (sort === 'best') fallback = fallback.slice().sort((a, b) => b.sold - a.sold);
+                if (sort === 'new') fallback = fallback.slice().sort((a, b) => (b.updated > a.updated ? 1 : -1));
+                if (sort === 'priceAsc') fallback = fallback.slice().sort((a, b) => a.price - b.price);
+                if (sort === 'priceDesc') fallback = fallback.slice().sort((a, b) => b.price - a.price);
+                if (sort === 'rating') fallback = fallback.slice().sort((a, b) => b.rating - a.rating);
+
+                const start = (page - 1) * pageSize;
+                const pageRows = fallback.slice(start, start + pageSize).map((p) => ({
+                    id: p.id,
+                    sku: p.sku,
+                    price: p.price,
+                    name: p.name,
+                    image: p.img,
+                }));
+                setApiItems(pageRows);
+                setApiTotal(fallback.length);
+                setApiTotalPages(Math.max(1, Math.ceil(fallback.length / pageSize)));
+            }
+        };
+
+        fetchProducts();
+        return () => {
+            cancelled = true;
+        };
+    }, [currentLanguage, q, types, concern, priceRange, sort, page]);
+
     const list = useMemo(() => {
-        const qq = q.trim().toLowerCase();
+        return apiItems.map((item, idx) => ({
+            sku: (item.sku as any),
+            id: String(item.id ?? item.sku),
+            name: item.name,
+            type: ((types[0] ?? 'cleanser') as ProductType),
+            concerns: concern === 'all' ? [] : [concern],
+            price: Number(item.price ?? 0),
+            rating: 5,
+            sold: 0,
+            updated: new Date().toISOString().slice(0, 10),
+            img: item.image || CATEGORY_PRODUCTS[idx % CATEGORY_PRODUCTS.length]?.img || '',
+        }));
+    }, [apiItems, types, concern]);
 
-        let out = CATEGORY_PRODUCTS.filter((p) => {
-            const okQ = !qq || p.name.toLowerCase().includes(qq) || p.id.toLowerCase().includes(qq);
-            const okT = !types.length || types.includes(p.type);
-            const okC = concern === "all" ? true : (p.concerns || []).includes(concern);
-            const okP = inRange(p.price, priceRange);
-            return okQ && okT && okC && okP;
-        });
-
-        // sort
-        if (sort === "best") out = out.slice().sort((a, b) => b.sold - a.sold);
-        if (sort === "new") out = out.slice().sort((a, b) => (b.updated > a.updated ? 1 : -1));
-        if (sort === "priceAsc") out = out.slice().sort((a, b) => a.price - b.price);
-        if (sort === "priceDesc") out = out.slice().sort((a, b) => b.price - a.price);
-        if (sort === "rating") out = out.slice().sort((a, b) => b.rating - a.rating);
-
-        return out;
-    }, [q, types, concern, priceRange, sort]);
-
-    const totalPages = useMemo(() => Math.max(1, Math.ceil(list.length / pageSize)), [list.length]);
+    const totalPages = useMemo(() => Math.max(1, apiTotalPages), [apiTotalPages]);
     const safePage = Math.min(page, totalPages);
 
-    const pageItems = useMemo(() => {
-        const start = (safePage - 1) * pageSize;
-        return list.slice(start, start + pageSize);
-    }, [list, safePage]);
+    const pageItems = useMemo(() => list, [list]);
 
     function toggleType(t: ProductType) {
         setPage(1);
@@ -265,7 +345,7 @@ export default function ProductsPage() {
                                     ))}
                                 </div>
                                 <div className="text-sm text-slate-600">
-                                    {cmsData?.results?.label}: <b>{list.length}</b> {cmsData?.results?.unit}
+                                    {cmsData?.results?.label}: <b>{apiTotal}</b> {cmsData?.results?.unit}
                                 </div>
                             </div>
 
@@ -289,7 +369,7 @@ export default function ProductsPage() {
                                 page={safePage}
                                 totalPages={totalPages}
                                 onPrev={() => setPage((p) => Math.max(1, p - 1))}
-                                onNext={() => setPage((p) => p + 1)}
+                                onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
                             />
                         </section>
                     </div>

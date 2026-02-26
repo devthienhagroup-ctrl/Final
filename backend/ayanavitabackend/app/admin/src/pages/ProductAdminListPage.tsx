@@ -856,12 +856,14 @@ const styles = `
   color: white;
   box-shadow: 0 4px 10px rgba(109,94,252,0.2);
 }
-.x-btn-primary:hover{ box-shadow: 0 6px 14px rgba(43,213,255,0.25); }
+.x-btn-primary:hover{ color: var(--brand1); box-shadow: 0 6px 14px rgba(43,213,255,0.25); }
 .x-btn-danger{
   border-color: var(--danger);
   background: linear-gradient(135deg, var(--danger), #f87171);
   color: white;
 }
+
+.x-btn-danger:hover{ color: var(--danger); box-shadow: 0 6px 14px rgba(239,68,68,0.25); }
 
 .x-icon-btn{
   width: 38px;
@@ -948,8 +950,8 @@ const styles = `
   font-weight: 900;
   transition: transform .12s ease, background .12s ease, border-color .12s ease;
 }
-.x-tab-btn:hover{ transform: translateY(-1px); background: rgba(0,0,0,0.02); }
-.x-tab-btn:active{ transform: translateY(0px) scale(0.98); }
+.x-tab-btn:hover{color: var(--brand1); transform: translateY(-1px); background: rgba(0,0,0,0.02); }
+.x-tab-btn:active{color: var(--brand1); transform: translateY(0px) scale(0.98); }
 .x-tab-btn:disabled{ opacity:0.55; cursor:not-allowed; transform:none; }
 .x-tab-btn-active{
   color: #ffffff;

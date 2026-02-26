@@ -41,9 +41,7 @@ export default function ComparePage() {
 
   return (
     <div className="text-slate-900">
-      <SiteHeader />
-
-      <main className="px-4 pb-10">
+      <main className="px-4 py-10">
         <div className="max-w-6xl mx-auto grid gap-4">
           <section className="card p-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
@@ -57,9 +55,6 @@ export default function ComparePage() {
               <div className="flex gap-2">
                 <button className="btn" type="button" onClick={reset}>
                   <i className="fa-solid fa-rotate-left mr-2" />Reset
-                </button>
-                <button className="btn btn-primary" type="button" onClick={suggest}>
-                  <i className="fa-solid fa-wand-magic-sparkles mr-2" />Gợi ý combo
                 </button>
               </div>
             </div>
@@ -143,14 +138,8 @@ export default function ComparePage() {
             </div>
 
             <div className="mt-5 grid gap-3 md:grid-cols-3">
-              <Link className="btn text-center" to={`/products/${a || skus[0]}`}>
-                <i className="fa-solid fa-circle-info mr-2" />Mở trang chi tiết
-              </Link>
               <Link className="btn text-center" to="/cart">
                 <i className="fa-solid fa-cart-shopping mr-2" />Về giỏ hàng
-              </Link>
-              <Link className="btn btn-primary text-center" to="/checkout">
-                <i className="fa-solid fa-credit-card mr-2" />Thanh toán
               </Link>
             </div>
           </section>
@@ -177,8 +166,6 @@ export default function ComparePage() {
 
         <div className="max-w-6xl mx-auto mt-4 text-center text-sm text-slate-500">© 2025 AYANAVITA • Prototype Compare</div>
       </main>
-
-      <Footer />
     </div>
   );
 }

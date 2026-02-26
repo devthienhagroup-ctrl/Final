@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { PRODUCTS, type ProductSku } from "../data/products.data";
+// NOTE: Product detail must use API data only. Avoid demo/seed datasets.
 import { money } from "../services/booking.utils";
 import { addProductToCart, readProductCart } from "../services/productCart.utils";
 
@@ -9,8 +9,7 @@ import { MiniCartModal } from "../components/shop/MiniCartModal";
 import { ReviewModal } from "../components/shop/ReviewModal";
 import { Stars } from "../components/shop/Stars";
 
-import { buildCatalogMetas } from "../data/shopCatalog.data";
-import { PRODUCT_DETAIL_SEEDS, catLabel, goalLabel } from "../data/productDetail.data";
+// (removed) buildCatalogMetas / PRODUCT_DETAIL_SEEDS / label helpers
 import { addReview, calcReviewStats, listReviewsBySku } from "../services/productReviews.utils";
 
 import {http} from "../api/http";
@@ -226,6 +225,9 @@ export default function ProductDetailPage() {
 
   const [detailData, setDetailData] = useState<any>(null);
   const [cmsData, setCmsData] = useState(defaultCmsData);
+  const [apiProduct, setApiProduct] = useState<any>(null);
+  const [loadingProduct, setLoadingProduct] = useState(false);
+  const [productError, setProductError] = useState<string | null>(null);
 
   // Lắng nghe sự kiện thay đổi ngôn ngữ
   useEffect(() => {
@@ -261,36 +263,65 @@ export default function ProductDetailPage() {
     fetchData();
   }, [currentLanguage]);
 
-  const skus = useMemo(() => Object.keys(PRODUCTS) as ProductSku[], []);
-  const sku = useMemo(() => {
-    const s = (skuParam || "") as ProductSku;
-    return (s && PRODUCTS[s]) ? s : skus[0];
-  }, [skuParam, skus]);
+  useEffect(() => {
+    if (!skuParam) return;
 
-  const base = sku ? PRODUCTS[sku] : null;
+    let cancelled = false;
+    const fetchProductDetail = async () => {
+      setLoadingProduct(true);
+      setProductError(null);
+      try {
+        const res = await http.get(`/public/catalog/products/${skuParam}?lang=${currentLanguage}`);
+        if (!cancelled) {
+          setApiProduct(res.data);
+        }
+        console.log(`GET /public/catalog/products/${skuParam} response:`, res.data);
+      } catch (error) {
+        console.error('GET /public/catalog/products/:sku failed:', error);
+        if (!cancelled) {
+          setApiProduct(null);
+          setProductError("Không tải được dữ liệu sản phẩm từ API.");
+        }
+      } finally {
+        if (!cancelled) setLoadingProduct(false);
+      }
+    };
 
-  const metas = useMemo(() => buildCatalogMetas(), []);
-  const meta = useMemo(() => metas.find((m) => m.sku === sku) || null, [metas, sku]);
+    fetchProductDetail();
+    return () => {
+      cancelled = true;
+    };
+  }, [skuParam, currentLanguage]);
 
-  const seed = useMemo(() => PRODUCT_DETAIL_SEEDS[sku], [sku]);
+  const productKey = useMemo(() => String(apiProduct?.sku || skuParam || ""), [apiProduct?.sku, skuParam]);
+
   const images = useMemo(() => {
-    const s = seed?.images?.length ? seed.images : (base?.img ? [base.img] : []);
-    return s.length ? s : [
-      "https://images.unsplash.com/photo-1612810436541-336d31f6e5f4?auto=format&fit=crop&w=1600&q=80",
-      "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1611930022073-b7a4ba5fcccd?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1587019158091-1a103c5dd4d2?auto=format&fit=crop&w=1200&q=80",
-    ];
-  }, [seed, base]);
+    const rows = Array.isArray(apiProduct?.images) ? apiProduct.images.slice() : [];
+    // Ưu tiên sortOrder tăng dần, rồi ưu tiên isPrimary
+    rows.sort((a: any, b: any) => {
+      const ao = Number.isFinite(Number(a?.sortOrder)) ? Number(a.sortOrder) : 999999;
+      const bo = Number.isFinite(Number(b?.sortOrder)) ? Number(b.sortOrder) : 999999;
+      if (ao !== bo) return ao - bo;
+      if (!!a?.isPrimary !== !!b?.isPrimary) return a?.isPrimary ? -1 : 1;
+      return 0;
+    });
+    const urls = rows.map((x: any) => x?.imageUrl).filter(Boolean);
+    if (urls.length) {
+      const primary = rows.find((x: any) => x?.isPrimary && x?.imageUrl)?.imageUrl;
+      if (primary) return [primary, ...urls.filter((u: string) => u !== primary)];
+      return urls;
+    }
+    return apiProduct?.image ? [apiProduct.image] : [];
+  }, [apiProduct]);
 
   const [mainImg, setMainImg] = useState(images[0]);
   useEffect(() => {
     setMainImg(images[0]);
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [sku, images]);
+  }, [productKey, images]);
 
   const [qty, setQty] = useState(1);
-  useEffect(() => setQty(1), [sku]);
+  useEffect(() => setQty(1), [productKey]);
 
   const [cartOpen, setCartOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -308,18 +339,16 @@ export default function ProductDetailPage() {
   const [rvFilterStar, setRvFilterStar] = useState<"all" | "1" | "2" | "3" | "4" | "5">("all");
   const [rvSearch, setRvSearch] = useState("");
 
-  const allReviews = useMemo(() => (sku ? listReviewsBySku(sku) : []), [sku, reviewOpen]);
-  const stats = useMemo(() => calcReviewStats(listReviewsBySku(sku)), [sku, reviewOpen]);
+  const stats = useMemo(() => calcReviewStats(listReviewsBySku(productKey as any)), [productKey, reviewOpen]);
 
-  const seedRating = seed?.seedMeta?.rating ?? meta?.rating ?? 4.8;
-  const seedReviewsCount = seed?.seedMeta?.reviews ?? 312;
-  const seedSold = seed?.seedMeta?.sold ?? meta?.sold ?? 1240;
+  const displayName = apiProduct?.name || "";
+  const displayPrice = Number(apiProduct?.price ?? 0);
 
-  const effectiveAvg = stats.count ? stats.avg : seedRating;
-  const effectiveCount = stats.count ? stats.count : seedReviewsCount;
+  const effectiveAvg = stats.count ? stats.avg : 0;
+  const effectiveCount = stats.count ? stats.count : 0;
 
   const filteredReviews = useMemo(() => {
-    let rs = listReviewsBySku(sku).slice();
+    let rs = listReviewsBySku(productKey as any).slice();
 
     if (rvFilterStar !== "all") rs = rs.filter((r) => String(r.stars) === rvFilterStar);
     const q = rvSearch.trim().toLowerCase();
@@ -328,15 +357,47 @@ export default function ProductDetailPage() {
     if (rvSort === "high") rs.sort((a, b) => b.stars - a.stars);
     if (rvSort === "low") rs.sort((a, b) => a.stars - b.stars);
     return rs;
-  }, [sku, rvFilterStar, rvSearch, rvSort, reviewOpen]);
+  }, [productKey, rvFilterStar, rvSearch, rvSort, reviewOpen]);
 
-  if (!base) {
+  const guideIntro = apiProduct?.guideContent?.intro || "";
+  const guideSteps = useMemo(() => {
+    const steps = Array.isArray(apiProduct?.guideContent?.steps) ? apiProduct.guideContent.steps.slice() : [];
+    steps.sort((a: any, b: any) => (Number(a?.order || 0) - Number(b?.order || 0)));
+    return steps;
+  }, [apiProduct?.guideContent?.steps]);
+
+  const shortDesc = apiProduct?.shortDescription || "";
+  const longDesc = apiProduct?.description || "";
+
+  const ingredients = useMemo(() => {
+    return Array.isArray(apiProduct?.ingredients)
+        ? apiProduct.ingredients
+            .map((x: any) => ({ name: x?.name, desc: x?.value || x?.note || "" }))
+            .filter((x: any) => x?.name)
+        : [];
+  }, [apiProduct?.ingredients]);
+
+  const formatAttributeValue = (a: any) => {
+    if (a?.valueText != null && String(a.valueText).trim() !== "") return String(a.valueText);
+    if (a?.valueNumber != null && a.valueNumber !== "") return String(a.valueNumber);
+    if (a?.valueBoolean != null) return a.valueBoolean ? "Có" : "Không";
+    if (a?.valueJson != null) {
+      try {
+        return typeof a.valueJson === "string" ? a.valueJson : JSON.stringify(a.valueJson);
+      } catch {
+        return "[json]";
+      }
+    }
+    return "—";
+  };
+
+  if (!skuParam) {
     return (
         <div className="text-slate-900">
           <main className="px-4 pb-10">
             <div className="max-w-4xl mx-auto card p-6">
-              <div className="text-2xl font-extrabold">Không tìm thấy sản phẩm</div>
-              <div className="mt-2 text-slate-600">SKU không hợp lệ hoặc PRODUCTS đang rỗng.</div>
+              <div className="text-2xl font-extrabold">Thiếu mã sản phẩm</div>
+              <div className="mt-2 text-slate-600">URL không có tham số SKU.</div>
               <Link className="mt-4 btn btn-primary inline-block" to="/products">Về danh mục</Link>
             </div>
           </main>
@@ -344,40 +405,37 @@ export default function ProductDetailPage() {
     );
   }
 
-  const detail = {
-    cat: seed?.cat ?? "serum",
-    target: seed?.target ?? "repair",
-    skuText: seed?.skuText ?? String(base.id),
-    size: seed?.size ?? (meta ? `${meta.ml}ml (demo)` : "30ml (demo)"),
-    skinType: seed?.skinType ?? "Mọi loại da (demo)",
-    shortDesc:
-        seed?.shortDesc ??
-        "Sản phẩm mẫu cho trang chi tiết: tập trung ảnh, giá, CTA rõ ràng, review & gợi ý combo.",
-    longDesc:
-        seed?.longDesc ??
-        "Prototype trang chi tiết: khi làm thật, lấy mô tả dài/thành phần/hướng dẫn dùng từ DB. Nội dung hiện là mô phỏng để bạn ráp UI/UX.",
-    highlights: seed?.highlights ?? [
-      "Hỗ trợ routine Spa tại nhà (demo)",
-      "Kết cấu thấm nhanh (demo)",
-      "CTA rõ ràng: thêm giỏ / mua ngay",
-      "Có review filter + search (localStorage)",
-    ],
-    ingredients: seed?.ingredients ?? [
-      { name: "Ceramide Complex", desc: "Hỗ trợ hàng rào bảo vệ (demo)." },
-      { name: "Panthenol (B5)", desc: "Làm dịu và tăng cảm giác dễ chịu (demo)." },
-      { name: "Hyaluronic Acid", desc: "Cấp ẩm, giúp da căng mượt hơn (demo)." },
-    ],
-    usage: seed?.usage ?? {
-      am: ["Rửa mặt dịu nhẹ", "Toner (tuỳ chọn)", "Serum 2–3 giọt", "Kem dưỡng", "Chống nắng"],
-      pm: ["Tẩy trang (nếu có)", "Rửa mặt", "Toner (tuỳ chọn)", "Serum 2–3 giọt", "Kem dưỡng"],
-    },
-    checklist: seed?.checklist ?? ["Patch test 24h", "Duy trì chống nắng", "Dùng đều 14 ngày"],
-    relatedSkus: seed?.relatedSkus ?? skus.filter((x) => x !== sku).slice(0, 3),
-    comboHint: seed?.comboHint ?? "Serum + Kem dưỡng + Chống nắng để duy trì hiệu quả.",
-  };
+  if (loadingProduct) {
+    return (
+        <div className="text-slate-900">
+          <main className="px-4 pb-10">
+            <div className="max-w-7xl mx-auto">
+              <div className="card p-6">
+                <div className="text-2xl font-extrabold">Đang tải sản phẩm…</div>
+                <div className="mt-2 text-slate-600">Vui lòng đợi một chút.</div>
+              </div>
+            </div>
+          </main>
+        </div>
+    );
+  }
+
+  if (productError || !apiProduct) {
+    return (
+        <div className="text-slate-900">
+          <main className="px-4 pb-10">
+            <div className="max-w-4xl mx-auto card p-6">
+              <div className="text-2xl font-extrabold">Không tìm thấy sản phẩm</div>
+              <div className="mt-2 text-slate-600">{productError || "API không trả về dữ liệu."}</div>
+              <Link className="mt-4 btn btn-primary inline-block" to="/products">Về danh mục</Link>
+            </div>
+          </main>
+        </div>
+    );
+  }
 
   function addToCart(q: number) {
-    addProductToCart(sku, q);
+    addProductToCart(productKey as any, q);
     setCartCount(readProductCart().reduce((s, i) => s + Number(i.qty || 0), 0));
     window.alert("Đã thêm vào giỏ (demo).");
   }
@@ -388,7 +446,7 @@ export default function ProductDetailPage() {
   }
 
   function submitReview(x: { name: string; stars: number; text: string }) {
-    addReview(sku, x);
+    addReview(productKey as any, x);
     setReviewOpen(false);
   }
 
@@ -450,7 +508,7 @@ export default function ProductDetailPage() {
               <span className="mx-2 text-slate-400">/</span>
               <Link className="underline" to="/products">{cmsData.breadcrumb.shop}</Link>
               <span className="mx-2 text-slate-400">/</span>
-              <span>{base.name}</span>
+              <span>{displayName}</span>
             </div>
 
             <div className="mt-5 grid gap-6 lg:grid-cols-2 items-start">
@@ -460,44 +518,52 @@ export default function ProductDetailPage() {
                   <div className="flex gap-2 flex-wrap">
                   <span className="chip">
                     <i className={`${cmsData.gallery.categoryChip.icon} ${cmsData.gallery.categoryChip.color}`} />
-                    {catLabel(detail.cat as any)}
+                    {apiProduct?.category?.name || "—"}
                   </span>
                     <span className="chip">
                     <i className={`${cmsData.gallery.goalChip.icon} ${cmsData.gallery.goalChip.color}`} />
-                      {goalLabel(detail.target as any)}
+                      {apiProduct?.status || "—"}
                   </span>
                     <span className={`chip ${cmsData.gallery.listedChip.bgClass}`}>
                     <i className={cmsData.gallery.listedChip.icon} /> {cmsData.gallery.listedChip.text}
                   </span>
                   </div>
                   <div className="text-sm font-extrabold text-slate-600">
-                    {cmsData.gallery.skuLabel} <span>{detail.skuText}</span>
+                    {cmsData.gallery.skuLabel} <span>{apiProduct?.sku || "—"}</span>
                   </div>
                 </div>
 
                 <div className="mt-4 rounded-2xl overflow-hidden border border-slate-200 bg-white">
-                  <img className="w-full h-[420px] object-cover" src={mainImg} alt={base.name} />
+                  {mainImg ? (
+                      <img className="w-full h-[420px] object-cover" src={mainImg} alt={displayName} />
+                  ) : (
+                      <div className="w-full h-[420px] grid place-items-center text-slate-500">
+                        Chưa có hình ảnh
+                      </div>
+                  )}
                 </div>
 
-                <div className="mt-3 grid grid-cols-4 gap-3">
-                  {images.slice(0, 4).map((src) => {
-                    const active = src === mainImg;
-                    return (
-                        <button
-                            key={src}
-                            className={`rounded-2xl overflow-hidden border border-slate-200 bg-white ${active ? "ring-4 ring-indigo-200" : ""}`}
-                            type="button"
-                            onClick={() => setMainImg(src)}
-                        >
-                          <img className="h-20 w-full object-cover" src={src} alt="thumb" />
-                        </button>
-                    );
-                  })}
-                </div>
+                {images.length ? (
+                    <div className="mt-3 grid grid-cols-4 gap-3">
+                      {images.slice(0, 4).map((src) => {
+                        const active = src === mainImg;
+                        return (
+                            <button
+                                key={src}
+                                className={`rounded-2xl overflow-hidden border border-slate-200 bg-white ${active ? "ring-4 ring-indigo-200" : ""}`}
+                                type="button"
+                                onClick={() => setMainImg(src)}
+                            >
+                              <img className="h-20 w-full object-cover" src={src} alt="thumb" />
+                            </button>
+                        );
+                      })}
+                    </div>
+                ) : null}
 
                 <div className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
                   <div className="font-extrabold">{cmsData.gallery.highlightsTitle}</div>
-                  Mô tả ngắn ở đây
+                  {shortDesc}
                 </div>
               </div>
 
@@ -505,12 +571,12 @@ export default function ProductDetailPage() {
               <div className="sticky top-[88px]">
                 <div className="card p-5">
                   <div className="text-xs font-extrabold text-slate-500">{cmsData.purchaseBox.title}</div>
-                  <h1 className="mt-1 text-3xl font-extrabold leading-tight">{base.name}</h1>
+                  <h1 className="mt-1 text-3xl font-extrabold leading-tight">{displayName}</h1>
 
                   <div className="mt-3 flex items-center justify-between gap-3">
                     <div>
                       <div className="text-xs font-extrabold text-slate-500">{cmsData.purchaseBox.priceLabel}</div>
-                      <div className="mt-1 text-4xl font-extrabold text-amber-600">{money(base.price)}</div>
+                      <div className="mt-1 text-4xl font-extrabold text-amber-600">{money(displayPrice)}</div>
                       <div className="mt-1 text-sm text-slate-500">{cmsData.purchaseBox.vatNote}</div>
                     </div>
 
@@ -518,14 +584,14 @@ export default function ProductDetailPage() {
                       <div className="text-xs font-extrabold text-slate-500">{cmsData.purchaseBox.ratingLabel}</div>
                       <div className="mt-1"><Stars value={effectiveAvg} sizeClass="text-xl" /></div>
                       <div className="text-sm text-slate-500">
-                        {effectiveAvg.toFixed(1)} • {effectiveCount} {cmsData.purchaseBox.reviewText} • {seedSold} {cmsData.purchaseBox.soldText}
+                        {(effectiveAvg || 0).toFixed(1)} • {effectiveCount} {cmsData.purchaseBox.reviewText}
                       </div>
                     </div>
                   </div>
 
                   <div className="border-t border-slate-200 my-4" />
 
-                  <p className="text-sm text-slate-700 leading-relaxed">{detail.shortDesc}</p>
+                  <p className="text-sm text-slate-700 leading-relaxed">{shortDesc}</p>
 
                   <div className="mt-4 grid gap-2 sm:grid-cols-2">
                     <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
@@ -577,7 +643,7 @@ export default function ProductDetailPage() {
 
                   <div className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
                     <div className="font-extrabold text-sm">{cmsData.purchaseBox.comboHintTitle}</div>
-                    <div className="mt-2 text-sm text-slate-700">{detail.comboHint}</div>
+                    <div className="mt-2 text-sm text-slate-700">{apiProduct?.category?.name ? `Danh mục: ${apiProduct.category.name}` : ""}</div>
                   </div>
                 </div>
 
@@ -612,15 +678,6 @@ export default function ProductDetailPage() {
                 </div>
               </div>
             </div>
-
-            {/* quick anchors */}
-            <div className="mt-7 flex flex-wrap gap-2">
-              {cmsData.quickAnchors.map((anchor) => (
-                  <a key={anchor.href} className="btn" href={anchor.href}>
-                    <i className={`${anchor.icon} mr-2`} />{anchor.text}
-                  </a>
-              ))}
-            </div>
           </div>
         </section>
 
@@ -630,7 +687,7 @@ export default function ProductDetailPage() {
             <div className="card p-6 lg:col-span-2">
               <div className="text-xs font-extrabold text-slate-500">{cmsData.overview.sectionTitle}</div>
 
-              <p className="mt-4 text-slate-700 leading-relaxed">Mô tả chi tiết ở đây</p>
+              <p className="mt-4 text-slate-700 leading-relaxed">{longDesc || shortDesc || "—"}</p>
             </div>
 
             <div className="card p-6">
@@ -638,13 +695,18 @@ export default function ProductDetailPage() {
               <div className="text-2xl font-extrabold">{cmsData.specs.title}</div>
 
               <div className="mt-5 grid gap-3 text-sm">
-                  {/*Lặp qua danh sách thuộc tính*/}
-                    <div  className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 flex items-center justify-between">
-                      <span className="text-slate-500 font-extrabold">Tên hiển thị của thuộc tính</span>
-                      <b>
-                        Giá trị thuộc tính
-                      </b>
+                {(Array.isArray(apiProduct?.attributes) ? apiProduct.attributes : []).map((a: any, idx: number) => (
+                    <div key={`${a?.key || idx}`} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 flex items-center justify-between">
+                      <span className="text-slate-500 font-extrabold">{a?.name || a?.key || "—"}</span>
+                      <b>{formatAttributeValue(a)}</b>
                     </div>
+                ))}
+
+                {!Array.isArray(apiProduct?.attributes) || apiProduct.attributes.length === 0 ? (
+                    <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 text-slate-600">
+                      Chưa có thuộc tính.
+                    </div>
+                ) : null}
 
               </div>
 
@@ -673,11 +735,18 @@ export default function ProductDetailPage() {
             </div>
 
             <div className="mt-5 grid gap-4 md:grid-cols-3">
-              {/*Lặp qua thành phần*/}
-                  <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
-                    <div className="font-extrabold">Tên Thành phần  </div>
-                    <div className="mt-2 text-sm text-slate-700">Giá trị thành phần</div>
+              {ingredients.map((ing: any, idx: number) => (
+                  <div key={`${ing.name}-${idx}`} className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
+                    <div className="font-extrabold">{ing.name}</div>
+                    <div className="mt-2 text-sm text-slate-700">{ing.desc}</div>
                   </div>
+              ))}
+
+              {ingredients.length === 0 ? (
+                  <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200 text-sm text-slate-700 md:col-span-3">
+                    Chưa có dữ liệu thành phần.
+                  </div>
+              ) : null}
             </div>
           </div>
         </section>
@@ -688,12 +757,18 @@ export default function ProductDetailPage() {
             <div className="card p-6 lg:col-span-2">
               <div className="text-xs font-extrabold text-slate-500">{cmsData.usage.sectionTitle}</div>
               <div className="text-2xl font-extrabold">{cmsData.usage.title}</div>
-              <p>Mô tả ngắn của hướng dẫn sử dụng</p>
+              <p>{guideIntro || "—"}</p>
               <div className="mt-4">
                 <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
                   <ol className="mt-3 grid gap-2 text-sm text-slate-700">
-                   {/*Lặp qua các bước trong hướng dẫn sử dụng*/}
-                        <li className="flex gap-2"><span className="font-extrabold text-amber-600">STT. </span>Nội dung bước</li>
+                    {guideSteps.length ? guideSteps.map((s: any, idx: number) => (
+                        <li key={`${s?.order || idx}`} className="flex gap-2">
+                          <span className="font-extrabold text-amber-600">{idx + 1}. </span>
+                          {s?.content || "—"}
+                        </li>
+                    )) : (
+                        <li className="text-slate-600">Chưa có các bước hướng dẫn.</li>
+                    )}
 
                   </ol>
                 </div>
@@ -701,32 +776,32 @@ export default function ProductDetailPage() {
 
             </div>
 
-            <div className="card p-6">
-              <div className="text-xs font-extrabold text-slate-500">{cmsData.combo.sectionTitle}</div>
-              <div className="text-2xl font-extrabold">{cmsData.combo.title}</div>
+            {/* Combo đề xuất: chỉ hiển thị khi backend có dữ liệu liên quan */}
+            {Array.isArray(apiProduct?.relatedProducts) && apiProduct.relatedProducts.length ? (
+                <div className="card p-6">
+                  <div className="text-xs font-extrabold text-slate-500">{cmsData.combo.sectionTitle}</div>
+                  <div className="text-2xl font-extrabold">{cmsData.combo.title}</div>
 
-              <div className="mt-4 grid gap-3">
-                {detail.relatedSkus.map((rs) => {
-                  const p = PRODUCTS[rs];
-                  return (
-                      <div key={rs} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
-                        <div className="flex gap-3">
-                          <img className="h-16 w-16 rounded-2xl object-cover border border-slate-200" src={p.img} alt={p.name} />
-                          <div className="min-w-0">
-                            <div className="font-extrabold truncate">{p.name}</div>
-                            <div className="text-sm text-slate-500">{money(p.price)}</div>
-                            <button className="btn mt-2 w-full" type="button" onClick={() => navigate(`/products/${rs}`)}>
-                              <i className="fa-solid fa-arrow-right mr-2" />Xem
-                            </button>
+                  <div className="mt-4 grid gap-3">
+                    {apiProduct.relatedProducts.map((p: any) => (
+                        <div key={p?.sku || p?.id} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                          <div className="flex gap-3">
+                            <img className="h-16 w-16 rounded-2xl object-cover border border-slate-200" src={p?.image || p?.img || images?.[0]} alt={p?.name || ""} />
+                            <div className="min-w-0">
+                              <div className="font-extrabold truncate">{p?.name}</div>
+                              <div className="text-sm text-slate-500">{money(Number(p?.price || 0))}</div>
+                              <button className="btn mt-2 w-full" type="button" onClick={() => navigate(`/products/${p?.sku || p?.id}`)}>
+                                <i className="fa-solid fa-arrow-right mr-2" />Xem
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                  );
-                })}
-              </div>
+                    ))}
+                  </div>
 
-              <div className="mt-4 text-xs text-slate-500">{cmsData.combo.disclaimer}</div>
-            </div>
+                  <div className="mt-4 text-xs text-slate-500">{cmsData.combo.disclaimer}</div>
+                </div>
+            ) : null}
           </div>
         </section>
 
@@ -784,7 +859,7 @@ export default function ProductDetailPage() {
                               <div className="font-extrabold">
                                 {r.name} <span className="text-slate-500">• {r.createdAt}</span>
                               </div>
-                              <div className="mt-1 text-sm text-slate-500">{base.name} • {detail.skuText}</div>
+                              <div className="mt-1 text-sm text-slate-500">{displayName}</div>
                             </div>
                             <div className="text-lg"><Stars value={r.stars} /></div>
                           </div>
@@ -824,7 +899,7 @@ export default function ProductDetailPage() {
             cmsData={detailData?.sections?.[1]?.data}
             open={reviewOpen}
             onClose={() => setReviewOpen(false)}
-            productName={base.name}
+            productName={displayName}
             onSubmit={submitReview}
         />
       </div>

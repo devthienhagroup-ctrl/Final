@@ -13,6 +13,8 @@ import { IngredientsService } from './ingredients.service'
 import { LanguagesController } from './languages.controller'
 import { LanguagesService } from './languages.service'
 import { ImageUploadService } from '../services/ImageUploadService'
+import { PublicCatalogController } from './public-catalog.controller'
+import { PublicCatalogService } from './public-catalog.service'
 
 @Module({
   controllers: [
@@ -21,6 +23,7 @@ import { ImageUploadService } from '../services/ImageUploadService'
     AttributesController,
     IngredientsController,
     LanguagesController,
+    PublicCatalogController,
   ],
   providers: [
     ProductsService,
@@ -29,6 +32,7 @@ import { ImageUploadService } from '../services/ImageUploadService'
     IngredientsService,
     LanguagesService,
     ImageUploadService,
+    PublicCatalogService,
   ],
 })
 export class CatalogModule {}

@@ -1616,7 +1616,7 @@ const styles = `
   color: white;
   box-shadow: 0 4px 10px rgba(109,94,252,0.2);
 }
-.x-btn-primary:hover{ box-shadow: 0 6px 14px rgba(43,213,255,0.25); }
+.x-btn-primary:hover{color: var(--brand1); box-shadow: 0 6px 14px rgba(43,213,255,0.25); }
 .x-btn-danger{
   border-color: var(--danger);
   background: linear-gradient(135deg, var(--danger), #f87171);

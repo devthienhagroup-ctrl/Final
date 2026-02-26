@@ -40,7 +40,7 @@ export default function App() {
         <Route path="/cart" element={<CartPage />} />
         <Route path="/product-checkout" element={<ProductCheckoutPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
-        <Route path="/compare" element={<ComparePage />} />
+        <Route path="/products/compare" element={<ComparePage />} />
         <Route path="/track-order" element={<TrackOrderPage />} />
 
         <Route path="/reviews" element={<ReviewsCenterPage />} />

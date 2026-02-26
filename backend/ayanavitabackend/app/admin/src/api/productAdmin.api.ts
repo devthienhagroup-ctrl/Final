@@ -7,6 +7,7 @@ import {
   type ProductCategory,
   type ProductIngredient,
   type ProductTranslation,
+  type ProductGuideContent,
 } from "../types/productAdmin";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -29,6 +30,33 @@ const defaultLanguages: AdminLanguage[] = [
 
 let languageCache: AdminLanguage[] | null = null;
 
+const emptyGuideContent = (): ProductGuideContent => ({
+  intro: "",
+  steps: [],
+});
+
+const normalizeGuideContent = (value: unknown): ProductGuideContent => {
+  if (!value || typeof value !== "object") return emptyGuideContent();
+
+  const raw = value as { intro?: unknown; steps?: unknown };
+  const intro = typeof raw.intro === "string" ? raw.intro : "";
+  const steps = Array.isArray(raw.steps)
+    ? raw.steps
+        .map((step) => {
+          if (!step || typeof step !== "object") return null;
+          const s = step as { order?: unknown; content?: unknown };
+          const content = typeof s.content === "string" ? s.content : "";
+          const order = Number(s.order);
+          if (!content) return null;
+          return { order: Number.isFinite(order) && order > 0 ? Math.floor(order) : 1, content };
+        })
+        .filter((step): step is { order: number; content: string } => Boolean(step))
+        .sort((a, b) => a.order - b.order)
+    : [];
+
+  return { intro, steps };
+};
+
 export async function fetchCatalogLanguages(): Promise<AdminLanguage[]> {
   if (languageCache) return languageCache;
   try {
@@ -43,7 +71,13 @@ export async function fetchCatalogLanguages(): Promise<AdminLanguage[]> {
 
 const ensureTranslations = (
   languages: AdminLanguage[],
-  rows: Array<{ languageCode: string; name?: string; shortDescription?: string; description?: string }> = [],
+  rows: Array<{
+    languageCode: string;
+    name?: string;
+    shortDescription?: string;
+    description?: string;
+    guideContent?: unknown;
+  }> = [],
 ): ProductTranslation[] =>
   languages.map((lang) => {
     const found = rows.find((item) => item.languageCode === lang.code);
@@ -52,6 +86,7 @@ const ensureTranslations = (
       name: found?.name || "",
       shortDescription: found?.shortDescription || "",
       description: found?.description || "",
+      guideContent: normalizeGuideContent(found?.guideContent),
     };
   });
 
@@ -102,7 +137,13 @@ type ApiProduct = {
   status?: string;
   stock?: number;
   updatedAt?: string;
-  translations?: Array<{ languageCode: string; name: string; shortDescription?: string; description?: string }>;
+  translations?: Array<{
+    languageCode: string;
+    name: string;
+    shortDescription?: string;
+    description?: string;
+    guideContent?: unknown;
+  }>;
   attributes?: Array<{ attributeKeyId: string | number; valueText?: string; valueNumber?: number }>;
   ingredients?: Array<{ ingredientKeyId: string | number; note?: string; value?: string }>;
 };
@@ -164,6 +205,7 @@ const toProductPayload = (item: ProductAdminItem) => ({
     slug: slugify(row.name || `${item.sku}-${row.lang}`),
     shortDescription: row.shortDescription || "",
     description: row.description || "",
+    guideContent: row.guideContent,
   })),
 });
 
@@ -203,6 +245,7 @@ export async function createAdminProduct(): Promise<ProductAdminItem> {
       slug: `new-${lang.code}-${uid()}`,
       shortDescription: "",
       description: "",
+      guideContent: emptyGuideContent(),
     })),
   };
   const created = await api<ApiProduct>("/catalog/products", { method: "POST", body: JSON.stringify(payload) });
@@ -348,7 +391,7 @@ export function upsertTranslation(
 ): ProductTranslation[] {
   const existing = translations.find((item) => item.lang === lang);
   if (!existing) {
-    return [...translations, { lang, name: "", shortDescription: "", description: "", ...patch }];
+    return [...translations, { lang, name: "", shortDescription: "", description: "", guideContent: emptyGuideContent(), ...patch }];
   }
   return translations.map((item) => (item.lang === lang ? { ...item, ...patch } : item));
 }

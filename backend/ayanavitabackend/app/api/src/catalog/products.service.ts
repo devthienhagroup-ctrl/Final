@@ -3,6 +3,25 @@ import { PrismaService } from '../prisma/prisma.service'
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto'
 import { UpsertProductAttributesDto, UpsertProductIngredientsDto } from './dto/product-metadata.dto'
 import { normalizeBigInt } from './utils'
+import { Prisma } from '@prisma/client'
+type JsonValue = string | number | boolean | { [key: string]: JsonValue } | JsonValue[];
+
+const toProductTranslationCreateManyData = (
+    productId: number,
+    translations: CreateProductDto['translations'] | UpdateProductDto['translations'],
+) =>
+    (translations ?? []).map((translation) => ({
+      productId: BigInt(productId),
+      languageCode: translation.languageCode,
+      name: translation.name,
+      slug: translation.slug,
+      shortDescription: translation.shortDescription,
+      description: translation.description,
+      guideContent: translation.guideContent
+          ? (JSON.parse(JSON.stringify(translation.guideContent)) as JsonValue)
+          : null,
+
+    }))
 
 @Injectable()
 export class ProductsService {
@@ -26,16 +45,26 @@ export class ProductsService {
   }
 
   async create(dto: CreateProductDto) {
-    const row = await this.prisma.catalogProduct.create({
-      data: {
-        sku: dto.sku,
-        categoryId: dto.categoryId ? BigInt(dto.categoryId) : null,
-        price: dto.price,
-        status: dto.status ?? 'active',
-        translations: { create: dto.translations },
-      },
-      include: { translations: true, category: true },
+    const row = await this.prisma.$transaction(async (tx) => {
+      const createdProduct = await tx.catalogProduct.create({
+        data: {
+          sku: dto.sku,
+          categoryId: dto.categoryId ? BigInt(dto.categoryId) : null,
+          price: dto.price,
+          status: dto.status ?? 'active',
+        },
+      })
+
+      await tx.productTranslation.createMany({
+        data: toProductTranslationCreateManyData(Number(createdProduct.id), dto.translations),
+      })
+
+      return tx.catalogProduct.findUniqueOrThrow({
+        where: { id: createdProduct.id },
+        include: { translations: true, category: true },
+      })
     })
+
     return normalizeBigInt(row)
   }
 
@@ -44,6 +73,7 @@ export class ProductsService {
     const row = await this.prisma.$transaction(async (tx) => {
       if (dto.translations) {
         await tx.productTranslation.deleteMany({ where: { productId: BigInt(id) } })
+        await tx.productTranslation.createMany({ data: toProductTranslationCreateManyData(id, dto.translations) })
       }
 
       return tx.catalogProduct.update({
@@ -53,7 +83,6 @@ export class ProductsService {
           categoryId: dto.categoryId === undefined ? undefined : dto.categoryId === null ? null : BigInt(dto.categoryId),
           price: dto.price,
           status: dto.status,
-          translations: dto.translations ? { create: dto.translations } : undefined,
         },
         include: { translations: true, category: true },
       })

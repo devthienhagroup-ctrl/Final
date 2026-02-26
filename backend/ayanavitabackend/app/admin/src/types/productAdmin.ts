@@ -10,6 +10,17 @@ export type ProductTranslation = {
   name: string;
   shortDescription: string;
   description: string;
+  guideContent: ProductGuideContent;
+};
+
+export type ProductGuideStep = {
+  order: number;
+  content: string;
+};
+
+export type ProductGuideContent = {
+  intro: string;
+  steps: ProductGuideStep[];
 };
 
 export type LocalizedTextMap = Record<LanguageCode, string>;

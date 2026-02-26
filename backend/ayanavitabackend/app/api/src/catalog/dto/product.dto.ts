@@ -7,8 +7,31 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  Min,
   ValidateNested,
 } from 'class-validator'
+
+export class ProductGuideStepDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  order!: number
+
+  @IsString()
+  @IsNotEmpty()
+  content!: string
+}
+
+export class ProductGuideContentDto {
+  @IsString()
+  @IsNotEmpty()
+  intro!: string
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductGuideStepDto)
+  steps!: ProductGuideStepDto[]
+}
 
 export class ProductTranslationDto {
   @IsString()
@@ -33,6 +56,11 @@ export class ProductTranslationDto {
   @IsOptional()
   @IsString()
   description?: string
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ProductGuideContentDto)
+  guideContent?: ProductGuideContentDto
 }
 
 export class CreateProductDto {

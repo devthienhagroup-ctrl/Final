@@ -1,18 +1,18 @@
 diff --git a/backend/ayanavitabackend/app/admin/src/api/productAdmin.api.ts b/backend/ayanavitabackend/app/admin/src/api/productAdmin.api.ts
-index d189cdad6eb3b5bbef19eb9a5a8bc2e1b4a4d08b..83d759cc460f8b90b0ab7ca9783ef083ce31319b 100644
+index 83d759cc460f8b90b0ab7ca9783ef083ce31319b..74241f4b68fff7b361c42ddab9c551cf25fa750b 100644
 --- a/backend/ayanavitabackend/app/admin/src/api/productAdmin.api.ts
 +++ b/backend/ayanavitabackend/app/admin/src/api/productAdmin.api.ts
-@@ -1,285 +1,357 @@
+@@ -1,130 +1,171 @@
  import { api } from "../lib/http";
  import {
--  LANGUAGES,
-+  type AdminLanguage,
+   type AdminLanguage,
    type LanguageCode,
    type ProductAdminItem,
    type ProductAttribute,
    type ProductCategory,
    type ProductIngredient,
    type ProductTranslation,
++  type ProductGuideContent,
  } from "../types/productAdmin";
 
  const uid = () => Math.random().toString(36).slice(2, 10);
@@ -27,46 +27,75 @@ index d189cdad6eb3b5bbef19eb9a5a8bc2e1b4a4d08b..83d759cc460f8b90b0ab7ca9783ef083
      .replace(/\s+/g, "-")
      .replace(/-+/g, "-") || `item-${uid()}`;
 
-+const defaultLanguages: AdminLanguage[] = [
-+  { code: "vi", label: "Tiếng Việt" },
-+  { code: "en", label: "English" },
-+  { code: "de", label: "Deutsch" },
-+];
+ const defaultLanguages: AdminLanguage[] = [
+   { code: "vi", label: "Tiếng Việt" },
+   { code: "en", label: "English" },
+   { code: "de", label: "Deutsch" },
+ ];
+
+ let languageCache: AdminLanguage[] | null = null;
+
++const emptyGuideContent = (): ProductGuideContent => ({
++  intro: "",
++  steps: [],
++});
 +
-+let languageCache: AdminLanguage[] | null = null;
++const normalizeGuideContent = (value: unknown): ProductGuideContent => {
++  if (!value || typeof value !== "object") return emptyGuideContent();
 +
-+export async function fetchCatalogLanguages(): Promise<AdminLanguage[]> {
-+  if (languageCache) return languageCache;
-+  try {
-+    const rows = await api<Array<{ code: string; name: string }>>("/catalog/languages");
-+    languageCache =
-+      rows.map((row) => ({ code: row.code, label: row.name })) || defaultLanguages;
-+  } catch {
-+    languageCache = defaultLanguages;
-+  }
-+  return languageCache;
-+}
++  const raw = value as { intro?: unknown; steps?: unknown };
++  const intro = typeof raw.intro === "string" ? raw.intro : "";
++  const steps = Array.isArray(raw.steps)
++    ? raw.steps
++        .map((step) => {
++          if (!step || typeof step !== "object") return null;
++          const s = step as { order?: unknown; content?: unknown };
++          const content = typeof s.content === "string" ? s.content : "";
++          const order = Number(s.order);
++          if (!content) return null;
++          return { order: Number.isFinite(order) && order > 0 ? Math.floor(order) : 1, content };
++        })
++        .filter((step): step is { order: number; content: string } => Boolean(step))
++        .sort((a, b) => a.order - b.order)
++    : [];
 +
++  return { intro, steps };
++};
++
+ export async function fetchCatalogLanguages(): Promise<AdminLanguage[]> {
+   if (languageCache) return languageCache;
+   try {
+     const rows = await api<Array<{ code: string; name: string }>>("/catalog/languages");
+     languageCache =
+       rows.map((row) => ({ code: row.code, label: row.name })) || defaultLanguages;
+   } catch {
+     languageCache = defaultLanguages;
+   }
+   return languageCache;
+ }
+
  const ensureTranslations = (
-+  languages: AdminLanguage[],
-   rows: Array<{ languageCode: string; name?: string; shortDescription?: string; description?: string }> = [],
+   languages: AdminLanguage[],
+-  rows: Array<{ languageCode: string; name?: string; shortDescription?: string; description?: string }> = [],
++  rows: Array<{
++    languageCode: string;
++    name?: string;
++    shortDescription?: string;
++    description?: string;
++    guideContent?: unknown;
++  }> = [],
  ): ProductTranslation[] =>
--  LANGUAGES.map((lang) => {
-+  languages.map((lang) => {
+   languages.map((lang) => {
      const found = rows.find((item) => item.languageCode === lang.code);
      return {
        lang: lang.code,
        name: found?.name || "",
        shortDescription: found?.shortDescription || "",
        description: found?.description || "",
++      guideContent: normalizeGuideContent(found?.guideContent),
      };
    });
 
--const pickName = (rows: Array<{ languageCode: string; name?: string }> = []) => {
--  const vi = rows.find((item) => item.languageCode === "vi")?.name;
--  return vi || rows[0]?.name || "";
--};
--
  type ApiCategory = {
    id: string | number;
    translations?: Array<{ languageCode: string; name: string; description?: string }>;
@@ -94,19 +123,16 @@ index d189cdad6eb3b5bbef19eb9a5a8bc2e1b4a4d08b..83d759cc460f8b90b0ab7ca9783ef083
    return Object.fromEntries(rows.map((item) => [String(item.id), item]));
  };
 
--const mapCategory = (item: ApiCategory): ProductCategory => ({
-+const mapCategory = (item: ApiCategory, languages: AdminLanguage[]): ProductCategory => ({
+ const mapCategory = (item: ApiCategory, languages: AdminLanguage[]): ProductCategory => ({
    id: String(item.id),
--  name: pickName(item.translations),
--  description: item.translations?.find((row) => row.languageCode === "vi")?.description || "",
-+  translations: languages.map((lang) => {
-+    const found = item.translations?.find((row) => row.languageCode === lang.code);
-+    return {
-+      lang: lang.code,
-+      name: found?.name || "",
-+      description: found?.description || "",
-+    };
-+  }),
+   translations: languages.map((lang) => {
+     const found = item.translations?.find((row) => row.languageCode === lang.code);
+     return {
+       lang: lang.code,
+       name: found?.name || "",
+       description: found?.description || "",
+     };
+   }),
  });
 
  type ApiProduct = {
@@ -117,16 +143,21 @@ index d189cdad6eb3b5bbef19eb9a5a8bc2e1b4a4d08b..83d759cc460f8b90b0ab7ca9783ef083
    status?: string;
    stock?: number;
    updatedAt?: string;
-   translations?: Array<{ languageCode: string; name: string; shortDescription?: string; description?: string }>;
--  attributes?: Array<{ id: string | number; attributeKeyId: string | number; valueText?: string; valueNumber?: number }>;
--  ingredients?: Array<{ id: string | number; ingredientKeyId: string | number; note?: string; value?: string }>;
-+  attributes?: Array<{ attributeKeyId: string | number; valueText?: string; valueNumber?: number }>;
-+  ingredients?: Array<{ ingredientKeyId: string | number; note?: string; value?: string }>;
+-  translations?: Array<{ languageCode: string; name: string; shortDescription?: string; description?: string }>;
++  translations?: Array<{
++    languageCode: string;
++    name: string;
++    shortDescription?: string;
++    description?: string;
++    guideContent?: unknown;
++  }>;
+   attributes?: Array<{ attributeKeyId: string | number; valueText?: string; valueNumber?: number }>;
+   ingredients?: Array<{ ingredientKeyId: string | number; note?: string; value?: string }>;
  };
 
  const mapProduct = (
    item: ApiProduct,
-+  languages: AdminLanguage[],
+   languages: AdminLanguage[],
    ingredientKeys: Record<string, ApiIngredientKey> = {},
    attributeKeys: Record<string, ApiAttributeKey> = {},
  ): ProductAdminItem => ({
@@ -136,54 +167,27 @@ index d189cdad6eb3b5bbef19eb9a5a8bc2e1b4a4d08b..83d759cc460f8b90b0ab7ca9783ef083
    price: Number(item.price || 0),
    stock: Number(item.stock || 0),
    status: item.status === "active" ? "active" : "draft",
--  translations: ensureTranslations(item.translations),
--  ingredients: (item.ingredients || []).map((row) => ({
--    id: String(row.id),
--    name:
--      ingredientKeys[String(row.ingredientKeyId)]?.translations?.find((x) => x.languageCode === "vi")?.displayName ||
--      ingredientKeys[String(row.ingredientKeyId)]?.code ||
--      "",
--    note: row.note || row.value || "",
--  })),
--  attributes: (item.attributes || []).map((row) => ({
--    id: String(row.id),
--    key:
--      attributeKeys[String(row.attributeKeyId)]?.translations?.find((x) => x.languageCode === "vi")?.displayName ||
--      attributeKeys[String(row.attributeKeyId)]?.code ||
--      "",
--    value: row.valueText || String(row.valueNumber ?? ""),
--  })),
-+  translations: ensureTranslations(languages, item.translations),
-+  ingredients: (item.ingredients || []).map((row) => {
-+    const key = ingredientKeys[String(row.ingredientKeyId)];
-+    const nameByLang = Object.fromEntries(
-+      languages.map((lang) => [
-+        lang.code,
-+        key?.translations?.find((x) => x.languageCode === lang.code)?.displayName || "",
-+      ]),
-+    );
-+
-+    return {
-+      id: String(row.ingredientKeyId),
-+      nameByLang,
-+      note: row.note || row.value || "",
-+    };
-+  }),
-+  attributes: (item.attributes || []).map((row) => {
-+    const key = attributeKeys[String(row.attributeKeyId)];
-+    const keyByLang = Object.fromEntries(
-+      languages.map((lang) => [
-+        lang.code,
-+        key?.translations?.find((x) => x.languageCode === lang.code)?.displayName || "",
-+      ]),
-+    );
-+
-+    return {
-+      id: String(row.attributeKeyId),
-+      keyByLang,
-+      value: row.valueText || String(row.valueNumber ?? ""),
-+    };
-+  }),
+   translations: ensureTranslations(languages, item.translations),
+   ingredients: (item.ingredients || []).map((row) => {
+     const key = ingredientKeys[String(row.ingredientKeyId)];
+     const nameByLang = Object.fromEntries(
+       languages.map((lang) => [
+         lang.code,
+         key?.translations?.find((x) => x.languageCode === lang.code)?.displayName || "",
+       ]),
+     );
+@@ -142,89 +183,91 @@ const mapProduct = (
+         lang.code,
+         key?.translations?.find((x) => x.languageCode === lang.code)?.displayName || "",
+       ]),
+     );
+
+     return {
+       id: String(row.attributeKeyId),
+       keyByLang,
+       value: row.valueText || String(row.valueNumber ?? ""),
+     };
+   }),
    updatedAt: item.updatedAt || new Date().toISOString(),
  });
 
@@ -198,57 +202,55 @@ index d189cdad6eb3b5bbef19eb9a5a8bc2e1b4a4d08b..83d759cc460f8b90b0ab7ca9783ef083
      slug: slugify(row.name || `${item.sku}-${row.lang}`),
      shortDescription: row.shortDescription || "",
      description: row.description || "",
++    guideContent: row.guideContent,
    })),
  });
 
  export async function fetchAdminProducts(): Promise<ProductAdminItem[]> {
-+  const languages = await fetchCatalogLanguages();
+   const languages = await fetchCatalogLanguages();
    const [products, ingredientKeys, attributeKeys] = await Promise.all([
      api<ApiProduct[]>("/catalog/products"),
      loadIngredientKeys(),
      loadAttributeKeys(),
    ]);
--  return products.map((item) => mapProduct(item, ingredientKeys, attributeKeys));
-+  return products.map((item) => mapProduct(item, languages, ingredientKeys, attributeKeys));
+   return products.map((item) => mapProduct(item, languages, ingredientKeys, attributeKeys));
  }
 
  export async function fetchAdminProductById(id: string): Promise<ProductAdminItem | null> {
-+  const languages = await fetchCatalogLanguages();
+   const languages = await fetchCatalogLanguages();
    try {
      const [item, ingredientKeys, attributeKeys] = await Promise.all([
        api<ApiProduct>(`/catalog/products/${id}`),
        loadIngredientKeys(),
        loadAttributeKeys(),
      ]);
--    return mapProduct(item, ingredientKeys, attributeKeys);
-+    return mapProduct(item, languages, ingredientKeys, attributeKeys);
+     return mapProduct(item, languages, ingredientKeys, attributeKeys);
    } catch {
      return null;
    }
  }
 
  export async function createAdminProduct(): Promise<ProductAdminItem> {
-+  const languages = await fetchCatalogLanguages();
+   const languages = await fetchCatalogLanguages();
    const payload = {
      sku: `AYA-${uid().toUpperCase()}`,
      price: 0,
      status: "draft",
--    translations: LANGUAGES.map((lang) => ({
-+    translations: languages.map((lang) => ({
+     translations: languages.map((lang) => ({
        languageCode: lang.code,
        name: "",
        slug: `new-${lang.code}-${uid()}`,
        shortDescription: "",
        description: "",
++      guideContent: emptyGuideContent(),
      })),
    };
    const created = await api<ApiProduct>("/catalog/products", { method: "POST", body: JSON.stringify(payload) });
--  return mapProduct(created);
-+  return mapProduct(created, languages);
+   return mapProduct(created, languages);
  }
 
  export async function updateAdminProduct(item: ProductAdminItem): Promise<ProductAdminItem> {
-+  const languages = await fetchCatalogLanguages();
+   const languages = await fetchCatalogLanguages();
    const product = await api<ApiProduct>(`/catalog/products/${item.id}`, {
      method: "PATCH",
      body: JSON.stringify(toProductPayload(item)),
@@ -258,141 +260,27 @@ index d189cdad6eb3b5bbef19eb9a5a8bc2e1b4a4d08b..83d759cc460f8b90b0ab7ca9783ef083
    const ingredientKeyMap = new Map(ingredientKeysByCode.map((k) => [k.code.toLowerCase(), k]));
    const ingredientItems: Array<{ ingredientKeyId: number; note: string; value: string; sortOrder: number }> = [];
    for (const [idx, ingredient] of item.ingredients.entries()) {
--    const code = slugify(ingredient.name || `ingredient-${idx}`);
-+    const viName = ingredient.nameByLang.vi || ingredient.nameByLang.en || Object.values(ingredient.nameByLang)[0] || "";
-+    const code = slugify(viName || `ingredient-${idx}`);
+     const viName = ingredient.nameByLang.vi || ingredient.nameByLang.en || Object.values(ingredient.nameByLang)[0] || "";
+     const code = slugify(viName || `ingredient-${idx}`);
      let key = ingredientKeyMap.get(code);
      if (!key) {
        key = await api<ApiIngredientKey>("/catalog/ingredients", {
          method: "POST",
          body: JSON.stringify({
            code,
--          translations: LANGUAGES.map((lang) => ({ languageCode: lang.code, displayName: ingredient.name || code })),
-+          translations: languages.map((lang) => ({
-+            languageCode: lang.code,
-+            displayName: ingredient.nameByLang[lang.code] || viName || code,
-+          })),
-         }),
-       });
-       ingredientKeyMap.set(code, key);
-+    } else {
-+      await api<ApiIngredientKey>(`/catalog/ingredients/${key.id}`, {
-+        method: "PATCH",
-+        body: JSON.stringify({
-+          translations: languages.map((lang) => ({
-+            languageCode: lang.code,
-+            displayName: ingredient.nameByLang[lang.code] || viName || code,
-+          })),
-+        }),
-+      });
-     }
-     ingredientItems.push({ ingredientKeyId: Number(key.id), note: ingredient.note || "", value: ingredient.note || "", sortOrder: idx });
-   }
-
-   const attributeKeysByCode = await api<ApiAttributeKey[]>("/catalog/attributes");
-   const attributeKeyMap = new Map(attributeKeysByCode.map((k) => [k.code.toLowerCase(), k]));
-   const attributeItems: Array<{ attributeKeyId: number; valueText: string }> = [];
--  for (const attribute of item.attributes) {
--    const code = slugify(attribute.key || "attribute");
-+  for (const [idx, attribute] of item.attributes.entries()) {
-+    const viName = attribute.keyByLang.vi || attribute.keyByLang.en || Object.values(attribute.keyByLang)[0] || "";
-+    const code = slugify(viName || `attribute-${idx}`);
-     let key = attributeKeyMap.get(code);
-     if (!key) {
-       key = await api<ApiAttributeKey>("/catalog/attributes", {
-         method: "POST",
-         body: JSON.stringify({
-           code,
-           valueType: "text",
--          translations: LANGUAGES.map((lang) => ({ languageCode: lang.code, displayName: attribute.key || code })),
-+          translations: languages.map((lang) => ({
-+            languageCode: lang.code,
-+            displayName: attribute.keyByLang[lang.code] || viName || code,
-+          })),
-         }),
-       });
-       attributeKeyMap.set(code, key);
-+    } else {
-+      await api<ApiAttributeKey>(`/catalog/attributes/${key.id}`, {
-+        method: "PATCH",
-+        body: JSON.stringify({
-+          translations: languages.map((lang) => ({
-+            languageCode: lang.code,
-+            displayName: attribute.keyByLang[lang.code] || viName || code,
-+          })),
-+        }),
-+      });
-     }
-     attributeItems.push({ attributeKeyId: Number(key.id), valueText: attribute.value || "" });
-   }
-
-   await api(`/catalog/products/${item.id}/ingredients`, {
+@@ -326,32 +369,32 @@ export async function updateAdminCategory(category: ProductCategory): Promise<Pr
      method: "PATCH",
-     body: JSON.stringify({ items: ingredientItems }),
-   });
-
-   await api(`/catalog/products/${item.id}/attributes`, {
-     method: "PATCH",
-     body: JSON.stringify({ items: attributeItems }),
-   });
-
-   const ingredientKeys = Object.fromEntries(Array.from(ingredientKeyMap.values()).map((v) => [String(v.id), v]));
-   const attributeKeys = Object.fromEntries(Array.from(attributeKeyMap.values()).map((v) => [String(v.id), v]));
--  return mapProduct(product, ingredientKeys, attributeKeys);
-+  return mapProduct(product, languages, ingredientKeys, attributeKeys);
- }
-
- export async function fetchAdminCategories(): Promise<ProductCategory[]> {
-+  const languages = await fetchCatalogLanguages();
-   const rows = await api<ApiCategory[]>("/catalog/categories");
--  return rows.map(mapCategory);
-+  return rows.map((row) => mapCategory(row, languages));
- }
-
--export async function createAdminCategory(name: string, description: string): Promise<ProductCategory> {
-+export async function createAdminCategory(category: ProductCategory): Promise<ProductCategory> {
-   const created = await api<ApiCategory>("/catalog/categories", {
-     method: "POST",
      body: JSON.stringify({
-       status: "active",
--      translations: LANGUAGES.map((lang) => ({
--        languageCode: lang.code,
--        name,
--        slug: slugify(`${name}-${lang.code}`),
--        description,
-+      translations: category.translations.map((row) => ({
-+        languageCode: row.lang,
-+        name: row.name,
-+        slug: slugify(`${row.name || "category"}-${row.lang}`),
-+        description: row.description || "",
+       translations: category.translations.map((row) => ({
+         languageCode: row.lang,
+         name: row.name,
+         slug: slugify(`${row.name || "category"}-${row.lang}`),
+         description: row.description || "",
        })),
      }),
    });
--  return mapCategory(created);
-+  const languages = await fetchCatalogLanguages();
-+  return mapCategory(created, languages);
- }
-
- export async function updateAdminCategory(category: ProductCategory): Promise<ProductCategory> {
-   const updated = await api<ApiCategory>(`/catalog/categories/${category.id}`, {
-     method: "PATCH",
-     body: JSON.stringify({
--      translations: LANGUAGES.map((lang) => ({
--        languageCode: lang.code,
--        name: category.name,
--        slug: slugify(`${category.name}-${lang.code}`),
--        description: category.description || "",
-+      translations: category.translations.map((row) => ({
-+        languageCode: row.lang,
-+        name: row.name,
-+        slug: slugify(`${row.name || "category"}-${row.lang}`),
-+        description: row.description || "",
-       })),
-     }),
-   });
--  return mapCategory(updated);
-+  const languages = await fetchCatalogLanguages();
-+  return mapCategory(updated, languages);
+   const languages = await fetchCatalogLanguages();
+   return mapCategory(updated, languages);
  }
 
  export async function deleteAdminCategory(categoryId: string): Promise<void> {
@@ -406,162 +294,33 @@ index d189cdad6eb3b5bbef19eb9a5a8bc2e1b4a4d08b..83d759cc460f8b90b0ab7ca9783ef083
  ): ProductTranslation[] {
    const existing = translations.find((item) => item.lang === lang);
    if (!existing) {
-     return [...translations, { lang, name: "", shortDescription: "", description: "", ...patch }];
+-    return [...translations, { lang, name: "", shortDescription: "", description: "", ...patch }];
++    return [...translations, { lang, name: "", shortDescription: "", description: "", guideContent: emptyGuideContent(), ...patch }];
    }
    return translations.map((item) => (item.lang === lang ? { ...item, ...patch } : item));
  }
 
--export const createIngredient = (): ProductIngredient => ({ id: uid(), name: "", note: "" });
--export const createAttribute = (): ProductAttribute => ({ id: uid(), key: "", value: "" });
-+export const createIngredient = (): ProductIngredient => ({ id: uid(), nameByLang: {}, note: "" });
-+export const createAttribute = (): ProductAttribute => ({ id: uid(), keyByLang: {}, value: "" });
+ export const createIngredient = (): ProductIngredient => ({ id: uid(), nameByLang: {}, note: "" });
+ export const createAttribute = (): ProductAttribute => ({ id: uid(), keyByLang: {}, value: "" });
 diff --git a/backend/ayanavitabackend/app/admin/src/pages/ProductAdminDetailPage.tsx b/backend/ayanavitabackend/app/admin/src/pages/ProductAdminDetailPage.tsx
-index de0a3910974964df5f010fe53a02ed49a98d1ea4..70592e8b82334574773c9803772ff8bb964b9df5 100644
+index 70592e8b82334574773c9803772ff8bb964b9df5..8d070ca0950febbeb6f10e50a5c82053aa21d059 100644
 --- a/backend/ayanavitabackend/app/admin/src/pages/ProductAdminDetailPage.tsx
 +++ b/backend/ayanavitabackend/app/admin/src/pages/ProductAdminDetailPage.tsx
-@@ -1,130 +1,137 @@
- import { useEffect, useMemo, useState } from "react";
- import { Link, useNavigate, useParams } from "react-router-dom";
- import {
-   createAttribute,
-   createIngredient,
-   fetchAdminCategories,
-   fetchAdminProductById,
-+  fetchCatalogLanguages,
-   updateAdminProduct,
-   upsertTranslation,
- } from "../api/productAdmin.api";
--import { LANGUAGES, type LanguageCode, type ProductAdminItem, type ProductCategory } from "../types/productAdmin";
-+import type { AdminLanguage, ProductAdminItem, ProductCategory } from "../types/productAdmin";
-
- export function ProductAdminDetailPage() {
-   const { productId } = useParams();
-   const navigate = useNavigate();
-   const [product, setProduct] = useState<ProductAdminItem | null>(null);
-   const [categories, setCategories] = useState<ProductCategory[]>([]);
--  const [activeLang, setActiveLang] = useState<LanguageCode>("vi");
-+  const [languages, setLanguages] = useState<AdminLanguage[]>([]);
-+  const [activeLang, setActiveLang] = useState("vi");
-   const [saving, setSaving] = useState(false);
-
-   useEffect(() => {
-     const load = async () => {
-       if (!productId) return;
-+      const langs = await fetchCatalogLanguages();
-       const [detail, categoryList] = await Promise.all([fetchAdminProductById(productId), fetchAdminCategories()]);
-       setProduct(detail);
-       setCategories(categoryList);
-+      setLanguages(langs);
-+      setActiveLang((prev) => (langs.find((x) => x.code === prev)?.code || langs[0]?.code || "vi"));
-     };
-     load();
-   }, [productId]);
-
-   const translation = useMemo(() => product?.translations.find((item) => item.lang === activeLang), [product, activeLang]);
-
-   const onSave = async () => {
-     if (!product) return;
-     setSaving(true);
-     const next = await updateAdminProduct(product);
-     setProduct(next);
-     setSaving(false);
-   };
-
-   if (!product) {
-     return <div className="card">Không tìm thấy sản phẩm.</div>;
-   }
-
-   return (
-     <div style={{ display: "grid", gap: 14 }}>
-       <div className="card">
-         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-           <div>
-             <p className="muted" style={{ margin: 0 }}>Chi tiết sản phẩm</p>
-             <h2 className="h1">{translation?.name || "Sản phẩm mới"}</h2>
-             <p className="muted" style={{ margin: 0 }}>{product.sku}</p>
-           </div>
-           <div style={{ display: "flex", gap: 8 }}>
-             <button onClick={() => navigate("/catalog/products")} className="btn">Quay lại danh sách</button>
-             <button onClick={onSave} className="btn btn-primary" disabled={saving}>{saving ? "Đang lưu..." : "Lưu thay đổi"}</button>
-           </div>
-         </div>
-       </div>
-
-       <div className="card">
-         <div className="grid grid-2">
-           <label>
-             <div className="muted">SKU</div>
-             <input className="input" value={product.sku} onChange={(e) => setProduct((prev) => (prev ? { ...prev, sku: e.target.value } : prev))} />
-           </label>
-           <label>
-             <div className="muted">Category</div>
-             <select
-               className="select"
-               value={product.categoryId}
-               onChange={(e) => setProduct((prev) => (prev ? { ...prev, categoryId: e.target.value } : prev))}
-             >
-               <option value="">-- Chọn category --</option>
-               {categories.map((item) => (
--                <option key={item.id} value={item.id}>{item.name}</option>
-+                <option key={item.id} value={item.id}>
-+                  {item.translations.find((x) => x.lang === activeLang)?.name || item.translations[0]?.name || item.id}
-+                </option>
-               ))}
-             </select>
-           </label>
-           <label>
-             <div className="muted">Giá</div>
-             <input
-               type="number"
-               className="input"
-               value={product.price}
-               onChange={(e) => setProduct((prev) => (prev ? { ...prev, price: Number(e.target.value) } : prev))}
-             />
-           </label>
-           <label>
-             <div className="muted">Trạng thái</div>
-             <select
-               className="select"
-               value={product.status}
-               onChange={(e) => setProduct((prev) => (prev ? { ...prev, status: e.target.value as "active" | "draft" } : prev))}
-             >
-               <option value="draft">draft</option>
-               <option value="active">active</option>
-             </select>
-           </label>
-         </div>
-       </div>
-
-       <div className="card">
-         <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
--          {LANGUAGES.map((lang) => (
-+          {languages.map((lang) => (
-             <button key={lang.code} onClick={() => setActiveLang(lang.code)} className={`btn ${activeLang === lang.code ? "btn-primary" : ""}`}>
-               {lang.label}
-             </button>
-           ))}
-         </div>
-
-         <div className="grid" style={{ gap: 8 }}>
-           <label>
-             <div className="muted">Tên sản phẩm</div>
+@@ -134,50 +134,176 @@ export function ProductAdminDetailPage() {
              <input
                className="input"
-               value={translation?.name || ""}
+               value={translation?.shortDescription || ""}
                onChange={(e) =>
                  setProduct((prev) =>
-                   prev ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { name: e.target.value }) } : prev,
+                   prev
+                     ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { shortDescription: e.target.value }) }
+                     : prev,
                  )
                }
              />
            </label>
            <label>
-             <div className="muted">Mô tả ngắn</div>
-             <input
-               className="input"
-               value={translation?.shortDescription || ""}
-               onChange={(e) =>
-@@ -141,111 +148,119 @@ export function ProductAdminDetailPage() {
+             <div className="muted">Mô tả chi tiết</div>
              <textarea
                rows={4}
                className="input"
@@ -573,6 +332,132 @@ index de0a3910974964df5f010fe53a02ed49a98d1ea4..70592e8b82334574773c9803772ff8bb
                }
              />
            </label>
++          <label>
++            <div className="muted">Hướng dẫn sử dụng - Giới thiệu</div>
++            <textarea
++              rows={3}
++              className="input"
++              value={translation?.guideContent?.intro || ""}
++              onChange={(e) =>
++                setProduct((prev) =>
++                  prev
++                    ? {
++                        ...prev,
++                        translations: upsertTranslation(prev.translations, activeLang, {
++                          guideContent: {
++                            intro: e.target.value,
++                            steps: translation?.guideContent?.steps || [],
++                          },
++                        }),
++                      }
++                    : prev,
++                )
++              }
++            />
++          </label>
++
++          <div>
++            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
++              <div className="muted">Hướng dẫn sử dụng - Các bước</div>
++              <button
++                className="btn"
++                onClick={() =>
++                  setProduct((prev) => {
++                    if (!prev) return prev;
++                    const current = prev.translations.find((item) => item.lang === activeLang)?.guideContent;
++                    const steps = current?.steps || [];
++                    return {
++                      ...prev,
++                      translations: upsertTranslation(prev.translations, activeLang, {
++                        guideContent: {
++                          intro: current?.intro || "",
++                          steps: [...steps, { order: steps.length + 1, content: "" }],
++                        },
++                      }),
++                    };
++                  })
++                }
++              >
++                + Thêm bước
++              </button>
++            </div>
++
++            <div className="grid" style={{ gap: 8 }}>
++              {(translation?.guideContent?.steps || []).map((step, idx) => (
++                <div key={`${step.order}-${idx}`} className="card" style={{ padding: 10 }}>
++                  <div className="grid grid-2">
++                    <label>
++                      <div className="muted">Thứ tự</div>
++                      <input
++                        type="number"
++                        min={1}
++                        className="input"
++                        value={step.order}
++                        onChange={(e) =>
++                          setProduct((prev) => {
++                            if (!prev) return prev;
++                            const current = prev.translations.find((item) => item.lang === activeLang)?.guideContent;
++                            const steps = (current?.steps || []).map((row, rowIdx) =>
++                              rowIdx === idx ? { ...row, order: Number(e.target.value) || 1 } : row,
++                            );
++                            return {
++                              ...prev,
++                              translations: upsertTranslation(prev.translations, activeLang, {
++                                guideContent: { intro: current?.intro || "", steps },
++                              }),
++                            };
++                          })
++                        }
++                      />
++                    </label>
++                    <label>
++                      <div className="muted">Nội dung bước</div>
++                      <input
++                        className="input"
++                        value={step.content}
++                        onChange={(e) =>
++                          setProduct((prev) => {
++                            if (!prev) return prev;
++                            const current = prev.translations.find((item) => item.lang === activeLang)?.guideContent;
++                            const steps = (current?.steps || []).map((row, rowIdx) =>
++                              rowIdx === idx ? { ...row, content: e.target.value } : row,
++                            );
++                            return {
++                              ...prev,
++                              translations: upsertTranslation(prev.translations, activeLang, {
++                                guideContent: { intro: current?.intro || "", steps },
++                              }),
++                            };
++                          })
++                        }
++                      />
++                    </label>
++                  </div>
++                  <button
++                    className="btn btn-danger"
++                    style={{ marginTop: 8 }}
++                    onClick={() =>
++                      setProduct((prev) => {
++                        if (!prev) return prev;
++                        const current = prev.translations.find((item) => item.lang === activeLang)?.guideContent;
++                        const steps = (current?.steps || [])
++                          .filter((_, rowIdx) => rowIdx !== idx)
++                          .map((row, orderIdx) => ({ ...row, order: orderIdx + 1 }));
++                        return {
++                          ...prev,
++                          translations: upsertTranslation(prev.translations, activeLang, {
++                            guideContent: { intro: current?.intro || "", steps },
++                          }),
++                        };
++                      })
++                    }
++                  >
++                    Xóa bước
++                  </button>
++                </div>
++              ))}
++            </div>
++          </div>
          </div>
        </div>
 
@@ -587,564 +472,344 @@ index de0a3910974964df5f010fe53a02ed49a98d1ea4..70592e8b82334574773c9803772ff8bb
                <div key={item.id} className="card" style={{ padding: 10 }}>
                  <input
                    className="input"
--                  placeholder="Tên thành phần"
--                  value={item.name}
-+                  placeholder={`Tên thành phần (${activeLang})`}
-+                  value={item.nameByLang[activeLang] || ""}
+                   placeholder={`Tên thành phần (${activeLang})`}
+                   value={item.nameByLang[activeLang] || ""}
                    onChange={(e) =>
                      setProduct((prev) =>
                        prev
                          ? {
                              ...prev,
--                            ingredients: prev.ingredients.map((row) => (row.id === item.id ? { ...row, name: e.target.value } : row)),
-+                            ingredients: prev.ingredients.map((row) =>
-+                              row.id === item.id
-+                                ? { ...row, nameByLang: { ...row.nameByLang, [activeLang]: e.target.value } }
-+                                : row,
-+                            ),
-                           }
-                         : prev,
-                     )
-                   }
-                 />
-                 <input
-                   className="input"
-                   style={{ marginTop: 8 }}
-                   placeholder="Ghi chú"
-                   value={item.note}
-                   onChange={(e) =>
-                     setProduct((prev) =>
-                       prev
-                         ? {
-                             ...prev,
-                             ingredients: prev.ingredients.map((row) => (row.id === item.id ? { ...row, note: e.target.value } : row)),
-                           }
-                         : prev,
-                     )
-                   }
-                 />
-                 <button
-                   className="btn btn-danger"
-                   style={{ marginTop: 8 }}
-                   onClick={() =>
-                     setProduct((prev) => (prev ? { ...prev, ingredients: prev.ingredients.filter((row) => row.id !== item.id) } : prev))
-                   }
-                 >
-                   Xóa
-                 </button>
-               </div>
-             ))}
-           </div>
-         </div>
-
-         <div className="card">
-           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-             <h3 className="h2">CRUD thuộc tính</h3>
-             <button className="btn" onClick={() => setProduct((prev) => (prev ? { ...prev, attributes: [...prev.attributes, createAttribute()] } : prev))}>+ Thêm</button>
-           </div>
-           <div className="grid" style={{ marginTop: 10 }}>
-             {product.attributes.map((item) => (
-               <div key={item.id} className="card" style={{ padding: 10 }}>
-                 <input
-                   className="input"
--                  placeholder="Tên thuộc tính"
--                  value={item.key}
-+                  placeholder={`Tên thuộc tính (${activeLang})`}
-+                  value={item.keyByLang[activeLang] || ""}
-                   onChange={(e) =>
-                     setProduct((prev) =>
-                       prev
-                         ? {
-                             ...prev,
--                            attributes: prev.attributes.map((row) => (row.id === item.id ? { ...row, key: e.target.value } : row)),
-+                            attributes: prev.attributes.map((row) =>
-+                              row.id === item.id
-+                                ? { ...row, keyByLang: { ...row.keyByLang, [activeLang]: e.target.value } }
-+                                : row,
-+                            ),
-                           }
-                         : prev,
-                     )
-                   }
-                 />
-                 <input
-                   className="input"
-                   style={{ marginTop: 8 }}
-                   placeholder="Giá trị"
-                   value={item.value}
-                   onChange={(e) =>
-                     setProduct((prev) =>
-                       prev
-                         ? {
-                             ...prev,
-                             attributes: prev.attributes.map((row) => (row.id === item.id ? { ...row, value: e.target.value } : row)),
-                           }
-                         : prev,
-                     )
-                   }
-                 />
-                 <button
-                   className="btn btn-danger"
-                   style={{ marginTop: 8 }}
-                   onClick={() =>
-diff --git a/backend/ayanavitabackend/app/admin/src/pages/ProductAdminListPage.tsx b/backend/ayanavitabackend/app/admin/src/pages/ProductAdminListPage.tsx
-index 171f9fed0f89c1906e49a6d817d4939e248109e4..1c9c8a7d66f28d11ca9d25c9de14d88cbb16a818 100644
---- a/backend/ayanavitabackend/app/admin/src/pages/ProductAdminListPage.tsx
-+++ b/backend/ayanavitabackend/app/admin/src/pages/ProductAdminListPage.tsx
-@@ -1,168 +1,269 @@
- import { useEffect, useMemo, useState } from "react";
- import { Link, useNavigate } from "react-router-dom";
- import {
-   createAdminCategory,
-   createAdminProduct,
-   deleteAdminCategory,
-   fetchAdminCategories,
-   fetchAdminProducts,
-+  fetchCatalogLanguages,
-   updateAdminCategory,
- } from "../api/productAdmin.api";
--import type { ProductAdminItem, ProductCategory } from "../types/productAdmin";
-+import type { AdminLanguage, ProductAdminItem, ProductCategory } from "../types/productAdmin";
-
- function CategoryRow({
-   category,
-+  languages,
-+  activeLang,
-   onSave,
-   onDelete,
- }: {
-   category: ProductCategory;
-+  languages: AdminLanguage[];
-+  activeLang: string;
-   onSave: (item: ProductCategory) => void;
-   onDelete: (id: string) => void;
- }) {
-   const [draft, setDraft] = useState(category);
-
-   useEffect(() => setDraft(category), [category]);
-
-+  const activeTranslation = draft.translations.find((item) => item.lang === activeLang);
-+
-   return (
-     <div className="card" style={{ padding: 10 }}>
-       <div className="grid" style={{ gap: 8 }}>
--        <input className="input" value={draft.name} onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))} />
-         <input
-           className="input"
--          value={draft.description || ""}
--          onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
-+          placeholder={`Tên danh mục (${activeLang})`}
-+          value={activeTranslation?.name || ""}
-+          onChange={(e) =>
-+            setDraft((prev) => ({
-+              ...prev,
-+              translations: prev.translations.map((row) =>
-+                row.lang === activeLang ? { ...row, name: e.target.value } : row,
-+              ),
-+            }))
-+          }
-         />
-+        <input
-+          className="input"
-+          placeholder={`Mô tả (${activeLang})`}
-+          value={activeTranslation?.description || ""}
-+          onChange={(e) =>
-+            setDraft((prev) => ({
-+              ...prev,
-+              translations: prev.translations.map((row) =>
-+                row.lang === activeLang ? { ...row, description: e.target.value } : row,
-+              ),
-+            }))
-+          }
-+        />
-+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-+          {languages.map((lang) => {
-+            const t = draft.translations.find((item) => item.lang === lang.code);
-+            return (
-+              <span key={lang.code} className="muted" style={{ fontSize: 12 }}>
-+                {lang.code.toUpperCase()}: {t?.name || "-"}
-+              </span>
-+            );
-+          })}
-+        </div>
-         <div style={{ display: "flex", gap: 8 }}>
-           <button className="btn btn-primary" onClick={() => onSave(draft)}>Lưu</button>
-           <button className="btn btn-danger" onClick={() => onDelete(category.id)}>Xóa</button>
-         </div>
-       </div>
-     </div>
-   );
- }
-
- export function ProductAdminListPage() {
-   const navigate = useNavigate();
-   const [products, setProducts] = useState<ProductAdminItem[]>([]);
-   const [categories, setCategories] = useState<ProductCategory[]>([]);
-+  const [languages, setLanguages] = useState<AdminLanguage[]>([]);
-+  const [activeLang, setActiveLang] = useState("vi");
-   const [loading, setLoading] = useState(true);
-   const [openCategoryModal, setOpenCategoryModal] = useState(false);
--  const [newCategory, setNewCategory] = useState({ name: "", description: "" });
-+  const [newCategory, setNewCategory] = useState<ProductCategory>({ id: "new", translations: [] });
-
--  const categoryMap = useMemo(() => Object.fromEntries(categories.map((item) => [item.id, item.name])), [categories]);
-+  const categoryMap = useMemo(
-+    () =>
-+      Object.fromEntries(
-+        categories.map((item) => [
-+          item.id,
-+          item.translations.find((t) => t.lang === activeLang)?.name || item.translations[0]?.name || "",
-+        ]),
-+      ),
-+    [categories, activeLang],
-+  );
-
-   const loadData = async () => {
-     setLoading(true);
-+    const langs = await fetchCatalogLanguages();
-     const [productList, categoryList] = await Promise.all([fetchAdminProducts(), fetchAdminCategories()]);
-+
-+    setLanguages(langs);
-     setProducts(productList);
-     setCategories(categoryList);
-+    setActiveLang((prev) => (langs.find((x) => x.code === prev)?.code || langs[0]?.code || "vi"));
-+    setNewCategory({
-+      id: "new",
-+      translations: langs.map((lang) => ({ lang: lang.code, name: "", description: "" })),
-+    });
-     setLoading(false);
-   };
-
-   useEffect(() => {
-     loadData();
-   }, []);
-
-   const onCreateProduct = async () => {
-     const created = await createAdminProduct();
-     navigate(`/catalog/products/${created.id}`);
-   };
-
-+  const viOrActiveName = (product: ProductAdminItem) =>
-+    product.translations.find((item) => item.lang === activeLang)?.name ||
-+    product.translations.find((item) => item.lang === "vi")?.name ||
-+    "(chưa đặt tên)";
-+
-   return (
-     <div>
-       <div className="card" style={{ marginBottom: 16 }}>
-         <p className="muted" style={{ margin: 0 }}>Quản lý sản phẩm</p>
-         <h2 className="h1">Danh sách sản phẩm</h2>
-         <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-           <button onClick={onCreateProduct} className="btn btn-primary">+ Thêm sản phẩm</button>
-           <button onClick={() => setOpenCategoryModal(true)} className="btn">Quản lý category</button>
-+          {languages.map((lang) => (
-+            <button
-+              key={lang.code}
-+              className={`btn ${activeLang === lang.code ? "btn-primary" : ""}`}
-+              onClick={() => setActiveLang(lang.code)}
-+            >
-+              {lang.label}
-+            </button>
-+          ))}
-         </div>
-       </div>
-
-       <div className="card">
-         {loading ? (
-           <div className="muted">Đang tải dữ liệu...</div>
-         ) : (
-           <table className="table">
-             <thead>
-               <tr>
-                 <th>SKU</th>
--                <th>Tên (VI)</th>
-+                <th>Tên ({activeLang.toUpperCase()})</th>
-                 <th>Category</th>
-                 <th>Giá</th>
-                 <th>Trạng thái</th>
-                 <th>Hành động</th>
-               </tr>
-             </thead>
-             <tbody>
--              {products.map((product) => {
--                const viName = product.translations.find((item) => item.lang === "vi")?.name || "(chưa đặt tên)";
--                return (
--                  <tr key={product.id}>
--                    <td>{product.sku}</td>
--                    <td>{viName}</td>
--                    <td>{categoryMap[product.categoryId] || "-"}</td>
--                    <td>{product.price.toLocaleString("vi-VN")} đ</td>
--                    <td>{product.status}</td>
--                    <td>
--                      <Link className="btn" to={`/catalog/products/${product.id}`}>Chỉnh sửa</Link>
--                    </td>
--                  </tr>
--                );
--              })}
-+              {products.map((product) => (
-+                <tr key={product.id}>
-+                  <td>{product.sku}</td>
-+                  <td>{viOrActiveName(product)}</td>
-+                  <td>{categoryMap[product.categoryId] || "-"}</td>
-+                  <td>{product.price.toLocaleString("vi-VN")} đ</td>
-+                  <td>{product.status}</td>
-+                  <td>
-+                    <Link className="btn" to={`/catalog/products/${product.id}`}>Chỉnh sửa</Link>
-+                  </td>
-+                </tr>
-+              ))}
-             </tbody>
-           </table>
-         )}
-       </div>
-
-       {openCategoryModal ? (
-         <div className="card" style={{ marginTop: 16 }}>
--          <h3 className="h2">Quản lý category</h3>
--          <div style={{ display: "flex", gap: 8, margin: "10px 0" }}>
-+          <h3 className="h2">Quản lý category đa ngôn ngữ</h3>
-+          <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-+            {languages.map((lang) => (
-+              <button
-+                key={lang.code}
-+                className={`btn ${activeLang === lang.code ? "btn-primary" : ""}`}
-+                onClick={() => setActiveLang(lang.code)}
-+              >
-+                {lang.label}
-+              </button>
-+            ))}
-+          </div>
-+
-+          <div style={{ display: "grid", gap: 8, margin: "10px 0" }}>
-             <input
-               className="input"
--              placeholder="Tên category"
--              value={newCategory.name}
--              onChange={(e) => setNewCategory((prev) => ({ ...prev, name: e.target.value }))}
-+              placeholder={`Tên category (${activeLang})`}
-+              value={newCategory.translations.find((item) => item.lang === activeLang)?.name || ""}
-+              onChange={(e) =>
-+                setNewCategory((prev) => ({
-+                  ...prev,
-+                  translations: prev.translations.map((row) =>
-+                    row.lang === activeLang ? { ...row, name: e.target.value } : row,
-+                  ),
-+                }))
-+              }
-             />
-             <input
-               className="input"
--              placeholder="Mô tả"
--              value={newCategory.description}
--              onChange={(e) => setNewCategory((prev) => ({ ...prev, description: e.target.value }))}
-+              placeholder={`Mô tả (${activeLang})`}
-+              value={newCategory.translations.find((item) => item.lang === activeLang)?.description || ""}
-+              onChange={(e) =>
-+                setNewCategory((prev) => ({
-+                  ...prev,
-+                  translations: prev.translations.map((row) =>
-+                    row.lang === activeLang ? { ...row, description: e.target.value } : row,
-+                  ),
-+                }))
-+              }
-             />
--            <button
--              className="btn btn-primary"
--              onClick={async () => {
--                if (!newCategory.name.trim()) return;
--                await createAdminCategory(newCategory.name.trim(), newCategory.description.trim());
--                setNewCategory({ name: "", description: "" });
--                loadData();
--              }}
--            >
--              + Tạo
--            </button>
--            <button className="btn" onClick={() => setOpenCategoryModal(false)}>Đóng</button>
-+            <div style={{ display: "flex", gap: 8 }}>
-+              <button
-+                className="btn btn-primary"
-+                onClick={async () => {
-+                  const hasName = newCategory.translations.some((row) => row.name.trim());
-+                  if (!hasName) return;
-+                  await createAdminCategory(newCategory);
-+                  setNewCategory({
-+                    id: "new",
-+                    translations: languages.map((lang) => ({ lang: lang.code, name: "", description: "" })),
-+                  });
-+                  loadData();
-+                }}
-+              >
-+                + Tạo
-+              </button>
-+              <button className="btn" onClick={() => setOpenCategoryModal(false)}>Đóng</button>
-+            </div>
-           </div>
-
-           <div className="grid" style={{ gap: 8 }}>
-             {categories.map((category) => (
-               <CategoryRow
-                 key={category.id}
-                 category={category}
-+                languages={languages}
-+                activeLang={activeLang}
-                 onSave={async (item) => {
-                   await updateAdminCategory(item);
-                   loadData();
-                 }}
-                 onDelete={async (id) => {
-                   await deleteAdminCategory(id);
-                   loadData();
-                 }}
-               />
-             ))}
-           </div>
-         </div>
-       ) : null}
-     </div>
-   );
- }
+                             ingredients: prev.ingredients.map((row) =>
+                               row.id === item.id
+                                 ? { ...row, nameByLang: { ...row.nameByLang, [activeLang]: e.target.value } }
+                                 : row,
 diff --git a/backend/ayanavitabackend/app/admin/src/types/productAdmin.ts b/backend/ayanavitabackend/app/admin/src/types/productAdmin.ts
-index 3f47f3739cbc2dd969238a940c8dc58a9246c6b7..414b149a633418d041cda7d3c3860004a287c665 100644
+index 414b149a633418d041cda7d3c3860004a287c665..b162bda86e4713a5f10e25f2631e9f3e01f1d94c 100644
 --- a/backend/ayanavitabackend/app/admin/src/types/productAdmin.ts
 +++ b/backend/ayanavitabackend/app/admin/src/types/productAdmin.ts
-@@ -1,45 +1,51 @@
--export type LanguageCode = "vi" | "en" | "ja";
-+export type LanguageCode = string;
-+
-+export type AdminLanguage = {
-+  code: LanguageCode;
-+  label: string;
-+};
+@@ -1,37 +1,48 @@
+ export type LanguageCode = string;
+
+ export type AdminLanguage = {
+   code: LanguageCode;
+   label: string;
+ };
 
  export type ProductTranslation = {
    lang: LanguageCode;
    name: string;
    shortDescription: string;
    description: string;
++  guideContent: ProductGuideContent;
++};
++
++export type ProductGuideStep = {
++  order: number;
++  content: string;
++};
++
++export type ProductGuideContent = {
++  intro: string;
++  steps: ProductGuideStep[];
  };
 
-+export type LocalizedTextMap = Record<LanguageCode, string>;
-+
+ export type LocalizedTextMap = Record<LanguageCode, string>;
+
  export type ProductIngredient = {
    id: string;
--  name: string;
-+  nameByLang: LocalizedTextMap;
+   nameByLang: LocalizedTextMap;
    note: string;
  };
 
  export type ProductAttribute = {
    id: string;
--  key: string;
-+  keyByLang: LocalizedTextMap;
+   keyByLang: LocalizedTextMap;
    value: string;
  };
 
-+export type CategoryTranslation = {
-+  lang: LanguageCode;
-+  name: string;
-+  description: string;
-+};
-+
+ export type CategoryTranslation = {
+   lang: LanguageCode;
+   name: string;
+   description: string;
+ };
+
  export type ProductCategory = {
    id: string;
--  name: string;
--  description?: string;
-+  translations: CategoryTranslation[];
- };
-
- export type ProductAdminItem = {
-   id: string;
-   sku: string;
-   categoryId: string;
-   price: number;
-   stock: number;
-   status: "active" | "draft";
-   translations: ProductTranslation[];
-   ingredients: ProductIngredient[];
-   attributes: ProductAttribute[];
-   updatedAt: string;
- };
--
--export const LANGUAGES: Array<{ code: LanguageCode; label: string }> = [
--  { code: "vi", label: "Tiếng Việt" },
--  { code: "en", label: "English" },
--  { code: "ja", label: "日本語" },
--];
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/catalog.module.ts b/backend/ayanavitabackend/app/api/src/catalog/catalog.module.ts
-index 23486f4e309269fcb30c443d260506d62c0e838a..17533da00175bcfac279c9eebd1315ca1b0827da 100644
---- a/backend/ayanavitabackend/app/api/src/catalog/catalog.module.ts
-+++ b/backend/ayanavitabackend/app/api/src/catalog/catalog.module.ts
-@@ -1,28 +1,32 @@
- import { Module } from '@nestjs/common'
- import { ProductsController } from './products.controller'
- import { ProductsService } from './products.service'
-
- import { CategoriesController } from './categories.controller'
- import { CategoriesService } from './categories.service'
-
- import { AttributesController } from './attributes.controller'
- import { AttributesService } from './attributes.service'
-
- import { IngredientsController } from './ingredients.controller'
- import { IngredientsService } from './ingredients.service'
-+import { LanguagesController } from './languages.controller'
-+import { LanguagesService } from './languages.service'
-
- @Module({
-   controllers: [
-     ProductsController,
-     CategoriesController,
-     AttributesController,
-     IngredientsController,
-+    LanguagesController,
-   ],
-   providers: [
-     ProductsService,
-     CategoriesService,
-     AttributesService,
-     IngredientsService,
-+    LanguagesService,
-   ],
- })
- export class CatalogModule {}
-\ No newline at end of file
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/languages.controller.ts b/backend/ayanavitabackend/app/api/src/catalog/languages.controller.ts
+   translations: CategoryTranslation[];
+diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/20260226022000_add_product_translation_guide_content/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/20260226022000_add_product_translation_guide_content/migration.sql
 new file mode 100644
-index 0000000000000000000000000000000000000000..b5d1a37852f18193eb0cbee0b830f2b13572b93f
+index 0000000000000000000000000000000000000000..c55074d6c6ee7c2de492a48fb753bb3b5a5d1245
 --- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/catalog/languages.controller.ts
-@@ -0,0 +1,12 @@
-+import { Controller, Get } from '@nestjs/common'
-+import { LanguagesService } from './languages.service'
++++ b/backend/ayanavitabackend/app/api/prisma/migrations/20260226022000_add_product_translation_guide_content/migration.sql
+@@ -0,0 +1,2 @@
++ALTER TABLE `product_translations`
++ADD COLUMN `guide_content` JSON NULL;
+diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+index 42aee322f13c50bc41fe16151bd5a9e9809c970f..df45b6bcea3ef8468faeef6223a605a382e10850 100644
+--- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
++++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+@@ -351,50 +351,51 @@ model CategoryTranslation {
+
+ model CatalogProduct {
+   id         BigInt   @id @default(autoincrement())
+   sku        String   @unique @db.VarChar(64)
+   categoryId BigInt?  @map("category_id")
+   price      Decimal  @default(0) @db.Decimal(18, 2)
+   status     String   @default("active") @db.VarChar(20)
+   createdAt  DateTime @default(now()) @map("created_at")
+   updatedAt  DateTime @updatedAt @map("updated_at")
+
+   category     Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+   translations ProductTranslation[]
+   attributes   ProductAttribute[]
+   ingredients  ProductIngredient[]
+
+   @@map("products")
+ }
+
+ model ProductTranslation {
+   productId         BigInt @map("product_id")
+   languageCode      String @map("language_code") @db.VarChar(10)
+   name              String @db.VarChar(255)
+   slug              String @db.VarChar(255)
+   shortDescription  String? @map("short_description") @db.VarChar(500)
+   description       String? @db.Text
++  guideContent      Json?   @map("guide_content")
+
+   product  CatalogProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+   language Language       @relation(fields: [languageCode], references: [code], onDelete: Restrict)
+
+   @@id([productId, languageCode])
+   @@unique([languageCode, slug], map: "uq_product_slug_per_lang")
+   @@index([languageCode], map: "idx_product_translation_lang")
+   @@map("product_translations")
+ }
+
+ model AttributeKey {
+   id        BigInt  @id @default(autoincrement())
+   code      String  @unique @db.VarChar(100)
+   valueType String  @default("text") @map("value_type") @db.VarChar(20)
+   isActive  Boolean @default(true) @map("is_active")
+
+   translations AttributeKeyTranslation[]
+   products     ProductAttribute[]
+
+   @@map("attribute_keys")
+ }
+
+ model AttributeKeyTranslation {
+   attributeKeyId BigInt @map("attribute_key_id")
+   languageCode   String @map("language_code") @db.VarChar(10)
+diff --git a/backend/ayanavitabackend/app/api/src/catalog/dto/product.dto.ts b/backend/ayanavitabackend/app/api/src/catalog/dto/product.dto.ts
+index c08c96e133163aa3ab7c2acaef65ba9d9c0b5fae..9fba626ce7b2110c7009d62504c1f80d266f0a8a 100644
+--- a/backend/ayanavitabackend/app/api/src/catalog/dto/product.dto.ts
++++ b/backend/ayanavitabackend/app/api/src/catalog/dto/product.dto.ts
+@@ -1,60 +1,88 @@
+ import { Type } from 'class-transformer'
+ import {
+   IsArray,
+   IsInt,
+   IsNotEmpty,
+   IsNumber,
+   IsOptional,
+   IsString,
+   MaxLength,
++  Min,
+   ValidateNested,
+ } from 'class-validator'
+
++export class ProductGuideStepDto {
++  @Type(() => Number)
++  @IsInt()
++  @Min(1)
++  order!: number
 +
-+@Controller('catalog/languages')
-+export class LanguagesController {
-+  constructor(private readonly service: LanguagesService) {}
-+
-+  @Get()
-+  findAll() {
-+    return this.service.findAll()
-+  }
++  @IsString()
++  @IsNotEmpty()
++  content!: string
 +}
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/languages.service.ts b/backend/ayanavitabackend/app/api/src/catalog/languages.service.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..293e5f6c73735956610aaf2650635928cd191704
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/catalog/languages.service.ts
-@@ -0,0 +1,16 @@
-+import { Injectable } from '@nestjs/common'
-+import { PrismaService } from '../prisma/prisma.service'
-+import { normalizeBigInt } from './utils'
 +
-+@Injectable()
-+export class LanguagesService {
-+  constructor(private readonly prisma: PrismaService) {}
++export class ProductGuideContentDto {
++  @IsString()
++  @IsNotEmpty()
++  intro!: string
 +
-+  async findAll() {
-+    const rows = await this.prisma.language.findMany({
-+      where: { isActive: true },
-+      orderBy: { code: 'asc' },
-+    })
-+    return normalizeBigInt(rows)
-+  }
++  @IsArray()
++  @ValidateNested({ each: true })
++  @Type(() => ProductGuideStepDto)
++  steps!: ProductGuideStepDto[]
 +}
++
+ export class ProductTranslationDto {
+   @IsString()
+   @MaxLength(10)
+   languageCode!: string
+
+   @IsString()
+   @IsNotEmpty()
+   @MaxLength(255)
+   name!: string
+
+   @IsString()
+   @IsNotEmpty()
+   @MaxLength(255)
+   slug!: string
+
+   @IsOptional()
+   @IsString()
+   @MaxLength(500)
+   shortDescription?: string
+
+   @IsOptional()
+   @IsString()
+   description?: string
++
++  @IsOptional()
++  @ValidateNested()
++  @Type(() => ProductGuideContentDto)
++  guideContent?: ProductGuideContentDto
+ }
+
+ export class CreateProductDto {
+   @IsString()
+   @MaxLength(64)
+   sku!: string
+
+   @IsOptional()
+   @Type(() => Number)
+   @IsInt()
+   categoryId?: number
+
+   @Type(() => Number)
+   @IsNumber()
+   price!: number
+
+   @IsOptional()
+   @IsString()
+   @MaxLength(20)
+   status?: string
+
+   @IsArray()
+   @ValidateNested({ each: true })
+   @Type(() => ProductTranslationDto)
+   translations!: ProductTranslationDto[]
+diff --git a/backend/ayanavitabackend/app/api/src/catalog/products.service.ts b/backend/ayanavitabackend/app/api/src/catalog/products.service.ts
+index 2f99c029b1578dcdb243d5e1582c72d10bc270aa..8a49553a923a34479ff30fedf789fa27e0fcb010 100644
+--- a/backend/ayanavitabackend/app/api/src/catalog/products.service.ts
++++ b/backend/ayanavitabackend/app/api/src/catalog/products.service.ts
+@@ -1,81 +1,105 @@
+ import { Injectable, NotFoundException } from '@nestjs/common'
+ import { PrismaService } from '../prisma/prisma.service'
+ import { CreateProductDto, UpdateProductDto } from './dto/product.dto'
+ import { UpsertProductAttributesDto, UpsertProductIngredientsDto } from './dto/product-metadata.dto'
+ import { normalizeBigInt } from './utils'
+
++const toProductTranslationCreateManyData = (
++  productId: number,
++  translations: CreateProductDto['translations'] | UpdateProductDto['translations'],
++) =>
++  (translations ?? []).map((translation) => ({
++    productId: BigInt(productId),
++    languageCode: translation.languageCode,
++    name: translation.name,
++    slug: translation.slug,
++    shortDescription: translation.shortDescription,
++    description: translation.description,
++    guideContent: translation.guideContent,
++  }))
++
+ @Injectable()
+ export class ProductsService {
+   constructor(private readonly prisma: PrismaService) {}
+
+   async findAll() {
+     const rows = await this.prisma.catalogProduct.findMany({
+       include: { translations: true, category: true },
+       orderBy: { id: 'desc' },
+     })
+     return normalizeBigInt(rows)
+   }
+
+   async findOne(id: number) {
+     const row = await this.prisma.catalogProduct.findUnique({
+       where: { id: BigInt(id) },
+       include: { translations: true, category: true, attributes: true, ingredients: true },
+     })
+     if (!row) throw new NotFoundException('Product not found')
+     return normalizeBigInt(row)
+   }
+
+   async create(dto: CreateProductDto) {
+-    const row = await this.prisma.catalogProduct.create({
+-      data: {
+-        sku: dto.sku,
+-        categoryId: dto.categoryId ? BigInt(dto.categoryId) : null,
+-        price: dto.price,
+-        status: dto.status ?? 'active',
+-        translations: { create: dto.translations },
+-      },
+-      include: { translations: true, category: true },
++    const row = await this.prisma.$transaction(async (tx) => {
++      const createdProduct = await tx.catalogProduct.create({
++        data: {
++          sku: dto.sku,
++          categoryId: dto.categoryId ? BigInt(dto.categoryId) : null,
++          price: dto.price,
++          status: dto.status ?? 'active',
++        },
++      })
++
++      await tx.productTranslation.createMany({
++        data: toProductTranslationCreateManyData(Number(createdProduct.id), dto.translations),
++      })
++
++      return tx.catalogProduct.findUniqueOrThrow({
++        where: { id: createdProduct.id },
++        include: { translations: true, category: true },
++      })
+     })
++
+     return normalizeBigInt(row)
+   }
+
+   async update(id: number, dto: UpdateProductDto) {
+     await this.findOne(id)
+     const row = await this.prisma.$transaction(async (tx) => {
+       if (dto.translations) {
+         await tx.productTranslation.deleteMany({ where: { productId: BigInt(id) } })
++        await tx.productTranslation.createMany({ data: toProductTranslationCreateManyData(id, dto.translations) })
+       }
+
+       return tx.catalogProduct.update({
+         where: { id: BigInt(id) },
+         data: {
+           sku: dto.sku,
+           categoryId: dto.categoryId === undefined ? undefined : dto.categoryId === null ? null : BigInt(dto.categoryId),
+           price: dto.price,
+           status: dto.status,
+-          translations: dto.translations ? { create: dto.translations } : undefined,
+         },
+         include: { translations: true, category: true },
+       })
+     })
+     return normalizeBigInt(row)
+   }
+
+   async replaceAttributes(id: number, dto: UpsertProductAttributesDto) {
+     await this.findOne(id)
+     const rows = await this.prisma.$transaction(async (tx) => {
+       await tx.productAttribute.deleteMany({ where: { productId: BigInt(id) } })
+       if (dto.items.length) {
+         await tx.productAttribute.createMany({
+           data: dto.items.map((item) => ({
+             productId: BigInt(id),
+             attributeKeyId: BigInt(item.attributeKeyId),
+             valueText: item.valueText,
+             valueNumber: item.valueNumber,
+             valueBoolean: item.valueBoolean,
+             valueJson: item.valueJson,
+           })),
+         })
+       }
+       return tx.productAttribute.findMany({ where: { productId: BigInt(id) } })
+     })

@@ -373,6 +373,7 @@ model ProductTranslation {
   slug              String @db.VarChar(255)
   shortDescription  String? @map("short_description") @db.VarChar(500)
   description       String? @db.Text
+  guideContent      Json?   @map("guide_content")
 
   product  CatalogProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
   language Language       @relation(fields: [languageCode], references: [code], onDelete: Restrict)

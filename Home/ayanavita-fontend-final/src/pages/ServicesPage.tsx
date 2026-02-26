@@ -29,6 +29,41 @@ type ApiService = {
   tag: string;
 };
 
+type PreferredLanguage = "vi" | "en" | "ja";
+
+function getPreferredLanguage(): PreferredLanguage {
+  if (typeof window === "undefined") return "vi";
+
+  const raw = window.localStorage.getItem("preferred-language")?.trim().toLowerCase();
+  if (raw === "en") return "en";
+  if (raw === "ja") return "ja";
+  return "vi";
+}
+
+
+function usePreferredLanguage() {
+  const [preferredLanguage, setPreferredLanguage] = useState<PreferredLanguage>(() => getPreferredLanguage());
+
+  useEffect(() => {
+    const syncPreferredLanguage = () => setPreferredLanguage(getPreferredLanguage());
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== null && event.key !== "preferred-language") return;
+      syncPreferredLanguage();
+    };
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("preferred-language-changed", syncPreferredLanguage);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("preferred-language-changed", syncPreferredLanguage);
+    };
+  }, []);
+
+  return preferredLanguage;
+}
+
 const GOAL_LABELS: Record<string, string> = {
   relax: "Thư giãn",
   acne: "Giảm mụn",
@@ -113,6 +148,7 @@ function ServiceCard({ s }: { s: ApiService }) {
 }
 
 export default function ServicesPage() {
+  const preferredLanguage = usePreferredLanguage();
   const [authOpen, setAuthOpen] = useState(false);
   const [authTab, setAuthTab] = useState<AuthTab>("login");
   const [success, setSuccess] = useState<{ open: boolean; message: string }>({
@@ -145,7 +181,9 @@ export default function ServicesPage() {
     let mounted = true;
     (async () => {
       try {
-        const { data } = await http.get("/booking/services-page");
+        const { data } = await http.get("/booking/services-page", {
+          params: { lang: preferredLanguage },
+        });
         if (!mounted) return;
         setServices(Array.isArray(data) ? data : []);
       } finally {
@@ -156,7 +194,7 @@ export default function ServicesPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [preferredLanguage]);
 
   const availableCats = useMemo(
     () => Array.from(new Set(services.map((s) => s.cat).filter(Boolean))),

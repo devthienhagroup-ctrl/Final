@@ -47,8 +47,44 @@ type ServiceDetail = {
   reviews: ServiceReview[];
 };
 
+type PreferredLanguage = "vi" | "en" | "ja";
+
+function getPreferredLanguage(): PreferredLanguage {
+  if (typeof window === "undefined") return "vi";
+
+  const raw = window.localStorage.getItem("preferred-language")?.trim().toLowerCase();
+  if (raw === "en") return "en";
+  if (raw === "ja") return "ja";
+  return "vi";
+}
+
+
+function usePreferredLanguage() {
+  const [preferredLanguage, setPreferredLanguage] = useState<PreferredLanguage>(() => getPreferredLanguage());
+
+  useEffect(() => {
+    const syncPreferredLanguage = () => setPreferredLanguage(getPreferredLanguage());
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== null && event.key !== "preferred-language") return;
+      syncPreferredLanguage();
+    };
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("preferred-language-changed", syncPreferredLanguage);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("preferred-language-changed", syncPreferredLanguage);
+    };
+  }, []);
+
+  return preferredLanguage;
+}
+
 export default function ServiceDetailPage() {
   const { serviceId } = useParams();
+  const preferredLanguage = usePreferredLanguage();
 
   const [authOpen, setAuthOpen] = useState(false);
   const [authTab, setAuthTab] = useState<AuthTab>("login");
@@ -98,8 +134,8 @@ export default function ServiceDetailPage() {
     (async () => {
       try {
         const [{ data: detail }, { data: branchRows }] = await Promise.all([
-          http.get(`/booking/services/${id}`),
-          http.get("/booking/branches", { params: { serviceId: id } }),
+          http.get(`/booking/services/${id}`, { params: { lang: preferredLanguage } }),
+          http.get("/booking/branches", { params: { serviceId: id, lang: preferredLanguage } }),
         ]);
         if (!mounted) return;
 
@@ -120,7 +156,7 @@ export default function ServiceDetailPage() {
     return () => {
       mounted = false;
     };
-  }, [serviceId]);
+  }, [serviceId, preferredLanguage]);
 
   function showToast(t: ToastState) {
     setToast(t);
@@ -161,6 +197,7 @@ export default function ServiceDetailPage() {
           branchId: Number(branchId),
           serviceId: service.id,
           date: d,
+          lang: preferredLanguage,
         },
       });
 
@@ -180,6 +217,7 @@ export default function ServiceDetailPage() {
         note: note.trim() || undefined,
         branchId: Number(branchId),
         serviceId: service.id,
+        lang: preferredLanguage,
       });
 
       const msg =

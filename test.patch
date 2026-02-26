@@ -1,516 +1,679 @@
-diff --git a/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
-index c67fbfe4d3f212d8dcd58c9f4a0a414cd19c1a84..9b1843f1d0a9e855d3df46265e73668b6aadb9e6 100644
---- a/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
-+++ b/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
-@@ -1,162 +1,226 @@
--import { useEffect, useMemo, useState } from 'react'
-+import { useEffect, useMemo, useRef, useState } from 'react'
- import { spaAdminApi, type Branch, type SpaService, type Specialist } from '../../../api/spaAdmin.api'
- import type { ServicesTabProps } from './types'
-+import { autoTranslateFromVietnamese, type LocaleMode } from './i18nForm'
+diff --git a/Home/ayanavita-fontend-final/src/components/layout/Header.tsx b/Home/ayanavita-fontend-final/src/components/layout/Header.tsx
+index 360f35be2736e4977aa04093eb777aaea84ecf18..e98536eb4c016d89501498422b3045c196e4e5b5 100644
+--- a/Home/ayanavita-fontend-final/src/components/layout/Header.tsx
++++ b/Home/ayanavita-fontend-final/src/components/layout/Header.tsx
+@@ -1,45 +1,65 @@
+ import React, { useEffect, useMemo, useRef, useState } from "react";
+ import { Link } from "react-router-dom";
 
- const renderJsonPreview = (items: string[], badgeClass: string, extraBadgeClass: string) => {
-   if (!items?.length) return '-'
-   const [first, ...rest] = items
+ type HeaderProps = {
+   onLogin?: () => void;
+   onRegister?: () => void;
+   onSearch?: () => void;
+   brandHref?: string;
+ };
+
+ type DropdownKey = "products" | "pricing" | null;
+
++type PreferredLanguage = "vi" | "en" | "ja";
++
++const LANGUAGE_OPTIONS: Array<{ code: PreferredLanguage; label: string }> = [
++  { code: "vi", label: "VI" },
++  { code: "en", label: "EN" },
++  { code: "ja", label: "JA" },
++];
++
++function normalizePreferredLanguage(raw: string | null): PreferredLanguage {
++  const lang = raw?.trim().toLowerCase();
++  if (lang === "en") return "en";
++  if (lang === "ja") return "ja";
++  return "vi";
++}
++
++
+ export function Header({
+   onLogin,
+   onRegister,
+   onSearch,
+   brandHref = "/",
+ }: HeaderProps) {
+   const [openDd, setOpenDd] = useState<DropdownKey>(null);
+   const [drawerOpen, setDrawerOpen] = useState(false);
++  const [preferredLanguage, setPreferredLanguage] = useState<PreferredLanguage>(() => {
++    if (typeof window === "undefined") return "vi";
++    return normalizePreferredLanguage(window.localStorage.getItem("preferred-language"));
++  });
+
+   const rootRef = useRef<HTMLDivElement | null>(null);
+
+   const menus = useMemo(
+     () => ({
+       products: [
+         { label: "Danh mục sản phẩm", to: "/category" },
+         { label: "Sản phẩm nổi bật", to: "/product" },
+         { label: "Tìm sản phẩm phù hợp", to: "/quiz-fit" },
+         { sep: true as const },
+         { label: "Giỏ hàng", to: "/cart" },
+         { label: "Thanh toán", to: "/checkout" },
+       ],
+       pricing: [
+         { label: "Dịch vụ Spa", to: "/services" },
+         { label: "Đặt lịch", to: "/booking" },
+         { sep: true as const },
+         { label: "Nhượng quyền", to: "/franchise" },
+         { label: "Bộ tài liệu nhượng quyền", to: "/franchise-docs" },
+       ],
+     }),
+     []
+   );
+
+   // close on outside click / ESC
+@@ -58,50 +78,57 @@ export function Header({
+         setDrawerOpen(false);
+       }
+     };
+     document.addEventListener("mousedown", onDown);
+     document.addEventListener("keydown", onKey);
+     return () => {
+       document.removeEventListener("mousedown", onDown);
+       document.removeEventListener("keydown", onKey);
+     };
+   }, []);
+
+   // lock body scroll when drawer open
+   useEffect(() => {
+     if (!drawerOpen) return;
+     const prev = document.body.style.overflow;
+     document.body.style.overflow = "hidden";
+     return () => {
+       document.body.style.overflow = prev;
+     };
+   }, [drawerOpen]);
+
+   const toggleDd = (k: Exclude<DropdownKey, null>) => {
+     setOpenDd((cur) => (cur === k ? null : k));
+   };
+
++  const setLanguage = (lang: PreferredLanguage) => {
++    setPreferredLanguage(lang);
++    if (typeof window === "undefined") return;
++    window.localStorage.setItem("preferred-language", lang);
++    window.dispatchEvent(new CustomEvent("preferred-language-changed", { detail: lang }));
++  };
++
    return (
-     <div className='admin-row admin-row-nowrap'>
-       <span className={`admin-badge admin-badge-ellipsis ${badgeClass}`} title={first}>{first}</span>
-       {rest.length > 0 && <span className={`admin-badge ${extraBadgeClass}`}>+{rest.length}</span>}
-     </div>
-   )
- }
+     <div ref={rootRef} className="sticky top-0 z-[80] border-b border-slate-200/60 bg-white/80 backdrop-blur-xl">
+       <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-3 px-4 py-3">
+         {/* Brand */}
+         <Link to={brandHref} className="flex min-w-[180px] items-center gap-3">
+           <div
+             className="flex h-10 w-10 items-center justify-center rounded-2xl font-black text-white shadow-lg"
+             style={{
+               background:
+                 "linear-gradient(135deg,var(--aya-primary-1),var(--aya-primary-2))",
+               boxShadow: "0 12px 24px rgba(79,70,229,.22)",
+             }}
+           >
+             A
+           </div>
+           <div className="font-black tracking-[0.3px] text-slate-900">
+             AYANAVITA
+           </div>
+         </Link>
 
- const pageSizeOptions = [5, 10, 20, 50]
-+const locales: LocaleMode[] = ['vi', 'en-US', 'de']
-+const emptyServiceLocale = { name: '', description: '', goals: '', suitableFor: '', process: '', tag: '' }
-+const textMap = {
-+  vi: {
-+    title: 'Quản lý dịch vụ', add: 'Thêm dịch vụ', searchLabel: 'Tìm tên dịch vụ', searchPlaceholder: 'Nhập tên dịch vụ...', perPage: 'Số mục/trang', perPageSuffix: '/ trang',
-+    noData: 'Không có dữ liệu', create: 'Tạo dịch vụ mới', edit: 'Chỉnh sửa dịch vụ', close: 'Đóng', requiredHint: 'là thông tin bắt buộc.',
-+    localeHint: 'Mặc định nhập tiếng Việt, hệ thống tự dịch sang Anh/Đức. Khi lưu vui lòng kiểm tra lại bản dịch.',
-+    serviceName: 'Tên dịch vụ', category: 'Danh mục', chooseCategory: 'Chọn danh mục', duration: 'Thời lượng (phút)', price: 'Giá (VNĐ)', tag: 'Nhãn hiển thị', status: 'Trạng thái hoạt động',
-+    active: 'Đang hoạt động', inactive: 'Đang tắt', branchApplied: 'Chi nhánh áp dụng', branchDisabledHint: 'Chi nhánh đang tắt sẽ không thể chọn.',
-+    goals: 'Mục tiêu', suitableFor: 'Phù hợp với', process: 'Quy trình', description: 'Mô tả', uploadImage: 'Upload ảnh',
-+    selectedImage: 'Đã chọn', save: 'Lưu thay đổi', addService: 'Thêm dịch vụ', cancel: 'Hủy',
-+  },
-+  'en-US': {
-+    title: 'Service management', add: 'Add service', searchLabel: 'Search service name', searchPlaceholder: 'Enter service name...', perPage: 'Items/page', perPageSuffix: '/ page',
-+    noData: 'No data', create: 'Create new service', edit: 'Edit service', close: 'Close', requiredHint: 'is required.',
-+    localeHint: 'Default input is Vietnamese; the system auto-translates to English/German. Please review translations before saving.',
-+    serviceName: 'Service name', category: 'Category', chooseCategory: 'Select category', duration: 'Duration (min)', price: 'Price (VND)', tag: 'Display tag', status: 'Status',
-+    active: 'Active', inactive: 'Inactive', branchApplied: 'Applied branches', branchDisabledHint: 'Inactive branches cannot be selected.',
-+    goals: 'Goals', suitableFor: 'Suitable for', process: 'Process', description: 'Description', uploadImage: 'Upload image',
-+    selectedImage: 'Selected', save: 'Save changes', addService: 'Add service', cancel: 'Cancel',
-+  },
-+  de: {
-+    title: 'Leistungsverwaltung', add: 'Leistung hinzufügen', searchLabel: 'Leistungsname suchen', searchPlaceholder: 'Leistungsname eingeben...', perPage: 'Einträge/Seite', perPageSuffix: '/ Seite',
-+    noData: 'Keine Daten', create: 'Neue Leistung erstellen', edit: 'Leistung bearbeiten', close: 'Schließen', requiredHint: 'ist erforderlich.',
-+    localeHint: 'Standardmäßig auf Vietnamesisch eingeben; das System übersetzt automatisch nach Englisch/Deutsch. Bitte Übersetzungen vor dem Speichern prüfen.',
-+    serviceName: 'Leistungsname', category: 'Kategorie', chooseCategory: 'Kategorie wählen', duration: 'Dauer (Min.)', price: 'Preis (VND)', tag: 'Anzeigetag', status: 'Status',
-+    active: 'Aktiv', inactive: 'Inaktiv', branchApplied: 'Angewendete Filialen', branchDisabledHint: 'Inaktive Filialen können nicht ausgewählt werden.',
-+    goals: 'Ziele', suitableFor: 'Geeignet für', process: 'Ablauf', description: 'Beschreibung', uploadImage: 'Bild hochladen',
-+    selectedImage: 'Ausgewählt', save: 'Änderungen speichern', addService: 'Leistung hinzufügen', cancel: 'Abbrechen',
-+  },
-+} as const
+         {/* Desktop nav */}
+         <nav className="hidden flex-1 items-center justify-center gap-3 lg:flex">
+           {/* Products dropdown */}
+           <div className="relative">
+             <button
+@@ -170,50 +197,64 @@ export function Header({
+             ) : null}
+           </div>
 
- const renderDetailLines = (items: string[]) => {
-   if (!items.length) return <p className='service-detail-empty'>Không có dữ liệu</p>
-   return (
-     <ul className='service-detail-lines'>
-       {items.map((item, index) => (
-         <li key={`${index}-${item}`}>
-           <i className='fa-solid fa-circle-dot service-detail-line-icon' />
-           <span>{index + 1}. {item}</span>
-         </li>
-       ))}
-     </ul>
-   )
- }
+           <Link
+             to="/reviews"
+             className="rounded-xl border border-transparent px-3 py-2 text-[15px] font-extrabold text-slate-900 hover:border-slate-200 hover:bg-slate-50"
+           >
+             Đánh giá
+           </Link>
+           <Link
+             to="/blog"
+             className="rounded-xl border border-transparent px-3 py-2 text-[15px] font-extrabold text-slate-900 hover:border-slate-200 hover:bg-slate-50"
+           >
+             Blog kiến thức
+           </Link>
+           <Link
+             to="/contact"
+             className="rounded-xl border border-transparent px-3 py-2 text-[15px] font-extrabold text-slate-900 hover:border-slate-200 hover:bg-slate-50"
+           >
+             Liên hệ
+           </Link>
+         </nav>
 
- export function ServicesTab({
-+  lang = 'vi',
-   services,
-   branches,
-   categories,
-   serviceForm,
-   editingService,
-   selectedImageName,
-   searchKeyword,
-   pagination,
-   onSearchKeywordChange,
-   onPageChange,
-   onPageSizeChange,
-   onServiceFormChange,
-   onSelectImage,
-   onSaveService,
-   onEditService,
-   onDeleteService,
-   onCancelEdit,
- }: ServicesTabProps) {
-+  const t = textMap[lang]
-+  const [mode, setMode] = useState<LocaleMode>('vi')
-+  const translateReqRef = useRef(0)
-   const [isEditModalOpen, setEditModalOpen] = useState(false)
-   const [detailService, setDetailService] = useState<SpaService | null>(null)
-   const [detailSpecialists, setDetailSpecialists] = useState<Specialist[]>([])
-   const [detailBranches, setDetailBranches] = useState<Branch[]>([])
-   const [detailLoading, setDetailLoading] = useState(false)
-   const [detailError, setDetailError] = useState('')
-+  const serviceTranslations = serviceForm.translations || {}
-+  const currentLocaleValue = serviceTranslations[mode] || emptyServiceLocale
+         {/* Actions */}
+         <div className="flex min-w-fit items-center gap-2 lg:min-w-[260px] lg:justify-end">
++          <div className="hidden items-center rounded-full border border-slate-200 bg-white p-1 md:inline-flex">
++            {LANGUAGE_OPTIONS.map((item) => (
++              <button
++                key={item.code}
++                type="button"
++                className={`rounded-full px-2.5 py-1 text-xs font-black ${preferredLanguage === item.code ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"}`}
++                onClick={() => setLanguage(item.code)}
++                aria-label={`Switch language to ${item.code}`}
++              >
++                {item.label}
++              </button>
++            ))}
++          </div>
 +
-+  const updateLocalizedField = (field: 'name' | 'description' | 'goals' | 'suitableFor' | 'process' | 'tag', value: string) => {
-+    const nextTranslations = { ...serviceTranslations, [mode]: { ...currentLocaleValue, [field]: value } }
-+    const nextForm = { ...serviceForm, translations: nextTranslations }
+           <button
+               type="button"
+               onClick={onSearch}
+               title="Tìm kiếm"
+               className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white hover:bg-slate-50"
+           >
+             <i className="fa-solid fa-magnifying-glass"></i>
+           </button>
+
+           <button
+               type="button"
+             onClick={onLogin}
+             className="hidden rounded-full border border-slate-200 bg-white px-4 py-2 font-black text-slate-900 hover:bg-slate-50 sm:inline-flex"
+           >
+             Đăng nhập
+           </button>
+
+           <button
+             type="button"
+             onClick={onRegister}
+             className="inline-flex rounded-full px-4 py-2 font-black text-slate-900"
+             style={{
+               background:
+                 "linear-gradient(135deg,var(--aya-accent-1),var(--aya-accent-2))",
+               border: "1px solid rgba(17,24,39,.10)",
+@@ -297,50 +338,66 @@ export function Header({
+                 </div>
+               </details>
+
+               <Link
+                 to="/reviews"
+                 className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-black text-slate-900"
+                 onClick={() => setDrawerOpen(false)}
+               >
+                 Đánh giá
+               </Link>
+               <Link
+                 to="/blog"
+                 className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-black text-slate-900"
+                 onClick={() => setDrawerOpen(false)}
+               >
+                 Blog kiến thức
+               </Link>
+               <Link
+                 to="/contact"
+                 className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-black text-slate-900"
+                 onClick={() => setDrawerOpen(false)}
+               >
+                 Liên hệ
+               </Link>
+
++              <div className="mt-2">
++                <div className="mb-2 text-xs font-extrabold uppercase text-slate-500">Ngôn ngữ</div>
++                <div className="grid grid-cols-3 gap-2">
++                  {LANGUAGE_OPTIONS.map((item) => (
++                    <button
++                      key={item.code}
++                      type="button"
++                      className={`rounded-xl border px-3 py-2 text-sm font-black ${preferredLanguage === item.code ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50"}`}
++                      onClick={() => setLanguage(item.code)}
++                    >
++                      {item.label}
++                    </button>
++                  ))}
++                </div>
++              </div>
 +
-+    if (mode === 'vi') {
-+      translateReqRef.current += 1
-+      const reqId = translateReqRef.current
-+      onServiceFormChange({ ...nextForm, [field]: value })
+               <div className="mt-2 grid gap-2">
+                 <button
+                   type="button"
+                   onClick={() => {
+                     setDrawerOpen(false);
+                     onLogin?.();
+                   }}
+                   className="w-full rounded-full border border-slate-200 bg-white px-4 py-3 font-black text-slate-900 hover:bg-slate-50"
+                 >
+                   Đăng nhập
+                 </button>
+                 <button
+                   type="button"
+                   onClick={() => {
+                     setDrawerOpen(false);
+                     onRegister?.();
+                   }}
+                   className="w-full rounded-full px-4 py-3 font-black text-slate-900"
+                   style={{
+                     background:
+                       "linear-gradient(135deg,var(--aya-accent-1),var(--aya-accent-2))",
+                     border: "1px solid rgba(17,24,39,.10)",
+                   }}
+                 >
+                   Đăng ký
+diff --git a/Home/ayanavita-fontend-final/src/pages/ServiceDetailPage.tsx b/Home/ayanavita-fontend-final/src/pages/ServiceDetailPage.tsx
+index 7ab68bd22d57313540ee5c17b40c537b22d11a08..a6f311cc38742ca3fcf904526ccd8eee665ab89c 100644
+--- a/Home/ayanavita-fontend-final/src/pages/ServiceDetailPage.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/ServiceDetailPage.tsx
+@@ -25,183 +25,221 @@ type BranchOption = {
+ };
+
+ type ServiceReview = {
+   id: number;
+   stars: number;
+   comment?: string | null;
+   customerName?: string | null;
+ };
+
+ type ServiceDetail = {
+   id: number;
+   name: string;
+   description?: string | null;
+   goals: string[];
+   suitableFor: string[];
+   process: string[];
+   durationMin: number;
+   price: number;
+   ratingAvg: number;
+   bookedCount: number;
+   imageUrl?: string | null;
+   branchIds: number[];
+   reviews: ServiceReview[];
+ };
+
++type PreferredLanguage = "vi" | "en" | "ja";
 +
-+      void Promise.all([autoTranslateFromVietnamese(value, 'en-US'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => {
-+        if (reqId !== translateReqRef.current) return
-+        onServiceFormChange({
-+          ...nextForm,
-+          translations: {
-+            ...nextTranslations,
-+            'en-US': { ...(nextTranslations['en-US'] || emptyServiceLocale), [field]: en },
-+            de: { ...(nextTranslations.de || emptyServiceLocale), [field]: de },
-+          },
-+        })
-+      })
-+      return
-+    }
++function getPreferredLanguage(): PreferredLanguage {
++  if (typeof window === "undefined") return "vi";
 +
-+    onServiceFormChange(nextForm)
-+  }
++  const raw = window.localStorage.getItem("preferred-language")?.trim().toLowerCase();
++  if (raw === "en") return "en";
++  if (raw === "ja") return "ja";
++  return "vi";
++}
++
++
++function usePreferredLanguage() {
++  const [preferredLanguage, setPreferredLanguage] = useState<PreferredLanguage>(() => getPreferredLanguage());
++
++  useEffect(() => {
++    const syncPreferredLanguage = () => setPreferredLanguage(getPreferredLanguage());
++
++    const onStorage = (event: StorageEvent) => {
++      if (event.key !== null && event.key !== "preferred-language") return;
++      syncPreferredLanguage();
++    };
++
++    window.addEventListener("storage", onStorage);
++    window.addEventListener("preferred-language-changed", syncPreferredLanguage);
++
++    return () => {
++      window.removeEventListener("storage", onStorage);
++      window.removeEventListener("preferred-language-changed", syncPreferredLanguage);
++    };
++  }, []);
++
++  return preferredLanguage;
++}
++
+ export default function ServiceDetailPage() {
+   const { serviceId } = useParams();
++  const preferredLanguage = usePreferredLanguage();
 
-   const handleOpenCreate = () => {
-     onCancelEdit()
-     setEditModalOpen(true)
-   }
+   const [authOpen, setAuthOpen] = useState(false);
+   const [authTab, setAuthTab] = useState<AuthTab>("login");
+   const [success, setSuccess] = useState<{ open: boolean; message: string }>({
+     open: false,
+     message: "",
+   });
 
-   const handleOpenEdit = (service: SpaService) => {
-     onEditService(service)
-     setEditModalOpen(true)
-   }
+   const [service, setService] = useState<ServiceDetail | null>(null);
+   const [branches, setBranches] = useState<BranchOption[]>([]);
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState("");
 
-   const handleCloseEdit = () => {
-     onCancelEdit()
-     setEditModalOpen(false)
-   }
+   const openAuth = useCallback((tab: AuthTab) => {
+     setAuthTab(tab);
+     setAuthOpen(true);
+   }, []);
 
-   const pageInfoLabel = useMemo(() => {
--    if (!pagination.total) return 'Không có dữ liệu'
-+    if (!pagination.total) return t.noData
-     const start = (pagination.page - 1) * pagination.pageSize + 1
-     const end = Math.min(pagination.page * pagination.pageSize, pagination.total)
-     return `${start}-${end} / ${pagination.total}`
--  }, [pagination.page, pagination.pageSize, pagination.total])
-+  }, [pagination.page, pagination.pageSize, pagination.total, t.noData])
+   const openSuccess = useCallback((message: string) => {
+     setSuccess({ open: true, message });
+   }, []);
+
+   const [name, setName] = useState("Khách hàng Demo");
+   const [phone, setPhone] = useState("0900000000");
+   const [email, setEmail] = useState("");
+   const [date, setDate] = useState(() => toISODate(new Date()));
+   const [time, setTime] = useState("09:00");
+   const [note, setNote] = useState("");
+   const [branchId, setBranchId] = useState("");
+   const [submitting, setSubmitting] = useState(false);
+
+   const [toast, setToast] = useState<ToastState>(null);
+   const todayISO = useMemo(() => toISODate(new Date()), []);
 
    useEffect(() => {
-     if (!detailService) {
-       setDetailSpecialists([])
-       setDetailBranches([])
-       setDetailError('')
-       return
+     const id = Number(serviceId);
+     if (!Number.isInteger(id) || id < 1) {
+       setError("Mã dịch vụ không hợp lệ.");
+       setLoading(false);
+       return;
      }
 
-     let active = true
-     setDetailLoading(true)
-     setDetailError('')
+     let mounted = true;
+     setLoading(true);
+     setError("");
 
-     Promise.all([
-       spaAdminApi.specialists({ serviceId: detailService.id }),
-       spaAdminApi.branches({ includeInactive: true, serviceId: detailService.id }),
-     ])
-       .then(([specialists, branches]) => {
-         if (!active) return
-         setDetailSpecialists(specialists)
-         setDetailBranches(branches)
-       })
-       .catch(() => {
-         if (!active) return
-         setDetailError('Không thể tải thêm dữ liệu chi tiết. Vui lòng thử lại.')
-         setDetailSpecialists([])
-         setDetailBranches([])
-       })
-       .finally(() => {
-         if (active) setDetailLoading(false)
-       })
+     (async () => {
+       try {
+         const [{ data: detail }, { data: branchRows }] = await Promise.all([
+-          http.get(`/booking/services/${id}`),
+-          http.get("/booking/branches", { params: { serviceId: id } }),
++          http.get(`/booking/services/${id}`, { params: { lang: preferredLanguage } }),
++          http.get("/booking/branches", { params: { serviceId: id, lang: preferredLanguage } }),
+         ]);
+         if (!mounted) return;
+
+         setService(detail);
+         const normalizedBranches = Array.isArray(branchRows)
+           ? branchRows.map((item: any) => ({ id: item.id, name: item.name, address: item.address }))
+           : [];
+         setBranches(normalizedBranches);
+         setBranchId(normalizedBranches[0] ? String(normalizedBranches[0].id) : "");
+       } catch {
+         if (!mounted) return;
+         setError("Không thể tải dữ liệu dịch vụ. Vui lòng thử lại.");
+       } finally {
+         if (mounted) setLoading(false);
+       }
+     })();
 
      return () => {
-       active = false
-     }
-   }, [detailService])
+       mounted = false;
+     };
+-  }, [serviceId]);
++  }, [serviceId, preferredLanguage]);
 
-   return (
-     <section className='admin-card admin-card-full'>
-       <div className='admin-row admin-row-space'>
--        <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> Quản lý dịch vụ</h3>
--        <button className='admin-btn admin-btn-primary' onClick={handleOpenCreate}><i className='fa-solid fa-plus' /> Thêm dịch vụ</button>
-+        <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> {t.title}</h3>
-+        <button className='admin-btn admin-btn-primary' onClick={handleOpenCreate}><i className='fa-solid fa-plus' /> {t.add}</button>
-       </div>
-
-       <div className='admin-row services-toolbar'>
-         <label className='admin-field services-search-field'>
--          <span className='admin-label'><i className='fa-solid fa-magnifying-glass' /> Tìm tên dịch vụ</span>
-+          <span className='admin-label'><i className='fa-solid fa-magnifying-glass' /> {t.searchLabel}</span>
-           <input
-             className='admin-input'
--            placeholder='Nhập tên dịch vụ...'
-+            placeholder={t.searchPlaceholder}
-             value={searchKeyword}
-             onChange={(e) => onSearchKeywordChange(e.target.value)}
-           />
-         </label>
-         <label className='admin-field services-size-field'>
--          <span className='admin-label'><i className='fa-solid fa-list-ol' /> Số mục/trang</span>
-+          <span className='admin-label'><i className='fa-solid fa-list-ol' /> {t.perPage}</span>
-           <select className='admin-input' value={pagination.pageSize} onChange={(e) => onPageSizeChange(Number(e.target.value))}>
-             {pageSizeOptions.map((size) => (
--              <option key={size} value={size}>{size} / trang</option>
-+              <option key={size} value={size}>{size} {t.perPageSuffix}</option>
-             ))}
-           </select>
-         </label>
-       </div>
-
-       <div className='admin-table-wrap'>
-         <table className='admin-table services-table'>
-           <thead>
-             <tr>
-               <th>Tên dịch vụ</th>
-               <th>Danh mục</th>
-               <th>Thời lượng</th>
-               <th>Giá</th>
-               <th>Đánh giá</th>
-               <th>Lượt đặt</th>
-               <th>Mục tiêu </th>
-               <th>Phù hợp </th>
-               <th>Trạng thái</th>
-               <th>Thao tác</th>
-             </tr>
-           </thead>
-           <tbody>
-             {services.map((service) => (
-               <tr key={service.id}>
-                 <td className='td-strong services-name-cell' title={service.name}>{service.name}</td>
-@@ -213,132 +277,134 @@ export function ServicesTab({
-           </tbody>
-         </table>
-       </div>
-
-       <div className='admin-row admin-row-space services-pagination'>
-         <span className='admin-helper'>Hiển thị: {pageInfoLabel}</span>
-         <div className='admin-row services-pagination-controls'>
-           <button className='admin-btn admin-btn-ghost' disabled={pagination.page <= 1} onClick={() => onPageChange(pagination.page - 1)}>
-             <i className='fa-solid fa-chevron-left' /> Trước
-           </button>
-           <span className='admin-helper'>Trang {pagination.page}/{Math.max(1, pagination.totalPages)}</span>
-           <button
-             className='admin-btn admin-btn-ghost'
-             disabled={pagination.page >= pagination.totalPages}
-             onClick={() => onPageChange(pagination.page + 1)}
-           >
-             Sau <i className='fa-solid fa-chevron-right' />
-           </button>
-         </div>
-       </div>
-
-       {isEditModalOpen && (
-         <div className='admin-modal-overlay' onClick={handleCloseEdit}>
-           <div className='admin-modal' onClick={(e) => e.stopPropagation()}>
-             <div className='admin-row admin-row-space'>
--              <h3 className='admin-card-title'><i className='fa-solid fa-spa' /> {editingService ? 'Chỉnh sửa dịch vụ' : 'Tạo dịch vụ mới'}</h3>
--              <button className='admin-btn admin-btn-ghost' onClick={handleCloseEdit}><i className='fa-solid fa-xmark' /> Đóng</button>
-+              <h3 className='admin-card-title'><i className='fa-solid fa-spa' /> {editingService ? t.edit : t.create}</h3>
-+              <button className='admin-btn admin-btn-ghost' onClick={handleCloseEdit}><i className='fa-solid fa-xmark' /> {t.close}</button>
-             </div>
--            <p className='admin-helper'><b className='admin-required'>*</b> là thông tin bắt buộc.</p>
-+            <p className='admin-helper'><b className='admin-required'>*</b> {t.requiredHint}</p>
-+            <div className='admin-row'>{locales.map((l) => <button key={l} className={`admin-btn ${mode===l?'admin-btn-primary':'admin-btn-ghost'}`} onClick={() => setMode(l)}>{l}</button>)}</div>
-+            <p className='admin-helper'>{t.localeHint}</p>
-             <div className='admin-form-grid services-edit-grid'>
-               <label className='admin-field'>
--                <span className='admin-label'><i className='fa-solid fa-sparkles' /> Tên dịch vụ <b className='admin-required'>*</b></span>
--                <input className='admin-input' value={serviceForm.name} onChange={(e) => onServiceFormChange({ ...serviceForm, name: e.target.value })} />
-+                <span className='admin-label'><i className='fa-solid fa-sparkles' /> {t.serviceName} ({mode}) <b className='admin-required'>*</b></span>
-+                <input className='admin-input' value={currentLocaleValue.name} onChange={(e) => updateLocalizedField('name', e.target.value)} />
-               </label>
-               <label className='admin-field'>
--                <span className='admin-label'><i className='fa-solid fa-layer-group' /> Danh mục <b className='admin-required'>*</b></span>
-+                <span className='admin-label'><i className='fa-solid fa-layer-group' /> {t.category} <b className='admin-required'>*</b></span>
-                 <select className='admin-input' value={serviceForm.categoryId || 0} onChange={(e) => onServiceFormChange({ ...serviceForm, categoryId: Number(e.target.value) })}>
--                  <option value={0}>Chọn danh mục</option>
-+                  <option value={0}>{t.chooseCategory}</option>
-                   {categories.map((item) => (
-                     <option key={item.id} value={item.id}>{item.name}</option>
-                   ))}
-                 </select>
-               </label>
-               <label className='admin-field'>
--                <span className='admin-label'><i className='fa-solid fa-clock' /> Thời lượng (phút) <b className='admin-required'>*</b></span>
-+                <span className='admin-label'><i className='fa-solid fa-clock' /> {t.duration} <b className='admin-required'>*</b></span>
-                 <input className='admin-input' type='number' min={1} value={serviceForm.durationMin} onChange={(e) => onServiceFormChange({ ...serviceForm, durationMin: Number(e.target.value) })} />
-               </label>
-               <label className='admin-field'>
--                <span className='admin-label'><i className='fa-solid fa-coins' /> Giá (VNĐ) <b className='admin-required'>*</b></span>
-+                <span className='admin-label'><i className='fa-solid fa-coins' /> {t.price} <b className='admin-required'>*</b></span>
-                 <input className='admin-input' type='number' min={0} value={serviceForm.price} onChange={(e) => onServiceFormChange({ ...serviceForm, price: Number(e.target.value) })} />
-               </label>
-               <label className='admin-field'>
--                <span className='admin-label'><i className='fa-solid fa-tag' /> Nhãn hiển thị</span>
--                <input className='admin-input' value={serviceForm.tag} onChange={(e) => onServiceFormChange({ ...serviceForm, tag: e.target.value })} />
-+                <span className='admin-label'><i className='fa-solid fa-tag' /> {t.tag} ({mode})</span>
-+                <input className='admin-input' value={currentLocaleValue.tag} onChange={(e) => updateLocalizedField('tag', e.target.value)} />
-               </label>
-               <label className='admin-field'>
--                <span className='admin-label'><i className='fa-solid fa-power-off' /> Trạng thái hoạt động</span>
-+                <span className='admin-label'><i className='fa-solid fa-power-off' /> {t.status}</span>
-                 <span className='admin-checkbox'>
-                   <input type='checkbox' checked={Boolean(serviceForm.isActive)} onChange={(e) => onServiceFormChange({ ...serviceForm, isActive: e.target.checked })} />
-                   <span className='admin-checkbox-slider' />
--                  <span className='admin-checkbox-label'>{serviceForm.isActive ? 'Đang hoạt động' : 'Đang tắt'}</span>
-+                  <span className='admin-checkbox-label'>{serviceForm.isActive ? t.active : t.inactive}</span>
-                 </span>
-               </label>
-               <label className='admin-field admin-field-full'>
--                <span className='admin-label'><i className='fa-solid fa-building' /> Chi nhánh áp dụng <b className='admin-required'>*</b></span>
-+                <span className='admin-label'><i className='fa-solid fa-building' /> {t.branchApplied} <b className='admin-required'>*</b></span>
-                 <div className='services-branch-checklist'>
-                   {branches.map((branch) => {
-                     const checked = serviceForm.branchIds.includes(branch.id)
-                     return (
-                       <label key={branch.id} className={`services-branch-option ${branch.isActive ? '' : 'is-disabled'}`}>
-                         <input
-                           type='checkbox'
-                           checked={checked}
-                           disabled={!branch.isActive}
-                           onChange={(e) => {
-                             const nextBranchIds = e.target.checked
-                               ? [...serviceForm.branchIds, branch.id]
-                               : serviceForm.branchIds.filter((id) => id !== branch.id)
-                             onServiceFormChange({ ...serviceForm, branchIds: nextBranchIds })
-                           }}
-                         />
-                         <span>{branch.name}</span>
-                       </label>
-                     )
-                   })}
-                 </div>
--                <span className='admin-helper'>Chi nhánh đang tắt sẽ không thể chọn.</span>
-+                <span className='admin-helper'>{t.branchDisabledHint}</span>
-               </label>
-               <label className='admin-field admin-field-full'>
--                <span className='admin-label'><i className='fa-solid fa-bullseye' /> Mục tiêu (phân tách bằng dấu phẩy ",")</span>
--                <input className='admin-input' placeholder='Relax, Detox' value={serviceForm.goals} onChange={(e) => onServiceFormChange({ ...serviceForm, goals: e.target.value })} />
-+                <span className='admin-label'><i className='fa-solid fa-bullseye' /> {t.goals} ({mode}) (phân tách bằng dấu phẩy ",")</span>
-+                <input className='admin-input' placeholder='Relax, Detox' value={currentLocaleValue.goals} onChange={(e) => updateLocalizedField('goals', e.target.value)} />
-               </label>
-               <label className='admin-field admin-field-full'>
--                <span className='admin-label'><i className='fa-solid fa-users' /> Phù hợp với (phân tách bằng dấu phẩy ",")</span>
--                <input className='admin-input' placeholder='Người stress, Mất ngủ' value={serviceForm.suitableFor} onChange={(e) => onServiceFormChange({ ...serviceForm, suitableFor: e.target.value })} />
-+                <span className='admin-label'><i className='fa-solid fa-users' /> {t.suitableFor} ({mode}) (phân tách bằng dấu phẩy ",")</span>
-+                <input className='admin-input' placeholder='Người stress, Mất ngủ' value={currentLocaleValue.suitableFor} onChange={(e) => updateLocalizedField('suitableFor', e.target.value)} />
-               </label>
-               <label className='admin-field admin-field-full'>
--                <span className='admin-label'><i className='fa-solid fa-list-check' /> Quy trình (phân tách bằng dấu phẩy ",")</span>
--                <input className='admin-input' placeholder='B1 chào hỏi, B2 tư vấn, B3 trị liệu' value={serviceForm.process} onChange={(e) => onServiceFormChange({ ...serviceForm, process: e.target.value })} />
-+                <span className='admin-label'><i className='fa-solid fa-list-check' /> {t.process} ({mode}) (phân tách bằng dấu phẩy ",")</span>
-+                <input className='admin-input' placeholder='B1 chào hỏi, B2 tư vấn, B3 trị liệu' value={currentLocaleValue.process} onChange={(e) => updateLocalizedField('process', e.target.value)} />
-               </label>
--              <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-pen-to-square' /> Mô tả</span><textarea className='admin-input' value={serviceForm.description} onChange={(e) => onServiceFormChange({ ...serviceForm, description: e.target.value })} /></label>
--              <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-cloud-arrow-up' /> Upload ảnh</span><input type='file' accept='image/*' onChange={(e) => onSelectImage(e.target.files?.[0] || null)} /></label>
--              {selectedImageName && <span className='admin-helper'>Đã chọn: {selectedImageName}</span>}
-+              <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-pen-to-square' /> {t.description} ({mode})</span><textarea className='admin-input' value={currentLocaleValue.description} onChange={(e) => updateLocalizedField('description', e.target.value)} /></label>
-+              <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-cloud-arrow-up' /> {t.uploadImage}</span><input type='file' accept='image/*' onChange={(e) => onSelectImage(e.target.files?.[0] || null)} /></label>
-+              {selectedImageName && <span className='admin-helper'>{t.selectedImage}: {selectedImageName}</span>}
-             </div>
-             <div className='admin-row'>
--              <button className='admin-btn admin-btn-primary' onClick={async () => { await onSaveService(); setEditModalOpen(false) }}>{editingService ? 'Lưu thay đổi' : 'Thêm dịch vụ'}</button>
--              <button className='admin-btn admin-btn-ghost' onClick={handleCloseEdit}>Hủy</button>
-+              <button className='admin-btn admin-btn-primary' onClick={async () => { await onSaveService(); setEditModalOpen(false) }}>{editingService ? t.save : t.addService}</button>
-+              <button className='admin-btn admin-btn-ghost' onClick={handleCloseEdit}>{t.cancel}</button>
-             </div>
-           </div>
-         </div>
-       )}
-
-       {detailService && (
-         <div className='admin-modal-overlay' onClick={() => setDetailService(null)}>
-           <div className='admin-modal service-detail-modal' onClick={(e) => e.stopPropagation()}>
-             <div className='service-detail-header'>
-               <div>
-                 <p className='service-detail-eyebrow'>HỒ SƠ DỊCH VỤ</p>
-                 <h3 className='admin-card-title'><i className='fa-solid fa-circle-info' /> {detailService.name}</h3>
-               </div>
-               <button className='admin-btn admin-btn-ghost' onClick={() => setDetailService(null)}><i className='fa-solid fa-xmark' /> Đóng</button>
-             </div>
-
-             {detailLoading && <p className='admin-helper'>Đang tải chuyên viên và chi nhánh liên quan...</p>}
-             {detailError && <p className='service-detail-error'>{detailError}</p>}
-
-             <div className='service-detail-layout'>
-               <section className='service-detail-image-panel'>
-                 {detailService.imageUrl
-                   ? <img className='service-detail-image' src={detailService.imageUrl} alt={`Dịch vụ ${detailService.name}`} />
-                   : <div className='service-detail-image-empty'>Chưa có hình ảnh dịch vụ</div>}
-                 <div className='service-detail-metrics'>
-diff --git a/ayanavita-fontend/src/pages/admin/tabs/SpecialistsTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/SpecialistsTab.tsx
-index 00807bb24c4f6d86433b55164e70ae29116013ab..884d7ee174837121f8c3f2c3eaf7cd09404b0229 100644
---- a/ayanavita-fontend/src/pages/admin/tabs/SpecialistsTab.tsx
-+++ b/ayanavita-fontend/src/pages/admin/tabs/SpecialistsTab.tsx
-@@ -1,69 +1,104 @@
--import { useMemo, useState } from 'react'
-+import { useMemo, useRef, useState } from 'react'
- import type { SpecialistsTabProps } from './types'
-+import { autoTranslateFromVietnamese, type LocaleMode } from './i18nForm'
-
- const textMap = {
--  vi: { update: 'Cập nhật chuyên viên', add: 'Thêm chuyên viên', name: 'Tên chuyên viên', email: 'Email tài khoản', branch: 'Chi nhánh', chooseBranch: 'Chọn chi nhánh', level: 'Cấp độ', bio: 'Bio', bioPlaceholder: 'Mô tả năng lực chuyên viên', branchServices: 'Dịch vụ theo chi nhánh', chooseBranchHelp: 'Vui lòng chọn chi nhánh để tải dịch vụ.', save: 'Lưu thay đổi', cancel: 'Hủy', list: 'Danh sách chuyên viên', searchName: 'Tìm tên', searchPlaceholder: 'Nhập tên chuyên viên', perPage: '/Trang', colName: 'Tên', colEmail: 'Email', colLevel: 'Cấp độ', colBranch: 'Chi nhánh', colServices: 'Dịch vụ', colAction: 'Thao tác', edit: 'Sửa', del: 'Xóa', showing: 'Hiển thị', specialists: 'chuyên viên', prev: 'Trước', page: 'Trang', next: 'Sau', reset: 'Làm mới' },
--  'en-US': { update: 'Update specialist', add: 'Add specialist', name: 'Specialist name', email: 'Account email', branch: 'Branch', chooseBranch: 'Select branch', level: 'Level', bio: 'Bio', bioPlaceholder: 'Describe specialist capabilities', branchServices: 'Services by branch', chooseBranchHelp: 'Select a branch to load services.', save: 'Save changes', cancel: 'Cancel', list: 'Specialist list', searchName: 'Search name', searchPlaceholder: 'Enter specialist name', perPage: '/Page', colName: 'Name', colEmail: 'Email', colLevel: 'Level', colBranch: 'Branch', colServices: 'Services', colAction: 'Actions', edit: 'Edit', del: 'Delete', showing: 'Showing', specialists: 'specialists', prev: 'Prev', page: 'Page', next: 'Next', reset: 'Reset' },
--  de: { update: 'Spezialist aktualisieren', add: 'Spezialist hinzufügen', name: 'Name des Spezialisten', email: 'Konto-E-Mail', branch: 'Filiale', chooseBranch: 'Filiale wählen', level: 'Stufe', bio: 'Bio', bioPlaceholder: 'Fähigkeiten des Spezialisten beschreiben', branchServices: 'Leistungen nach Filiale', chooseBranchHelp: 'Bitte Filiale wählen, um Leistungen zu laden.', save: 'Änderungen speichern', cancel: 'Abbrechen', list: 'Spezialistenliste', searchName: 'Name suchen', searchPlaceholder: 'Name des Spezialisten eingeben', perPage: '/Seite', colName: 'Name', colEmail: 'E-Mail', colLevel: 'Stufe', colBranch: 'Filiale', colServices: 'Leistungen', colAction: 'Aktionen', edit: 'Bearbeiten', del: 'Löschen', showing: 'Anzeige', specialists: 'Spezialisten', prev: 'Zurück', page: 'Seite', next: 'Weiter', reset: 'Zurücksetzen' },
-+  vi: { update: 'Cập nhật chuyên viên', add: 'Thêm chuyên viên', name: 'Tên chuyên viên', email: 'Email tài khoản', branch: 'Chi nhánh', chooseBranch: 'Chọn chi nhánh', level: 'Cấp độ', bio: 'Bio', bioPlaceholder: 'Mô tả năng lực chuyên viên', branchServices: 'Dịch vụ theo chi nhánh', chooseBranchHelp: 'Vui lòng chọn chi nhánh để tải dịch vụ.', save: 'Lưu thay đổi', cancel: 'Hủy', list: 'Danh sách chuyên viên', searchName: 'Tìm tên', searchPlaceholder: 'Nhập tên chuyên viên', perPage: '/Trang', colName: 'Tên', colEmail: 'Email', colLevel: 'Cấp độ', colBranch: 'Chi nhánh', colServices: 'Dịch vụ', colAction: 'Thao tác', edit: 'Sửa', del: 'Xóa', showing: 'Hiển thị', specialists: 'chuyên viên', prev: 'Trước', page: 'Trang', next: 'Sau', reset: 'Làm mới', localeHint: 'Mặc định nhập tiếng Việt, hệ thống tự dịch sang Anh/Đức. Khi lưu vui lòng kiểm tra lại bản dịch.' },
-+  'en-US': { update: 'Update specialist', add: 'Add specialist', name: 'Specialist name', email: 'Account email', branch: 'Branch', chooseBranch: 'Select branch', level: 'Level', bio: 'Bio', bioPlaceholder: 'Describe specialist capabilities', branchServices: 'Services by branch', chooseBranchHelp: 'Select a branch to load services.', save: 'Save changes', cancel: 'Cancel', list: 'Specialist list', searchName: 'Search name', searchPlaceholder: 'Enter specialist name', perPage: '/Page', colName: 'Name', colEmail: 'Email', colLevel: 'Level', colBranch: 'Branch', colServices: 'Services', colAction: 'Actions', edit: 'Edit', del: 'Delete', showing: 'Showing', specialists: 'specialists', prev: 'Prev', page: 'Page', next: 'Next', reset: 'Reset', localeHint: 'Default input is Vietnamese; the system auto-translates to English/German. Please review translations before saving.' },
-+  de: { update: 'Spezialist aktualisieren', add: 'Spezialist hinzufügen', name: 'Name des Spezialisten', email: 'Konto-E-Mail', branch: 'Filiale', chooseBranch: 'Filiale wählen', level: 'Stufe', bio: 'Bio', bioPlaceholder: 'Fähigkeiten des Spezialisten beschreiben', branchServices: 'Leistungen nach Filiale', chooseBranchHelp: 'Bitte Filiale wählen, um Leistungen zu laden.', save: 'Änderungen speichern', cancel: 'Abbrechen', list: 'Spezialistenliste', searchName: 'Name suchen', searchPlaceholder: 'Name des Spezialisten eingeben', perPage: '/Seite', colName: 'Name', colEmail: 'E-Mail', colLevel: 'Stufe', colBranch: 'Filiale', colServices: 'Leistungen', colAction: 'Aktionen', edit: 'Bearbeiten', del: 'Löschen', showing: 'Anzeige', specialists: 'Spezialisten', prev: 'Zurück', page: 'Seite', next: 'Weiter', reset: 'Zurücksetzen', localeHint: 'Standardmäßig auf Vietnamesisch eingeben; das System übersetzt automatisch nach Englisch/Deutsch. Bitte Übersetzungen vor dem Speichern prüfen.' },
- } as const
-
-+const locales: LocaleMode[] = ['vi', 'en-US', 'de']
-+const emptySpecialistLocale = { name: '', bio: '' }
-+
- export function SpecialistsTab({ lang = 'vi', branches, services, specialists, specialistForm, editingSpecialist, onSpecialistFormChange, onSaveSpecialist, onEditSpecialist, onDeleteSpecialist, onCancelEdit }: SpecialistsTabProps) {
-   const t = textMap[lang]
-+  const [mode, setMode] = useState<LocaleMode>('vi')
-+  const translateReqRef = useRef(0)
-+  const translations = specialistForm.translations || {}
-+  const currentLocaleValue = translations[mode] || emptySpecialistLocale
-+
-+  const updateLocalizedField = (field: 'name' | 'bio', value: string) => {
-+    const nextTranslations = { ...translations, [mode]: { ...currentLocaleValue, [field]: value } }
-+    const nextForm = { ...specialistForm, translations: nextTranslations }
-+
-+    if (mode === 'vi') {
-+      translateReqRef.current += 1
-+      const reqId = translateReqRef.current
-+      onSpecialistFormChange({ ...nextForm, [field]: value })
-+      void Promise.all([autoTranslateFromVietnamese(value, 'en-US'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => {
-+        if (reqId !== translateReqRef.current) return
-+        onSpecialistFormChange({
-+          ...nextForm,
-+          translations: {
-+            ...nextTranslations,
-+            'en-US': { ...(nextTranslations['en-US'] || emptySpecialistLocale), [field]: en },
-+            de: { ...(nextTranslations.de || emptySpecialistLocale), [field]: de },
-+          },
-+        })
-+      })
-+      return
-+    }
-+
-+    onSpecialistFormChange(nextForm)
-+  }
-   const branchServices = specialistForm.branchId ? services.filter((service) => service.branchIds.includes(specialistForm.branchId)) : []
-   const toggleService = (serviceId: number) => {
-     const exists = specialistForm.serviceIds.includes(serviceId)
-     onSpecialistFormChange({ ...specialistForm, serviceIds: exists ? specialistForm.serviceIds.filter((item) => item !== serviceId) : [...specialistForm.serviceIds, serviceId] })
+   function showToast(t: ToastState) {
+     setToast(t);
+     if (!t) return;
+     window.setTimeout(() => setToast(null), 4500);
    }
 
-   const [searchName, setSearchName] = useState('')
-   const [page, setPage] = useState(1)
-   const [pageSize, setPageSize] = useState(10)
+   async function submitBooking() {
+     if (!service) return;
 
-   const filteredSpecialists = useMemo(() => {
-     const keyword = searchName.trim().toLowerCase()
-     if (!keyword) return specialists
-     return specialists.filter((item) => item.name.toLowerCase().includes(keyword))
-   }, [searchName, specialists])
+     const n = name.trim();
+     const p = phone.trim();
+     const e = email.trim();
+     const d = date.trim();
+     const t = time.trim();
+     const selectedBranch = branches.find((item) => String(item.id) === branchId);
 
-   const totalPages = Math.max(1, Math.ceil(filteredSpecialists.length / pageSize))
-   const safePage = Math.min(page, totalPages)
-   const pagedSpecialists = useMemo(() => {
-     const start = (safePage - 1) * pageSize
-     return filteredSpecialists.slice(start, start + pageSize)
-   }, [filteredSpecialists, pageSize, safePage])
+     if (!n) return showToast({ type: "error", message: "Vui lòng nhập Họ và tên." });
+     if (!isValidPhone(p)) {
+       return showToast({ type: "error", message: "SĐT chưa đúng (bắt đầu 0, đủ 10–11 số)." });
+     }
+     if (e && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
+       return showToast({ type: "error", message: "Email chưa đúng định dạng." });
+     }
+     if (!d) return showToast({ type: "error", message: "Vui lòng chọn Ngày." });
+     if (d < todayISO) return showToast({ type: "error", message: "Ngày đặt phải >= hôm nay." });
+     if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(t)) {
+       return showToast({ type: "error", message: "Giờ hẹn chưa đúng định dạng HH:mm." });
+     }
+     if (!branchId || !selectedBranch) {
+       return showToast({ type: "error", message: "Vui lòng chọn chi nhánh để đặt lịch." });
+     }
+
+     setSubmitting(true);
+     try {
+       const slotData = await http.get("/booking/slot-suggestions", {
+         params: {
+           branchId: Number(branchId),
+           serviceId: service.id,
+           date: d,
++          lang: preferredLanguage,
+         },
+       });
+
+       const matchedSlot = (slotData.data?.slots || []).find((item: any) => item.time === t);
+       if (matchedSlot && !matchedSlot.available) {
+         return showToast({
+           type: "error",
+           message: `Khung giờ ${t} tại ${selectedBranch.name} đã hết chỗ. Vui lòng chọn giờ khác.`,
+         });
+       }
+
+       await http.post("/booking/appointments", {
+         customerName: n,
+         customerPhone: p,
+         customerEmail: e || undefined,
+         appointmentAt: `${d}T${t}:00`,
+         note: note.trim() || undefined,
+         branchId: Number(branchId),
+         serviceId: service.id,
++        lang: preferredLanguage,
+       });
+
+       const msg =
+         `Đặt lịch thành công.\n` +
+         `- Dịch vụ: ${service.name} (#${service.id})\n` +
+         `- Chi nhánh: ${selectedBranch.name}${selectedBranch.address ? ` - ${selectedBranch.address}` : ""}\n` +
+         `- Ngày: ${d} • Giờ: ${t}\n` +
+         `- SĐT: ${p}${e ? ` • Email: ${e}` : ""}\n` +
+         `- Ghi chú: ${note.trim() || "(không)"}`;
+
+       showToast({ type: "success", message: msg });
+       window.scrollTo({ top: 0, behavior: "smooth" });
+     } catch (err: any) {
+       showToast({
+         type: "error",
+         message: err?.response?.data?.message || "Không thể tạo lịch hẹn. Vui lòng kiểm tra lại thông tin và thử lại.",
+       });
+     } finally {
+       setSubmitting(false);
+     }
+   }
 
    return (
-     <div className='admin-grid'>
-       <section className='admin-card admin-card-glow'>
-         <h3 className='admin-card-title'><i className='fa-solid fa-user-nurse' /> {editingSpecialist ? t.update : t.add}</h3>
-+        <div className='admin-row'>{locales.map((l) => <button key={l} className={`admin-btn ${mode===l?'admin-btn-primary':'admin-btn-ghost'}`} onClick={() => setMode(l)}>{l}</button>)}</div>
-+        <p className='admin-helper'>{t.localeHint}</p>
-         <div className='admin-form-grid'>
--          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-user' /> {t.name}</span><input className='admin-input' placeholder={t.name} value={specialistForm.name} onChange={(e) => onSpecialistFormChange({ ...specialistForm, name: e.target.value })} /></label>
-+          <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-user' /> {t.name} ({mode})</span><input className='admin-input' placeholder={t.name} value={currentLocaleValue.name} onChange={(e) => updateLocalizedField('name', e.target.value)} /></label>
-           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-envelope' /> {t.email}</span><input className='admin-input' type='email' placeholder='staff@example.com' value={specialistForm.email} onChange={(e) => onSpecialistFormChange({ ...specialistForm, email: e.target.value })} /></label>
-           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-building' /> {t.branch}</span><select className='admin-input' value={specialistForm.branchId} onChange={(e) => onSpecialistFormChange({ ...specialistForm, branchId: Number(e.target.value), serviceIds: [] })}><option value={0}>{t.chooseBranch}</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
-           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-medal' /> {t.level}</span><select className='admin-input' value={specialistForm.level} onChange={(e) => onSpecialistFormChange({ ...specialistForm, level: e.target.value })}><option value='THERAPIST'>THERAPIST</option><option value='SENIOR'>SENIOR</option><option value='EXPERT'>EXPERT</option></select></label>
--          <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-address-card' /> {t.bio}</span><textarea className='admin-input admin-textarea' placeholder={t.bioPlaceholder} value={specialistForm.bio} onChange={(e) => onSpecialistFormChange({ ...specialistForm, bio: e.target.value })} /></label>
-+          <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-address-card' /> {t.bio}</span><textarea className='admin-input admin-textarea' placeholder={t.bioPlaceholder} value={currentLocaleValue.bio} onChange={(e) => updateLocalizedField('bio', e.target.value)} /></label>
+     <div className="bg-slate-50 text-slate-900">
+       <ParticlesBackground />
+diff --git a/Home/ayanavita-fontend-final/src/pages/ServicesPage.tsx b/Home/ayanavita-fontend-final/src/pages/ServicesPage.tsx
+index 8e79ffb130b44363982cd6a143d3b8022b1d1710..3e5427cd8a06cfd754590af3e630c485e6ad5f28 100644
+--- a/Home/ayanavita-fontend-final/src/pages/ServicesPage.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/ServicesPage.tsx
+@@ -7,50 +7,85 @@ import { Footer } from "../components/layout/Footer";
 
-           <div className='admin-field admin-field-full'>
-             <span className='admin-label'><i className='fa-solid fa-list-check' /> {t.branchServices}</span>
-             <div className='admin-multi-select'>
-               {branchServices.length > 0 ? branchServices.map((service) => (
-                 <label key={service.id} className='admin-checkbox-row'>
-                   <input type='checkbox' checked={specialistForm.serviceIds.includes(service.id)} onChange={() => toggleService(service.id)} />
-                   <span>{service.name}</span>
-                 </label>
-               )) : <span className='admin-helper'>{t.chooseBranchHelp}</span>}
-             </div>
-           </div>
-         </div>
-         <div className='admin-row'>
-           <button className='admin-btn admin-btn-primary' onClick={onSaveSpecialist}>{editingSpecialist ? t.save : t.add}</button>
-           <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>{editingSpecialist ? t.cancel : t.reset}</button>
-         </div>
-       </section>
+ import { AuthModal } from "../components/home/AuthModal";
+ import { SuccessModal } from "../components/home/SuccessModal";
 
-       <section className='admin-card'>
-         <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> {t.list}</h3>
-         <div className='admin-row admin-row-between admin-filter-toolbar'>
-           <label className='admin-field-inline'>
-             <span className='admin-label'><i className='fa-solid fa-magnifying-glass' /> {t.searchName}</span>
-             <input className='admin-input admin-input-sm' placeholder={t.searchPlaceholder} value={searchName} onChange={(e) => { setSearchName(e.target.value); setPage(1) }} />
+ import { money } from "../services/booking.utils";
+ import { http } from "../api/http";
+
+ type AuthTab = "login" | "register";
+ type DurRule = "all" | "lt60" | "60-90" | "gt90";
+ type SortRule = "popular" | "priceAsc" | "priceDesc" | "rating";
+
+ type ApiService = {
+   id: string;
+   dbId: number;
+   name: string;
+   cat: string;
+   goal: string[];
+   duration: number;
+   price: number;
+   rating: number;
+   booked: number;
+   img?: string | null;
+   tag: string;
+ };
+
++type PreferredLanguage = "vi" | "en" | "ja";
++
++function getPreferredLanguage(): PreferredLanguage {
++  if (typeof window === "undefined") return "vi";
++
++  const raw = window.localStorage.getItem("preferred-language")?.trim().toLowerCase();
++  if (raw === "en") return "en";
++  if (raw === "ja") return "ja";
++  return "vi";
++}
++
++
++function usePreferredLanguage() {
++  const [preferredLanguage, setPreferredLanguage] = useState<PreferredLanguage>(() => getPreferredLanguage());
++
++  useEffect(() => {
++    const syncPreferredLanguage = () => setPreferredLanguage(getPreferredLanguage());
++
++    const onStorage = (event: StorageEvent) => {
++      if (event.key !== null && event.key !== "preferred-language") return;
++      syncPreferredLanguage();
++    };
++
++    window.addEventListener("storage", onStorage);
++    window.addEventListener("preferred-language-changed", syncPreferredLanguage);
++
++    return () => {
++      window.removeEventListener("storage", onStorage);
++      window.removeEventListener("preferred-language-changed", syncPreferredLanguage);
++    };
++  }, []);
++
++  return preferredLanguage;
++}
++
+ const GOAL_LABELS: Record<string, string> = {
+   relax: "Thư giãn",
+   acne: "Giảm mụn",
+   bright: "Sáng da",
+   restore: "Phục hồi",
+   pain: "Giảm đau nhức",
+ };
+
+ function matchDur(dur: number, rule: DurRule) {
+   if (rule === "all") return true;
+   if (rule === "lt60") return dur < 60;
+   if (rule === "60-90") return dur >= 60 && dur <= 90;
+   if (rule === "gt90") return dur > 90;
+   return true;
+ }
+
+ function Stars({ rating }: { rating: number }) {
+   const full = Math.max(1, Math.floor(rating));
+   const icons = Array.from({ length: full }, (_, i) => (
+     <i key={i} className="fa-solid fa-star star" />
+   ));
+   return <span className="flex items-center gap-1">{icons}</span>;
+ }
+
+ function ServiceCard({ s }: { s: ApiService }) {
+@@ -91,94 +126,97 @@ function ServiceCard({ s }: { s: ApiService }) {
+         <div className="flex items-center gap-2">
+           <Stars rating={s.rating} /> <b>{s.rating.toFixed(1)}</b>
+         </div>
+         <span className="chip">
+           <i className="fa-solid fa-fire text-rose-600" />
+           {s.tag}
+         </span>
+       </div>
+
+       <div className="mt-3 grid grid-cols-2 gap-2">
+         <Link className="btn" to={`/services/${s.id}`}>
+           <i className="fa-solid fa-circle-info" />
+           Chi tiết
+         </Link>
+
+         <Link className="btn btn-primary" to={`/booking?serviceId=${s.dbId}`}>
+           <i className="fa-solid fa-calendar-check" />
+           Đặt
+         </Link>
+       </div>
+     </article>
+   );
+ }
+
+ export default function ServicesPage() {
++  const preferredLanguage = usePreferredLanguage();
+   const [authOpen, setAuthOpen] = useState(false);
+   const [authTab, setAuthTab] = useState<AuthTab>("login");
+   const [success, setSuccess] = useState<{ open: boolean; message: string }>({
+     open: false,
+     message: "",
+   });
+
+   const [loading, setLoading] = useState(true);
+   const [services, setServices] = useState<ApiService[]>([]);
+
+   const openAuth = useCallback((tab: AuthTab) => {
+     setAuthTab(tab);
+     setAuthOpen(true);
+   }, []);
+
+   const openSuccess = useCallback((message: string) => {
+     setSuccess({ open: true, message });
+   }, []);
+
+   const [q, setQ] = useState("");
+   const [cat, setCat] = useState("all");
+   const [goal, setGoal] = useState("all");
+   const [dur, setDur] = useState<DurRule>("all");
+   const [sort, setSort] = useState<SortRule>("popular");
+
+   const [page, setPage] = useState(1);
+   const pageSize = 6;
+
+   useEffect(() => {
+     let mounted = true;
+     (async () => {
+       try {
+-        const { data } = await http.get("/booking/services-page");
++        const { data } = await http.get("/booking/services-page", {
++          params: { lang: preferredLanguage },
++        });
+         if (!mounted) return;
+         setServices(Array.isArray(data) ? data : []);
+       } finally {
+         if (mounted) setLoading(false);
+       }
+     })();
+
+     return () => {
+       mounted = false;
+     };
+-  }, []);
++  }, [preferredLanguage]);
+
+   const availableCats = useMemo(
+     () => Array.from(new Set(services.map((s) => s.cat).filter(Boolean))),
+     [services]
+   );
+
+   const availableGoals = useMemo(
+     () => Array.from(new Set(services.flatMap((s) => s.goal || []).filter(Boolean))),
+     [services]
+   );
+
+   const filtered = useMemo(() => {
+     const qq = q.trim().toLowerCase();
+
+     let list = services.filter((s) => {
+       const okQ = !qq || s.name.toLowerCase().includes(qq) || s.id.toLowerCase().includes(qq);
+       const okC = cat === "all" ? true : s.cat === cat;
+       const okG = goal === "all" ? true : (s.goal || []).includes(goal);
+       const okD = matchDur(s.duration, dur);
+       return okQ && okC && okG && okD;
+     });
+
+     if (sort === "popular") list = [...list].sort((a, b) => b.booked - a.booked);
+     if (sort === "priceAsc") list = [...list].sort((a, b) => a.price - b.price);
+     if (sort === "priceDesc") list = [...list].sort((a, b) => b.price - a.price);

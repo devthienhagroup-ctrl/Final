@@ -10,6 +10,22 @@ type HeaderProps = {
 
 type DropdownKey = "products" | "pricing" | null;
 
+type PreferredLanguage = "vi" | "en" | "ja";
+
+const LANGUAGE_OPTIONS: Array<{ code: PreferredLanguage; label: string }> = [
+  { code: "vi", label: "VI" },
+  { code: "en", label: "EN" },
+  { code: "ja", label: "JA" },
+];
+
+function normalizePreferredLanguage(raw: string | null): PreferredLanguage {
+  const lang = raw?.trim().toLowerCase();
+  if (lang === "en") return "en";
+  if (lang === "ja") return "ja";
+  return "vi";
+}
+
+
 export function Header({
   onLogin,
   onRegister,
@@ -18,6 +34,10 @@ export function Header({
 }: HeaderProps) {
   const [openDd, setOpenDd] = useState<DropdownKey>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [preferredLanguage, setPreferredLanguage] = useState<PreferredLanguage>(() => {
+    if (typeof window === "undefined") return "vi";
+    return normalizePreferredLanguage(window.localStorage.getItem("preferred-language"));
+  });
 
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -78,6 +98,13 @@ export function Header({
 
   const toggleDd = (k: Exclude<DropdownKey, null>) => {
     setOpenDd((cur) => (cur === k ? null : k));
+  };
+
+  const setLanguage = (lang: PreferredLanguage) => {
+    setPreferredLanguage(lang);
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("preferred-language", lang);
+    window.dispatchEvent(new CustomEvent("preferred-language-changed", { detail: lang }));
   };
 
   return (
@@ -192,6 +219,20 @@ export function Header({
 
         {/* Actions */}
         <div className="flex min-w-fit items-center gap-2 lg:min-w-[260px] lg:justify-end">
+          <div className="hidden items-center rounded-full border border-slate-200 bg-white p-1 md:inline-flex">
+            {LANGUAGE_OPTIONS.map((item) => (
+              <button
+                key={item.code}
+                type="button"
+                className={`rounded-full px-2.5 py-1 text-xs font-black ${preferredLanguage === item.code ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"}`}
+                onClick={() => setLanguage(item.code)}
+                aria-label={`Switch language to ${item.code}`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
           <button
               type="button"
               onClick={onSearch}
@@ -318,6 +359,22 @@ export function Header({
               >
                 Liên hệ
               </Link>
+
+              <div className="mt-2">
+                <div className="mb-2 text-xs font-extrabold uppercase text-slate-500">Ngôn ngữ</div>
+                <div className="grid grid-cols-3 gap-2">
+                  {LANGUAGE_OPTIONS.map((item) => (
+                    <button
+                      key={item.code}
+                      type="button"
+                      className={`rounded-xl border px-3 py-2 text-sm font-black ${preferredLanguage === item.code ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50"}`}
+                      onClick={() => setLanguage(item.code)}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               <div className="mt-2 grid gap-2">
                 <button

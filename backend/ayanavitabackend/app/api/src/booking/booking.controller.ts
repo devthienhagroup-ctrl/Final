@@ -20,7 +20,7 @@ import { RolesGuard } from '../auth/guards/roles.guard'
 import { CurrentUser, type JwtUser } from '../auth/decorators/current-user.decorator'
 import { Roles } from '../auth/decorators/roles.decorator'
 import { BookingService } from './booking.service'
-import { BookingFilterQueryDto } from './dto/booking-query.dto'
+import { AppointmentStatsQueryDto, BookingFilterQueryDto } from './dto/booking-query.dto'
 import { CreateAppointmentDto } from './dto/create-appointment.dto'
 
 
@@ -222,6 +222,13 @@ export class BookingController {
   @Get('appointments')
   appointments(@CurrentUser() user: JwtUser) {
     return this.booking.listAppointments(user)
+  }
+
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('ADMIN', 'STAFF')
+  @Get('appointments/stats')
+  appointmentStats(@Query() query: AppointmentStatsQueryDto, @CurrentUser() user: JwtUser) {
+    return this.booking.getAppointmentStats(query, user)
   }
 
   @UseGuards(AccessTokenGuard, RolesGuard)

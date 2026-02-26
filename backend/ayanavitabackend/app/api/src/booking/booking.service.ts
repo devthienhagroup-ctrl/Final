@@ -8,6 +8,7 @@ import * as tls from 'tls'
 import { PrismaService } from '../prisma/prisma.service'
 import type { JwtUser } from '../auth/decorators/current-user.decorator'
 import { CreateAppointmentDto } from './dto/create-appointment.dto'
+import { AppointmentStatsQueryDto } from './dto/booking-query.dto'
 import {
   BranchResponseDto,
   ServiceCatalogItemDto,
@@ -388,6 +389,95 @@ export class BookingService {
     }))
   }
 
+
+
+
+  async getAppointmentStats(query: AppointmentStatsQueryDto, user: JwtUser) {
+    const whereScope = await this.resolveAppointmentScope(user)
+    const where: Prisma.AppointmentWhereInput = {
+      ...whereScope,
+      ...(query.branchId ? { branchId: query.branchId } : {}),
+      ...(query.serviceId ? { serviceId: query.serviceId } : {}),
+      ...(query.specialistId ? { specialistId: query.specialistId } : {}),
+      ...(query.customerPhone?.trim() ? { customerPhone: { contains: query.customerPhone.trim() } } : {}),
+    }
+
+    const [total, statsRows] = await Promise.all([
+      this.prisma.appointment.count({ where }),
+      this.prisma.appointment.findMany({
+        where,
+        select: {
+          status: true,
+          serviceId: true,
+          specialistId: true,
+          appointmentAt: true,
+        },
+      }),
+    ])
+
+    const statusBucket = new Map<string, number>()
+    const serviceBucket = new Map<number | null, number>()
+    const specialistBucket = new Map<number | null, number>()
+    const monthBucket = new Map<string, number>()
+
+    statsRows.forEach((row) => {
+      const statusKey = row.status || 'PENDING'
+      statusBucket.set(statusKey, (statusBucket.get(statusKey) || 0) + 1)
+      serviceBucket.set(row.serviceId ?? null, (serviceBucket.get(row.serviceId ?? null) || 0) + 1)
+      specialistBucket.set(row.specialistId ?? null, (specialistBucket.get(row.specialistId ?? null) || 0) + 1)
+
+      const date = row.appointmentAt
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      monthBucket.set(monthKey, (monthBucket.get(monthKey) || 0) + 1)
+    })
+
+    const byServiceRows = [...serviceBucket.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([serviceId, count]) => ({ serviceId, count }))
+
+    const bySpecialistRows = [...specialistBucket.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([specialistId, count]) => ({ specialistId, count }))
+
+    const serviceIds = byServiceRows
+      .map((row) => row.serviceId)
+      .filter((id): id is number => typeof id === 'number')
+
+    const specialistIds = bySpecialistRows
+      .map((row) => row.specialistId)
+      .filter((id): id is number => typeof id === 'number')
+
+    const [serviceMapRows, specialistMapRows] = await Promise.all([
+      serviceIds.length
+        ? this.prisma.service.findMany({ where: { id: { in: serviceIds } }, select: { id: true, name: true } })
+        : Promise.resolve([]),
+      specialistIds.length
+        ? this.prisma.specialist.findMany({ where: { id: { in: specialistIds } }, select: { id: true, name: true } })
+        : Promise.resolve([]),
+    ])
+
+    const serviceNameMap = new Map(serviceMapRows.map((row) => [row.id, row.name]))
+    const specialistNameMap = new Map(specialistMapRows.map((row) => [row.id, row.name]))
+
+    return {
+      total,
+      byStatus: [...statusBucket.entries()].reduce<Record<string, number>>((acc, [status, value]) => {
+        acc[status] = value
+        return acc
+      }, {}),
+      byService: byServiceRows.map((row) => ({
+        label: row.serviceId ? (serviceNameMap.get(row.serviceId) || `Dịch vụ #${row.serviceId}`) : 'Khác',
+        value: row.count,
+      })),
+      bySpecialist: bySpecialistRows.map((row) => ({
+        label: row.specialistId ? (specialistNameMap.get(row.specialistId) || `Chuyên viên #${row.specialistId}`) : 'Chưa phân công',
+        value: row.count,
+      })),
+      byMonth: [...monthBucket.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([label, value]) => ({ label, value })),
+    }
+  }
 
   async listAppointments(user: JwtUser) {
     const where = await this.resolveAppointmentScope(user)

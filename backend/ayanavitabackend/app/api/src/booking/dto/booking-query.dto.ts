@@ -35,3 +35,26 @@ export class BookingFilterQueryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   includeInactive?: boolean
 }
+export class AppointmentStatsQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  branchId?: number
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  serviceId?: number
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  specialistId?: number
+
+  @IsOptional()
+  @IsString()
+  customerPhone?: string
+}

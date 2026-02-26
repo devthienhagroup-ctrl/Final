@@ -50,6 +50,15 @@ export type ServiceReview = {
   customerName?: string
   createdAt: string
 }
+
+export type AppointmentStatsResponse = {
+  total: number
+  byStatus: Record<string, number>
+  byService: Array<{ label: string; value: number }>
+  bySpecialist: Array<{ label: string; value: number }>
+  byMonth: Array<{ label: string; value: number }>
+}
+
 export type Appointment = {
   id: number
   code?: string
@@ -94,6 +103,15 @@ export const spaAdminApi = {
   },
   reviews: () => get<ServiceReview[]>('/booking/service-reviews', { auth: false }),
   appointments: () => get<Appointment[]>('/booking/appointments'),
+  appointmentStats: (params?: { customerPhone?: string; branchId?: number; serviceId?: number; specialistId?: number }) => {
+    const query = new URLSearchParams()
+    if (params?.customerPhone?.trim()) query.set('customerPhone', params.customerPhone.trim())
+    if (params?.branchId) query.set('branchId', String(params.branchId))
+    if (params?.serviceId) query.set('serviceId', String(params.serviceId))
+    if (params?.specialistId) query.set('specialistId', String(params.specialistId))
+    const queryString = query.toString()
+    return get<AppointmentStatsResponse>(`/booking/appointments/stats${queryString ? `?${queryString}` : ''}`)
+  },
 
   createBranch: (data: Partial<Branch>) => post('/booking/branches', data, { auth: false }),
   updateBranch: (id: number, data: Partial<Branch>) => patch(`/booking/branches/${id}`, data, { auth: false }),

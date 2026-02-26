@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Appointment, Specialist } from '../../../api/spaAdmin.api'
+import { useEffect, useMemo, useState } from 'react'
+import { spaAdminApi, type Appointment, type AppointmentStatsResponse, type Specialist } from '../../../api/spaAdmin.api'
 import type { AppointmentsTabProps } from './types'
 
 const statusLabelMap: Record<string, string> = {
@@ -17,122 +17,74 @@ const statusClassMap: Record<string, string> = {
 }
 
 type StatusValue = 'PENDING' | 'CONFIRMED' | 'DONE' | 'CANCELED'
-type ChartType = 'bar' | 'line' | 'doughnut' | 'polarArea'
 
-declare global {
-  interface Window {
-    Chart?: any
-    __chartJsLoading?: Promise<any>
-  }
+const defaultStats: AppointmentStatsResponse = { total: 0, byStatus: {}, byService: [], bySpecialist: [], byMonth: [] }
+
+function MiniMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <article className='admin-kpi-card'>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </article>
+  )
 }
 
-const loadChartJs = () => {
-  if (typeof window === 'undefined') return Promise.resolve(null)
-  if (window.Chart) return Promise.resolve(window.Chart)
-  if (window.__chartJsLoading) return window.__chartJsLoading
+function HorizontalBarList({ title, items, color }: { title: string; items: Array<{ label: string; value: number }>; color: string }) {
+  const maxValue = Math.max(1, ...items.map((item) => item.value))
+  return (
+    <article className='admin-stat-card admin-stat-card-wide'>
+      <h4>{title}</h4>
+      <div className='admin-progress-list'>
+        {items.length === 0 && <small className='admin-helper'>Không có dữ liệu.</small>}
+        {items.map((item) => (
+          <div key={item.label} className='admin-progress-row'>
+            <div className='admin-progress-meta'>
+              <span title={item.label}>{item.label}</span>
+              <b>{item.value}</b>
+            </div>
+            <i style={{ width: `${(item.value / maxValue) * 100}%`, background: color }} />
+          </div>
+        ))}
+      </div>
+    </article>
+  )
+}
 
-  window.__chartJsLoading = new Promise((resolve, reject) => {
-    const script = document.createElement('script')
-    script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js'
-    script.async = true
-    script.onload = () => resolve(window.Chart)
-    script.onerror = () => reject(new Error('Không tải được Chart.js từ CDN'))
-    document.head.appendChild(script)
+function DonutSummary({ byStatus }: { byStatus: Record<string, number> }) {
+  const items = Object.keys(statusLabelMap).map((key) => ({
+    key,
+    label: statusLabelMap[key],
+    value: byStatus[key] || 0,
+    color: key === 'PENDING' ? '#f59e0b' : key === 'CONFIRMED' ? '#3b82f6' : key === 'DONE' ? '#16a34a' : '#ef4444',
+  }))
+  const total = items.reduce((acc, item) => acc + item.value, 0)
+  const gradientStops: string[] = []
+  let progress = 0
+  items.forEach((item) => {
+    const part = total > 0 ? (item.value / total) * 100 : 0
+    const start = progress
+    const end = progress + part
+    gradientStops.push(`${item.color} ${start.toFixed(2)}% ${end.toFixed(2)}%`)
+    progress = end
   })
 
-  return window.__chartJsLoading
-}
-
-function ChartJsPanel(props: {
-  title: string
-  type: ChartType
-  labels: string[]
-  values: number[]
-  colors: string[]
-  options?: Record<string, unknown>
-}) {
-  const { title, type, labels, values, colors, options } = props
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const chartRef = useRef<any>(null)
-  const [loadError, setLoadError] = useState('')
-
-  useEffect(() => {
-    let active = true
-
-    const render = async () => {
-      const canvas = canvasRef.current
-      if (!canvas) return
-
-      try {
-        const Chart = await loadChartJs()
-        if (!active || !Chart) return
-
-        chartRef.current?.destroy?.()
-
-        chartRef.current = new Chart(canvas, {
-          type,
-          data: {
-            labels,
-            datasets: [{
-              label: title,
-              data: values,
-              backgroundColor: colors,
-              borderColor: '#1e293b',
-              borderWidth: type === 'line' ? 2 : 1,
-              pointRadius: type === 'line' ? 4 : 0,
-              pointBackgroundColor: '#334155',
-              tension: 0.35,
-              fill: type === 'line',
-            }],
-          },
-          options: {
-            maintainAspectRatio: false,
-            responsive: true,
-            plugins: {
-              legend: {
-                display: type !== 'bar' || labels.length <= 1,
-                position: 'bottom',
-              },
-            },
-            scales: type === 'doughnut' || type === 'polarArea'
-              ? undefined
-              : {
-                x: {
-                  ticks: { color: '#475569' },
-                  grid: { color: 'rgba(148, 163, 184, 0.22)' },
-                },
-                y: {
-                  beginAtZero: true,
-                  ticks: { color: '#475569', precision: 0 },
-                  grid: { color: 'rgba(148, 163, 184, 0.22)' },
-                },
-              },
-            ...options,
-          },
-        })
-
-        setLoadError('')
-      } catch {
-        if (active) setLoadError('Không tải được Chart.js (CDN bị chặn trong môi trường hiện tại).')
-      }
-    }
-
-    void render()
-
-    return () => {
-      active = false
-      chartRef.current?.destroy?.()
-      chartRef.current = null
-    }
-  }, [colors, labels, options, title, type, values])
-
   return (
-    <article className='admin-stat-card'>
-      <span>{title}</span>
-      <div className='admin-chart-host'>
-        <canvas ref={canvasRef} className='admin-chart-canvas' />
+    <article className='admin-stat-card admin-donut-card'>
+      <h4>Tỉ lệ trạng thái lịch hẹn</h4>
+      <div className='admin-donut-wrap'>
+        <div className='admin-donut' style={{ background: `conic-gradient(${gradientStops.join(', ') || '#e2e8f0 0% 100%'})` }}>
+          <div className='admin-donut-center'>{total}</div>
+        </div>
+        <ul className='admin-donut-legend'>
+          {items.map((item) => (
+            <li key={item.key}>
+              <i style={{ background: item.color }} />
+              <span>{item.label}</span>
+              <b>{item.value}</b>
+            </li>
+          ))}
+        </ul>
       </div>
-      {loadError && <small className='admin-helper'>{loadError}</small>}
     </article>
   )
 }
@@ -150,76 +102,50 @@ function statusActionItems(isStaff: boolean) {
 
 export function AppointmentsTab({ appointments, specialists, branches, services, isStaff, loading, onAssignSpecialist, onUpdateStatus, onDeleteAppointment }: AppointmentsTabProps) {
   const [view, setView] = useState<'list' | 'stats'>('list')
-  const [searchName, setSearchName] = useState('')
   const [searchPhone, setSearchPhone] = useState('')
   const [branchId, setBranchId] = useState(0)
   const [serviceId, setServiceId] = useState(0)
   const [specialistId, setSpecialistId] = useState(0)
-  const [filterMonth, setFilterMonth] = useState('')
-  const [filterDate, setFilterDate] = useState('')
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
   const [actionMenuId, setActionMenuId] = useState<number | null>(null)
   const [detailAppointment, setDetailAppointment] = useState<Appointment | null>(null)
+  const [stats, setStats] = useState<AppointmentStatsResponse>(defaultStats)
+  const [statsLoading, setStatsLoading] = useState(false)
+  const [statsError, setStatsError] = useState('')
 
-  const filteredAppointments = useMemo(() => {
-    return appointments.filter((item) => {
-      const date = new Date(item.appointmentAt)
-      const monthValue = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-      const dayValue = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-      if (searchName.trim() && !item.customerName.toLowerCase().includes(searchName.trim().toLowerCase())) return false
-      if (searchPhone.trim() && !item.customerPhone.toLowerCase().includes(searchPhone.trim().toLowerCase())) return false
-      if (branchId && item.branch?.id !== branchId) return false
-      if (serviceId && item.service?.id !== serviceId) return false
-      if (specialistId && item.specialist?.id !== specialistId) return false
-      if (filterMonth && monthValue !== filterMonth) return false
-      if (filterDate && dayValue !== filterDate) return false
-      return true
+  const filteredAppointments = useMemo(() => appointments.filter((item) => {
+    if (searchPhone.trim() && !item.customerPhone.toLowerCase().includes(searchPhone.trim().toLowerCase())) return false
+    if (branchId && item.branch?.id !== branchId) return false
+    if (serviceId && item.service?.id !== serviceId) return false
+    if (specialistId && item.specialist?.id !== specialistId) return false
+    return true
+  }), [appointments, branchId, searchPhone, serviceId, specialistId])
+
+  useEffect(() => {
+    let active = true
+    setStatsLoading(true)
+    setStatsError('')
+
+    spaAdminApi.appointmentStats({
+      customerPhone: searchPhone,
+      branchId: branchId || undefined,
+      serviceId: serviceId || undefined,
+      specialistId: specialistId || undefined,
     })
-  }, [appointments, branchId, filterDate, filterMonth, searchName, searchPhone, serviceId, specialistId])
+      .then((res) => {
+        if (!active) return
+        setStats(res)
+      })
+      .catch(() => {
+        if (!active) return
+        setStats(defaultStats)
+        setStatsError('Không tải được thống kê từ máy chủ. Vui lòng thử lại.')
+      })
+      .finally(() => {
+        if (active) setStatsLoading(false)
+      })
 
-  const totalPages = Math.max(1, Math.ceil(filteredAppointments.length / pageSize))
-  const safePage = Math.min(page, totalPages)
-  const pagedAppointments = useMemo(() => {
-    const start = (safePage - 1) * pageSize
-    return filteredAppointments.slice(start, start + pageSize)
-  }, [filteredAppointments, pageSize, safePage])
-
-  const statusStats = useMemo(() => {
-    return filteredAppointments.reduce<Record<string, number>>((acc, item) => {
-      const status = item.status || 'PENDING'
-      acc[status] = (acc[status] || 0) + 1
-      return acc
-    }, {})
-  }, [filteredAppointments])
-
-  const specialistStats = useMemo(() => {
-    const bucket = new Map<string, number>()
-    filteredAppointments.forEach((item) => {
-      const key = item.specialist?.name || 'Chưa phân công'
-      bucket.set(key, (bucket.get(key) || 0) + 1)
-    })
-    return [...bucket.entries()].sort((a, b) => b[1] - a[1])
-  }, [filteredAppointments])
-
-  const serviceStats = useMemo(() => {
-    const bucket = new Map<string, number>()
-    filteredAppointments.forEach((item) => {
-      const key = item.service?.name || 'Khác'
-      bucket.set(key, (bucket.get(key) || 0) + 1)
-    })
-    return [...bucket.entries()].sort((a, b) => b[1] - a[1])
-  }, [filteredAppointments])
-
-  const monthStats = useMemo(() => {
-    const bucket = new Map<string, number>()
-    filteredAppointments.forEach((item) => {
-      const date = new Date(item.appointmentAt)
-      const key = `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`
-      bucket.set(key, (bucket.get(key) || 0) + 1)
-    })
-    return [...bucket.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-  }, [filteredAppointments])
+    return () => { active = false }
+  }, [branchId, searchPhone, serviceId, specialistId])
 
   return (
     <section className='admin-card admin-card-glow'>
@@ -232,104 +158,39 @@ export function AppointmentsTab({ appointments, specialists, branches, services,
       </div>
 
       <div className='admin-filters-grid'>
-        <input className='admin-input' placeholder='Tên khách' value={searchName} onChange={(e) => { setSearchName(e.target.value); setPage(1) }} />
-        <input className='admin-input' placeholder='Số điện thoại' value={searchPhone} onChange={(e) => { setSearchPhone(e.target.value); setPage(1) }} />
-        <select className='admin-input' value={branchId} onChange={(e) => { setBranchId(Number(e.target.value)); setPage(1) }}>
+        <input className='admin-input' placeholder='Số điện thoại' value={searchPhone} onChange={(e) => setSearchPhone(e.target.value)} />
+        <select className='admin-input' value={branchId} onChange={(e) => setBranchId(Number(e.target.value))}>
           <option value={0}>Tất cả chi nhánh</option>
           {branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
-        <select className='admin-input' value={serviceId} onChange={(e) => { setServiceId(Number(e.target.value)); setPage(1) }}>
+        <select className='admin-input' value={serviceId} onChange={(e) => setServiceId(Number(e.target.value))}>
           <option value={0}>Tất cả dịch vụ</option>
           {services.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
-        <select className='admin-input' value={specialistId} onChange={(e) => { setSpecialistId(Number(e.target.value)); setPage(1) }}>
+        <select className='admin-input' value={specialistId} onChange={(e) => setSpecialistId(Number(e.target.value))}>
           <option value={0}>Tất cả chuyên viên</option>
           {specialists.map((item: Specialist) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
-        <input className='admin-input' type='month' value={filterMonth} onChange={(e) => { setFilterMonth(e.target.value); setPage(1) }} />
-        <input className='admin-input' type='date' value={filterDate} onChange={(e) => { setFilterDate(e.target.value); setPage(1) }} />
-        <select className='admin-input' value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1) }}>
-          <option value={10}>10 / trang</option>
-          <option value={20}>20 / trang</option>
-          <option value={50}>50 / trang</option>
         </select>
       </div>
 
       {view === 'stats' ? (
-        <div className='admin-grid admin-grid-stats'>
-          {!isStaff && (
-            <ChartJsPanel
-              title='Theo trạng thái (Doughnut)'
-              type='doughnut'
-              labels={Object.entries(statusLabelMap).map(([, label]) => label)}
-              values={Object.keys(statusLabelMap).map((key) => statusStats[key] || 0)}
-              colors={['#f59e0b', '#3b82f6', '#16a34a', '#ef4444']}
-            />
-          )}
+        <div className='admin-stats-layout'>
+          <div className='admin-kpi-grid'>
+            <MiniMetric label='Tổng lịch hẹn' value={stats.total} />
+            <MiniMetric label='Đã hoàn tất' value={stats.byStatus.DONE || 0} />
+            <MiniMetric label='Đang chờ xác nhận' value={stats.byStatus.PENDING || 0} />
+            <MiniMetric label='Đã hủy' value={stats.byStatus.CANCELED || 0} />
+          </div>
 
-          {!isStaff && (
-            <ChartJsPanel
-              title='Theo chuyên viên (Bar ngang)'
-              type='bar'
-              labels={specialistStats.slice(0, 8).map(([label]) => label)}
-              values={specialistStats.slice(0, 8).map(([, value]) => value)}
-              colors={specialistStats.slice(0, 8).map((_, idx) => idx % 2 === 0 ? '#4f46e5cc' : '#0ea5e9cc')}
-              options={{ indexAxis: 'y' }}
-            />
-          )}
+          <div className='admin-stats-charts'>
+            <DonutSummary byStatus={stats.byStatus} />
+            <HorizontalBarList title='Top dịch vụ được đặt' items={stats.byService} color='linear-gradient(90deg, #4f46e5, #06b6d4)' />
+            {!isStaff && <HorizontalBarList title='Top chuyên viên có lịch hẹn' items={stats.bySpecialist} color='linear-gradient(90deg, #9333ea, #ec4899)' />}
+            <HorizontalBarList title='Lịch hẹn theo tháng' items={stats.byMonth.slice(-12)} color='linear-gradient(90deg, #0ea5e9, #22c55e)' />
+          </div>
 
-          {!isStaff && (
-            <ChartJsPanel
-              title='Theo tháng (Line)'
-              type='line'
-              labels={monthStats.slice(-12).map(([label]) => label)}
-              values={monthStats.slice(-12).map(([, value]) => value)}
-              colors={['#0ea5e9']}
-              options={{ plugins: { legend: { display: false } } }}
-            />
-          )}
-
-          {!isStaff && (
-            <ChartJsPanel
-              title='Theo dịch vụ (Polar Area)'
-              type='polarArea'
-              labels={serviceStats.slice(0, 6).map(([label]) => label)}
-              values={serviceStats.slice(0, 6).map(([, value]) => value)}
-              colors={['#8b5cf6', '#06b6d4', '#f59e0b', '#16a34a', '#ef4444', '#3b82f6']}
-            />
-          )}
-
-          {isStaff && (
-            <ChartJsPanel
-              title='Lịch hẹn theo thời gian (Line)'
-              type='line'
-              labels={monthStats.slice(-8).map(([label]) => label)}
-              values={monthStats.slice(-8).map(([, value]) => value)}
-              colors={['#4f46e5']}
-              options={{ plugins: { legend: { display: false } } }}
-            />
-          )}
-
-          {isStaff && (
-            <ChartJsPanel
-              title='Lịch hẹn theo dịch vụ (Bar)'
-              type='bar'
-              labels={serviceStats.slice(0, 6).map(([label]) => label)}
-              values={serviceStats.slice(0, 6).map(([, value]) => value)}
-              colors={['#0ea5e9aa']}
-              options={{ plugins: { legend: { display: false } } }}
-            />
-          )}
-
-          {isStaff && (
-            <ChartJsPanel
-              title='Theo trạng thái (Doughnut)'
-              type='doughnut'
-              labels={Object.entries(statusLabelMap).map(([, label]) => label)}
-              values={Object.keys(statusLabelMap).map((key) => statusStats[key] || 0)}
-              colors={['#f59e0b', '#3b82f6', '#16a34a', '#ef4444']}
-            />
-          )}
+          {statsLoading && <p className='admin-helper'>Đang tải thống kê...</p>}
+          {statsError && <p className='admin-helper'>{statsError}</p>}
         </div>
       ) : (
         <>
@@ -348,7 +209,7 @@ export function AppointmentsTab({ appointments, specialists, branches, services,
                 </tr>
               </thead>
               <tbody>
-                {pagedAppointments.map((appointment) => (
+                {filteredAppointments.map((appointment) => (
                   <tr key={appointment.id}>
                     <td className='td-strong'>{appointment.code || `#${appointment.id}`}</td>
                     <td>{appointment.customerName}</td>
@@ -356,9 +217,7 @@ export function AppointmentsTab({ appointments, specialists, branches, services,
                     <td>{appointment.branch?.name || '-'}</td>
                     <td>{appointment.service?.name || '-'}</td>
                     <td>
-                      {isStaff ? (
-                        appointment.specialist?.name || '-'
-                      ) : (
+                      {isStaff ? appointment.specialist?.name || '-' : (
                         <select className='admin-input' value={appointment.specialist?.id ?? ''} onChange={(e) => onAssignSpecialist(appointment, e.target.value ? Number(e.target.value) : null)}>
                           <option value=''>Chưa phân công</option>
                           {specialists
@@ -391,12 +250,7 @@ export function AppointmentsTab({ appointments, specialists, branches, services,
           </div>
 
           <div className='admin-row admin-row-between'>
-            <span className='admin-helper'>Hiển thị {pagedAppointments.length}/{filteredAppointments.length} lịch hẹn</span>
-            <div className='admin-row'>
-              <button className='admin-btn admin-btn-ghost' disabled={safePage <= 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))}>Trước</button>
-              <span className='admin-helper'>Trang {safePage}/{totalPages}</span>
-              <button className='admin-btn admin-btn-ghost' disabled={safePage >= totalPages} onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}>Sau</button>
-            </div>
+            <span className='admin-helper'>Hiển thị {filteredAppointments.length} lịch hẹn</span>
           </div>
         </>
       )}

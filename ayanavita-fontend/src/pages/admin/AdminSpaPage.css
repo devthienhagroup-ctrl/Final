@@ -432,6 +432,10 @@
 .admin-checkbox input:checked + .admin-checkbox-slider { background: #22c55e; }
 .admin-checkbox input:checked + .admin-checkbox-slider::after { transform: translateX(20px); }
 .admin-checkbox-label { font-size: 14px; font-weight: 700; }
+
+.admin-branch-status-toggle {
+  margin-top: 12px;
+}
 .admin-badge-wrap { display: flex; gap: 6px; flex-wrap: wrap; }
 
 .admin-action-row {

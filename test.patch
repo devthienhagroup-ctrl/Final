@@ -1,709 +1,266 @@
-diff --git a/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx b/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
-index d7ee289ee80f3dc730dff0657757e2f3f624c68a..b6a38c3c5f49b082189bc2ddbe484e18c2c92618 100644
---- a/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
-+++ b/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
-@@ -58,50 +58,116 @@ const uiText: Record<AdminLang, Record<string, string>> = {
-     kicker: 'SERVIE BETRIEBSZENTRUM',
-     staffTitle: 'Termine für Spezialisten',
-     adminTitle: 'Servie-Adminübersicht',
-     staffDesc: 'Sie sehen nur zugewiesene Termine und aktualisieren die Kundenanwesenheit.',
-     adminDesc: 'Ein modernes Betriebs-Dashboard mit standardisierten Daten und schnellen Abläufen.',
-     branches: 'Filialen',
-     services: 'Leistungen',
-     specialists: 'Spezialisten',
-     appointments: 'Termine',
-     active: 'Aktiv',
-     serviceCatalog: 'Servie-Katalog',
-     specialistCapacity: 'Betriebsbereit',
-     synced: 'Mit System synchronisiert',
-     serviceCategories: 'Leistungskategorien',
-     assignedAppointments: 'Zugewiesene Termine',
-     loading: 'Daten werden geladen...',
-     specialistRole: 'Spezialist',
-   },
+diff --git a/ayanavita-fontend/src/pages/admin/AdminSpaPage.css b/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
+index ac31d65ad24559f7c2c48600af49f48a06a2787c..44ef8f088d7d7758b9c4eb3e688d62ea050d1169 100644
+--- a/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
++++ b/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
+@@ -410,50 +410,54 @@
+   height: 0;
  }
-
- const defaultServiceForm: ServiceForm = { name: '', description: '', categoryId: 0, goals: '', suitableFor: '', process: '', durationMin: 60, price: 0, tag: 'Spa', branchIds: [], isActive: true, translations: { 'en-US': { name: '', description: '', goals: '', suitableFor: '', process: '', tag: 'Spa' }, vi: { name: '', description: '', goals: '', suitableFor: '', process: '', tag: 'Spa' }, de: { name: '', description: '', goals: '', suitableFor: '', process: '', tag: 'Spa' } } }
- const defaultCategoryForm: CategoryForm = { name: '', translations: { 'en-US': { name: '' }, vi: { name: '' }, de: { name: '' } } }
- const defaultSpecialistForm: SpecialistForm = { name: '', email: '', level: 'SENIOR', bio: '', branchId: 0, serviceIds: [], translations: { 'en-US': { name: '', bio: '' }, vi: { name: '', bio: '' }, de: { name: '', bio: '' } } }
- const defaultBranchForm: BranchForm = { code: '', name: '', address: '', phone: '', isActive: true, translations: { 'en-US': { name: '', address: '' }, vi: { name: '', address: '' }, de: { name: '', address: '' } } }
-
-+const ensureCategoryTranslations = (category: ServiceCategory): NonNullable<CategoryForm['translations']> => ({
-+  'en-US': { name: category.translations?.['en-US']?.name || category.name || '' },
-+  vi: { name: category.translations?.vi?.name || category.name || '' },
-+  de: { name: category.translations?.de?.name || category.name || '' },
-+})
+ .admin-checkbox-slider {
+   width: 44px;
+   height: 24px;
+   border-radius: 99px;
+   background: #cbd5e1;
+   position: relative;
+   transition: all .2s ease;
+ }
+ .admin-checkbox-slider::after {
+   content: '';
+   position: absolute;
+   width: 18px;
+   height: 18px;
+   border-radius: 50%;
+   background: #fff;
+   top: 3px;
+   left: 3px;
+   box-shadow: 0 3px 8px rgba(15, 23, 42, 0.2);
+   transition: all .2s ease;
+ }
+ .admin-checkbox input:checked + .admin-checkbox-slider { background: #22c55e; }
+ .admin-checkbox input:checked + .admin-checkbox-slider::after { transform: translateX(20px); }
+ .admin-checkbox-label { font-size: 14px; font-weight: 700; }
 +
-+const ensureBranchTranslations = (branch: Branch): NonNullable<BranchForm['translations']> => ({
-+  'en-US': {
-+    name: branch.translations?.['en-US']?.name || branch.name || '',
-+    address: branch.translations?.['en-US']?.address || branch.address || '',
-+  },
-+  vi: {
-+    name: branch.translations?.vi?.name || branch.name || '',
-+    address: branch.translations?.vi?.address || branch.address || '',
-+  },
-+  de: {
-+    name: branch.translations?.de?.name || branch.name || '',
-+    address: branch.translations?.de?.address || branch.address || '',
-+  },
-+})
-+
-+const ensureSpecialistTranslations = (specialist: Specialist): NonNullable<SpecialistForm['translations']> => ({
-+  'en-US': {
-+    name: specialist.translations?.['en-US']?.name || specialist.name || '',
-+    bio: specialist.translations?.['en-US']?.bio || specialist.bio || '',
-+  },
-+  vi: {
-+    name: specialist.translations?.vi?.name || specialist.name || '',
-+    bio: specialist.translations?.vi?.bio || specialist.bio || '',
-+  },
-+  de: {
-+    name: specialist.translations?.de?.name || specialist.name || '',
-+    bio: specialist.translations?.de?.bio || specialist.bio || '',
-+  },
-+})
-+
-+const ensureServiceTranslations = (service: SpaService): NonNullable<ServiceForm['translations']> => {
-+  const toText = (items?: string[]) => items?.join(', ') || ''
-+  return {
-+    'en-US': {
-+      name: service.translations?.['en-US']?.name || service.name || '',
-+      description: service.translations?.['en-US']?.description || service.description || '',
-+      goals: toText(service.translations?.['en-US']?.goals) || toText(service.goals),
-+      suitableFor: toText(service.translations?.['en-US']?.suitableFor) || toText(service.suitableFor),
-+      process: toText(service.translations?.['en-US']?.process) || toText(service.process),
-+      tag: service.translations?.['en-US']?.tag || service.tag || 'Spa',
-+    },
-+    vi: {
-+      name: service.translations?.vi?.name || service.name || '',
-+      description: service.translations?.vi?.description || service.description || '',
-+      goals: toText(service.translations?.vi?.goals) || toText(service.goals),
-+      suitableFor: toText(service.translations?.vi?.suitableFor) || toText(service.suitableFor),
-+      process: toText(service.translations?.vi?.process) || toText(service.process),
-+      tag: service.translations?.vi?.tag || service.tag || 'Spa',
-+    },
-+    de: {
-+      name: service.translations?.de?.name || service.name || '',
-+      description: service.translations?.de?.description || service.description || '',
-+      goals: toText(service.translations?.de?.goals) || toText(service.goals),
-+      suitableFor: toText(service.translations?.de?.suitableFor) || toText(service.suitableFor),
-+      process: toText(service.translations?.de?.process) || toText(service.process),
-+      tag: service.translations?.de?.tag || service.tag || 'Spa',
-+    },
-+  }
++.admin-branch-status-toggle {
++  margin-top: 12px;
 +}
-+
- const normalizeBranchCode = (name: string) => {
-   const base = name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '')
-   return base || 'BRANCH'
+ .admin-badge-wrap { display: flex; gap: 6px; flex-wrap: wrap; }
+
+ .admin-action-row {
+   display: inline-flex;
+   align-items: center;
+   gap: 8px;
  }
 
- const isValidPhoneNumber = (phone: string) => {
-   const cleaned = phone.trim()
-   if (!cleaned) return true
-   if (!/^\+?[\d\s().-]+$/.test(cleaned)) return false
-   const digitsCount = cleaned.replace(/\D/g, '').length
-   return digitsCount >= 6 && digitsCount <= 20
+ .admin-btn-icon {
+   width: 34px;
+   height: 34px;
+   border-radius: 10px;
+   border: none;
+   color: #fff;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   cursor: pointer;
+   transition: transform .15s ease, box-shadow .15s ease;
  }
+ .admin-btn-icon:hover { transform: translateY(-1px); }
+ .admin-btn-icon-edit { background: linear-gradient(135deg, #0ea5e9, #2563eb); box-shadow: 0 8px 18px rgba(37, 99, 235, .25); }
+ .admin-btn-icon-delete { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 8px 18px rgba(220, 38, 38, .24); }
+ .admin-btn-icon-info { background: linear-gradient(135deg, #14b8a6, #0d9488); box-shadow: 0 8px 18px rgba(13, 148, 136, .25); }
 
- const getVietnameseError = (error: unknown, fallback: string) => {
-   if (typeof error === 'object' && error && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
-     const message = (error as { message: string }).message
-     if (message.includes('Unique constraint')) return 'Dữ liệu bị trùng. Vui lòng kiểm tra lại mã hoặc tên.'
-     return message
-   }
-   return fallback
- }
+diff --git a/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
+index 1e566f1bece613190161821b4271284e6855075c..038920db522dd70f8ad3f2418b895b160c33c84f 100644
+--- a/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
++++ b/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
+@@ -1,45 +1,60 @@
+-import { useState } from 'react'
++import { useRef, useState } from 'react'
+ import type { BranchesTabProps } from './types'
+ import { autoTranslateFromEnglish, type LocaleMode } from './i18nForm'
 
- export default function AdminSpaPage() {
-   const { user } = useAuth()
-   const isStaff = user?.role === 'STAFF'
-@@ -162,56 +228,56 @@ export default function AdminSpaPage() {
-       const [b, c, sAll, s, sp, a] = await Promise.all([
-         spaAdminApi.branches({ includeInactive: true, lang }),
-         spaAdminApi.serviceCategories(lang),
-         spaAdminApi.services({ page: 1, pageSize: 100, includeInactive: true, lang }),
-         spaAdminApi.services({ q: serviceSearchKeyword, page: servicePage, pageSize: servicePageSize, includeInactive: true, lang }),
-         spaAdminApi.specialists({ lang }),
-         spaAdminApi.appointments(),
-       ])
-       setBranches(b)
-       setCategories(c)
-       setServices(sAll.items)
-       setServicePageItems(s.items)
-       setServiceTotal(s.total)
-       setServicePage(s.page)
-       setServicePageSize(s.pageSize)
-       setServiceTotalPages(s.totalPages)
-       setSpecialists(sp)
-       setAppointments(a)
-     } catch (error) {
-       await AlertJs.error('Không thể tải dữ liệu', getVietnameseError(error, 'Hệ thống tạm thời gián đoạn, vui lòng thử lại.'))
-     } finally {
-       setLoading(false)
+ const locales: LocaleMode[] = ['en-US', 'vi', 'de']
+
+ export function BranchesTab({ lang = 'vi', branches, branchForm, editingBranch, onBranchFormChange, onSaveBranch, onEditBranch, onDeleteBranch, onCancelEdit }: BranchesTabProps) {
+   const [mode, setMode] = useState<LocaleMode>('en-US')
++  const translateReqRef = useRef(0)
+   const trans = branchForm.translations || {}
+   const current = trans[mode] || { name: '', address: '' }
+
+   const updateLocalized = (field: 'name' | 'address', value: string) => {
+     const nextTranslations = { ...trans, [mode]: { ...current, [field]: value } }
+     const nextForm = { ...branchForm, translations: nextTranslations }
+     if (mode === 'en-US') {
++      translateReqRef.current += 1
++      const reqId = translateReqRef.current
+       onBranchFormChange({ ...nextForm, [field]: value })
+       void Promise.all([autoTranslateFromEnglish(value, 'vi'), autoTranslateFromEnglish(value, 'de')]).then(([vi, de]) => {
++        if (reqId !== translateReqRef.current) return
+         onBranchFormChange({
+           ...nextForm,
+           translations: {
+             ...nextTranslations,
+             vi: { ...(nextTranslations.vi || { name: '', address: '' }), [field]: vi },
+             de: { ...(nextTranslations.de || { name: '', address: '' }), [field]: de },
+           },
+         })
+       })
+       return
      }
+     onBranchFormChange(nextForm)
    }
 
--  useEffect(() => { void loadAll() }, [])
-+  useEffect(() => { void loadAll() }, [lang])
-   useEffect(() => {
-     if (isStaff) return
-     const timer = window.setTimeout(() => { void loadServices({ page: 1 }) }, 300)
-     return () => window.clearTimeout(timer)
--  }, [serviceSearchKeyword, servicePageSize, isStaff])
-+  }, [serviceSearchKeyword, servicePageSize, isStaff, lang])
-
-   const saveBranch = async () => {
-     const normalizedName = (branchForm.name || '').trim()
-     const normalizedAddress = (branchForm.address || '').trim()
-     const normalizedPhone = (branchForm.phone || '').trim()
-     const generatedCode = normalizeBranchCode(normalizedName)
-     if (!normalizedName || normalizedName.length < 2) return AlertJs.error('Tên chi nhánh chưa hợp lệ', 'Tên chi nhánh cần có ít nhất 2 ký tự.')
-     if (!normalizedAddress) return AlertJs.error('Thiếu địa chỉ', 'Vui lòng nhập địa chỉ chi nhánh.')
-     if (!isValidPhoneNumber(normalizedPhone)) return AlertJs.error('Số điện thoại chưa hợp lệ', 'Vui lòng nhập đúng định dạng số điện thoại quốc tế (không giới hạn quốc gia).')
-
-     const payload: BranchForm = { ...branchForm, code: generatedCode, name: normalizedName, address: normalizedAddress, phone: normalizedPhone }
-     try {
-       if (editingBranch) await spaAdminApi.updateBranch(editingBranch.id, payload)
-       else await spaAdminApi.createBranch(payload)
-       setEditingBranch(null)
-       setBranchForm(defaultBranchForm)
-       await loadAll()
-       await AlertJs.success('Đã lưu chi nhánh thành công', `Mã chi nhánh: ${generatedCode}. Dữ liệu đã được đồng bộ lên hệ thống.`)
-     } catch (error) {
-       await AlertJs.error('Lưu chi nhánh thất bại', getVietnameseError(error, 'Vui lòng kiểm tra lại thông tin chi nhánh.'))
-     }
-   }
-
-   return (
-     <main className='admin-page'>
-@@ -240,63 +306,63 @@ export default function AdminSpaPage() {
-         </div>
-       </header>
-
-       {!isStaff && (
-         <>
-           <section className='admin-overview'>
-             <article className='overview-card'><span>{t.branches}</span><strong>{branches.length}</strong><small>{t.active}: {activeBranches.length}</small><i className='overview-icon fa-solid fa-building' /></article>
-             <article className='overview-card'><span>{t.services}</span><strong>{services.length}</strong><small>{t.serviceCatalog}</small><i className='overview-icon fa-solid fa-spa' /></article>
-             <article className='overview-card'><span>{t.specialists}</span><strong>{specialists.length}</strong><small>{t.specialistCapacity}</small><i className='overview-icon fa-solid fa-user-nurse' /></article>
-             <article className='overview-card'><span>{t.appointments}</span><strong>{appointments.length}</strong><small>{t.synced}</small><i className='overview-icon fa-solid fa-calendar-check' /></article>
-           </section>
-
-           <nav className='admin-tabs'>
-             <button className={`admin-tab ${tab === 'branches' ? 'active' : ''}`} onClick={() => setTab('branches')}><i className='fa-solid fa-building-circle-check' />{t.branches} ({branches.length})</button>
-             <button className={`admin-tab ${tab === 'categories' ? 'active' : ''}`} onClick={() => setTab('categories')}><i className='fa-solid fa-layer-group' />{t.serviceCategories} ({categories.length})</button>
-             <button className={`admin-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => setTab('services')}><i className='fa-solid fa-leaf' />{t.services} ({serviceTotal})</button>
-             <button className={`admin-tab ${tab === 'specialists' ? 'active' : ''}`} onClick={() => setTab('specialists')}><i className='fa-solid fa-people-group' />{t.specialists}</button>
-             <button className={`admin-tab ${tab === 'appointments' ? 'active' : ''}`} onClick={() => setTab('appointments')}><i className='fa-solid fa-calendar-days' />{t.appointments}</button>
-           </nav>
-         </>
-       )}
-
-       {isStaff && <nav className='admin-tabs'><button className='admin-tab active'><i className='fa-solid fa-calendar-days' />{t.assignedAppointments}</button></nav>}
-       {loading && <section className='admin-card'>{t.loading}</section>}
-
--      {!isStaff && tab === 'branches' && <BranchesTab lang={lang} loading={loading} branches={branches} branchForm={branchForm} editingBranch={editingBranch} onBranchFormChange={(next) => { const nextName = next.name ?? branchForm.name ?? ''; setBranchForm({ ...next, code: normalizeBranchCode(nextName) }) }} onSaveBranch={saveBranch} onEditBranch={(branch) => { setEditingBranch(branch); setBranchForm(branch) }} onDeleteBranch={async (branch) => { try { const response = await spaAdminApi.deleteBranch(branch.id); await loadAll(); await AlertJs.success(response?.softDeleted ? 'Không thể xóa cứng' : 'Đã xóa chi nhánh', response?.softDeleted ? 'Chi nhánh đang liên kết dữ liệu nên hệ thống đã chuyển sang trạng thái không hoạt động.' : '') } catch (error) { await AlertJs.error('Xóa chi nhánh thất bại', getVietnameseError(error, 'Không thể xử lý yêu cầu xóa chi nhánh lúc này.')) } }} onCancelEdit={() => { setEditingBranch(null); setBranchForm(defaultBranchForm) }} />}
-+      {!isStaff && tab === 'branches' && <BranchesTab lang={lang} loading={loading} branches={branches} branchForm={branchForm} editingBranch={editingBranch} onBranchFormChange={(next) => { const nextName = next.name ?? branchForm.name ?? ''; setBranchForm({ ...next, code: normalizeBranchCode(nextName) }) }} onSaveBranch={saveBranch} onEditBranch={(branch) => { setEditingBranch(branch); setBranchForm({ ...branch, translations: ensureBranchTranslations(branch) }) }} onDeleteBranch={async (branch) => { try { const response = await spaAdminApi.deleteBranch(branch.id); await loadAll(); await AlertJs.success(response?.softDeleted ? 'Không thể xóa cứng' : 'Đã xóa chi nhánh', response?.softDeleted ? 'Chi nhánh đang liên kết dữ liệu nên hệ thống đã chuyển sang trạng thái không hoạt động.' : '') } catch (error) { await AlertJs.error('Xóa chi nhánh thất bại', getVietnameseError(error, 'Không thể xử lý yêu cầu xóa chi nhánh lúc này.')) } }} onCancelEdit={() => { setEditingBranch(null); setBranchForm(defaultBranchForm) }} />}
-
-       {!isStaff && tab === 'categories' && <CategoriesTab lang={lang} loading={loading} categories={categories} categoryForm={categoryForm} editingCategory={editingCategory} onCategoryFormChange={setCategoryForm} onSaveCategory={async () => {
-         if (!categoryForm.name.trim()) return AlertJs.error('Thiếu dữ liệu', 'Vui lòng nhập tên danh mục.')
-         try { const categoryPayload = { ...categoryForm, translations: categoryForm.translations }; if (editingCategory) await spaAdminApi.updateServiceCategory(editingCategory.id, categoryPayload); else await spaAdminApi.createServiceCategory(categoryPayload); setEditingCategory(null); setCategoryForm(defaultCategoryForm); await loadAll(); await AlertJs.success('Đã lưu danh mục dịch vụ') } catch (error) { await AlertJs.error('Lưu danh mục thất bại', getVietnameseError(error, 'Vui lòng kiểm tra dữ liệu danh mục.')) }
--      }} onEditCategory={(category) => { setEditingCategory(category); setCategoryForm({ name: category.name, translations: { 'en-US': { name: category.name }, vi: { name: category.name }, de: { name: category.name } } }) }} onDeleteCategory={async (category) => {
-+      }} onEditCategory={(category) => { setEditingCategory(category); setCategoryForm({ name: category.name, translations: ensureCategoryTranslations(category) }) }} onDeleteCategory={async (category) => {
-         if (category.serviceCount > 0) return AlertJs.error('Không thể xóa', 'Danh mục này đang có dịch vụ. Vui lòng chuyển dịch vụ sang danh mục khác trước khi xóa.')
-         try { await spaAdminApi.deleteServiceCategory(category.id); await loadAll(); await AlertJs.success('Đã xóa danh mục') } catch (error) { await AlertJs.error('Xóa danh mục thất bại', getVietnameseError(error, 'Không thể xóa danh mục vào lúc này.')) }
-       }} onCancelEdit={() => { setEditingCategory(null); setCategoryForm(defaultCategoryForm) }} />}
-
-       {!isStaff && tab === 'services' && <ServicesTab lang={lang} loading={loading} services={servicePageItems} branches={branches} categories={categories} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} searchKeyword={serviceSearchKeyword} pagination={{ page: servicePage, pageSize: servicePageSize, total: serviceTotal, totalPages: serviceTotalPages }} onSearchKeywordChange={setServiceSearchKeyword} onPageChange={(nextPage) => { void loadServices({ page: nextPage }) }} onPageSizeChange={(size) => { setServicePageSize(size); setServicePage(1) }} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onSaveService={async () => {
-         if (!serviceForm.categoryId) return AlertJs.error('Thiếu danh mục', 'Vui lòng chọn danh mục cho dịch vụ.')
-         if (!serviceForm.branchIds.length) return AlertJs.error('Thiếu chi nhánh', 'Vui lòng chọn ít nhất 1 chi nhánh áp dụng dịch vụ.')
-         const normalizedServiceName = serviceForm.name.trim().toLocaleLowerCase('vi')
-         const duplicatedService = services.find((service) => service.id !== editingService?.id && service.name.trim().toLocaleLowerCase('vi') === normalizedServiceName)
-         if (duplicatedService) return AlertJs.error('Tên dịch vụ bị trùng', `Tên dịch vụ "${serviceForm.name.trim()}" đã tồn tại. Vui lòng nhập tên khác.`)
-         const payload = { ...serviceForm, goals: serviceForm.goals.split(',').map((item) => item.trim()).filter(Boolean), suitableFor: serviceForm.suitableFor.split(',').map((item) => item.trim()).filter(Boolean), process: serviceForm.process.split(',').map((item) => item.trim()).filter(Boolean), branchIds: Array.from(new Set(serviceForm.branchIds)).map(Number).filter((id) => Number.isInteger(id) && id > 0), translations: Object.fromEntries(Object.entries(serviceForm.translations || {}).map(([code, value]) => [code, { ...value, goals: (value?.goals || '').split(',').map((item) => item.trim()).filter(Boolean), suitableFor: (value?.suitableFor || '').split(',').map((item) => item.trim()).filter(Boolean), process: (value?.process || '').split(',').map((item) => item.trim()).filter(Boolean) }])) }
-         try { if (editingService) await spaAdminApi.updateService(editingService.id, payload, selectedImage); else await spaAdminApi.createService(payload, selectedImage); setEditingService(null); setServiceForm(defaultServiceForm); setSelectedImage(null); await loadAll(); await AlertJs.success('Đã lưu dịch vụ') } catch (error) { await AlertJs.error('Lưu dịch vụ thất bại', getVietnameseError(error, 'Vui lòng kiểm tra lại thông tin dịch vụ.')) }
--      }} onEditService={(service) => { setEditingService(service); setSelectedImage(null); setServiceForm({ ...defaultServiceForm, ...service, categoryId: service.categoryId || 0, goals: service.goals?.join(', ') || '', suitableFor: service.suitableFor?.join(', ') || '', process: service.process?.join(', ') || '', branchIds: service.branchIds || [], isActive: service.isActive ?? true, translations: service.translations || defaultServiceForm.translations }) }} onDeleteService={async (service) => { try { await spaAdminApi.deleteService(service.id); await loadAll(); await AlertJs.success('Đã xóa dịch vụ') } catch (error) { await AlertJs.error('Xóa dịch vụ thất bại', getVietnameseError(error, 'Dịch vụ đang được sử dụng hoặc có lỗi hệ thống.')) } }} onCancelEdit={() => { setEditingService(null); setServiceForm(defaultServiceForm); setSelectedImage(null) }} />}
-+      }} onEditService={(service) => { setEditingService(service); setSelectedImage(null); setServiceForm({ ...defaultServiceForm, ...service, categoryId: service.categoryId || 0, goals: service.goals?.join(', ') || '', suitableFor: service.suitableFor?.join(', ') || '', process: service.process?.join(', ') || '', branchIds: service.branchIds || [], isActive: service.isActive ?? true, translations: ensureServiceTranslations(service) }) }} onDeleteService={async (service) => { try { await spaAdminApi.deleteService(service.id); await loadAll(); await AlertJs.success('Đã xóa dịch vụ') } catch (error) { await AlertJs.error('Xóa dịch vụ thất bại', getVietnameseError(error, 'Dịch vụ đang được sử dụng hoặc có lỗi hệ thống.')) } }} onCancelEdit={() => { setEditingService(null); setServiceForm(defaultServiceForm); setSelectedImage(null) }} />}
-
-       {!isStaff && tab === 'specialists' && <SpecialistsTab lang={lang} loading={loading} branches={activeBranches} services={services} specialists={specialists} specialistForm={specialistForm} editingSpecialist={editingSpecialist} onSpecialistFormChange={setSpecialistForm} onSaveSpecialist={async () => {
-         if (!specialistForm.branchId) return AlertJs.error('Thiếu chi nhánh', 'Vui lòng chọn chi nhánh cho chuyên viên.')
-         if (!specialistForm.email.trim()) return AlertJs.error('Thiếu email', 'Vui lòng nhập email tài khoản cho chuyên viên.')
-         try { const specialistPayload = { ...specialistForm, translations: specialistForm.translations }; if (editingSpecialist) await spaAdminApi.updateSpecialist(editingSpecialist.id, specialistPayload); else await spaAdminApi.createSpecialist(specialistPayload); setEditingSpecialist(null); setSpecialistForm(defaultSpecialistForm); await loadAll(); await AlertJs.success('Đã lưu chuyên viên') } catch (error) { await AlertJs.error('Lưu chuyên viên thất bại', getVietnameseError(error, 'Thông tin chuyên viên chưa hợp lệ.')) }
--      }} onEditSpecialist={(specialist) => { setEditingSpecialist(specialist); setSpecialistForm({ name: specialist.name, email: specialist.email, level: specialist.level, bio: specialist.bio || '', branchId: specialist.branchId, serviceIds: specialist.serviceIds || [], translations: specialist.translations || defaultSpecialistForm.translations }) }} onDeleteSpecialist={async (specialist) => { try { await spaAdminApi.deleteSpecialist(specialist.id); await loadAll(); await AlertJs.success('Đã xóa chuyên viên') } catch (error) { await AlertJs.error('Xóa chuyên viên thất bại', getVietnameseError(error, 'Chuyên viên đang có lịch hẹn hoặc liên kết dữ liệu.')) } }} onCancelEdit={() => { setEditingSpecialist(null); setSpecialistForm(defaultSpecialistForm) }} />}
-+      }} onEditSpecialist={(specialist) => { setEditingSpecialist(specialist); setSpecialistForm({ name: specialist.name, email: specialist.email, level: specialist.level, bio: specialist.bio || '', branchId: specialist.branchId, serviceIds: specialist.serviceIds || [], translations: ensureSpecialistTranslations(specialist) }) }} onDeleteSpecialist={async (specialist) => { try { await spaAdminApi.deleteSpecialist(specialist.id); await loadAll(); await AlertJs.success('Đã xóa chuyên viên') } catch (error) { await AlertJs.error('Xóa chuyên viên thất bại', getVietnameseError(error, 'Chuyên viên đang có lịch hẹn hoặc liên kết dữ liệu.')) } }} onCancelEdit={() => { setEditingSpecialist(null); setSpecialistForm(defaultSpecialistForm) }} />}
-
-       {(isStaff || tab === 'appointments') && <AppointmentsTab lang={lang} loading={loading} appointments={appointments} specialists={specialists} branches={branches} services={services} isStaff={isStaff} onAssignSpecialist={async (appointment, specialistId) => {
-         if (isStaff) return
-         try { await spaAdminApi.updateAppointment(appointment.id, { specialistId }); await loadAll(); await AlertJs.success('Đã gán chuyên viên và gửi email thông báo') } catch (error) { await AlertJs.error('Gán chuyên viên thất bại', getVietnameseError(error, 'Không thể gán chuyên viên vào lịch hẹn này.')) }
-       }} onUpdateStatus={async (appointment, status) => {
-         try { await spaAdminApi.updateAppointment(appointment.id, { status }); await loadAll(); await AlertJs.success('Đã cập nhật trạng thái lịch hẹn') } catch (error) { await AlertJs.error('Cập nhật thất bại', getVietnameseError(error, 'Không thể cập nhật trạng thái lịch hẹn.')) }
-       }} onDeleteAppointment={async (appointment) => {
-         if (isStaff) return
-         try { await spaAdminApi.deleteAppointment(appointment.id); await loadAll(); await AlertJs.success('Đã xóa lịch hẹn') } catch (error) { await AlertJs.error('Xóa lịch hẹn thất bại', getVietnameseError(error, 'Không thể xóa lịch hẹn vào lúc này.')) }
-       }} />}
-     </main>
-   )
- }
-diff --git a/backend/ayanavitabackend/app/api/src/booking/booking.service.ts b/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
-index c3e5cdbfa4be8d3d0d25b462508bc3d2d8535073..d087106e20a571722e33241f64b8c2cd78f9e238 100644
---- a/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/booking/booking.service.ts
-@@ -17,50 +17,62 @@ import {
-   ServiceDetailResponseDto,
-   ServiceResponseDto,
-   ServiceReviewResponseDto,
-   SpecialistResponseDto,
-   TempImageResponseDto,
- } from './dto/booking-response.dto'
-
- @Injectable()
- export class BookingService {
-   private readonly logger = new Logger(BookingService.name)
-
-
-   private readonly supportedLocales = ['en-US', 'vi', 'de'] as const
-
-   private normalizeLocale(locale?: string) {
-     if (!locale) return 'en-US'
-     return this.supportedLocales.includes(locale as any) ? locale as 'en-US' | 'vi' | 'de' : 'en-US'
-   }
-
-   private pickTranslation<T extends { locale: string }>(translations: T[] | undefined, locale: string) {
-     if (!translations?.length) return undefined
-     return translations.find((item) => item.locale === locale)
-       ?? translations.find((item) => item.locale === 'en-US')
-       ?? translations[0]
-   }
-+
-+  private toTranslationRecord<T extends { locale: string }, TData>(
-+    translations: T[] | undefined,
-+    mapper: (item: T) => TData,
-+  ): Partial<Record<'en-US' | 'vi' | 'de', TData>> {
-+    if (!translations?.length) return {}
-+    return translations.reduce<Partial<Record<'en-US' | 'vi' | 'de', TData>>>((acc, item) => {
-+      if (!this.supportedLocales.includes(item.locale as any)) return acc
-+      acc[item.locale as 'en-US' | 'vi' | 'de'] = mapper(item)
-+      return acc
-+    }, {})
++  const handleReset = () => {
++    translateReqRef.current += 1
++    onCancelEdit()
 +  }
-   constructor(private readonly prisma: PrismaService) {}
++
+   return <div className='admin-grid'><section className='admin-card admin-card-glow'>
+     <h3 className='admin-card-title'>{editingBranch ? 'Cập nhật chi nhánh' : 'Tạo chi nhánh mới'}</h3>
+     <div className='admin-row'>{locales.map((l)=><button key={l} className={`admin-btn ${mode===l?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode(l)}>{l}</button>)}</div>
+     <p className='admin-helper'>Mặc định nhập tiếng Anh, hệ thống tự dịch sang Việt/Đức. Khi lưu vui lòng kiểm tra lại bản dịch.</p>
+     <div className='admin-form-grid'>
+       <label className='admin-field'><span className='admin-label'>Mã chi nhánh</span><input className='admin-input' value={branchForm.code || ''} readOnly /></label>
+       <label className='admin-field'><span className='admin-label'>Tên chi nhánh ({mode})</span><input className='admin-input' value={current.name} onChange={(e)=>updateLocalized('name', e.target.value)} /></label>
+       <label className='admin-field'><span className='admin-label'>Địa chỉ ({mode})</span><input className='admin-input' value={current.address} onChange={(e)=>updateLocalized('address', e.target.value)} /></label>
+       <label className='admin-field'><span className='admin-label'>Số điện thoại</span><input className='admin-input' value={branchForm.phone || ''} onChange={(e)=>onBranchFormChange({ ...branchForm, phone: e.target.value })} /></label>
+     </div>
+-    <div className='admin-row'><button className='admin-btn admin-btn-primary' onClick={onSaveBranch}>{editingBranch ? 'Lưu thay đổi' : 'Thêm chi nhánh'}</button>{editingBranch && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>Hủy</button>}</div>
++    <label className='admin-checkbox admin-branch-status-toggle'>
++      <input type='checkbox' checked={Boolean(branchForm.isActive)} onChange={(e)=>onBranchFormChange({ ...branchForm, isActive: e.target.checked })} />
++      <span className='admin-checkbox-slider' />
++      <span className='admin-checkbox-label'>{branchForm.isActive ? 'Đang hoạt động' : 'Đang tắt'}</span>
++    </label>
++    <div className='admin-row'><button className='admin-btn admin-btn-primary' onClick={onSaveBranch}>{editingBranch ? 'Lưu thay đổi' : 'Thêm chi nhánh'}</button><button className='admin-btn admin-btn-ghost' onClick={handleReset}>{editingBranch ? 'Hủy' : 'Làm mới'}</button></div>
+   </section>
+-  <section className='admin-card'><h3 className='admin-card-title'>Danh sách chi nhánh</h3><div className='admin-table-wrap'><table className='admin-table'><thead><tr><th>Tên</th><th>Mã</th><th>Địa chỉ</th><th>Điện thoại</th><th>Thao tác</th></tr></thead><tbody>{branches.map((branch)=><tr key={branch.id}><td>{branch.name}</td><td>{branch.code}</td><td>{branch.address}</td><td>{branch.phone||'-'}</td><td><button className='admin-btn admin-btn-ghost' onClick={()=>onEditBranch(branch)}>Sửa</button><button className='admin-btn admin-btn-danger' onClick={()=>onDeleteBranch(branch)}>Xóa</button></td></tr>)}</tbody></table></div></section></div>
++  <section className='admin-card'><h3 className='admin-card-title'>Danh sách chi nhánh</h3><div className='admin-table-wrap'><table className='admin-table'><thead><tr><th>Tên</th><th>Mã</th><th>Địa chỉ</th><th>Điện thoại</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>{branches.map((branch)=>{const cannotDelete = !branch.isActive
++  return <tr key={branch.id}><td>{branch.name}</td><td>{branch.code}</td><td>{branch.address}</td><td>{branch.phone||'-'}</td><td><span className={`services-status-icon ${branch.isActive ? 'is-active' : 'is-inactive'}`} title={branch.isActive ? 'Đang hoạt động' : 'Đang tắt'}><i className={`fa-solid ${branch.isActive ? 'fa-circle-check' : 'fa-circle-xmark'}`} /></span></td><td><div className='admin-row admin-row-nowrap'><button className='admin-btn admin-btn-ghost' onClick={()=>onEditBranch(branch)}>Sửa</button><button className='admin-btn admin-btn-danger' onClick={()=>onDeleteBranch(branch)} disabled={cannotDelete} title={cannotDelete ? 'Chi nhánh đã ngưng hoạt động, không thể xóa thêm.' : undefined}>Xóa</button></div></td></tr>})}</tbody></table></div></section></div>
+ }
+diff --git a/ayanavita-fontend/src/pages/admin/tabs/CategoriesTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/CategoriesTab.tsx
+index 04211f96d5c018b45980f5a4136c95249f18da36..449fd9f5636fc99885f7c811a605aaa06b281737 100644
+--- a/ayanavita-fontend/src/pages/admin/tabs/CategoriesTab.tsx
++++ b/ayanavita-fontend/src/pages/admin/tabs/CategoriesTab.tsx
+@@ -1,28 +1,38 @@
+-import { useState } from 'react'
++import { useRef, useState } from 'react'
+ import type { CategoriesTabProps } from './types'
+ import { autoTranslateFromEnglish, type LocaleMode } from './i18nForm'
 
-   private toPositiveIntArray(value: unknown): number[] {
-     if (!Array.isArray(value)) return []
-     return [...new Set(value.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0))]
-   }
+ export function CategoriesTab({ categories, categoryForm, editingCategory, onCategoryFormChange, onSaveCategory, onEditCategory, onDeleteCategory, onCancelEdit }: CategoriesTabProps) {
+   const [mode, setMode] = useState<LocaleMode>('en-US')
++  const translateReqRef = useRef(0)
+   const trans = categoryForm.translations || {}
+   const value = trans[mode]?.name || ''
 
-   private readonly s3Bucket = process.env.CLOUDFLY_BUCKET || 'ayanavita-dev'
-   private readonly s3Region = process.env.CLOUDFLY_REGION || 'auto'
-   private readonly s3Endpoint = process.env.CLOUDFLY_ENDPOINT || 'https://s3.cloudfly.vn'
-   private readonly s3PublicBaseUrl = process.env.CLOUDFLY_PUBLIC_BASE_URL
-   private readonly s3AccessKey = process.env.CLOUDFLY_ACCESS_KEY || '67NZA2R2X53AYJU5I036'
-   private readonly s3SecretKey = process.env.CLOUDFLY_SECRET_KEY || '56f8Erg7KoBiIedMrvbe0cBNjy3OIPKHdX0vAW4N'
-
-   private toStringArray(value: Prisma.JsonValue | null | undefined): string[] {
-     return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
-   }
-
-   private readonly tempImageDir = join(process.cwd(), 'temp-images')
-
-   async saveTempImage(file: any): Promise<TempImageResponseDto> {
-     await fs.mkdir(this.tempImageDir, { recursive: true })
-     const safeExt = extname(file.originalname || '').slice(0, 10) || '.jpg'
-     const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}${safeExt}`
-     const filePath = join(this.tempImageDir, fileName)
-@@ -224,115 +236,131 @@ export class BookingService {
-       img: s.imageUrl,
-       tag: s.tag ?? 'Spa',
-     }))
-   }
-
-   async listBranches(includeInactive = false, serviceId?: number, locale?: string): Promise<BranchResponseDto[]> {
-     const rows = await this.prisma.branch.findMany({
-       where: {
-         ...(includeInactive ? {} : { isActive: true }),
-         ...(serviceId ? { services: { some: { serviceId } } } : {}),
-       },
-       select: { id: true, code: true, name: true, address: true, phone: true, isActive: true, translations: { select: { locale: true, name: true, address: true } } },
-       orderBy: { id: 'asc' },
-     })
-
-     const lang = this.normalizeLocale(locale)
-     return rows.map((b) => {
-       const trans = this.pickTranslation(b.translations, lang)
-       return {
-         id: b.id,
-         code: b.code,
-         name: trans?.name || b.name,
-         address: trans?.address || b.address,
-         phone: b.phone,
-         isActive: b.isActive,
-+        translations: this.toTranslationRecord(b.translations, (item) => ({ name: item.name, address: item.address })),
-       }
-     })
-   }
-
-   async listServices(params: { branchId?: number; q?: string; page?: number; pageSize?: number; includeInactive?: boolean; lang?: string }): Promise<ServiceListResponseDto> {
-     const page = params.page && params.page > 0 ? params.page : 1
-     const pageSize = params.pageSize && params.pageSize > 0 ? Math.min(params.pageSize, 100) : 10
-     const skip = (page - 1) * pageSize
-     const query = params.q?.trim()
-     const locale = this.normalizeLocale(params.lang)
-
--    const where = {
-+    const where: Prisma.ServiceWhereInput = {
-       ...(params.includeInactive ? {} : { isActive: true }),
-       ...(params.branchId ? { branches: { some: { branchId: params.branchId } } } : {}),
--      ...(query ? { name: { contains: query } } : {}),
-+      ...(query
-+        ? {
-+            OR: [
-+              { name: { contains: query } },
-+              { translations: { some: { locale, name: { contains: query } } } },
-+            ],
-+          }
-+        : {}),
-     }
-
-     const [rows, total] = await Promise.all([
-       this.prisma.service.findMany({
-         where,
-         select: {
-           id: true,
-             name: true,
-           description: true,
-           categoryId: true,
-           category: { select: { name: true } },
-           goals: true,
-           suitableFor: true,
-           process: true,
-           durationMin: true,
-           price: true,
-           ratingAvg: true,
-           bookedCount: true,
-           tag: true,
-           imageUrl: true,
-             isActive: true,
-           branches: { select: { branchId: true } },
-           translations: { select: { locale: true, name: true, description: true, goals: true, suitableFor: true, process: true, tag: true } },
-         },
-         orderBy: { id: 'asc' },
-         skip,
-         take: pageSize,
-       }),
-       this.prisma.service.count({ where }),
-     ])
-
-     const items: ServiceResponseDto[] = rows.map((s) => {
-       const trans = this.pickTranslation(s.translations, locale)
-       return {
-         id: s.id,
-         name: trans?.name || s.name,
-       description: trans?.description || s.description,
-       categoryId: s.categoryId,
-       category: s.category?.name,
-       goals: this.toStringArray(trans?.goals ?? s.goals),
-       suitableFor: this.toStringArray(trans?.suitableFor ?? s.suitableFor),
-       process: this.toStringArray(trans?.process ?? s.process),
-       durationMin: s.durationMin,
-       price: s.price,
-       ratingAvg: s.ratingAvg,
-       bookedCount: s.bookedCount,
-       tag: trans?.tag || s.tag,
-       imageUrl: s.imageUrl,
-       branchIds: s.branches.map((b) => b.branchId),
-         isActive: s.isActive,
-+        translations: this.toTranslationRecord(s.translations, (item) => ({
-+          name: item.name,
-+          description: item.description,
-+          goals: this.toStringArray(item.goals),
-+          suitableFor: this.toStringArray(item.suitableFor),
-+          process: this.toStringArray(item.process),
-+          tag: item.tag,
-+        })),
-       }
-     })
-
-     return {
-       items,
-       total,
-       page,
-       pageSize,
-       totalPages: Math.max(1, Math.ceil(total / pageSize)),
+   const onChangeName = (name: string) => {
+     const next = { ...trans, [mode]: { name } }
+     const base = { ...categoryForm, name: mode === 'en-US' ? name : categoryForm.name, translations: next }
+     onCategoryFormChange(base)
+     if (mode === 'en-US') {
++      translateReqRef.current += 1
++      const reqId = translateReqRef.current
+       void Promise.all([autoTranslateFromEnglish(name, 'vi'), autoTranslateFromEnglish(name, 'de')]).then(([vi, de]) => {
++        if (reqId !== translateReqRef.current) return
+         onCategoryFormChange({ ...base, translations: { ...next, vi: { name: vi }, de: { name: de } } })
+       })
      }
    }
 
++  const handleReset = () => {
++    translateReqRef.current += 1
++    onCancelEdit()
++  }
++
+   return <div className='admin-grid'><section className='admin-card admin-card-glow'>
+     <h3 className='admin-card-title'>{editingCategory ? 'Cập nhật danh mục' : 'Tạo danh mục mới'}</h3>
+     <div className='admin-row'><button className={`admin-btn ${mode==='en-US'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('en-US')}>EN</button><button className={`admin-btn ${mode==='vi'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('vi')}>VI</button><button className={`admin-btn ${mode==='de'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('de')}>DE</button></div>
+     <label className='admin-field'><span className='admin-label'>Tên danh mục ({mode})</span><input className='admin-input' value={value} onChange={(e)=>onChangeName(e.target.value)} /></label>
+-    <div className='admin-row'><button className='admin-btn admin-btn-primary' onClick={onSaveCategory}>{editingCategory ? 'Lưu thay đổi' : 'Thêm danh mục'}</button>{editingCategory && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>Hủy</button>}</div>
++    <div className='admin-row'><button className='admin-btn admin-btn-primary' onClick={onSaveCategory}>{editingCategory ? 'Lưu thay đổi' : 'Thêm danh mục'}</button><button className='admin-btn admin-btn-ghost' onClick={handleReset}>{editingCategory ? 'Hủy' : 'Làm mới'}</button></div>
+   </section>
+-  <section className='admin-card'><h3 className='admin-card-title'>Danh sách danh mục</h3><table className='admin-table'><thead><tr><th>Tên</th><th>SL dịch vụ</th><th>Thao tác</th></tr></thead><tbody>{categories.map((item)=><tr key={item.id}><td>{item.name}</td><td>{item.serviceCount}</td><td><button className='admin-btn admin-btn-ghost' onClick={()=>onEditCategory(item)}>Sửa</button><button className='admin-btn admin-btn-danger' onClick={()=>onDeleteCategory(item)}>Xóa</button></td></tr>)}</tbody></table></section></div>
++  <section className='admin-card'><h3 className='admin-card-title'>Danh sách danh mục</h3><table className='admin-table'><thead><tr><th>Tên</th><th>SL dịch vụ</th><th>Thao tác</th></tr></thead><tbody>{categories.map((item)=>{const cannotDelete = item.serviceCount > 0
++  return <tr key={item.id}><td>{item.name}</td><td>{item.serviceCount}</td><td><div className='admin-row admin-row-nowrap'><button className='admin-btn admin-btn-ghost' onClick={()=>onEditCategory(item)}>Sửa</button><button className='admin-btn admin-btn-danger' onClick={()=>onDeleteCategory(item)} disabled={cannotDelete} title={cannotDelete ? 'Danh mục đang có dịch vụ, không thể xóa.' : undefined}>Xóa</button></div></td></tr>})}</tbody></table></section></div>
+ }
+diff --git a/ayanavita-fontend/src/pages/admin/tabs/SpecialistsTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/SpecialistsTab.tsx
+index d4d5fb2583d7a7caed28162a2c49fa0992620c14..00807bb24c4f6d86433b55164e70ae29116013ab 100644
+--- a/ayanavita-fontend/src/pages/admin/tabs/SpecialistsTab.tsx
++++ b/ayanavita-fontend/src/pages/admin/tabs/SpecialistsTab.tsx
+@@ -1,32 +1,32 @@
+ import { useMemo, useState } from 'react'
+ import type { SpecialistsTabProps } from './types'
 
-   async getServiceDetail(id: number, locale?: string): Promise<ServiceDetailResponseDto> {
-     const row = await this.prisma.service.findUnique({
-       where: { id },
-       select: {
-         id: true,
-           name: true,
-         description: true,
-         categoryId: true,
-         category: { select: { name: true } },
-         goals: true,
-         suitableFor: true,
-         process: true,
-@@ -359,85 +387,94 @@ export class BookingService {
-         },
-       },
-     })
+ const textMap = {
+-  vi: { update: 'Cập nhật chuyên viên', add: 'Thêm chuyên viên', name: 'Tên chuyên viên', email: 'Email tài khoản', branch: 'Chi nhánh', chooseBranch: 'Chọn chi nhánh', level: 'Cấp độ', bio: 'Bio', bioPlaceholder: 'Mô tả năng lực chuyên viên', branchServices: 'Dịch vụ theo chi nhánh', chooseBranchHelp: 'Vui lòng chọn chi nhánh để tải dịch vụ.', save: 'Lưu thay đổi', cancel: 'Hủy', list: 'Danh sách chuyên viên', searchName: 'Tìm tên', searchPlaceholder: 'Nhập tên chuyên viên', perPage: '/Trang', colName: 'Tên', colEmail: 'Email', colLevel: 'Cấp độ', colBranch: 'Chi nhánh', colServices: 'Dịch vụ', colAction: 'Thao tác', edit: 'Sửa', del: 'Xóa', showing: 'Hiển thị', specialists: 'chuyên viên', prev: 'Trước', page: 'Trang', next: 'Sau' },
+-  'en-US': { update: 'Update specialist', add: 'Add specialist', name: 'Specialist name', email: 'Account email', branch: 'Branch', chooseBranch: 'Select branch', level: 'Level', bio: 'Bio', bioPlaceholder: 'Describe specialist capabilities', branchServices: 'Services by branch', chooseBranchHelp: 'Select a branch to load services.', save: 'Save changes', cancel: 'Cancel', list: 'Specialist list', searchName: 'Search name', searchPlaceholder: 'Enter specialist name', perPage: '/Page', colName: 'Name', colEmail: 'Email', colLevel: 'Level', colBranch: 'Branch', colServices: 'Services', colAction: 'Actions', edit: 'Edit', del: 'Delete', showing: 'Showing', specialists: 'specialists', prev: 'Prev', page: 'Page', next: 'Next' },
+-  de: { update: 'Spezialist aktualisieren', add: 'Spezialist hinzufügen', name: 'Name des Spezialisten', email: 'Konto-E-Mail', branch: 'Filiale', chooseBranch: 'Filiale wählen', level: 'Stufe', bio: 'Bio', bioPlaceholder: 'Fähigkeiten des Spezialisten beschreiben', branchServices: 'Leistungen nach Filiale', chooseBranchHelp: 'Bitte Filiale wählen, um Leistungen zu laden.', save: 'Änderungen speichern', cancel: 'Abbrechen', list: 'Spezialistenliste', searchName: 'Name suchen', searchPlaceholder: 'Name des Spezialisten eingeben', perPage: '/Seite', colName: 'Name', colEmail: 'E-Mail', colLevel: 'Stufe', colBranch: 'Filiale', colServices: 'Leistungen', colAction: 'Aktionen', edit: 'Bearbeiten', del: 'Löschen', showing: 'Anzeige', specialists: 'Spezialisten', prev: 'Zurück', page: 'Seite', next: 'Weiter' },
++  vi: { update: 'Cập nhật chuyên viên', add: 'Thêm chuyên viên', name: 'Tên chuyên viên', email: 'Email tài khoản', branch: 'Chi nhánh', chooseBranch: 'Chọn chi nhánh', level: 'Cấp độ', bio: 'Bio', bioPlaceholder: 'Mô tả năng lực chuyên viên', branchServices: 'Dịch vụ theo chi nhánh', chooseBranchHelp: 'Vui lòng chọn chi nhánh để tải dịch vụ.', save: 'Lưu thay đổi', cancel: 'Hủy', list: 'Danh sách chuyên viên', searchName: 'Tìm tên', searchPlaceholder: 'Nhập tên chuyên viên', perPage: '/Trang', colName: 'Tên', colEmail: 'Email', colLevel: 'Cấp độ', colBranch: 'Chi nhánh', colServices: 'Dịch vụ', colAction: 'Thao tác', edit: 'Sửa', del: 'Xóa', showing: 'Hiển thị', specialists: 'chuyên viên', prev: 'Trước', page: 'Trang', next: 'Sau', reset: 'Làm mới' },
++  'en-US': { update: 'Update specialist', add: 'Add specialist', name: 'Specialist name', email: 'Account email', branch: 'Branch', chooseBranch: 'Select branch', level: 'Level', bio: 'Bio', bioPlaceholder: 'Describe specialist capabilities', branchServices: 'Services by branch', chooseBranchHelp: 'Select a branch to load services.', save: 'Save changes', cancel: 'Cancel', list: 'Specialist list', searchName: 'Search name', searchPlaceholder: 'Enter specialist name', perPage: '/Page', colName: 'Name', colEmail: 'Email', colLevel: 'Level', colBranch: 'Branch', colServices: 'Services', colAction: 'Actions', edit: 'Edit', del: 'Delete', showing: 'Showing', specialists: 'specialists', prev: 'Prev', page: 'Page', next: 'Next', reset: 'Reset' },
++  de: { update: 'Spezialist aktualisieren', add: 'Spezialist hinzufügen', name: 'Name des Spezialisten', email: 'Konto-E-Mail', branch: 'Filiale', chooseBranch: 'Filiale wählen', level: 'Stufe', bio: 'Bio', bioPlaceholder: 'Fähigkeiten des Spezialisten beschreiben', branchServices: 'Leistungen nach Filiale', chooseBranchHelp: 'Bitte Filiale wählen, um Leistungen zu laden.', save: 'Änderungen speichern', cancel: 'Abbrechen', list: 'Spezialistenliste', searchName: 'Name suchen', searchPlaceholder: 'Name des Spezialisten eingeben', perPage: '/Seite', colName: 'Name', colEmail: 'E-Mail', colLevel: 'Stufe', colBranch: 'Filiale', colServices: 'Leistungen', colAction: 'Aktionen', edit: 'Bearbeiten', del: 'Löschen', showing: 'Anzeige', specialists: 'Spezialisten', prev: 'Zurück', page: 'Seite', next: 'Weiter', reset: 'Zurücksetzen' },
+ } as const
 
-     if (!row) throw new NotFoundException('Service not found')
-
-     const lang = this.normalizeLocale(locale)
-     const trans = this.pickTranslation(row.translations, lang)
-     return {
-       id: row.id,
-         name: trans?.name || row.name,
-       description: trans?.description || row.description,
-       categoryId: row.categoryId,
-       category: row.category?.name,
-       goals: this.toStringArray(trans?.goals ?? row.goals),
-       suitableFor: this.toStringArray(trans?.suitableFor ?? row.suitableFor),
-       process: this.toStringArray(trans?.process ?? row.process),
-       durationMin: row.durationMin,
-       price: row.price,
-       ratingAvg: row.ratingAvg,
-       bookedCount: row.bookedCount,
-       tag: trans?.tag || row.tag,
-       imageUrl: row.imageUrl,
-       branchIds: row.branches.map((b) => b.branchId),
-         isActive: row.isActive,
-+      translations: this.toTranslationRecord(row.translations, (item) => ({
-+        name: item.name,
-+        description: item.description,
-+        goals: this.toStringArray(item.goals),
-+        suitableFor: this.toStringArray(item.suitableFor),
-+        process: this.toStringArray(item.process),
-+        tag: item.tag,
-+      })),
-       reviews: row.reviews,
-     }
+ export function SpecialistsTab({ lang = 'vi', branches, services, specialists, specialistForm, editingSpecialist, onSpecialistFormChange, onSaveSpecialist, onEditSpecialist, onDeleteSpecialist, onCancelEdit }: SpecialistsTabProps) {
+   const t = textMap[lang]
+   const branchServices = specialistForm.branchId ? services.filter((service) => service.branchIds.includes(specialistForm.branchId)) : []
+   const toggleService = (serviceId: number) => {
+     const exists = specialistForm.serviceIds.includes(serviceId)
+     onSpecialistFormChange({ ...specialistForm, serviceIds: exists ? specialistForm.serviceIds.filter((item) => item !== serviceId) : [...specialistForm.serviceIds, serviceId] })
    }
 
-   async listSpecialists(branchId?: number, serviceId?: number, locale?: string): Promise<SpecialistResponseDto[]> {
-     const rows = await this.prisma.specialist.findMany({
-       where: {
-           isActive: true,
-         ...(branchId ? { branchId } : {}),
-         ...(serviceId ? { serviceLinks: { some: { serviceId } } } : {}),
-       },
-       select: {
-         id: true,
-           name: true,
-         level: true,
-         bio: true,
-         branchId: true,
-         user: { select: { email: true } },
-         serviceLinks: { select: { serviceId: true } },
-         translations: { select: { locale: true, name: true, bio: true } },
-       },
-       orderBy: { id: 'asc' },
-     })
+   const [searchName, setSearchName] = useState('')
+   const [page, setPage] = useState(1)
+   const [pageSize, setPageSize] = useState(10)
 
-     const lang = this.normalizeLocale(locale)
-     return rows.map((s) => {
-       const trans = this.pickTranslation(s.translations, lang)
-       return {
-         id: s.id,
-         name: trans?.name || s.name,
-       email: s.user.email,
-       level: s.level,
-       bio: trans?.bio || s.bio,
-       branchId: s.branchId,
-       serviceIds: [...new Set(s.serviceLinks.map((srv) => srv.serviceId))],
-+      translations: this.toTranslationRecord(s.translations, (item) => ({ name: item.name, bio: item.bio })),
-       }
-     })
-   }
+   const filteredSpecialists = useMemo(() => {
+     const keyword = searchName.trim().toLowerCase()
+     if (!keyword) return specialists
+     return specialists.filter((item) => item.name.toLowerCase().includes(keyword))
+   }, [searchName, specialists])
 
+   const totalPages = Math.max(1, Math.ceil(filteredSpecialists.length / pageSize))
+   const safePage = Math.min(page, totalPages)
+   const pagedSpecialists = useMemo(() => {
+     const start = (safePage - 1) * pageSize
+     return filteredSpecialists.slice(start, start + pageSize)
+@@ -35,51 +35,51 @@ export function SpecialistsTab({ lang = 'vi', branches, services, specialists, s
+   return (
+     <div className='admin-grid'>
+       <section className='admin-card admin-card-glow'>
+         <h3 className='admin-card-title'><i className='fa-solid fa-user-nurse' /> {editingSpecialist ? t.update : t.add}</h3>
+         <div className='admin-form-grid'>
+           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-user' /> {t.name}</span><input className='admin-input' placeholder={t.name} value={specialistForm.name} onChange={(e) => onSpecialistFormChange({ ...specialistForm, name: e.target.value })} /></label>
+           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-envelope' /> {t.email}</span><input className='admin-input' type='email' placeholder='staff@example.com' value={specialistForm.email} onChange={(e) => onSpecialistFormChange({ ...specialistForm, email: e.target.value })} /></label>
+           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-building' /> {t.branch}</span><select className='admin-input' value={specialistForm.branchId} onChange={(e) => onSpecialistFormChange({ ...specialistForm, branchId: Number(e.target.value), serviceIds: [] })}><option value={0}>{t.chooseBranch}</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+           <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-medal' /> {t.level}</span><select className='admin-input' value={specialistForm.level} onChange={(e) => onSpecialistFormChange({ ...specialistForm, level: e.target.value })}><option value='THERAPIST'>THERAPIST</option><option value='SENIOR'>SENIOR</option><option value='EXPERT'>EXPERT</option></select></label>
+           <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-address-card' /> {t.bio}</span><textarea className='admin-input admin-textarea' placeholder={t.bioPlaceholder} value={specialistForm.bio} onChange={(e) => onSpecialistFormChange({ ...specialistForm, bio: e.target.value })} /></label>
 
+           <div className='admin-field admin-field-full'>
+             <span className='admin-label'><i className='fa-solid fa-list-check' /> {t.branchServices}</span>
+             <div className='admin-multi-select'>
+               {branchServices.length > 0 ? branchServices.map((service) => (
+                 <label key={service.id} className='admin-checkbox-row'>
+                   <input type='checkbox' checked={specialistForm.serviceIds.includes(service.id)} onChange={() => toggleService(service.id)} />
+                   <span>{service.name}</span>
+                 </label>
+               )) : <span className='admin-helper'>{t.chooseBranchHelp}</span>}
+             </div>
+           </div>
+         </div>
+         <div className='admin-row'>
+           <button className='admin-btn admin-btn-primary' onClick={onSaveSpecialist}>{editingSpecialist ? t.save : t.add}</button>
+-          {editingSpecialist && <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>{t.cancel}</button>}
++          <button className='admin-btn admin-btn-ghost' onClick={onCancelEdit}>{editingSpecialist ? t.cancel : t.reset}</button>
+         </div>
+       </section>
 
+       <section className='admin-card'>
+         <h3 className='admin-card-title'><i className='fa-solid fa-table-list' /> {t.list}</h3>
+         <div className='admin-row admin-row-between admin-filter-toolbar'>
+           <label className='admin-field-inline'>
+             <span className='admin-label'><i className='fa-solid fa-magnifying-glass' /> {t.searchName}</span>
+             <input className='admin-input admin-input-sm' placeholder={t.searchPlaceholder} value={searchName} onChange={(e) => { setSearchName(e.target.value); setPage(1) }} />
+           </label>
 
-   async getAppointmentStats(query: AppointmentStatsQueryDto, user: JwtUser) {
-     const whereScope = await this.resolveAppointmentScope(user)
-     const where: Prisma.AppointmentWhereInput = {
-       ...whereScope,
-       ...(query.branchId ? { branchId: query.branchId } : {}),
-       ...(query.serviceId ? { serviceId: query.serviceId } : {}),
-       ...(query.specialistId ? { specialistId: query.specialistId } : {}),
-       ...(query.customerPhone?.trim() ? { customerPhone: { contains: query.customerPhone.trim() } } : {}),
-     }
+           <label className='admin-field-inline'>
+             <span className='admin-label'><i className='fa-solid fa-list-ol' /> {t.perPage}</span>
+             <select className='admin-input admin-input-sm' value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1) }}>
+               <option value={5}>5</option><option value={10}>10</option><option value={20}>20</option>
+             </select>
+           </label>
+         </div>
 
-     const [total, statsRows] = await Promise.all([
-       this.prisma.appointment.count({ where }),
-       this.prisma.appointment.findMany({
-         where,
-         select: {
-           status: true,
-           serviceId: true,
-           specialistId: true,
-@@ -968,51 +1005,52 @@ export class BookingService {
-         message: 'Dịch vụ đã có lịch hẹn. Hệ thống chỉ tắt hoạt động để đảm bảo dữ liệu lịch hẹn.',
-       }
-     }
-
-     await this.prisma.service.delete({ where: { id } })
-     return { ok: true, softDeleted: false }
-   }
-
-   async listServiceCategories(locale?: string): Promise<ServiceCategoryResponseDto[]> {
-     const rows = await this.prisma.serviceCategory.findMany({
-       select: {
-         id: true,
-           name: true,
-         _count: { select: { services: true } },
-         translations: { select: { locale: true, name: true } },
-       },
-       orderBy: { id: 'asc' },
-     })
-
-     const lang = this.normalizeLocale(locale)
-     return rows.map((item) => {
-       const trans = this.pickTranslation(item.translations, lang)
-       return {
-         id: item.id,
-         name: trans?.name || item.name,
--      serviceCount: item._count.services,
-+        serviceCount: item._count.services,
-+        translations: this.toTranslationRecord(item.translations, (entry) => ({ name: entry.name })),
-       }
-     })
-   }
-
-   async createServiceCategory(data: any) {
-     const created = await this.prisma.serviceCategory.create({
-       data: {
-         name: String(data.name || '').trim(),
-       },
-     })
-     await this.upsertCategoryTranslations(this.prisma, created.id, data.translations)
-     return created
-   }
-
-   async updateServiceCategory(id: number, data: any) {
-     const updated = await this.prisma.serviceCategory.update({
-       where: { id },
-       data: {
-         ...(data.name !== undefined ? { name: String(data.name).trim() } : {}),
-       },
-     })
-     await this.upsertCategoryTranslations(this.prisma, id, data.translations)
-     return updated
-   }
-
-diff --git a/backend/ayanavitabackend/app/api/src/booking/dto/booking-response.dto.ts b/backend/ayanavitabackend/app/api/src/booking/dto/booking-response.dto.ts
-index 3ebd33f11aa3ceb29eb6ac214103d3cfb2e40f11..e92cae4824ede5c49b25e3bbfa5fb26bc0285c59 100644
---- a/backend/ayanavitabackend/app/api/src/booking/dto/booking-response.dto.ts
-+++ b/backend/ayanavitabackend/app/api/src/booking/dto/booking-response.dto.ts
-@@ -1,101 +1,106 @@
- export class BranchResponseDto {
-   id!: number
-   code!: string
-   name!: string
-   address!: string
-   phone?: string | null
-   isActive!: boolean
-+  translations?: Partial<Record<'en-US' | 'vi' | 'de', { name: string; address: string }>>
- }
-
- export class ServiceCatalogItemDto {
-   id!: string
-   dbId!: number
-   name!: string
-   cat!: string
-   goal!: string[]
-   duration!: number
-   price!: number
-   rating!: number
-   booked!: number
-   img?: string | null
-   tag!: string
- }
-
- export class ServiceResponseDto {
-   id!: number
-   name!: string
-   description?: string | null
-   categoryId?: number | null
-   category?: string | null
-   goals!: string[]
-   suitableFor!: string[]
-   process!: string[]
-   durationMin!: number
-   price!: number
-   ratingAvg!: number
-   bookedCount!: number
-   tag?: string | null
-   imageUrl?: string | null
-   branchIds!: number[]
-   isActive!: boolean
-+  translations?: Partial<Record<'en-US' | 'vi' | 'de', { name: string; description?: string | null; goals?: string[]; suitableFor?: string[]; process?: string[]; tag?: string | null }>>
- }
-
- export class ServiceListResponseDto {
-   items!: ServiceResponseDto[]
-   total!: number
-   page!: number
-   pageSize!: number
-   totalPages!: number
- }
-
- export class ServiceDetailResponseDto {
-   id!: number
-   name!: string
-   description?: string | null
-   categoryId?: number | null
-   category?: string | null
-   goals!: string[]
-   suitableFor!: string[]
-   process!: string[]
-   durationMin!: number
-   price!: number
-   ratingAvg!: number
-   bookedCount!: number
-   tag?: string | null
-   imageUrl?: string | null
-   branchIds!: number[]
-   isActive!: boolean
-+  translations?: Partial<Record<'en-US' | 'vi' | 'de', { name: string; description?: string | null; goals?: string[]; suitableFor?: string[]; process?: string[]; tag?: string | null }>>
-   reviews!: ServiceReviewResponseDto[]
- }
-
- export class ServiceCategoryResponseDto {
-   id!: number
-   name!: string
-   serviceCount!: number
-+  translations?: Partial<Record<'en-US' | 'vi' | 'de', { name: string }>>
- }
-
- export class SpecialistResponseDto {
-   id!: number
-   name!: string
-   email!: string
-   level!: string
-   bio?: string | null
-   branchId!: number
-   serviceIds!: number[]
-+  translations?: Partial<Record<'en-US' | 'vi' | 'de', { name: string; bio?: string | null }>>
- }
-
- export class ServiceReviewResponseDto {
-   id!: number
-   serviceId!: number
-   userId?: number | null
-   stars!: number
-   comment?: string | null
-   customerName?: string | null
-   createdAt!: Date
- }
-
- export class TempImageResponseDto {
-   fileName!: string
-   url!: string
-   size!: number
- }
+         <div className='admin-table-wrap' >
+           <table className='admin-table'>
+             <thead><tr><th>{t.colName}</th><th>{t.colEmail}</th><th>{t.colLevel}</th><th>{t.colBranch}</th><th>{t.colServices}</th><th>{t.colAction}</th></tr></thead>
+             <tbody>
+               {pagedSpecialists.map((item) => (
+                 <tr key={item.id}>

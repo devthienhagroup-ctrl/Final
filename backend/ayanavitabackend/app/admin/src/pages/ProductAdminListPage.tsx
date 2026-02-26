@@ -9,15 +9,18 @@ import {
   updateAdminCategory,
 } from "../api/productAdmin.api";
 import type { AdminLanguage, ProductAdminItem, ProductCategory } from "../types/productAdmin";
-import { AppAlert } from "../components/AppAlert";
+
+function classNames(...v: Array<string | false | null | undefined>) {
+  return v.filter(Boolean).join(" ");
+}
 
 function CategoryRow({
-  category,
-  languages,
-  activeLang,
-  onSave,
-  onDelete,
-}: {
+                       category,
+                       languages,
+                       activeLang,
+                       onSave,
+                       onDelete,
+                     }: {
   category: ProductCategory;
   languages: AdminLanguage[];
   activeLang: string;
@@ -31,50 +34,63 @@ function CategoryRow({
   const activeTranslation = draft.translations.find((item) => item.lang === activeLang);
 
   return (
-    <div className="card" style={{ padding: 12 }}>
-      <div className="grid" style={{ gap: 8 }}>
-        <input
-          className="input"
-          placeholder={`Tên danh mục (${activeLang})`}
-          value={activeTranslation?.name || ""}
-          onChange={(e) =>
-            setDraft((prev) => ({
-              ...prev,
-              translations: prev.translations.map((row) =>
-                row.lang === activeLang ? { ...row, name: e.target.value } : row,
-              ),
-            }))
-          }
-        />
-        <input
-          className="input"
-          placeholder={`Mô tả (${activeLang})`}
-          value={activeTranslation?.description || ""}
-          onChange={(e) =>
-            setDraft((prev) => ({
-              ...prev,
-              translations: prev.translations.map((row) =>
-                row.lang === activeLang ? { ...row, description: e.target.value } : row,
-              ),
-            }))
-          }
-        />
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {languages.map((lang) => {
-            const t = draft.translations.find((item) => item.lang === lang.code);
-            return (
-              <span key={lang.code} className="muted" style={{ fontSize: 12 }}>
-                {lang.code.toUpperCase()}: {t?.name || "-"}
+      <div className="x-card">
+        <div className="x-stack" style={{ marginTop: 0 }}>
+          <label className="x-field">
+            <div className="x-label">Tên danh mục ({activeLang.toUpperCase()})</div>
+            <input
+                className="x-input"
+                placeholder={`Tên danh mục (${activeLang})`}
+                value={activeTranslation?.name || ""}
+                onChange={(e) =>
+                    setDraft((prev) => ({
+                      ...prev,
+                      translations: prev.translations.map((row) =>
+                          row.lang === activeLang ? { ...row, name: e.target.value } : row,
+                      ),
+                    }))
+                }
+            />
+          </label>
+
+          <label className="x-field">
+            <div className="x-label">Mô tả ({activeLang.toUpperCase()})</div>
+            <input
+                className="x-input"
+                placeholder={`Mô tả (${activeLang})`}
+                value={activeTranslation?.description || ""}
+                onChange={(e) =>
+                    setDraft((prev) => ({
+                      ...prev,
+                      translations: prev.translations.map((row) =>
+                          row.lang === activeLang ? { ...row, description: e.target.value } : row,
+                      ),
+                    }))
+                }
+            />
+          </label>
+
+          <div className="x-row x-row-wrap" style={{ gap: 8 }}>
+            {languages.map((lang) => {
+              const t = draft.translations.find((item) => item.lang === lang.code);
+              return (
+                  <span key={lang.code} className="x-chip">
+                <strong>{lang.code.toUpperCase()}:</strong> {t?.name || "-"}
               </span>
-            );
-          })}
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn btn-primary" onClick={() => onSave(draft)}>Lưu</button>
-          <button className="btn btn-danger" onClick={() => onDelete(category.id)}>Xóa</button>
+              );
+            })}
+          </div>
+
+          <div className="x-row" style={{ justifyContent: "space-between" }}>
+            <button className="x-btn x-btn-primary" onClick={() => onSave(draft)}>
+              <i className="fa-solid fa-floppy-disk" /> <span>Lưu</span>
+            </button>
+            <button className="x-btn x-btn-danger" onClick={() => onDelete(category.id)}>
+              <i className="fa-solid fa-trash" /> <span>Xóa</span>
+            </button>
+          </div>
         </div>
       </div>
-    </div>
   );
 }
 
@@ -97,14 +113,14 @@ export function ProductAdminListPage() {
   const [newCategory, setNewCategory] = useState<ProductCategory>({ id: "new", translations: [] });
 
   const categoryMap = useMemo(
-    () =>
-      Object.fromEntries(
-        categories.map((item) => [
-          item.id,
-          item.translations.find((t) => t.lang === activeLang)?.name || item.translations[0]?.name || "",
-        ]),
-      ),
-    [categories, activeLang],
+      () =>
+          Object.fromEntries(
+              categories.map((item) => [
+                item.id,
+                item.translations.find((t) => t.lang === activeLang)?.name || item.translations[0]?.name || "",
+              ]),
+          ),
+      [categories, activeLang],
   );
 
   const loadData = async () => {
@@ -127,7 +143,7 @@ export function ProductAdminListPage() {
       setTotal(productResponse.total);
       setTotalPages(productResponse.totalPages);
       setCategories(categoryList);
-      setActiveLang((prev) => (langs.find((x) => x.code === prev)?.code || langs[0]?.code || "vi"));
+      setActiveLang((prev) => langs.find((x) => x.code === prev)?.code || langs[0]?.code || "vi");
       setNewCategory({
         id: "new",
         translations: langs.map((lang) => ({ lang: lang.code, name: "", description: "" })),
@@ -141,251 +157,776 @@ export function ProductAdminListPage() {
     void loadData();
   }, [search, statusFilter, categoryFilter, page, pageSize]);
 
+  // Inject FontAwesome CDN once (if not already on the page)
+  useEffect(() => {
+    const id = "fa-cdn-6";
+    if (document.getElementById(id)) return;
+
+    const link = document.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    link.href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css";
+    link.crossOrigin = "anonymous";
+    document.head.appendChild(link);
+  }, []);
+
   const onCreateProduct = () => {
     navigate("/catalog/products/new");
   };
 
   const viOrActiveName = (product: ProductAdminItem) =>
-    product.translations.find((item) => item.lang === activeLang)?.name ||
-    product.translations.find((item) => item.lang === "vi")?.name ||
-    "(chưa đặt tên)";
+      product.translations.find((item) => item.lang === activeLang)?.name ||
+      product.translations.find((item) => item.lang === "vi")?.name ||
+      "(chưa đặt tên)";
 
   const hasAnyCategoryName = newCategory.translations.some((row) => row.name.trim());
 
   return (
-    <div className="grid" style={{ gap: 14 }}>
-      <div className="card hero-card" style={{ marginBottom: 0 }}>
-        <p className="muted" style={{ margin: 0, fontSize: 14 }}>Quản lý sản phẩm</p>
-        <h2 className="h1">Danh sách sản phẩm</h2>
-        <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-          <button onClick={onCreateProduct} className="btn btn-primary">+ Thêm sản phẩm</button>
-          <button onClick={() => setOpenCategoryModal(true)} className="btn">Quản lý category</button>
-          <div style={{ display: "inline-flex", padding: 4, borderRadius: 12, border: "1px solid #cbd5e1", background: "#fff", gap: 4 }}>
-            {languages.map((lang) => (
-              <button
-                key={lang.code}
-                className={`btn ${activeLang === lang.code ? "btn-primary" : ""}`}
-                style={{ minHeight: 34, padding: "6px 10px", borderRadius: 9 }}
-                onClick={() => setActiveLang(lang.code)}
+      <div className="x-wrap">
+        <style>{styles}</style>
+
+        {/* Top modern header */}
+        <div className="x-topbar">
+          <div className="x-topbar-left">
+            <div className="x-title-row">
+              <div className="x-title">Quản lý sản phẩm</div>
+              <span className="x-pill x-pill-info">
+              <i className="fa-solid fa-list" /> Danh sách
+            </span>
+              <span className="x-pill">
+              <i className="fa-solid fa-box" /> Tổng: {total}
+            </span>
+            </div>
+            <div className="x-subrow">
+            <span className="x-chip">
+              <i className="fa-solid fa-language" /> {activeLang.toUpperCase()}
+            </span>
+              <span
+                  className={classNames(
+                      "x-pill",
+                      statusFilter === "active" ? "x-pill-ok" : statusFilter === "draft" ? "x-pill-warn" : "x-pill-muted",
+                  )}
               >
-                {lang.label}
-              </button>
-            ))}
+              <i
+                  className={
+                    statusFilter === "active"
+                        ? "fa-solid fa-check"
+                        : statusFilter === "draft"
+                            ? "fa-solid fa-pen"
+                            : "fa-solid fa-circle-info"
+                  }
+              />{" "}
+                {statusFilter === "all" ? "Tất cả" : statusFilter}
+            </span>
+              {categoryFilter ? (
+                  <span className="x-chip">
+                <i className="fa-solid fa-layer-group" /> {categoryMap[categoryFilter] || categoryFilter}
+              </span>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="x-topbar-actions">
+            <button className="x-btn x-btn-primary" onClick={onCreateProduct}>
+              <i className="fa-solid fa-plus" /> <span>Thêm sản phẩm</span>
+            </button>
+            <button className="x-btn" onClick={() => setOpenCategoryModal(true)}>
+              <i className="fa-solid fa-folder-tree" /> <span>Quản lý category</span>
+            </button>
           </div>
         </div>
-      </div>
 
-      <AppAlert
-        kind="warning"
-        title="Lưu ý dữ liệu"
-        message="Hãy chọn đúng ngôn ngữ trước khi chỉnh sửa để tránh ghi đè bản dịch ngoài ý muốn."
-      />
-
-      <div className="card" style={{ display: "grid", gap: 10 }}>
-        <div className="grid grid-2" style={{ gap: 10 }}>
-          <label>
-            <div className="muted">Tìm kiếm sản phẩm</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                className="input"
-                placeholder="Nhập SKU hoặc tên sản phẩm"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-              />
-              <button
-                className="btn"
-                onClick={() => {
-                  setPage(1);
-                  setSearch(searchInput.trim());
-                }}
-              >
-                Tìm
-              </button>
+        {/* Language selector + status filter */}
+        <div className="x-toolbar">
+          <div className="x-langbar">
+            <div className="x-toolbar-label">
+              <i className="fa-solid fa-globe" /> Ngôn ngữ
             </div>
-          </label>
-          <label>
-            <div className="muted">Category</div>
-            <select
-              className="select"
-              value={categoryFilter}
-              onChange={(e) => {
-                setPage(1);
-                setCategoryFilter(e.target.value);
-              }}
-            >
-              <option value="">Tất cả category</option>
-              {categories.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {categoryMap[item.id] || item.id}
-                </option>
+            <div className="x-lang-pills">
+              {languages.map((l) => (
+                  <button
+                      key={l.code}
+                      className={classNames("x-pill-btn", activeLang === l.code && "x-pill-btn-active")}
+                      onClick={() => setActiveLang(l.code)}
+                  >
+                    <span className="x-pill-btn-dot" />
+                    {l.label}
+                    {activeLang === l.code ? <i className="fa-solid fa-check" /> : <i className="fa-regular fa-circle" />}
+                  </button>
               ))}
-            </select>
-          </label>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <span className="muted">Trạng thái:</span>
-          <button className={`btn ${statusFilter === "all" ? "btn-primary" : ""}`} onClick={() => { setPage(1); setStatusFilter("all"); }}>Tất cả</button>
-          <button className={`btn ${statusFilter === "active" ? "btn-primary" : ""}`} onClick={() => { setPage(1); setStatusFilter("active"); }}>Active</button>
-          <button className={`btn ${statusFilter === "draft" ? "btn-primary" : ""}`} onClick={() => { setPage(1); setStatusFilter("draft"); }}>Draft</button>
-          <span className="muted" style={{ marginLeft: "auto" }}>Tổng: {total}</span>
-        </div>
-      </div>
-
-      <div className="card">
-        {loading ? (
-          <div className="muted">Đang tải dữ liệu...</div>
-        ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>SKU</th>
-                <th>Tên ({activeLang.toUpperCase()})</th>
-                <th>Category</th>
-                <th>Giá</th>
-                <th>Trạng thái</th>
-                <th>Hành động</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((product) => (
-                <tr key={product.id}>
-                  <td>{product.sku}</td>
-                  <td>{viOrActiveName(product)}</td>
-                  <td>{categoryMap[product.categoryId] || "-"}</td>
-                  <td>{product.price.toLocaleString("vi-VN")} đ</td>
-                  <td>
-                    <span className="pill" style={{ background: product.status === "active" ? "#ecfdf5" : "#f1f5f9", color: product.status === "active" ? "#047857" : "#475569", borderColor: product.status === "active" ? "#a7f3d0" : "#cbd5e1" }}>
-                      {product.status}
-                    </span>
-                  </td>
-                  <td>
-                    <Link className="btn" to={`/catalog/products/${product.id}`}>Chỉnh sửa</Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, gap: 10, flexWrap: "wrap" }}>
-          <div className="muted">Trang {page} / {totalPages}</div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <select
-              className="select"
-              value={pageSize}
-              onChange={(e) => {
-                setPage(1);
-                setPageSize(Number(e.target.value));
-              }}
-            >
-              {[10, 20, 50].map((size) => (
-                <option key={size} value={size}>{size}/trang</option>
-              ))}
-            </select>
-            <button className="btn" disabled={page <= 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))}>← Trước</button>
-            <button className="btn" disabled={page >= totalPages} onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}>Sau →</button>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {openCategoryModal ? (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(15, 23, 42, 0.45)",
-            display: "grid",
-            placeItems: "center",
-            zIndex: 60,
-            padding: 18,
-          }}
-          onClick={() => setOpenCategoryModal(false)}
-        >
-          <div className="card" style={{ width: "min(980px, 100%)", maxHeight: "90vh", overflow: "auto" }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <h3 className="h2">Quản lý category đa ngôn ngữ</h3>
-              <button className="btn" onClick={() => setOpenCategoryModal(false)}>Đóng</button>
-            </div>
-
-            <div style={{ display: "inline-flex", padding: 4, borderRadius: 12, border: "1px solid #cbd5e1", background: "#fff", gap: 4, marginBottom: 10 }}>
-              {languages.map((lang) => (
-                <button
-                  key={lang.code}
-                  className={`btn ${activeLang === lang.code ? "btn-primary" : ""}`}
-                  style={{ minHeight: 34, padding: "6px 10px", borderRadius: 9 }}
-                  onClick={() => setActiveLang(lang.code)}
-                >
-                  {lang.label}
-                </button>
-              ))}
-            </div>
-
-            <div style={{ display: "grid", gap: 8, margin: "10px 0" }}>
-              <input
-                className="input"
-                placeholder={`Tên category (${activeLang})`}
-                value={newCategory.translations.find((item) => item.lang === activeLang)?.name || ""}
-                onChange={(e) =>
-                  setNewCategory((prev) => ({
-                    ...prev,
-                    translations: prev.translations.map((row) =>
-                      row.lang === activeLang ? { ...row, name: e.target.value } : row,
-                    ),
-                  }))
-                }
-              />
-              <input
-                className="input"
-                placeholder={`Mô tả (${activeLang})`}
-                value={newCategory.translations.find((item) => item.lang === activeLang)?.description || ""}
-                onChange={(e) =>
-                  setNewCategory((prev) => ({
-                    ...prev,
-                    translations: prev.translations.map((row) =>
-                      row.lang === activeLang ? { ...row, description: e.target.value } : row,
-                    ),
-                  }))
-                }
-              />
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  className="btn btn-primary"
-                  disabled={!hasAnyCategoryName}
-                  onClick={async () => {
-                    if (!hasAnyCategoryName) return;
-                    await createAdminCategory(newCategory);
-                    setNewCategory({
-                      id: "new",
-                      translations: languages.map((lang) => ({ lang: lang.code, name: "", description: "" })),
-                    });
-                    void loadData();
+          <div className="x-tabs" style={{ justifyContent: "space-between" }}>
+            <div className="x-row x-row-wrap" style={{ gap: 8 }}>
+              <button
+                  className={classNames("x-tab", statusFilter === "all" && "x-tab-active")}
+                  onClick={() => {
+                    setPage(1);
+                    setStatusFilter("all");
                   }}
+              >
+                <i className="fa-solid fa-list" /> <span>Tất cả</span>
+              </button>
+              <button
+                  className={classNames("x-tab", statusFilter === "active" && "x-tab-active")}
+                  onClick={() => {
+                    setPage(1);
+                    setStatusFilter("active");
+                  }}
+              >
+                <i className="fa-solid fa-check" /> <span>Active</span>
+              </button>
+              <button
+                  className={classNames("x-tab", statusFilter === "draft" && "x-tab-active")}
+                  onClick={() => {
+                    setPage(1);
+                    setStatusFilter("draft");
+                  }}
+              >
+                <i className="fa-solid fa-pen" /> <span>Draft</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="x-content">
+          {/* Notice */}
+          <div className="x-card">
+            <div className="x-section-title" style={{ marginBottom: 6 }}>
+              <i className="fa-solid fa-triangle-exclamation" /> Lưu ý dữ liệu
+            </div>
+            <div className="x-warn" style={{ marginTop: 0 }}>
+              <i className="fa-solid fa-circle-info" /> Hãy chọn đúng ngôn ngữ trước khi chỉnh sửa để tránh ghi đè bản dịch ngoài ý muốn.
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="x-card">
+            <div className="x-grid2">
+              <div className="x-field">
+                <div className="x-label">Tìm kiếm</div>
+                <div className="x-row" style={{ gap: 8 }}>
+                  <input
+                      className="x-input"
+                      placeholder="Nhập SKU hoặc tên sản phẩm"
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                  />
+                  <button
+                      className="x-btn"
+                      onClick={() => {
+                        setPage(1);
+                        setSearch(searchInput.trim());
+                      }}
+                  >
+                    <i className="fa-solid fa-magnifying-glass" /> <span>Tìm</span>
+                  </button>
+                </div>
+                <div className="x-help">Mẹo: tìm theo SKU nhanh nhất.</div>
+              </div>
+
+              <label className="x-field">
+                <div className="x-label">Category</div>
+                <select
+                    className="x-input"
+                    value={categoryFilter}
+                    onChange={(e) => {
+                      setPage(1);
+                      setCategoryFilter(e.target.value);
+                    }}
                 >
-                  + Tạo
+                  <option value="">Tất cả category</option>
+                  {categories.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {categoryMap[item.id] || item.id}
+                      </option>
+                  ))}
+                </select>
+                <div className="x-help">Lọc theo danh mục để dễ kiểm soát.</div>
+              </label>
+            </div>
+          </div>
+
+          {/* List */}
+          <div className="x-card">
+            {loading ? (
+                <div className="x-stack" style={{ marginTop: 0 }}>
+                  <div className="x-skeleton-card" />
+                  <div className="x-skeleton-card" />
+                </div>
+            ) : (
+                <div className="x-prod-table" role="table" aria-label="Danh sách sản phẩm">
+                  <div className="x-prod-thead" role="rowgroup">
+                    <div className="x-prod-tr x-prod-tr-head" role="row">
+                      <div className="x-prod-cell" role="columnheader">
+                        SKU
+                      </div>
+                      <div className="x-prod-cell" role="columnheader">
+                        Tên ({activeLang.toUpperCase()})
+                      </div>
+                      <div className="x-prod-cell" role="columnheader">
+                        Category
+                      </div>
+                      <div className="x-prod-cell x-right" role="columnheader">
+                        Giá
+                      </div>
+                      <div className="x-prod-cell" role="columnheader">
+                        Trạng thái
+                      </div>
+                      <div className="x-prod-cell x-right" role="columnheader">
+                        Hành động
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="x-prod-tbody" role="rowgroup">
+                    {products.map((product) => (
+                        <div key={product.id} className="x-prod-tr" role="row">
+                          <div className="x-prod-cell" role="cell" data-label="SKU">
+                      <span className="x-chip">
+                        <i className="fa-solid fa-barcode" /> {product.sku}
+                      </span>
+                          </div>
+
+                          <div className="x-prod-cell" role="cell" data-label={`Tên (${activeLang.toUpperCase()})`}>
+                            <div style={{ fontWeight: 800 }}>{viOrActiveName(product)}</div>
+                            <div className="x-help" style={{ marginTop: 4 }}>
+                              ID: {product.id}
+                            </div>
+                          </div>
+
+                          <div className="x-prod-cell" role="cell" data-label="Category">
+                      <span className="x-chip">
+                        <i className="fa-solid fa-layer-group" /> {categoryMap[product.categoryId] || "-"}
+                      </span>
+                          </div>
+
+                          <div className="x-prod-cell x-right" role="cell" data-label="Giá">
+                            <span className="x-pill x-pill-info">{product.price.toLocaleString("vi-VN")} đ</span>
+                          </div>
+
+                          <div className="x-prod-cell" role="cell" data-label="Trạng thái">
+                      <span className={classNames("x-pill", product.status === "active" ? "x-pill-ok" : "x-pill-muted")}>
+                        <i className={product.status === "active" ? "fa-solid fa-check" : "fa-solid fa-pen"} /> {product.status}
+                      </span>
+                          </div>
+
+                          <div className="x-prod-cell x-right" role="cell" data-label="Hành động">
+                            <Link className="x-btn" to={`/catalog/products/${product.id}`}>
+                              <i className="fa-solid fa-pen-to-square" /> <span>Chỉnh sửa</span>
+                            </Link>
+                          </div>
+                        </div>
+                    ))}
+                  </div>
+                </div>
+            )}
+
+            <div className="x-row x-row-wrap" style={{ justifyContent: "space-between", marginTop: 12 }}>
+              <div className="x-chip">
+                <i className="fa-solid fa-file" /> Trang {page} / {totalPages}
+              </div>
+              <div className="x-row x-row-wrap" style={{ gap: 8 }}>
+                <select
+                    className="x-input"
+                    style={{ width: 140 }}
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPage(1);
+                      setPageSize(Number(e.target.value));
+                    }}
+                >
+                  {[10, 20, 50].map((size) => (
+                      <option key={size} value={size}>
+                        {size}/trang
+                      </option>
+                  ))}
+                </select>
+                <button className="x-btn" disabled={page <= 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))}>
+                  <i className="fa-solid fa-arrow-left" /> <span>Trước</span>
+                </button>
+                <button
+                    className="x-btn"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                >
+                  <span>Sau</span> <i className="fa-solid fa-arrow-right" />
                 </button>
               </div>
             </div>
-
-            <div className="grid" style={{ gap: 8 }}>
-              {categories.map((category) => (
-                <CategoryRow
-                  key={category.id}
-                  category={category}
-                  languages={languages}
-                  activeLang={activeLang}
-                  onSave={async (item) => {
-                    await updateAdminCategory(item);
-                    void loadData();
-                  }}
-                  onDelete={async (id) => {
-                    await deleteAdminCategory(id);
-                    void loadData();
-                  }}
-                />
-              ))}
-            </div>
           </div>
         </div>
-      ) : null}
-    </div>
+
+        {/* Category modal */}
+        {openCategoryModal ? (
+            <div className="x-dialog-backdrop" onClick={() => setOpenCategoryModal(false)}>
+              <div className="x-dialog x-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="x-row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div>
+                    <div className="x-dialog-title">
+                      <i className="fa-solid fa-folder-tree" /> Quản lý category đa ngôn ngữ
+                    </div>
+                    <div className="x-help">Sửa theo ngôn ngữ đang chọn. Các nhãn khác chỉ để đối chiếu.</div>
+                  </div>
+                  <button className="x-icon-btn" onClick={() => setOpenCategoryModal(false)} title="Đóng">
+                    <i className="fa-solid fa-xmark" />
+                  </button>
+                </div>
+
+                <div className="x-langbar" style={{ marginTop: 12 }}>
+                  <div className="x-toolbar-label">
+                    <i className="fa-solid fa-globe" /> Ngôn ngữ
+                  </div>
+                  <div className="x-lang-pills">
+                    {languages.map((l) => (
+                        <button
+                            key={l.code}
+                            className={classNames("x-pill-btn", activeLang === l.code && "x-pill-btn-active")}
+                            onClick={() => setActiveLang(l.code)}
+                        >
+                          <span className="x-pill-btn-dot" />
+                          {l.label}
+                          {activeLang === l.code ? <i className="fa-solid fa-check" /> : <i className="fa-regular fa-circle" />}
+                        </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="x-card x-card-inner" style={{ marginTop: 12, padding: 12 }}>
+                  <div className="x-section-title" style={{ marginBottom: 6 }}>
+                    <i className="fa-solid fa-plus" /> Tạo category mới
+                  </div>
+
+                  <div className="x-grid2">
+                    <label className="x-field">
+                      <div className="x-label">Tên ({activeLang.toUpperCase()})</div>
+                      <input
+                          className="x-input"
+                          placeholder={`Tên category (${activeLang})`}
+                          value={newCategory.translations.find((item) => item.lang === activeLang)?.name || ""}
+                          onChange={(e) =>
+                              setNewCategory((prev) => ({
+                                ...prev,
+                                translations: prev.translations.map((row) =>
+                                    row.lang === activeLang ? { ...row, name: e.target.value } : row,
+                                ),
+                              }))
+                          }
+                      />
+                    </label>
+                    <label className="x-field">
+                      <div className="x-label">Mô tả ({activeLang.toUpperCase()})</div>
+                      <input
+                          className="x-input"
+                          placeholder={`Mô tả (${activeLang})`}
+                          value={newCategory.translations.find((item) => item.lang === activeLang)?.description || ""}
+                          onChange={(e) =>
+                              setNewCategory((prev) => ({
+                                ...prev,
+                                translations: prev.translations.map((row) =>
+                                    row.lang === activeLang ? { ...row, description: e.target.value } : row,
+                                ),
+                              }))
+                          }
+                      />
+                    </label>
+                  </div>
+
+                  <div className="x-row" style={{ marginTop: 10 }}>
+                    <button
+                        className="x-btn x-btn-primary"
+                        disabled={!hasAnyCategoryName}
+                        onClick={async () => {
+                          if (!hasAnyCategoryName) return;
+                          await createAdminCategory(newCategory);
+                          setNewCategory({
+                            id: "new",
+                            translations: languages.map((lang) => ({ lang: lang.code, name: "", description: "" })),
+                          });
+                          void loadData();
+                        }}
+                    >
+                      <i className="fa-solid fa-plus" /> <span>Tạo</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="x-stack" style={{ marginTop: 12 }}>
+                  {categories.map((category) => (
+                      <CategoryRow
+                          key={category.id}
+                          category={category}
+                          languages={languages}
+                          activeLang={activeLang}
+                          onSave={async (item) => {
+                            await updateAdminCategory(item);
+                            void loadData();
+                          }}
+                          onDelete={async (id) => {
+                            await deleteAdminCategory(id);
+                            void loadData();
+                          }}
+                      />
+                  ))}
+                </div>
+              </div>
+            </div>
+        ) : null}
+      </div>
   );
 }
+
+// Reuse the admin detail page style tokens (duplicated intentionally for consistency)
+const styles = `
+/* ===== Light Admin Theme ===== */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+.x-wrap{
+  --bg: #f8fafc;
+  --panel: rgba(0,0,0,0.02);
+  --panel2: rgba(0,0,0,0.04);
+  --stroke: rgba(0,0,0,0.08);
+  --text: #0f172a;
+  --muted: #475569;
+
+  --brand1: #6d5efc;
+  --brand2: #00008B;
+  --ok: #10b981;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text);
+  background: linear-gradient(145deg, #ffffff, #f1f5f9);
+  min-height: 100vh;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.x-topbar{
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: rgba(255,255,255,0.8);
+  border: 1px solid var(--stroke);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 12px 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  min-height: 68px;
+}
+
+.x-topbar-left{ display: grid; gap: 6px; min-width: 260px; }
+.x-title-row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.x-title{ font-size: 16px; font-weight: 800; letter-spacing: 0.2px; color: var(--text); }
+.x-subrow{ display:flex; gap:8px; flex-wrap:wrap; }
+.x-chip{
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  color: var(--muted);
+  display:inline-flex;
+  gap: 8px;
+  align-items:center;
+}
+
+.x-topbar-actions{ display:flex; gap: 8px; align-items:center; flex-wrap:wrap; }
+
+.x-toolbar{
+  border: 1px solid var(--stroke);
+  background: rgba(255,255,255,0.6);
+  border-radius: 16px;
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.x-langbar{
+  display:flex;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.x-toolbar-label{
+  color: var(--muted);
+  display:flex;
+  gap:8px;
+  align-items:center;
+  padding-top: 6px;
+  white-space: nowrap;
+}
+
+.x-lang-pills{ display:flex; gap: 8px; flex-wrap: wrap; }
+
+.x-pill-btn{
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 7px 10px;
+  display:inline-flex;
+  gap: 8px;
+  align-items:center;
+  cursor:pointer;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
+}
+.x-pill-btn:hover{ transform: translateY(-1px); background: rgba(0,0,0,0.02); }
+.x-pill-btn:active{ transform: translateY(0px) scale(0.98); }
+.x-pill-btn-active{
+  border-color: var(--brand2);
+  background: linear-gradient(135deg, rgba(109,94,252,0.08), rgba(43,213,255,0.08));
+}
+
+.x-pill-btn-dot{
+  width:8px; height:8px; border-radius:999px;
+  background: var(--muted);
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.04);
+}
+
+.x-tabs{ display:flex; gap: 8px; flex-wrap: wrap; }
+.x-tab{
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  color: var(--muted);
+  border-radius: 12px;
+  padding: 8px 10px;
+  display:inline-flex;
+  gap: 8px;
+  align-items:center;
+  cursor:pointer;
+  transition: transform .12s ease, background .12s ease, color .12s ease;
+}
+.x-tab:hover{ transform: translateY(-1px); background: rgba(0,0,0,0.02); color: var(--text); }
+.x-tab:active{ transform: translateY(0px) scale(0.98); }
+.x-tab-active{
+  color: var(--text);
+  border-color: var(--brand1);
+  background: linear-gradient(135deg, rgba(109,94,252,0.12), rgba(43,213,255,0.08));
+}
+
+.x-content{ display:grid; gap: 12px; }
+
+.x-card{
+  border: 1px solid var(--stroke);
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+}
+
+.x-card-inner{
+  background: var(--panel);
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+}
+
+.x-section-title{
+  font-weight: 800;
+  display:flex;
+  gap: 10px;
+  align-items:center;
+  margin-bottom: 10px;
+  letter-spacing: 0.2px;
+  color: var(--text);
+}
+
+.x-help{ color: var(--muted); margin-top: 4px; line-height: 1.35; }
+.x-warn{
+  margin-top: 8px;
+  color: var(--warn);
+  background: rgba(245,158,11,0.08);
+  border: 1px solid rgba(245,158,11,0.22);
+  border-radius: 12px;
+  padding: 8px 10px;
+  display:inline-flex;
+  gap: 8px;
+  align-items:center;
+}
+
+.x-grid2{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (max-width: 860px){ .x-grid2{ grid-template-columns: 1fr; } }
+
+.x-stack{ display:grid; gap: 10px; margin-top: 10px; }
+
+.x-field{ display:grid; gap: 6px; }
+.x-label{ color: var(--muted); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; }
+.x-input{
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: #ffffff;
+  color: var(--text);
+  padding: 10px 10px;
+  outline: none;
+  transition: border-color .12s ease, transform .12s ease, background .12s ease;
+}
+.x-input:focus{
+  border-color: var(--brand2);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(43,213,255,0.1);
+}
+
+.x-row{ display:flex; gap: 10px; align-items:center; }
+.x-row-wrap{ flex-wrap: wrap; }
+
+.x-btn{
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 9px 12px;
+  display:inline-flex;
+  gap: 8px;
+  align-items:center;
+  cursor:pointer;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease, box-shadow .12s ease;
+  font-weight: 500;
+  text-decoration: none;
+}
+.x-btn:hover{ transform: translateY(-1px); background: rgba(0,0,0,0.02); }
+.x-btn:active{ transform: translateY(0px) scale(0.98); }
+.x-btn:disabled{ opacity: 0.55; cursor:not-allowed; transform:none; }
+
+.x-btn-primary{
+  border-color: var(--brand1);
+  background: linear-gradient(135deg, var(--brand1), var(--brand2));
+  color: white;
+  box-shadow: 0 4px 10px rgba(109,94,252,0.2);
+}
+.x-btn-primary:hover{ box-shadow: 0 6px 14px rgba(43,213,255,0.25); }
+.x-btn-danger{
+  border-color: var(--danger);
+  background: linear-gradient(135deg, var(--danger), #f87171);
+  color: white;
+}
+
+.x-icon-btn{
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  color: var(--text);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
+}
+.x-icon-btn:hover{ transform: translateY(-1px); background: rgba(0,0,0,0.02); }
+.x-icon-btn:active{ transform: translateY(0px) scale(0.98); }
+.x-icon-btn:disabled{ opacity:0.55; cursor:not-allowed; transform:none; }
+
+.x-pill{
+  border-radius: 999px;
+  padding: 6px 10px;
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  color: var(--muted);
+  display:inline-flex;
+  gap: 8px;
+  align-items:center;
+  font-weight: 700;
+  font-size: 12px;
+}
+.x-pill-ok{ border-color: var(--ok); background: rgba(16,185,129,0.1); color: var(--ok); }
+.x-pill-warn{ border-color: var(--warn); background: rgba(245,158,11,0.1); color: var(--warn); }
+.x-pill-info{ border-color: var(--info); background: rgba(59,130,246,0.1); color: var(--info); }
+.x-pill-muted{ color: var(--muted); }
+
+.x-right{ text-align:right; display:flex; justify-content:flex-end; }
+
+.x-dialog-backdrop{
+  position: fixed;
+  inset: 0;
+  background: rgba(255,255,255,0.6);
+  z-index: 80;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 14px;
+  backdrop-filter: blur(8px);
+}
+.x-dialog{
+  width: min(520px, 100%);
+  border-radius: 18px;
+  border: 1px solid var(--stroke);
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+  padding: 14px;
+  animation: xdialog .14s ease-out;
+}
+@keyframes xdialog{ from{ transform: translateY(6px); opacity:0.0;} to{ transform: translateY(0); opacity:1.0;} }
+.x-dialog-title{ font-weight: 950; display:flex; gap: 10px; align-items:center; font-size: 14px; color: var(--text); }
+
+.x-skeleton-card{
+  border-radius: 16px;
+  border: 1px solid var(--stroke);
+  background: linear-gradient(90deg, var(--panel), var(--panel2), var(--panel));
+  background-size: 200% 100%;
+  animation: xsheen 1.1s ease-in-out infinite;
+  height: 120px;
+}
+@keyframes xsheen{ 0%{ background-position: 0% 0%; } 100%{ background-position: 200% 0%; } }
+
+/* ===== List page extras ===== */
+.x-modal{ width: min(980px, 100%); max-height: 90vh; overflow:auto; }
+
+.x-prod-table{ display:grid; gap: 10px; }
+.x-prod-tr{
+  display:grid;
+  grid-template-columns: 160px 1.4fr 1fr 140px 120px 160px;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--stroke);
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 10px;
+}
+.x-prod-tr-head{
+  background: var(--panel);
+  font-weight: 900;
+  color: var(--muted);
+}
+.x-prod-cell{ min-width: 0; }
+
+@media (max-width: 860px){
+  .x-prod-thead{ display:none; }
+  .x-prod-tr{
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .x-prod-cell{
+    display:flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items:center;
+  }
+  .x-prod-cell::before{
+    content: attr(data-label);
+    color: var(--muted);
+    font-weight: 900;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+}
+`;

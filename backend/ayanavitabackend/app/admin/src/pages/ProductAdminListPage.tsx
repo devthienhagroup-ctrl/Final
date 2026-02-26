@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   createAdminCategory,
-  createAdminProduct,
   deleteAdminCategory,
   fetchAdminCategories,
   fetchAdminProducts,
@@ -142,9 +141,8 @@ export function ProductAdminListPage() {
     void loadData();
   }, [search, statusFilter, categoryFilter, page, pageSize]);
 
-  const onCreateProduct = async () => {
-    const created = await createAdminProduct();
-    navigate(`/catalog/products/${created.id}`);
+  const onCreateProduct = () => {
+    navigate("/catalog/products/new");
   };
 
   const viOrActiveName = (product: ProductAdminItem) =>

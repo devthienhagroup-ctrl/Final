@@ -8,23 +8,36 @@ import { ImageUploadService } from '../services/ImageUploadService'
 import { CreateProductImageDto, UpdateProductImageDto } from './dto/product-image.dto'
 import { ProductQueryDto } from './dto/product-query.dto'
 type JsonValue = string | number | boolean | { [key: string]: JsonValue } | JsonValue[];
+type ProductTranslationCreateManyRow = Prisma.ProductTranslationCreateManyInput
+
+const normalizeSlug = (value: string) => value.trim().toLowerCase().replace(/\s+/g, '-');
+
+const dedupeSlugInPayload = (rows: ProductTranslationCreateManyRow[]): ProductTranslationCreateManyRow[] => {
+  const counters = new Map<string, number>();
+  return rows.map((row) => {
+    const key = `${row.languageCode}::${row.slug}`;
+    const count = counters.get(key) ?? 0;
+    counters.set(key, count + 1);
+    if (count === 0) return row;
+    return { ...row, slug: `${row.slug}-${count + 1}` };
+  });
+};
 
 const toProductTranslationCreateManyData = (
-    productId: number,
-    translations: CreateProductDto['translations'] | UpdateProductDto['translations'],
+  productId: number,
+  translations: CreateProductDto['translations'] | UpdateProductDto['translations'],
 ) =>
-    (translations ?? []).map((translation) => ({
-      productId: BigInt(productId),
-      languageCode: translation.languageCode,
-      name: translation.name,
-      slug: translation.slug,
-      shortDescription: translation.shortDescription,
-      description: translation.description,
-      guideContent: translation.guideContent
-          ? (JSON.parse(JSON.stringify(translation.guideContent)) as JsonValue)
-          : null,
-
-    }))
+  (translations ?? []).map((translation): ProductTranslationCreateManyRow => ({
+    productId: BigInt(productId),
+    languageCode: translation.languageCode,
+    name: translation.name,
+    slug: normalizeSlug(translation.slug || `${translation.languageCode}-${productId}`),
+    shortDescription: translation.shortDescription,
+    description: translation.description,
+    guideContent: translation.guideContent
+      ? (JSON.parse(JSON.stringify(translation.guideContent)) as JsonValue)
+      : null,
+  }))
 
 @Injectable()
 export class ProductsService {
@@ -32,6 +45,46 @@ export class ProductsService {
     private readonly prisma: PrismaService,
     private readonly imageUploadService: ImageUploadService,
   ) {}
+
+  private async makeUniqueTranslationSlugs(
+    tx: Prisma.TransactionClient,
+    rows: ReturnType<typeof toProductTranslationCreateManyData>,
+    productId?: number,
+  ) {
+    const dedupedRows = dedupeSlugInPayload(rows);
+    const output: typeof dedupedRows = [];
+    const usedSlugByLang = new Set<string>();
+
+    const languages = Array.from(new Set(dedupedRows.map((row) => row.languageCode)));
+    if (languages.length) {
+      const existingRows = await tx.productTranslation.findMany({
+        where: {
+          languageCode: { in: languages },
+          ...(productId ? { productId: { not: BigInt(productId) } } : {}),
+        },
+        select: { languageCode: true, slug: true },
+      });
+
+      for (const existing of existingRows) {
+        usedSlugByLang.add(`${existing.languageCode}::${existing.slug}`);
+      }
+    }
+
+    for (const row of dedupedRows) {
+      const baseSlug = row.slug || `${row.languageCode}-${Date.now()}`;
+      let candidate = baseSlug;
+      let suffix = 1;
+      while (usedSlugByLang.has(`${row.languageCode}::${candidate}`)) {
+        suffix += 1;
+        candidate = `${baseSlug}-${suffix}`;
+      }
+
+      usedSlugByLang.add(`${row.languageCode}::${candidate}`);
+      output.push({ ...row, slug: candidate });
+    }
+
+    return output;
+  }
 
   async findAll(query: ProductQueryDto = {}) {
     const page = query.page ?? 1
@@ -107,9 +160,11 @@ export class ProductsService {
         },
       })
 
-      await tx.productTranslation.createMany({
-        data: toProductTranslationCreateManyData(Number(createdProduct.id), dto.translations),
-      })
+      const translationRows = await this.makeUniqueTranslationSlugs(
+        tx,
+        toProductTranslationCreateManyData(Number(createdProduct.id), dto.translations),
+      )
+      await tx.productTranslation.createMany({ data: translationRows })
 
       return tx.catalogProduct.findUniqueOrThrow({
         where: { id: createdProduct.id },
@@ -124,8 +179,13 @@ export class ProductsService {
     await this.findOne(id)
     const row = await this.prisma.$transaction(async (tx) => {
       if (dto.translations) {
+        const translationRows = await this.makeUniqueTranslationSlugs(
+          tx,
+          toProductTranslationCreateManyData(id, dto.translations),
+          id,
+        )
         await tx.productTranslation.deleteMany({ where: { productId: BigInt(id) } })
-        await tx.productTranslation.createMany({ data: toProductTranslationCreateManyData(id, dto.translations) })
+        await tx.productTranslation.createMany({ data: translationRows })
       }
 
       return tx.catalogProduct.update({

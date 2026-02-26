@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
+  createAdminProduct,
   createAttribute,
   createIngredient,
   deleteAdminProduct,
@@ -61,7 +62,6 @@ function normalizeStepOrders(steps: { order: number; content: string }[]) {
   return steps.map((s, idx) => ({ ...s, order: idx + 1 }));
 }
 
-type ToastState = { type: "success" | "error" | "info"; title: string; message?: string } | null;
 type DialogState =
     | null
     | {
@@ -84,6 +84,38 @@ function classNames(...v: Array<string | false | null | undefined>) {
   return v.filter(Boolean).join(" ");
 }
 
+type ValidationErrors = {
+  sku?: boolean;
+  categoryId?: boolean;
+  price?: boolean;
+  translationNameByLang: Record<string, boolean>;
+};
+
+const createEmptyProduct = (langs: AdminLanguage[]): ProductAdminItem => {
+  const nextLangs = langs.length ? langs : [{ code: "vi", label: "Tiếng Việt" }];
+  const now = new Date().toISOString();
+  const baseSku = `AYA-${Date.now().toString(36).toUpperCase()}`;
+  return {
+    id: "new",
+    sku: baseSku,
+    categoryId: "",
+    price: 0,
+    stock: 0,
+    status: "draft",
+    translations: nextLangs.map((lang) => ({
+      lang: lang.code,
+      name: "",
+      shortDescription: "",
+      description: "",
+      guideContent: { intro: "", steps: [] },
+    })),
+    ingredients: [],
+    attributes: [],
+    images: [],
+    updatedAt: now,
+  };
+};
+
 export function ProductAdminDetailPage() {
   const { productId } = useParams();
   const navigate = useNavigate();
@@ -100,11 +132,10 @@ export function ProductAdminDetailPage() {
   const [pendingImageFiles, setPendingImageFiles] = useState<PendingImageFileMap>({});
   const [deletedPersistedImageIds, setDeletedPersistedImageIds] = useState<string[]>([]);
 
-  const [toast, setToast] = useState<ToastState>(null);
   const [dialog, setDialog] = useState<DialogState>(null);
+  const [showValidation, setShowValidation] = useState(false);
 
   const originalRef = useRef<ProductAdminItem | null>(null);
-  const toastTimer = useRef<number | null>(null);
 
   // Inject FontAwesome CDN once (if not already on the page)
   useEffect(() => {
@@ -119,10 +150,8 @@ export function ProductAdminDetailPage() {
     document.head.appendChild(link);
   }, []);
 
-  const showToast = (t: ToastState, autoHideMs = 2400) => {
-    setToast(t);
-    if (toastTimer.current) window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToast(null), autoHideMs);
+  const showNotice = (title: string, message = "") => {
+    setDialog({ kind: "alert", title, message });
   };
 
   const cleanupTempObjectUrls = (p: ProductAdminItem | null) => {
@@ -144,11 +173,16 @@ export function ProductAdminDetailPage() {
     setIsLoading(true);
     try {
       const langs = await fetchCatalogLanguages();
-      const [detail, categoryList] = await Promise.all([fetchAdminProductById(productId), fetchAdminCategories()]);
-
+      const categoryList = await fetchAdminCategories();
       const nextLang = langs.find((x) => x.code === activeLang)?.code || langs[0]?.code || "vi";
 
-      // cleanup old temp URLs before swapping product
+      let detail: ProductAdminItem | null;
+      if (productId === "new") {
+        detail = createEmptyProduct(langs);
+      } else {
+        detail = await fetchAdminProductById(productId);
+      }
+
       cleanupTempObjectUrls(product);
 
       setProduct(detail);
@@ -159,6 +193,7 @@ export function ProductAdminDetailPage() {
       originalRef.current = deepClone(detail);
       setPendingImageFiles({});
       setDeletedPersistedImageIds([]);
+      setShowValidation(false);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Không thể tải dữ liệu";
       setDialog({ kind: "alert", title: "Lỗi tải trang", message: msg });
@@ -187,6 +222,26 @@ export function ProductAdminDetailPage() {
     return false;
   }, [product, pendingImageFiles, deletedPersistedImageIds]);
 
+  const validationErrors = useMemo<ValidationErrors>(() => {
+    if (!product) return { translationNameByLang: {} };
+    const translationNameByLang = Object.fromEntries(
+      product.translations.map((row) => [row.lang, !row.name.trim()]),
+    );
+    return {
+      sku: !product.sku.trim(),
+      categoryId: !product.categoryId,
+      price: Number.isNaN(product.price) || product.price <= 0,
+      translationNameByLang,
+    };
+  }, [product]);
+
+  const hasValidationError = useMemo(
+    () =>
+      Boolean(validationErrors.sku || validationErrors.categoryId || validationErrors.price) ||
+      Object.values(validationErrors.translationNameByLang).some(Boolean),
+    [validationErrors],
+  );
+
   const statusText = saving ? "Đang lưu..." : isDirty ? "Có thay đổi" : "Đã lưu";
   const statusTone = saving ? "info" : isDirty ? "warn" : "ok";
 
@@ -198,7 +253,7 @@ export function ProductAdminDetailPage() {
       setProduct(deepClone(originalRef.current));
       setPendingImageFiles({});
       setDeletedPersistedImageIds([]);
-      showToast({ type: "info", title: "Đã hoàn tác thay đổi" });
+      showNotice("Đã hoàn tác thay đổi");
     };
 
     if (!isDirty) return doReset();
@@ -281,7 +336,7 @@ export function ProductAdminDetailPage() {
       return { ...prev, images: normalizeImageSortOrder(merged) };
     });
 
-    showToast({ type: "success", title: "Đã thêm ảnh (chưa lưu)" }, 1800);
+    showNotice("Đã thêm ảnh", "Ảnh mới sẽ được lưu khi bạn bấm Lưu.");
   };
 
   const onDeleteImage = (imageId: string) => {
@@ -317,13 +372,13 @@ export function ProductAdminDetailPage() {
       return { ...prev, images: normalized };
     });
 
-    showToast({ type: "info", title: "Đã xóa ảnh (chưa lưu)" }, 1600);
+    showNotice("Đã xóa ảnh", "Thay đổi sẽ có hiệu lực sau khi bấm Lưu.");
   };
 
   const copyFromViToActive = () => {
     if (!product) return;
     const vi = product.translations.find((t) => t.lang === "vi");
-    if (!vi) return showToast({ type: "error", title: "Không tìm thấy bản dịch VI để copy" });
+    if (!vi) return showNotice("Không tìm thấy bản dịch VI để copy");
 
     setProduct((prev) => {
       if (!prev) return prev;
@@ -343,14 +398,25 @@ export function ProductAdminDetailPage() {
       };
     });
 
-    showToast({ type: "success", title: "Đã copy nội dung từ VI" }, 1700);
+    showNotice("Đã copy nội dung từ VI");
   };
 
   const onSave = async () => {
     if (!product) return;
+    setShowValidation(true);
+    if (hasValidationError) {
+      showNotice("Thiếu dữ liệu bắt buộc", "Vui lòng nhập đầy đủ các trường đang được tô đỏ.");
+      return;
+    }
 
     setSaving(true);
     try {
+      if (productId === "new") {
+        const created = await createAdminProduct(product);
+        showNotice("Đã tạo sản phẩm mới");
+        navigate(`/catalog/products/${created.id}`);
+        return;
+      }
       await updateAdminProduct(product);
 
       for (const imageId of deletedPersistedImageIds) {
@@ -373,11 +439,10 @@ export function ProductAdminDetailPage() {
       }
 
       await load();
-      showToast({ type: "success", title: "Đã lưu thay đổi" });
+      showNotice("Đã lưu thay đổi");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Không thể lưu thay đổi";
       setDialog({ kind: "alert", title: "Lưu thất bại", message });
-      showToast({ type: "error", title: "Lưu thất bại" });
     } finally {
       setSaving(false);
     }
@@ -396,7 +461,6 @@ export function ProductAdminDetailPage() {
       onConfirm: async () => {
         try {
           await deleteAdminProduct(product.id);
-          showToast({ type: "success", title: "Đã xóa sản phẩm" }, 1600);
           navigate("/catalog/products");
         } catch (error) {
           const message = error instanceof Error ? error.message : "Không thể xóa sản phẩm";
@@ -432,7 +496,7 @@ export function ProductAdminDetailPage() {
             <label className="x-field">
               <div className="x-label">SKU</div>
               <input
-                  className="x-input"
+                  className={classNames("x-input", showValidation && validationErrors.sku && "x-input-invalid")}
                   value={product.sku}
                   onChange={(e) => setProduct((prev) => (prev ? { ...prev, sku: e.target.value } : prev))}
                   placeholder="VD: SPA-001"
@@ -442,7 +506,7 @@ export function ProductAdminDetailPage() {
             <label className="x-field">
               <div className="x-label">Category</div>
               <select
-                  className="x-input"
+                  className={classNames("x-input", showValidation && validationErrors.categoryId && "x-input-invalid")}
                   value={product.categoryId}
                   onChange={(e) => setProduct((prev) => (prev ? { ...prev, categoryId: e.target.value } : prev))}
               >
@@ -461,7 +525,7 @@ export function ProductAdminDetailPage() {
                 <span className="x-prefix">₫</span>
                 <input
                     type="number"
-                    className="x-input x-input-inner"
+                    className={classNames("x-input x-input-inner", showValidation && validationErrors.price && "x-input-invalid")}
                     value={product.price}
                     onChange={(e) => setProduct((prev) => (prev ? { ...prev, price: Number(e.target.value) } : prev))}
                 />
@@ -519,7 +583,7 @@ export function ProductAdminDetailPage() {
             <label className="x-field">
               <div className="x-label">Tên sản phẩm</div>
               <input
-                  className="x-input"
+                  className={classNames("x-input", showValidation && validationErrors.translationNameByLang[activeLang] && "x-input-invalid")}
                   value={translation?.name || ""}
                   onChange={(e) =>
                       setProduct((prev) =>
@@ -528,6 +592,7 @@ export function ProductAdminDetailPage() {
                   }
                   placeholder="Nhập tên theo ngôn ngữ đang chọn…"
               />
+              {showValidation && validationErrors.translationNameByLang[activeLang] && <div className="x-error-text">Tên sản phẩm là bắt buộc.</div>}
             </label>
 
             <label className="x-field">
@@ -1171,15 +1236,6 @@ export function ProductAdminDetailPage() {
               </div>
             </div>
         )}
-
-        {/* Toast */}
-        {toast && (
-            <div className={classNames("x-toast", toast.type === "success" && "x-toast-success", toast.type === "error" && "x-toast-error")}>
-              <div className="x-toast-title">{toast.title}</div>
-              {toast.message && <div className="x-toast-msg">{toast.message}</div>}
-            </div>
-        )}
-
         {/* Dialog */}
         {dialog && (
             <div className="x-dialog-backdrop" role="presentation" onMouseDown={() => dialog.kind === "alert" && setDialog(null)}>
@@ -1718,24 +1774,8 @@ const styles = `
 @keyframes xspin{ to{ transform: rotate(360deg);} }
 .x-loader-text{ color: var(--text); font-weight: 800; }
 
-.x-toast{
-  position: fixed;
-  right: 14px;
-  bottom: 14px;
-  z-index: 70;
-  border-radius: 14px;
-  padding: 10px 12px;
-  border: 1px solid var(--stroke);
-  background: #ffffff;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-  min-width: 220px;
-  animation: xtoast .18s ease-out;
-}
-@keyframes xtoast{ from{ transform: translateY(6px); opacity:0.0;} to{ transform: translateY(0); opacity:1.0;} }
-.x-toast-title{ font-weight: 900; color: var(--text); }
-.x-toast-msg{ color: var(--muted); margin-top: 4px; line-height: 1.35; }
-.x-toast-success{ border-color: var(--ok); }
-.x-toast-error{ border-color: var(--danger); }
+.x-input-invalid{ border-color: #ef4444 !important; box-shadow: 0 0 0 3px rgba(239,68,68,0.15); }
+.x-error-text{ margin-top: 4px; color: #dc2626; font-size: 12px; font-weight: 700; }
 
 .x-dialog-backdrop{
   position: fixed;

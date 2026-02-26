@@ -1,8 +1,520 @@
+diff --git a/backend/ayanavitabackend/app/admin/src/api/productAdmin.api.ts b/backend/ayanavitabackend/app/admin/src/api/productAdmin.api.ts
+index 89e0795aa42fb001f3ba6ba5ddb09c207700db81..cd74c2755adfe1f8b44f54fe3bee42ae35f5cca6 100644
+--- a/backend/ayanavitabackend/app/admin/src/api/productAdmin.api.ts
++++ b/backend/ayanavitabackend/app/admin/src/api/productAdmin.api.ts
+@@ -1,44 +1,44 @@
+ import { api } from "../lib/http";
+ import { API_BASE } from "../env";
+ import {
+   type AdminLanguage,
+   type LanguageCode,
+   type ProductAdminItem,
+   type ProductAttribute,
+   type ProductCategory,
+   type ProductIngredient,
+   type ProductTranslation,
+   type ProductGuideContent,
+   type ProductImage,
+   type ProductListFilters,
+   type ProductListResponse,
+ } from "../types/productAdmin";
+
+ const uid = () => Math.random().toString(36).slice(2, 10);
+
+-const slugify = (text: string) =>
++export const slugify = (text: string) =>
+   text
+     .toLowerCase()
+     .trim()
+     .normalize("NFD")
+     .replace(/[\u0300-\u036f]/g, "")
+     .replace(/[^a-z0-9\s-]/g, "")
+     .replace(/\s+/g, "-")
+     .replace(/-+/g, "-") || `item-${uid()}`;
+
+ const defaultLanguages: AdminLanguage[] = [
+   { code: "vi", label: "Tiếng Việt" },
+   { code: "en", label: "English" },
+   { code: "de", label: "Deutsch" },
+ ];
+
+ let languageCache: AdminLanguage[] | null = null;
+
+ const emptyGuideContent = (): ProductGuideContent => ({
+   intro: "",
+   steps: [],
+ });
+
+ const normalizeGuideContent = (value: unknown): ProductGuideContent => {
+   if (!value || typeof value !== "object") return emptyGuideContent();
+
+@@ -56,60 +56,62 @@ const normalizeGuideContent = (value: unknown): ProductGuideContent => {
+         })
+         .filter((step): step is { order: number; content: string } => Boolean(step))
+         .sort((a, b) => a.order - b.order)
+     : [];
+
+   return { intro, steps };
+ };
+
+ export async function fetchCatalogLanguages(): Promise<AdminLanguage[]> {
+   if (languageCache) return languageCache;
+   try {
+     const rows = await api<Array<{ code: string; name: string }>>("/catalog/languages");
+     languageCache =
+       rows.map((row) => ({ code: row.code, label: row.name })) || defaultLanguages;
+   } catch {
+     languageCache = defaultLanguages;
+   }
+   return languageCache;
+ }
+
+ const ensureTranslations = (
+   languages: AdminLanguage[],
+   rows: Array<{
+     languageCode: string;
+     name?: string;
++    slug?: string;
+     shortDescription?: string;
+     description?: string;
+     guideContent?: unknown;
+   }> = [],
+ ): ProductTranslation[] =>
+   languages.map((lang) => {
+     const found = rows.find((item) => item.languageCode === lang.code);
+     return {
+       lang: lang.code,
+       name: found?.name || "",
++      slug: found?.slug || slugify(found?.name || `${lang.code}-${uid()}`),
+       shortDescription: found?.shortDescription || "",
+       description: found?.description || "",
+       guideContent: normalizeGuideContent(found?.guideContent),
+     };
+   });
+
+ type ApiCategory = {
+   id: string | number;
+   translations?: Array<{ languageCode: string; name: string; description?: string }>;
+ };
+
+ type ApiAttributeKey = {
+   id: string | number;
+   code: string;
+   translations?: Array<{ languageCode: string; displayName: string }>;
+ };
+
+ type ApiIngredientKey = {
+   id: string | number;
+   code: string;
+   translations?: Array<{ languageCode: string; displayName: string }>;
+ };
+
+ const loadAttributeKeys = async (): Promise<Record<string, ApiAttributeKey>> => {
+   const rows = await api<ApiAttributeKey[]>("/catalog/attributes");
+@@ -122,50 +124,51 @@ const loadIngredientKeys = async (): Promise<Record<string, ApiIngredientKey>> =
+ };
+
+ const mapCategory = (item: ApiCategory, languages: AdminLanguage[]): ProductCategory => ({
+   id: String(item.id),
+   translations: languages.map((lang) => {
+     const found = item.translations?.find((row) => row.languageCode === lang.code);
+     return {
+       lang: lang.code,
+       name: found?.name || "",
+       description: found?.description || "",
+     };
+   }),
+ });
+
+ type ApiProduct = {
+   id: string | number;
+   sku: string;
+   categoryId?: string | number | null;
+   price: number;
+   status?: string;
+   stock?: number;
+   updatedAt?: string;
+   translations?: Array<{
+     languageCode: string;
+     name: string;
++    slug?: string;
+     shortDescription?: string;
+     description?: string;
+     guideContent?: unknown;
+   }>;
+   attributes?: Array<{ attributeKeyId: string | number; valueText?: string; valueNumber?: number }>;
+   ingredients?: Array<{ ingredientKeyId: string | number; note?: string; value?: string }>;
+   images?: Array<{ id: string | number; imageUrl: string; isPrimary?: boolean; sortOrder?: number }>;
+ };
+
+ const mapProduct = (
+   item: ApiProduct,
+   languages: AdminLanguage[],
+   ingredientKeys: Record<string, ApiIngredientKey> = {},
+   attributeKeys: Record<string, ApiAttributeKey> = {},
+ ): ProductAdminItem => ({
+   id: String(item.id),
+   sku: item.sku,
+   categoryId: item.categoryId ? String(item.categoryId) : "",
+   price: Number(item.price || 0),
+   stock: Number(item.stock || 0),
+   status: item.status === "active" ? "active" : "draft",
+   translations: ensureTranslations(languages, item.translations),
+   ingredients: (item.ingredients || []).map((row) => {
+     const key = ingredientKeys[String(row.ingredientKeyId)];
+     const nameByLang = Object.fromEntries(
+@@ -191,51 +194,51 @@ const mapProduct = (
+     );
+
+     return {
+       id: String(row.attributeKeyId),
+       keyByLang,
+       value: row.valueText || String(row.valueNumber ?? ""),
+     };
+   }),
+   images: (item.images || []).map((row) => ({
+     id: String(row.id),
+     imageUrl: row.imageUrl,
+     isPrimary: Boolean(row.isPrimary),
+     sortOrder: Number(row.sortOrder || 0),
+   })),
+   updatedAt: item.updatedAt || new Date().toISOString(),
+ });
+
+ const toProductPayload = (item: ProductAdminItem) => ({
+   sku: item.sku,
+   categoryId: item.categoryId ? Number(item.categoryId) : null,
+   price: Number(item.price || 0),
+   status: item.status,
+   translations: item.translations.map((row) => ({
+     languageCode: row.lang,
+     name: row.name || "",
+-    slug: slugify(row.name || `${item.sku}-${row.lang}`),
++    slug: row.slug?.trim() || slugify(row.name || `${item.sku}-${row.lang}`),
+     shortDescription: row.shortDescription || "",
+     description: row.description || "",
+     guideContent: row.guideContent,
+   })),
+ });
+
+ export async function fetchAdminProducts(filters: ProductListFilters = {}): Promise<ProductListResponse> {
+   const languages = await fetchCatalogLanguages();
+   const query = new URLSearchParams();
+
+   if (filters.search?.trim()) query.set("search", filters.search.trim());
+   if (filters.status && filters.status !== "all") query.set("status", filters.status);
+   if (filters.categoryId) query.set("categoryId", filters.categoryId);
+   if (filters.page) query.set("page", String(filters.page));
+   if (filters.pageSize) query.set("pageSize", String(filters.pageSize));
+
+   const endpoint = query.toString() ? `/catalog/products?${query.toString()}` : "/catalog/products";
+
+   const [response, ingredientKeys, attributeKeys] = await Promise.all([
+     api<{ items: ApiProduct[]; page: number; pageSize: number; total: number; totalPages: number }>(endpoint),
+     loadIngredientKeys(),
+     loadAttributeKeys(),
+   ]);
+
+   return {
+@@ -448,32 +451,32 @@ export async function updateAdminCategory(category: ProductCategory): Promise<Pr
+         name: row.name,
+         slug: slugify(`${row.name || "category"}-${row.lang}`),
+         description: row.description || "",
+       })),
+     }),
+   });
+   const languages = await fetchCatalogLanguages();
+   return mapCategory(updated, languages);
+ }
+
+ export async function deleteAdminCategory(categoryId: string): Promise<void> {
+   await api(`/catalog/categories/${categoryId}`, { method: "DELETE" });
+ }
+
+ export async function deleteAdminProduct(productId: string): Promise<void> {
+   await api(`/catalog/products/${productId}`, { method: "DELETE" });
+ }
+
+ export function upsertTranslation(
+   translations: ProductTranslation[],
+   lang: LanguageCode,
+   patch: Partial<ProductTranslation>,
+ ): ProductTranslation[] {
+   const existing = translations.find((item) => item.lang === lang);
+   if (!existing) {
+-    return [...translations, { lang, name: "", shortDescription: "", description: "", guideContent: emptyGuideContent(), ...patch }];
++    return [...translations, { lang, name: "", slug: "", shortDescription: "", description: "", guideContent: emptyGuideContent(), ...patch }];
+   }
+   return translations.map((item) => (item.lang === lang ? { ...item, ...patch } : item));
+ }
+
+ export const createIngredient = (): ProductIngredient => ({ id: uid(), nameByLang: {}, note: "" });
+ export const createAttribute = (): ProductAttribute => ({ id: uid(), keyByLang: {}, value: "" });
 diff --git a/backend/ayanavitabackend/app/admin/src/pages/ProductAdminDetailPage.tsx b/backend/ayanavitabackend/app/admin/src/pages/ProductAdminDetailPage.tsx
-index 74cf4c66a4a750138e4ed8e443a850e7484e3d68..defbf5d759bc58cff21b587dbe8a29fab91be0ec 100644
+index defbf5d759bc58cff21b587dbe8a29fab91be0ec..0db0be59b91804a07335ee733dc58b03fc19d13e 100644
 --- a/backend/ayanavitabackend/app/admin/src/pages/ProductAdminDetailPage.tsx
 +++ b/backend/ayanavitabackend/app/admin/src/pages/ProductAdminDetailPage.tsx
-@@ -389,77 +389,90 @@ export function ProductAdminDetailPage() {
+@@ -1,36 +1,37 @@
+ import { useEffect, useMemo, useRef, useState } from "react";
+ import { Link, useNavigate, useParams } from "react-router-dom";
+ import {
+   createAdminProduct,
+   createAttribute,
+   createIngredient,
+   deleteAdminProduct,
+   deleteProductImage,
+   fetchAdminCategories,
+   fetchAdminProductById,
+   fetchCatalogLanguages,
++  slugify,
+   updateAdminProduct,
+   updateProductImage,
+   uploadProductImage,
+   upsertTranslation,
+ } from "../api/productAdmin.api";
+ import type { AdminLanguage, ProductAdminItem, ProductCategory } from "../types/productAdmin";
+
+ type PendingImageFileMap = Record<string, File>;
+ type ActiveTab = "general" | "translations" | "images" | "meta";
+
+ const isTempImageId = (id: string) => id.startsWith("temp-");
+
+ function deepClone<T>(value: T): T {
+   const sc = (globalThis as any)?.structuredClone as undefined | ((v: any) => any);
+   if (typeof sc === "function") return sc(value);
+   return JSON.parse(JSON.stringify(value)) as T;
+ }
+
+ function stableStringify(value: unknown): string {
+   const seen = new WeakSet<object>();
+   const helper = (v: any): any => {
+     if (v === null) return null;
+     if (typeof v === "bigint") return v.toString();
+     if (typeof v !== "object") return v;
+     if (v instanceof Date) return v.toISOString();
+@@ -67,95 +68,109 @@ type DialogState =
+     | {
+   kind: "alert";
+   title: string;
+   message: string;
+   confirmText?: string;
+ }
+     | {
+   kind: "confirm";
+   title: string;
+   message: string;
+   confirmText?: string;
+   cancelText?: string;
+   danger?: boolean;
+   onConfirm: () => void | Promise<void>;
+ };
+
+ function classNames(...v: Array<string | false | null | undefined>) {
+   return v.filter(Boolean).join(" ");
+ }
+
+ type ValidationErrors = {
+   sku?: boolean;
+   categoryId?: boolean;
+   price?: boolean;
+   translationNameByLang: Record<string, boolean>;
++  translationSlugByLang: Record<string, boolean>;
+ };
+
+ const createEmptyProduct = (langs: AdminLanguage[]): ProductAdminItem => {
+   const nextLangs = langs.length ? langs : [{ code: "vi", label: "Tiếng Việt" }];
+   const now = new Date().toISOString();
+   const baseSku = `AYA-${Date.now().toString(36).toUpperCase()}`;
+   return {
+     id: "new",
+     sku: baseSku,
+     categoryId: "",
+     price: 0,
+     stock: 0,
+     status: "draft",
+     translations: nextLangs.map((lang) => ({
+       lang: lang.code,
+       name: "",
++      slug: `new-${lang.code}-${Date.now().toString(36)}`,
+       shortDescription: "",
+       description: "",
+       guideContent: { intro: "", steps: [] },
+     })),
+     ingredients: [],
+     attributes: [],
+     images: [],
+     updatedAt: now,
+   };
+ };
+
++
++const buildSlugEditedMap = (current: ProductAdminItem | null, original: ProductAdminItem | null): Record<string, boolean> => {
++  if (!current) return {};
++  return Object.fromEntries(
++    current.translations.map((row) => {
++      const originalSlug = original?.translations.find((item) => item.lang === row.lang)?.slug?.trim() || "";
++      return [row.lang, Boolean(originalSlug) && row.slug.trim() !== originalSlug];
++    }),
++  );
++};
++
+ export function ProductAdminDetailPage() {
+   const { productId } = useParams();
+   const navigate = useNavigate();
+
+   const [product, setProduct] = useState<ProductAdminItem | null>(null);
+   const [categories, setCategories] = useState<ProductCategory[]>([]);
+   const [languages, setLanguages] = useState<AdminLanguage[]>([]);
+   const [activeLang, setActiveLang] = useState("vi");
+   const [activeTab, setActiveTab] = useState<ActiveTab>("general");
+
+   const [isLoading, setIsLoading] = useState(false);
+   const [saving, setSaving] = useState(false);
+
+   const [pendingImageFiles, setPendingImageFiles] = useState<PendingImageFileMap>({});
+   const [deletedPersistedImageIds, setDeletedPersistedImageIds] = useState<string[]>([]);
+
+   const [dialog, setDialog] = useState<DialogState>(null);
+   const [showValidation, setShowValidation] = useState(false);
++  const [slugEditedByLang, setSlugEditedByLang] = useState<Record<string, boolean>>({});
+
+   const originalRef = useRef<ProductAdminItem | null>(null);
+
+   // Inject FontAwesome CDN once (if not already on the page)
+   useEffect(() => {
+     const id = "fa-cdn-6";
+     if (document.getElementById(id)) return;
+
+     const link = document.createElement("link");
+     link.id = id;
+     link.rel = "stylesheet";
+     link.href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css";
+     link.crossOrigin = "anonymous";
+     document.head.appendChild(link);
+   }, []);
+
+   const showNotice = (title: string, message = "") => {
+     setDialog({ kind: "alert", title, message });
+   };
+
+   const cleanupTempObjectUrls = (p: ProductAdminItem | null) => {
+     if (!p) return;
+     for (const img of p.images) {
+       if (isTempImageId(img.id)) {
+         try {
+@@ -169,98 +184,104 @@ export function ProductAdminDetailPage() {
+
+   const load = async () => {
+     if (!productId) return;
+
+     setIsLoading(true);
+     try {
+       const langs = await fetchCatalogLanguages();
+       const categoryList = await fetchAdminCategories();
+       const nextLang = langs.find((x) => x.code === activeLang)?.code || langs[0]?.code || "vi";
+
+       let detail: ProductAdminItem | null;
+       if (productId === "new") {
+         detail = createEmptyProduct(langs);
+       } else {
+         detail = await fetchAdminProductById(productId);
+       }
+
+       cleanupTempObjectUrls(product);
+
+       setProduct(detail);
+       setCategories(categoryList);
+       setLanguages(langs);
+       setActiveLang(nextLang);
+
+       originalRef.current = deepClone(detail);
++      setSlugEditedByLang(buildSlugEditedMap(detail, detail));
+       setPendingImageFiles({});
+       setDeletedPersistedImageIds([]);
+       setShowValidation(false);
+     } catch (e) {
+       const msg = e instanceof Error ? e.message : "Không thể tải dữ liệu";
+       setDialog({ kind: "alert", title: "Lỗi tải trang", message: msg });
+     } finally {
+       setIsLoading(false);
+     }
+   };
+
+   useEffect(() => {
+     void load();
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [productId]);
+
+   const translation = useMemo(
+       () => product?.translations.find((item) => item.lang === activeLang),
+       [product, activeLang],
+   );
+
+   const isDirty = useMemo(() => {
+     if (!product || !originalRef.current) return false;
+     const a = stableStringify(product);
+     const b = stableStringify(originalRef.current);
+     if (a !== b) return true;
+     if (Object.keys(pendingImageFiles).length > 0) return true;
+     if (deletedPersistedImageIds.length > 0) return true;
+     return false;
+   }, [product, pendingImageFiles, deletedPersistedImageIds]);
+
+   const validationErrors = useMemo<ValidationErrors>(() => {
+     if (!product) return { translationNameByLang: {} };
+     const translationNameByLang = Object.fromEntries(
+       product.translations.map((row) => [row.lang, !row.name.trim()]),
+     );
++    const translationSlugByLang = Object.fromEntries(
++      product.translations.map((row) => [row.lang, !row.slug.trim()]),
++    );
+     return {
+       sku: !product.sku.trim(),
+       categoryId: !product.categoryId,
+       price: Number.isNaN(product.price) || product.price <= 0,
+       translationNameByLang,
++      translationSlugByLang,
+     };
+   }, [product]);
+
+   const hasValidationError = useMemo(
+     () =>
+       Boolean(validationErrors.sku || validationErrors.categoryId || validationErrors.price) ||
+-      Object.values(validationErrors.translationNameByLang).some(Boolean),
++      Object.values(validationErrors.translationNameByLang).some(Boolean) ||
++      Object.values(validationErrors.translationSlugByLang).some(Boolean),
+     [validationErrors],
+   );
+
+   const statusText = saving ? "Đang lưu..." : isDirty ? "Có thay đổi" : "Đã lưu";
+   const statusTone = saving ? "info" : isDirty ? "warn" : "ok";
+
+   const resetChanges = async () => {
+     if (!originalRef.current) return;
+
+     const doReset = () => {
+       cleanupTempObjectUrls(product);
+       setProduct(deepClone(originalRef.current));
+       setPendingImageFiles({});
+       setDeletedPersistedImageIds([]);
+       showNotice("Đã hoàn tác thay đổi");
+     };
+
+     if (!isDirty) return doReset();
+
+     setDialog({
+       kind: "confirm",
+       title: "Hoàn tác thay đổi?",
+       message: "Mọi chỉnh sửa chưa lưu sẽ bị mất.",
+       confirmText: "Hoàn tác",
+       cancelText: "Hủy",
+@@ -383,98 +404,98 @@ export function ProductAdminDetailPage() {
+     setProduct((prev) => {
+       if (!prev) return prev;
+       return {
+         ...prev,
+         translations: upsertTranslation(prev.translations, activeLang, {
+           name: vi.name || "",
            shortDescription: vi.shortDescription || "",
            description: vi.description || "",
            guideContent: vi.guideContent
@@ -22,62 +534,57 @@ index 74cf4c66a4a750138e4ed8e443a850e7484e3d68..defbf5d759bc58cff21b587dbe8a29fa
      if (!product) return;
      setShowValidation(true);
      if (hasValidationError) {
-       showNotice("Thiếu dữ liệu bắt buộc", "Vui lòng nhập đầy đủ các trường đang được tô đỏ.");
+-      showNotice("Thiếu dữ liệu bắt buộc", "Vui lòng nhập đầy đủ các trường đang được tô đỏ.");
++      showNotice("Thiếu dữ liệu bắt buộc", "Vui lòng nhập đầy đủ tất cả trường bắt buộc (SKU, category, giá, tên và slug theo từng ngôn ngữ).");
        return;
      }
 
      setSaving(true);
      try {
-+      let savedProduct = product;
-+      let savedProductId = product.id;
-+
+       let savedProduct = product;
+       let savedProductId = product.id;
+
        if (productId === "new") {
          const created = await createAdminProduct(product);
--        showNotice("Đã tạo sản phẩm mới");
--        navigate(`/catalog/products/${created.id}`);
--        return;
-+        savedProduct = { ...product, id: created.id, updatedAt: created.updatedAt };
-+        savedProductId = created.id;
-+
-+        // The create endpoint only persists core product fields,
-+        // so we need to persist ingredients/attributes in a follow-up update.
-+        await updateAdminProduct(savedProduct);
-+      } else {
-+        await updateAdminProduct(savedProduct);
+         savedProduct = { ...product, id: created.id, updatedAt: created.updatedAt };
+         savedProductId = created.id;
+
+         // The create endpoint only persists core product fields,
+         // so we need to persist ingredients/attributes in a follow-up update.
+         await updateAdminProduct(savedProduct);
+       } else {
+         await updateAdminProduct(savedProduct);
        }
--      await updateAdminProduct(product);
 
        for (const imageId of deletedPersistedImageIds) {
--        await deleteProductImage(product.id, imageId);
-+        await deleteProductImage(savedProductId, imageId);
+         await deleteProductImage(savedProductId, imageId);
        }
 
--      for (const image of product.images) {
-+      for (const image of savedProduct.images) {
+       for (const image of savedProduct.images) {
          if (isTempImageId(image.id)) {
            const file = pendingImageFiles[image.id];
            if (!file) continue;
--          await uploadProductImage(product.id, file, image.isPrimary, image.sortOrder);
-+          await uploadProductImage(savedProductId, file, image.isPrimary, image.sortOrder);
+           await uploadProductImage(savedProductId, file, image.isPrimary, image.sortOrder);
            try {
              URL.revokeObjectURL(image.imageUrl);
            } catch {
              // ignore
            }
          } else {
--          await updateProductImage(product.id, image);
-+          await updateProductImage(savedProductId, image);
+           await updateProductImage(savedProductId, image);
          }
        }
 
-+      if (productId === "new") {
-+        showNotice("Đã tạo sản phẩm mới");
-+        navigate(`/catalog/products/${savedProductId}`);
-+        return;
-+      }
-+
+       if (productId === "new") {
+-        showNotice("Đã tạo sản phẩm mới");
++        showNotice("Đã tạo sản phẩm mới", "Bạn có thể tiếp tục cập nhật thông tin SEO (slug) sau khi tạo.");
+         navigate(`/catalog/products/${savedProductId}`);
+         return;
+       }
+
        await load();
-       showNotice("Đã lưu thay đổi");
+-      showNotice("Đã lưu thay đổi");
++      showNotice("Đã lưu thay đổi", "Dữ liệu sản phẩm đã được cập nhật thành công.");
      } catch (error) {
        const message = error instanceof Error ? error.message : "Không thể lưu thay đổi";
        setDialog({ kind: "alert", title: "Lưu thất bại", message });
@@ -101,32 +608,257 @@ index 74cf4c66a4a750138e4ed8e443a850e7484e3d68..defbf5d759bc58cff21b587dbe8a29fa
            await deleteAdminProduct(product.id);
            navigate("/catalog/products");
          } catch (error) {
-@@ -1790,26 +1803,26 @@ const styles = `
+           const message = error instanceof Error ? error.message : "Không thể xóa sản phẩm";
+           setDialog({
+@@ -576,60 +597,100 @@ export function ProductAdminDetailPage() {
+         <div className="x-card">
+           <div className="x-section-title">
+             <i className="fa-solid fa-language" /> <span>Nội dung (đa ngôn ngữ)</span>
+           </div>
+
+           <div className="x-row x-row-wrap" style={{ justifyContent: "space-between" }}>
+             <div className="x-row x-row-wrap" style={{ gap: 8 }}>
+             <span className={classNames("x-pill", langStatus(activeLang) === "ok" ? "x-pill-ok" : "x-pill-warn")}>
+               {langStatus(activeLang) === "ok" ? "Đủ nội dung" : "Thiếu tên sản phẩm"}
+             </span>
+             </div>
+
+             {activeLang !== "vi" && (
+                 <button className="x-btn x-btn-ghost" onClick={copyFromViToActive}>
+                   <i className="fa-solid fa-copy" /> <span>Copy từ VI</span>
+                 </button>
+             )}
+           </div>
+
+           <div className="x-stack">
+             <label className="x-field">
+               <div className="x-label">Tên sản phẩm</div>
+               <input
+                   className={classNames("x-input", showValidation && validationErrors.translationNameByLang[activeLang] && "x-input-invalid")}
+                   value={translation?.name || ""}
+-                  onChange={(e) =>
+-                      setProduct((prev) =>
+-                          prev ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { name: e.target.value }) } : prev,
+-                      )
+-                  }
++                  onChange={(e) => {
++                    const nextName = e.target.value;
++                    setProduct((prev) => {
++                      if (!prev) return prev;
++                      const nextSlugPatch =
++                        productId === "new" && !slugEditedByLang[activeLang]
++                          ? { slug: slugify(nextName || `${prev.sku}-${activeLang}`) }
++                          : {};
++                      return {
++                        ...prev,
++                        translations: upsertTranslation(prev.translations, activeLang, { name: nextName, ...nextSlugPatch }),
++                      };
++                    });
++                  }}
+                   placeholder="Nhập tên theo ngôn ngữ đang chọn…"
+               />
+               {showValidation && validationErrors.translationNameByLang[activeLang] && <div className="x-error-text">Tên sản phẩm là bắt buộc.</div>}
+             </label>
+
++            <label className="x-field">
++              <div className="x-label">Slug</div>
++              <input
++                  className={classNames("x-input", showValidation && validationErrors.translationSlugByLang[activeLang] && "x-input-invalid")}
++                  value={translation?.slug || ""}
++                  onChange={(e) => {
++                    const rawSlug = e.target.value;
++                    const nextSlug = rawSlug ? slugify(rawSlug) : "";
++                    setProduct((prev) =>
++                      prev
++                        ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { slug: nextSlug }) }
++                        : prev,
++                    );
++                    if (productId === "new") {
++                      setSlugEditedByLang((prev) => ({ ...prev, [activeLang]: Boolean(rawSlug.trim()) }));
++                    } else {
++                      const originalSlug = originalRef.current?.translations.find((item) => item.lang === activeLang)?.slug?.trim() || "";
++                      setSlugEditedByLang((prev) => ({ ...prev, [activeLang]: Boolean(originalSlug) && nextSlug !== originalSlug }));
++                    }
++                  }}
++                  placeholder="vi-du-slug"
++              />
++              {showValidation && validationErrors.translationSlugByLang[activeLang] && <div className="x-error-text">Slug là bắt buộc.</div>}
++              {productId !== "new" && slugEditedByLang[activeLang] && (
++                <div className="x-help x-help-warn">Hạn chế sửa slug vì có thể ảnh hưởng SEO và các liên kết hiện có.</div>
++              )}
++              {productId === "new" && (
++                <div className="x-help">Slug tự sinh theo tên sản phẩm, bạn vẫn có thể chỉnh sửa thủ công.</div>
++              )}
++            </label>
++
+             <label className="x-field">
+               <div className="x-label">Mô tả ngắn</div>
+               <input
+                   className="x-input"
+                   value={translation?.shortDescription || ""}
+                   onChange={(e) =>
+                       setProduct((prev) =>
+                           prev
+                               ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { shortDescription: e.target.value }) }
+                               : prev,
+                       )
+                   }
+                   placeholder="Tóm tắt ngắn gọn…"
+               />
+             </label>
+
+             <label className="x-field">
+               <div className="x-label">Mô tả chi tiết</div>
+               <textarea
+                   rows={5}
+                   className="x-input x-textarea"
+                   value={translation?.description || ""}
+                   onChange={(e) =>
+                       setProduct((prev) =>
+                           prev ? { ...prev, translations: upsertTranslation(prev.translations, activeLang, { description: e.target.value }) } : prev,
+@@ -1255,51 +1316,51 @@ export function ProductAdminDetailPage() {
+               <div className="x-dialog" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
+                 <div className="x-dialog-title">
+                   <i className={dialog.kind === "confirm" ? "fa-solid fa-circle-question" : "fa-solid fa-circle-exclamation"} />{" "}
+                   {dialog.title}
+                 </div>
+                 <div className="x-dialog-msg">{dialog.message}</div>
+                 <div className="x-dialog-actions">
+                   {dialog.kind === "confirm" ? (
+                       <>
+                         <button className="x-btn x-btn-ghost" onClick={() => setDialog(null)}>
+                           <i className="fa-solid fa-xmark" /> <span>{dialog.cancelText || "Hủy"}</span>
+                         </button>
+                         <button
+                             className={classNames("x-btn", dialog.danger ? "x-btn-danger" : "x-btn-primary")}
+                             onClick={async () => {
+                               const fn = dialog.onConfirm;
+                               setDialog(null);
+                               await fn();
+                             }}
+                         >
+                           <i className={dialog.danger ? "fa-solid fa-trash" : "fa-solid fa-check"} /> <span>{dialog.confirmText || "Xác nhận"}</span>
+                         </button>
+                       </>
+                   ) : (
+                       <button className="x-btn x-btn-primary" onClick={() => setDialog(null)}>
+-                        <i className="fa-solid fa-check" /> <span>{dialog.confirmText || "OK"}</span>
++                        <i className="fa-solid fa-check" /> <span>{dialog.confirmText || "Đóng"}</span>
+                       </button>
+                   )}
+                 </div>
+               </div>
+             </div>
+         )}
+       </div>
+   );
  }
- .x-dialog{
-   width: min(520px, 100%);
-   border-radius: 18px;
+
+ const styles = `
+ /* ===== Light Admin Theme ===== */
+ *, *::before, *::after {
+   box-sizing: border-box;
+ }
+
+ .x-wrap{
+   --bg: #f8fafc;
+   --panel: rgba(0,0,0,0.02);
+   --panel2: rgba(0,0,0,0.04);
+   --stroke: rgba(0,0,0,0.08);
+   --text: #0f172a;
+   --muted: #475569;
+
+   --brand1: #6d5efc;
+@@ -1436,50 +1497,51 @@ const styles = `
    border: 1px solid var(--stroke);
    background: #ffffff;
-   box-shadow: 0 12px 30px rgba(0,0,0,0.08);
-   padding: 14px;
-   animation: xdialog .14s ease-out;
- }
- @keyframes xdialog{ from{ transform: translateY(6px); opacity:0.0;} to{ transform: translateY(0); opacity:1.0;} }
- .x-dialog-title{ font-weight: 950; display:flex; gap: 10px; align-items:center; font-size: 14px; color: var(--text); }
- .x-dialog-msg{ margin-top: 10px; color: var(--muted); white-space: pre-wrap; line-height: 1.45; }
- .x-dialog-actions{ margin-top: 14px; display:flex; gap: 8px; justify-content:flex-end; flex-wrap: wrap; }
-
- .x-skeleton-header, .x-skeleton-card{
    border-radius: 16px;
-   border: 1px solid var(--stroke);
-   background: linear-gradient(90deg, var(--panel), var(--panel2), var(--panel));
-   background-size: 200% 100%;
-   animation: xsheen 1.1s ease-in-out infinite;
+   padding: 12px;
+   box-shadow: 0 4px 12px rgba(0,0,0,0.02);
  }
- .x-skeleton-header{ height: 74px; }
- .x-skeleton-card{ height: 160px; }
- @keyframes xsheen{ 0%{ background-position: 0% 0%; } 100%{ background-position: 200% 0%; } }
--`;
-\ No newline at end of file
-+`;
+
+ .x-card-inner{
+   background: var(--panel);
+   border-radius: 14px;
+   border: 1px solid var(--stroke);
+ }
+
+ .x-section-title{
+   font-weight: 800;
+   display:flex;
+   gap: 10px;
+   align-items:center;
+   margin-bottom: 10px;
+   letter-spacing: 0.2px;
+   color: var(--text);
+ }
+
+ .x-subtitle{ font-weight: 800; display:flex; gap:8px; align-items:center; color: var(--text); }
+ .x-help{ color: var(--muted); margin-top: 4px; line-height: 1.35; }
++.x-help-warn{ color: #b45309; font-weight: 600; }
+ .x-warn{
+   margin-top: 8px;
+   color: var(--warn);
+   background: rgba(245,158,11,0.08);
+   border: 1px solid rgba(245,158,11,0.22);
+   border-radius: 12px;
+   padding: 8px 10px;
+   display:inline-flex;
+   gap: 8px;
+   align-items:center;
+ }
+
+ .x-grid2{
+   display:grid;
+   grid-template-columns: repeat(2, minmax(0, 1fr));
+   gap: 10px;
+ }
+ @media (max-width: 860px){ .x-grid2{ grid-template-columns: 1fr; } }
+
+ .x-stack{ display:grid; gap: 10px; margin-top: 10px; }
+
+ .x-field{ display:grid; gap: 6px; }
+ .x-label{ color: var(--muted); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; }
+ .x-input{
+   width: 100%;
+diff --git a/backend/ayanavitabackend/app/admin/src/types/productAdmin.ts b/backend/ayanavitabackend/app/admin/src/types/productAdmin.ts
+index a30185a30b69f80c35d70375dbe0c8a137569760..7863c5120ddd0161206464adb47d7f68ed4d558a 100644
+--- a/backend/ayanavitabackend/app/admin/src/types/productAdmin.ts
++++ b/backend/ayanavitabackend/app/admin/src/types/productAdmin.ts
+@@ -1,35 +1,36 @@
+ export type LanguageCode = string;
+
+ export type AdminLanguage = {
+   code: LanguageCode;
+   label: string;
+ };
+
+ export type ProductTranslation = {
+   lang: LanguageCode;
+   name: string;
++  slug: string;
+   shortDescription: string;
+   description: string;
+   guideContent: ProductGuideContent;
+ };
+
+ export type ProductGuideStep = {
+   order: number;
+   content: string;
+ };
+
+ export type ProductGuideContent = {
+   intro: string;
+   steps: ProductGuideStep[];
+ };
+
+ export type LocalizedTextMap = Record<LanguageCode, string>;
+
+ export type ProductIngredient = {
+   id: string;
+   nameByLang: LocalizedTextMap;
+   note: string;
+ };
+
+ export type ProductAttribute = {
+   id: string;

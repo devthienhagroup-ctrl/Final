@@ -17,9 +17,9 @@ const LANG_STORAGE_KEY = 'lang-admin'
 
 const uiText: Record<AdminLang, Record<string, string>> = {
   'vi': {
-    kicker: 'SERVIE OPERATIONS HUB',
+    kicker: 'TRUNG TÂM VẬN HÀNH DỊCH VỤ',
     staffTitle: 'Lịch hẹn chuyên viên',
-    adminTitle: 'Bảng điều khiển quản trị Servie',
+    adminTitle: 'Bảng điều khiển quản trị dịch vụ',
     staffDesc: 'Bạn chỉ xem các lịch hẹn được phân công và cập nhật khách có đến hay không.',
     adminDesc: 'Bảng điều khiển chuẩn hoá vận hành theo phong cách hiện đại, rõ dữ liệu, dễ thao tác.',
     branches: 'Chi nhánh',

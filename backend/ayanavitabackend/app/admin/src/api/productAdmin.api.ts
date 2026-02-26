@@ -1,6 +1,6 @@
 import { api } from "../lib/http";
 import {
-  LANGUAGES,
+  type AdminLanguage,
   type LanguageCode,
   type ProductAdminItem,
   type ProductAttribute,
@@ -21,10 +21,31 @@ const slugify = (text: string) =>
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-") || `item-${uid()}`;
 
+const defaultLanguages: AdminLanguage[] = [
+  { code: "vi", label: "Tiếng Việt" },
+  { code: "en", label: "English" },
+  { code: "de", label: "Deutsch" },
+];
+
+let languageCache: AdminLanguage[] | null = null;
+
+export async function fetchCatalogLanguages(): Promise<AdminLanguage[]> {
+  if (languageCache) return languageCache;
+  try {
+    const rows = await api<Array<{ code: string; name: string }>>("/catalog/languages");
+    languageCache =
+      rows.map((row) => ({ code: row.code, label: row.name })) || defaultLanguages;
+  } catch {
+    languageCache = defaultLanguages;
+  }
+  return languageCache;
+}
+
 const ensureTranslations = (
+  languages: AdminLanguage[],
   rows: Array<{ languageCode: string; name?: string; shortDescription?: string; description?: string }> = [],
 ): ProductTranslation[] =>
-  LANGUAGES.map((lang) => {
+  languages.map((lang) => {
     const found = rows.find((item) => item.languageCode === lang.code);
     return {
       lang: lang.code,
@@ -33,11 +54,6 @@ const ensureTranslations = (
       description: found?.description || "",
     };
   });
-
-const pickName = (rows: Array<{ languageCode: string; name?: string }> = []) => {
-  const vi = rows.find((item) => item.languageCode === "vi")?.name;
-  return vi || rows[0]?.name || "";
-};
 
 type ApiCategory = {
   id: string | number;
@@ -66,10 +82,16 @@ const loadIngredientKeys = async (): Promise<Record<string, ApiIngredientKey>> =
   return Object.fromEntries(rows.map((item) => [String(item.id), item]));
 };
 
-const mapCategory = (item: ApiCategory): ProductCategory => ({
+const mapCategory = (item: ApiCategory, languages: AdminLanguage[]): ProductCategory => ({
   id: String(item.id),
-  name: pickName(item.translations),
-  description: item.translations?.find((row) => row.languageCode === "vi")?.description || "",
+  translations: languages.map((lang) => {
+    const found = item.translations?.find((row) => row.languageCode === lang.code);
+    return {
+      lang: lang.code,
+      name: found?.name || "",
+      description: found?.description || "",
+    };
+  }),
 });
 
 type ApiProduct = {
@@ -81,12 +103,13 @@ type ApiProduct = {
   stock?: number;
   updatedAt?: string;
   translations?: Array<{ languageCode: string; name: string; shortDescription?: string; description?: string }>;
-  attributes?: Array<{ id: string | number; attributeKeyId: string | number; valueText?: string; valueNumber?: number }>;
-  ingredients?: Array<{ id: string | number; ingredientKeyId: string | number; note?: string; value?: string }>;
+  attributes?: Array<{ attributeKeyId: string | number; valueText?: string; valueNumber?: number }>;
+  ingredients?: Array<{ ingredientKeyId: string | number; note?: string; value?: string }>;
 };
 
 const mapProduct = (
   item: ApiProduct,
+  languages: AdminLanguage[],
   ingredientKeys: Record<string, ApiIngredientKey> = {},
   attributeKeys: Record<string, ApiAttributeKey> = {},
 ): ProductAdminItem => ({
@@ -96,23 +119,37 @@ const mapProduct = (
   price: Number(item.price || 0),
   stock: Number(item.stock || 0),
   status: item.status === "active" ? "active" : "draft",
-  translations: ensureTranslations(item.translations),
-  ingredients: (item.ingredients || []).map((row) => ({
-    id: String(row.id),
-    name:
-      ingredientKeys[String(row.ingredientKeyId)]?.translations?.find((x) => x.languageCode === "vi")?.displayName ||
-      ingredientKeys[String(row.ingredientKeyId)]?.code ||
-      "",
-    note: row.note || row.value || "",
-  })),
-  attributes: (item.attributes || []).map((row) => ({
-    id: String(row.id),
-    key:
-      attributeKeys[String(row.attributeKeyId)]?.translations?.find((x) => x.languageCode === "vi")?.displayName ||
-      attributeKeys[String(row.attributeKeyId)]?.code ||
-      "",
-    value: row.valueText || String(row.valueNumber ?? ""),
-  })),
+  translations: ensureTranslations(languages, item.translations),
+  ingredients: (item.ingredients || []).map((row) => {
+    const key = ingredientKeys[String(row.ingredientKeyId)];
+    const nameByLang = Object.fromEntries(
+      languages.map((lang) => [
+        lang.code,
+        key?.translations?.find((x) => x.languageCode === lang.code)?.displayName || "",
+      ]),
+    );
+
+    return {
+      id: String(row.ingredientKeyId),
+      nameByLang,
+      note: row.note || row.value || "",
+    };
+  }),
+  attributes: (item.attributes || []).map((row) => {
+    const key = attributeKeys[String(row.attributeKeyId)];
+    const keyByLang = Object.fromEntries(
+      languages.map((lang) => [
+        lang.code,
+        key?.translations?.find((x) => x.languageCode === lang.code)?.displayName || "",
+      ]),
+    );
+
+    return {
+      id: String(row.attributeKeyId),
+      keyByLang,
+      value: row.valueText || String(row.valueNumber ?? ""),
+    };
+  }),
   updatedAt: item.updatedAt || new Date().toISOString(),
 });
 
@@ -131,33 +168,36 @@ const toProductPayload = (item: ProductAdminItem) => ({
 });
 
 export async function fetchAdminProducts(): Promise<ProductAdminItem[]> {
+  const languages = await fetchCatalogLanguages();
   const [products, ingredientKeys, attributeKeys] = await Promise.all([
     api<ApiProduct[]>("/catalog/products"),
     loadIngredientKeys(),
     loadAttributeKeys(),
   ]);
-  return products.map((item) => mapProduct(item, ingredientKeys, attributeKeys));
+  return products.map((item) => mapProduct(item, languages, ingredientKeys, attributeKeys));
 }
 
 export async function fetchAdminProductById(id: string): Promise<ProductAdminItem | null> {
+  const languages = await fetchCatalogLanguages();
   try {
     const [item, ingredientKeys, attributeKeys] = await Promise.all([
       api<ApiProduct>(`/catalog/products/${id}`),
       loadIngredientKeys(),
       loadAttributeKeys(),
     ]);
-    return mapProduct(item, ingredientKeys, attributeKeys);
+    return mapProduct(item, languages, ingredientKeys, attributeKeys);
   } catch {
     return null;
   }
 }
 
 export async function createAdminProduct(): Promise<ProductAdminItem> {
+  const languages = await fetchCatalogLanguages();
   const payload = {
     sku: `AYA-${uid().toUpperCase()}`,
     price: 0,
     status: "draft",
-    translations: LANGUAGES.map((lang) => ({
+    translations: languages.map((lang) => ({
       languageCode: lang.code,
       name: "",
       slug: `new-${lang.code}-${uid()}`,
@@ -166,10 +206,11 @@ export async function createAdminProduct(): Promise<ProductAdminItem> {
     })),
   };
   const created = await api<ApiProduct>("/catalog/products", { method: "POST", body: JSON.stringify(payload) });
-  return mapProduct(created);
+  return mapProduct(created, languages);
 }
 
 export async function updateAdminProduct(item: ProductAdminItem): Promise<ProductAdminItem> {
+  const languages = await fetchCatalogLanguages();
   const product = await api<ApiProduct>(`/catalog/products/${item.id}`, {
     method: "PATCH",
     body: JSON.stringify(toProductPayload(item)),
@@ -179,17 +220,31 @@ export async function updateAdminProduct(item: ProductAdminItem): Promise<Produc
   const ingredientKeyMap = new Map(ingredientKeysByCode.map((k) => [k.code.toLowerCase(), k]));
   const ingredientItems: Array<{ ingredientKeyId: number; note: string; value: string; sortOrder: number }> = [];
   for (const [idx, ingredient] of item.ingredients.entries()) {
-    const code = slugify(ingredient.name || `ingredient-${idx}`);
+    const viName = ingredient.nameByLang.vi || ingredient.nameByLang.en || Object.values(ingredient.nameByLang)[0] || "";
+    const code = slugify(viName || `ingredient-${idx}`);
     let key = ingredientKeyMap.get(code);
     if (!key) {
       key = await api<ApiIngredientKey>("/catalog/ingredients", {
         method: "POST",
         body: JSON.stringify({
           code,
-          translations: LANGUAGES.map((lang) => ({ languageCode: lang.code, displayName: ingredient.name || code })),
+          translations: languages.map((lang) => ({
+            languageCode: lang.code,
+            displayName: ingredient.nameByLang[lang.code] || viName || code,
+          })),
         }),
       });
       ingredientKeyMap.set(code, key);
+    } else {
+      await api<ApiIngredientKey>(`/catalog/ingredients/${key.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          translations: languages.map((lang) => ({
+            languageCode: lang.code,
+            displayName: ingredient.nameByLang[lang.code] || viName || code,
+          })),
+        }),
+      });
     }
     ingredientItems.push({ ingredientKeyId: Number(key.id), note: ingredient.note || "", value: ingredient.note || "", sortOrder: idx });
   }
@@ -197,8 +252,9 @@ export async function updateAdminProduct(item: ProductAdminItem): Promise<Produc
   const attributeKeysByCode = await api<ApiAttributeKey[]>("/catalog/attributes");
   const attributeKeyMap = new Map(attributeKeysByCode.map((k) => [k.code.toLowerCase(), k]));
   const attributeItems: Array<{ attributeKeyId: number; valueText: string }> = [];
-  for (const attribute of item.attributes) {
-    const code = slugify(attribute.key || "attribute");
+  for (const [idx, attribute] of item.attributes.entries()) {
+    const viName = attribute.keyByLang.vi || attribute.keyByLang.en || Object.values(attribute.keyByLang)[0] || "";
+    const code = slugify(viName || `attribute-${idx}`);
     let key = attributeKeyMap.get(code);
     if (!key) {
       key = await api<ApiAttributeKey>("/catalog/attributes", {
@@ -206,10 +262,23 @@ export async function updateAdminProduct(item: ProductAdminItem): Promise<Produc
         body: JSON.stringify({
           code,
           valueType: "text",
-          translations: LANGUAGES.map((lang) => ({ languageCode: lang.code, displayName: attribute.key || code })),
+          translations: languages.map((lang) => ({
+            languageCode: lang.code,
+            displayName: attribute.keyByLang[lang.code] || viName || code,
+          })),
         }),
       });
       attributeKeyMap.set(code, key);
+    } else {
+      await api<ApiAttributeKey>(`/catalog/attributes/${key.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          translations: languages.map((lang) => ({
+            languageCode: lang.code,
+            displayName: attribute.keyByLang[lang.code] || viName || code,
+          })),
+        }),
+      });
     }
     attributeItems.push({ attributeKeyId: Number(key.id), valueText: attribute.value || "" });
   }
@@ -226,43 +295,46 @@ export async function updateAdminProduct(item: ProductAdminItem): Promise<Produc
 
   const ingredientKeys = Object.fromEntries(Array.from(ingredientKeyMap.values()).map((v) => [String(v.id), v]));
   const attributeKeys = Object.fromEntries(Array.from(attributeKeyMap.values()).map((v) => [String(v.id), v]));
-  return mapProduct(product, ingredientKeys, attributeKeys);
+  return mapProduct(product, languages, ingredientKeys, attributeKeys);
 }
 
 export async function fetchAdminCategories(): Promise<ProductCategory[]> {
+  const languages = await fetchCatalogLanguages();
   const rows = await api<ApiCategory[]>("/catalog/categories");
-  return rows.map(mapCategory);
+  return rows.map((row) => mapCategory(row, languages));
 }
 
-export async function createAdminCategory(name: string, description: string): Promise<ProductCategory> {
+export async function createAdminCategory(category: ProductCategory): Promise<ProductCategory> {
   const created = await api<ApiCategory>("/catalog/categories", {
     method: "POST",
     body: JSON.stringify({
       status: "active",
-      translations: LANGUAGES.map((lang) => ({
-        languageCode: lang.code,
-        name,
-        slug: slugify(`${name}-${lang.code}`),
-        description,
+      translations: category.translations.map((row) => ({
+        languageCode: row.lang,
+        name: row.name,
+        slug: slugify(`${row.name || "category"}-${row.lang}`),
+        description: row.description || "",
       })),
     }),
   });
-  return mapCategory(created);
+  const languages = await fetchCatalogLanguages();
+  return mapCategory(created, languages);
 }
 
 export async function updateAdminCategory(category: ProductCategory): Promise<ProductCategory> {
   const updated = await api<ApiCategory>(`/catalog/categories/${category.id}`, {
     method: "PATCH",
     body: JSON.stringify({
-      translations: LANGUAGES.map((lang) => ({
-        languageCode: lang.code,
-        name: category.name,
-        slug: slugify(`${category.name}-${lang.code}`),
-        description: category.description || "",
+      translations: category.translations.map((row) => ({
+        languageCode: row.lang,
+        name: row.name,
+        slug: slugify(`${row.name || "category"}-${row.lang}`),
+        description: row.description || "",
       })),
     }),
   });
-  return mapCategory(updated);
+  const languages = await fetchCatalogLanguages();
+  return mapCategory(updated, languages);
 }
 
 export async function deleteAdminCategory(categoryId: string): Promise<void> {
@@ -281,5 +353,5 @@ export function upsertTranslation(
   return translations.map((item) => (item.lang === lang ? { ...item, ...patch } : item));
 }
 
-export const createIngredient = (): ProductIngredient => ({ id: uid(), name: "", note: "" });
-export const createAttribute = (): ProductAttribute => ({ id: uid(), key: "", value: "" });
+export const createIngredient = (): ProductIngredient => ({ id: uid(), nameByLang: {}, note: "" });
+export const createAttribute = (): ProductAttribute => ({ id: uid(), keyByLang: {}, value: "" });

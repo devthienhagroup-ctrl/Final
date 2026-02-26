@@ -5,25 +5,30 @@ import {
   createIngredient,
   fetchAdminCategories,
   fetchAdminProductById,
+  fetchCatalogLanguages,
   updateAdminProduct,
   upsertTranslation,
 } from "../api/productAdmin.api";
-import { LANGUAGES, type LanguageCode, type ProductAdminItem, type ProductCategory } from "../types/productAdmin";
+import type { AdminLanguage, ProductAdminItem, ProductCategory } from "../types/productAdmin";
 
 export function ProductAdminDetailPage() {
   const { productId } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState<ProductAdminItem | null>(null);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
-  const [activeLang, setActiveLang] = useState<LanguageCode>("vi");
+  const [languages, setLanguages] = useState<AdminLanguage[]>([]);
+  const [activeLang, setActiveLang] = useState("vi");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       if (!productId) return;
+      const langs = await fetchCatalogLanguages();
       const [detail, categoryList] = await Promise.all([fetchAdminProductById(productId), fetchAdminCategories()]);
       setProduct(detail);
       setCategories(categoryList);
+      setLanguages(langs);
+      setActiveLang((prev) => (langs.find((x) => x.code === prev)?.code || langs[0]?.code || "vi"));
     };
     load();
   }, [productId]);
@@ -73,7 +78,9 @@ export function ProductAdminDetailPage() {
             >
               <option value="">-- Chọn category --</option>
               {categories.map((item) => (
-                <option key={item.id} value={item.id}>{item.name}</option>
+                <option key={item.id} value={item.id}>
+                  {item.translations.find((x) => x.lang === activeLang)?.name || item.translations[0]?.name || item.id}
+                </option>
               ))}
             </select>
           </label>
@@ -102,7 +109,7 @@ export function ProductAdminDetailPage() {
 
       <div className="card">
         <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-          {LANGUAGES.map((lang) => (
+          {languages.map((lang) => (
             <button key={lang.code} onClick={() => setActiveLang(lang.code)} className={`btn ${activeLang === lang.code ? "btn-primary" : ""}`}>
               {lang.label}
             </button>
@@ -163,14 +170,18 @@ export function ProductAdminDetailPage() {
               <div key={item.id} className="card" style={{ padding: 10 }}>
                 <input
                   className="input"
-                  placeholder="Tên thành phần"
-                  value={item.name}
+                  placeholder={`Tên thành phần (${activeLang})`}
+                  value={item.nameByLang[activeLang] || ""}
                   onChange={(e) =>
                     setProduct((prev) =>
                       prev
                         ? {
                             ...prev,
-                            ingredients: prev.ingredients.map((row) => (row.id === item.id ? { ...row, name: e.target.value } : row)),
+                            ingredients: prev.ingredients.map((row) =>
+                              row.id === item.id
+                                ? { ...row, nameByLang: { ...row.nameByLang, [activeLang]: e.target.value } }
+                                : row,
+                            ),
                           }
                         : prev,
                     )
@@ -216,14 +227,18 @@ export function ProductAdminDetailPage() {
               <div key={item.id} className="card" style={{ padding: 10 }}>
                 <input
                   className="input"
-                  placeholder="Tên thuộc tính"
-                  value={item.key}
+                  placeholder={`Tên thuộc tính (${activeLang})`}
+                  value={item.keyByLang[activeLang] || ""}
                   onChange={(e) =>
                     setProduct((prev) =>
                       prev
                         ? {
                             ...prev,
-                            attributes: prev.attributes.map((row) => (row.id === item.id ? { ...row, key: e.target.value } : row)),
+                            attributes: prev.attributes.map((row) =>
+                              row.id === item.id
+                                ? { ...row, keyByLang: { ...row.keyByLang, [activeLang]: e.target.value } }
+                                : row,
+                            ),
                           }
                         : prev,
                     )

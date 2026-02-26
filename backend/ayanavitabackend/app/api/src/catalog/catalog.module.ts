@@ -10,6 +10,8 @@ import { AttributesService } from './attributes.service'
 
 import { IngredientsController } from './ingredients.controller'
 import { IngredientsService } from './ingredients.service'
+import { LanguagesController } from './languages.controller'
+import { LanguagesService } from './languages.service'
 
 @Module({
   controllers: [
@@ -17,12 +19,14 @@ import { IngredientsService } from './ingredients.service'
     CategoriesController,
     AttributesController,
     IngredientsController,
+    LanguagesController,
   ],
   providers: [
     ProductsService,
     CategoriesService,
     AttributesService,
     IngredientsService,
+    LanguagesService,
   ],
 })
 export class CatalogModule {}

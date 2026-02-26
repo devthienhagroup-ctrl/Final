@@ -1,4 +1,9 @@
-export type LanguageCode = "vi" | "en" | "ja";
+export type LanguageCode = string;
+
+export type AdminLanguage = {
+  code: LanguageCode;
+  label: string;
+};
 
 export type ProductTranslation = {
   lang: LanguageCode;
@@ -7,22 +12,29 @@ export type ProductTranslation = {
   description: string;
 };
 
+export type LocalizedTextMap = Record<LanguageCode, string>;
+
 export type ProductIngredient = {
   id: string;
-  name: string;
+  nameByLang: LocalizedTextMap;
   note: string;
 };
 
 export type ProductAttribute = {
   id: string;
-  key: string;
+  keyByLang: LocalizedTextMap;
   value: string;
+};
+
+export type CategoryTranslation = {
+  lang: LanguageCode;
+  name: string;
+  description: string;
 };
 
 export type ProductCategory = {
   id: string;
-  name: string;
-  description?: string;
+  translations: CategoryTranslation[];
 };
 
 export type ProductAdminItem = {
@@ -37,9 +49,3 @@ export type ProductAdminItem = {
   attributes: ProductAttribute[];
   updatedAt: string;
 };
-
-export const LANGUAGES: Array<{ code: LanguageCode; label: string }> = [
-  { code: "vi", label: "Tiếng Việt" },
-  { code: "en", label: "English" },
-  { code: "ja", label: "日本語" },
-];

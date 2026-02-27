@@ -328,7 +328,8 @@ export default function ServiceDetailPage() {
         appointmentAt: `${d}T${t}:00`,
         note: note.trim() || undefined,
         branchId: Number(branchId),
-        serviceId: service.id
+        serviceId: service.id,
+        lang: currentLanguage,
       });
 
       const msg = fillTemplate(cms.booking.success.template, {
@@ -401,7 +402,7 @@ export default function ServiceDetailPage() {
                     <div className="text-2xl font-extrabold mt-1">{money(service.price)}</div>
                     <div className="text-xs text-slate-500 mt-2">{cms.pricing.includedNote}</div>
 
-                    <Link to={`/booking?serviceId=${service.id}`} className="btn btn-primary hover:text-purple-800 w-full mt-3">
+                    <Link to={`/booking?serviceId=${service.id}`} className="btn btn-primary hover: w-full mt-3">
                       <i className="fa-solid fa-calendar-check" />
                       {cms.pricing.ctaBooking}
                     </Link>

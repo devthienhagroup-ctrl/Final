@@ -151,13 +151,9 @@ export default function BookingPage() {
   );
 
   const toastByKey = React.useCallback(
-    (
-      key: ToastCmsKey,
-      vars?: Record<string, string | number | undefined | null>,
-      status: "success" | "error" | "info" = "info",
-    ) => {
+    (key: ToastCmsKey, vars?: Record<string, string | number | undefined | null>) => {
       const { title, message } = getCmsToast(key, vars);
-      toast(title, message, status);
+      toast(title, message);
     },
     [getCmsToast, toast],
   );
@@ -250,7 +246,7 @@ export default function BookingPage() {
 
       await refreshSlots(nextService, nextBranch, date);
     } catch {
-      toastByKey("loadFailed", undefined, "error");
+      toastByKey("loadFailed");
     } finally {
       setLoadingCatalog(false);
     }
@@ -283,7 +279,7 @@ export default function BookingPage() {
         setBranchId(nextBranch);
         await refreshSlots(nextService, nextBranch, date);
       } catch {
-        toastByKey("branchLoadFailed", undefined, "error");
+        toastByKey("branchLoadFailed");
       }
     },
     [clearPick, date, normalizeBranches, refreshSlots, toastByKey],
@@ -304,7 +300,7 @@ export default function BookingPage() {
       const demoUser: AuthUser = { email: "demo@ayanavita.vn", name: "Khách Demo", remember: false };
       setUser(demoUser);
     }
-    toastByKey("demoFilled", undefined, "info");
+    toastByKey("demoFilled");
   };
 
   const scrollToForm = () => {
@@ -316,7 +312,7 @@ export default function BookingPage() {
     setCustomTime("");
     clearPick();
     await bootstrapCatalog();
-    toastByKey("resetDone", undefined, "info");
+    toastByKey("resetDone");
   };
 
   return (
@@ -345,12 +341,12 @@ export default function BookingPage() {
                     branchId: Number(b.branchId),
                     serviceId: Number(b.serviceId),
                   });
-                  toastByKey("createSuccess", { date: b.date, time: b.time }, "success");
+                  toastByKey("createSuccess", { date: b.date, time: b.time });
                   await refreshSlots(serviceId, branchId, date);
                 } catch (error: any) {
                   toastByKey("createFailed", {
                     error: error?.response?.data?.message || "Khung giờ có thể đã hết chỗ.",
-                  }, "error");
+                  });
                 }
               }}
               onResetSignal={resetSignal}

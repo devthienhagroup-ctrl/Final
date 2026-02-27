@@ -77,7 +77,7 @@ function cleanData(data: any): any {
 
 function isDescriptionKey(key: string | number): boolean {
   if (typeof key !== "string") return false;
-  const descKeys = ["description", "desc", "body", "subtitle", "paragraphs", "content", "template"];
+  const descKeys = ["description", "desc", "body", "subtitle", "paragraphs", "content", ""];
   return descKeys.some((dk) => key.toLowerCase().includes(dk));
 }
 

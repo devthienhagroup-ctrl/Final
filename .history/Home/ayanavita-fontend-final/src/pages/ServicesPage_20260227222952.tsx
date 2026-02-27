@@ -502,7 +502,8 @@ export default function ServicesPage() {
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {pageItems.length ? (
-pageItems.map((s) => <ServiceCard key={s.id} s={s} cms={cmsData.card} />)                  ) : (
+                    pageItems.map((s) => <ServiceCard key={s.id} s={s} />)
+                  ) : (
                     <div className="text-slate-600 p-6">Không có dịch vụ phù hợp bộ lọc.</div>
                   )}
                 </div>

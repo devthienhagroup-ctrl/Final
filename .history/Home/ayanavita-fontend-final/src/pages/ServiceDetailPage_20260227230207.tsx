@@ -328,7 +328,7 @@ export default function ServiceDetailPage() {
         appointmentAt: `${d}T${t}:00`,
         note: note.trim() || undefined,
         branchId: Number(branchId),
-        serviceId: service.id
+        serviceId: service.id,
       });
 
       const msg = fillTemplate(cms.booking.success.template, {

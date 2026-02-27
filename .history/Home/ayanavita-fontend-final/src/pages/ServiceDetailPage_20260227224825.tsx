@@ -1,6 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
+import { ParticlesBackground } from "../components/layout/ParticlesBackground";
+import { Header } from "../components/layout/Header";
+import { Footer } from "../components/layout/Footer";
+
+import { AuthModal } from "../components/home/AuthModal";
+import { SuccessModal } from "../components/home/SuccessModal";
+
 import { http } from "../api/http";
 import { isValidPhone, money, toISODate } from "../services/booking.utils";
 
@@ -13,42 +20,42 @@ const cmsData = {
       certifiedProcess: "Quy trình chuẩn",
     },
   },
-
   pricing: {
     title: "Giá niêm yết",
     includedNote: "Đã bao gồm tư vấn da cơ bản.",
     ctaBooking: "Đặt lịch",
     ctaBackToList: "Danh sách",
   },
-
-  benefits: { title: "Mục tiêu & Lợi ích" },
-
-  process: { title: "Quy trình (chuẩn hoá)" },
-
+  benefits: {
+    title: "Mục tiêu & Lợi ích",
+  },
+  process: {
+    title: "Quy trình (chuẩn hoá)",
+  },
   audience: {
     title: "Dành cho ai?",
     suitableFor: "Phù hợp cho:",
-    descriptionLabel: "Mô tả:",
-    updating: "Đang cập nhật.",
   },
-
+  hold: {
+    title: "Chọn chi nhánh & khung giờ",
+    cta: "Giữ chỗ 10 phút (demo)",
+    inactive: "Giữ chỗ chưa kích hoạt / đã hết hạn (demo).",
+    activePrefix: "Đã giữ chỗ tại",
+    activeMiddle: "lúc",
+    activeSuffix: "Thời gian còn lại:",
+    toastSuccessTemplate: "Đã giữ chỗ tại {branch} lúc {slot} (demo).",
+  },
   reviews: {
     title: "Đánh giá khách hàng",
-    empty: "Chưa có đánh giá cho dịch vụ này.",
-    customerFallbackName: "Khách hàng",
-    emptyComment: "Khách hàng chưa để lại nhận xét.",
+    ctaAll: "Xem tất cả",
   },
-
   sidebar: {
     title: "Đặt lịch nhanh",
-    subtitle: "Nhập nhanh như form đặt lịch: không cần chọn dịch vụ, hệ thống dùng dịch vụ đang xem.",
+    subtitle: "Nhập thông tin để giữ chỗ (demo).",
     fields: {
       namePlaceholder: "Họ và tên",
       phonePlaceholder: "Số điện thoại",
-      emailPlaceholder: "Email (không bắt buộc)",
-      branchPlaceholder: "Chọn chi nhánh",
       notePlaceholder: "Ghi chú (tình trạng da, dị ứng...)",
-      submitting: "Đang đặt lịch...",
       submit: "Xác nhận đặt",
     },
     pledge: {
@@ -56,18 +63,13 @@ const cmsData = {
       items: ["Quy trình chuẩn hoá", "Sản phẩm rõ nguồn gốc", "Tư vấn trước và sau dịch vụ"],
     },
   },
-
   booking: {
     validation: {
       missingName: "Vui lòng nhập Họ và tên.",
       invalidPhone: "SĐT chưa đúng (bắt đầu 0, đủ 10–11 số).",
-      invalidEmail: "Email chưa đúng định dạng.",
       missingDate: "Vui lòng chọn Ngày.",
       pastDate: "Ngày đặt phải >= hôm nay.",
-      invalidTime: "Giờ hẹn chưa đúng định dạng HH:mm.",
-      missingBranch: "Vui lòng chọn chi nhánh để đặt lịch.",
     },
-    slotUnavailableTemplate: "Khung giờ {slot} tại {branch} đã hết chỗ. Vui lòng chọn giờ khác.",
     success: {
       template:
         "Đặt lịch thành công (demo).\n" +
@@ -78,15 +80,7 @@ const cmsData = {
         "Bước sau: nối API Booking + thanh toán đặt cọc nếu cần.",
       emptyNote: "(không)",
     },
-    createFailedFallback: "Không thể tạo lịch hẹn. Vui lòng kiểm tra lại thông tin và thử lại.",
   },
-
-  page: {
-    loading: "Đang tải chi tiết dịch vụ...",
-    invalidServiceId: "Mã dịch vụ không hợp lệ.",
-    loadFailed: "Không thể tải dữ liệu dịch vụ. Vui lòng thử lại.",
-  },
-
   auth: {
     loginSuccess: "Đăng nhập thành công (prototype). Sau này bạn sẽ lưu token từ API.",
     registerSuccess: "Đăng ký thành công (prototype). Sau này bạn sẽ gọi API tạo user và gửi email xác thực.",
@@ -95,7 +89,7 @@ const cmsData = {
 
 type CmsData = typeof cmsData;
 
-type ToastState = { type: "success" | "error"; message: string } | null;
+type ToastState = | { type: "success"; message: string } | { type: "error"; message: string } | null;
 
 type BranchOption = { id: number; name: string; address?: string };
 
@@ -117,9 +111,9 @@ type ServiceDetail = {
   reviews: ServiceReview[];
 };
 
-type Lang = "vi" | "en" | "de";
+type PreferredLanguage = "vi" | "en" | "de";
 
-function readCurrentLanguage(): Lang {
+function readCurrentLanguage(): PreferredLanguage {
   if (typeof window === "undefined") return "vi";
   const raw = window.localStorage.getItem("preferred-language")?.trim().toLowerCase();
   if (raw === "en") return "en";
@@ -135,10 +129,12 @@ export default function ServiceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [currentLanguage, setCurrentLanguage] = useState<Lang>(() => readCurrentLanguage());
+  // ✅ dùng currentLanguage thay cho preferredLanguage
+  const [currentLanguage, setCurrentLanguage] = useState<PreferredLanguage>(() => readCurrentLanguage());
 
   const [cmsDataApi, setCmsDataApi] = useState<Partial<CmsData> | null>(null);
 
+  // API sẽ ghi đè lên default cmsData
   const cms = useMemo<CmsData>(() => ({
     ...cmsData,
     ...(cmsDataApi || {}),
@@ -147,6 +143,7 @@ export default function ServiceDetailPage() {
     benefits: { ...cmsData.benefits, ...(cmsDataApi?.benefits || {}) },
     process: { ...cmsData.process, ...(cmsDataApi?.process || {}) },
     audience: { ...cmsData.audience, ...(cmsDataApi?.audience || {}) },
+    hold: { ...cmsData.hold, ...(cmsDataApi?.hold || {}) },
     reviews: { ...cmsData.reviews, ...(cmsDataApi?.reviews || {}) },
     sidebar: {
       ...cmsData.sidebar,
@@ -170,10 +167,10 @@ export default function ServiceDetailPage() {
         ...(cmsDataApi?.booking?.success || {}),
       },
     },
-    page: { ...cmsData.page, ...(cmsDataApi as any)?.page },
     auth: { ...cmsData.auth, ...(cmsDataApi?.auth || {}) },
   }), [cmsDataApi]);
 
+  // Sync khi localStorage / event đổi ngôn ngữ
   useEffect(() => {
     const sync = () => setCurrentLanguage(readCurrentLanguage());
 
@@ -197,6 +194,7 @@ export default function ServiceDetailPage() {
     };
   }, []);
 
+  // Gọi API lấy CMS – dùng http
   useEffect(() => {
     let alive = true;
 
@@ -204,11 +202,12 @@ export default function ServiceDetailPage() {
       try {
         const res = await http.get(`/public/pages/serviceDetail?lang=${currentLanguage}`);
         const data = res.data.sections[0]?.data;
+        console.log("CMS data for ServiceDetailPage:", data);
+
         const payload = (data?.cmsData ?? data) as Partial<CmsData>;
         if (!alive) return;
         if (payload && typeof payload === "object") setCmsDataApi(payload);
       } catch (error) {
-        // giữ nguyên: im lặng / log
         console.error("Lỗi fetch CMS service detail:", error);
       }
     }
@@ -232,7 +231,7 @@ export default function ServiceDetailPage() {
   useEffect(() => {
     const id = Number(serviceId);
     if (!Number.isInteger(id) || id < 1) {
-      setError(cms.page.invalidServiceId);
+      setError("Mã dịch vụ không hợp lệ.");
       setLoading(false);
       return;
     }
@@ -257,14 +256,14 @@ export default function ServiceDetailPage() {
         setBranchId(normalizedBranches[0] ? String(normalizedBranches[0].id) : "");
       } catch {
         if (!mounted) return;
-        setError(cms.page.loadFailed);
+        setError("Không thể tải dữ liệu dịch vụ. Vui lòng thử lại.");
       } finally {
         if (mounted) setLoading(false);
       }
     })();
 
     return () => { mounted = false; };
-  }, [serviceId, currentLanguage, cms.page.invalidServiceId, cms.page.loadFailed]);
+  }, [serviceId, currentLanguage]);
 
   function showToast(t: ToastState) {
     setToast(t);
@@ -285,18 +284,23 @@ export default function ServiceDetailPage() {
     const t = time.trim();
     const selectedBranch = branches.find((item) => String(item.id) === branchId);
 
+    // ✅ dùng CMS validation (những cái có trong cms)
     if (!n) return showToast({ type: "error", message: cms.booking.validation.missingName });
     if (!isValidPhone(p)) return showToast({ type: "error", message: cms.booking.validation.invalidPhone });
+
+    // các message này chưa có trong cmsData -> giữ nguyên
     if (e && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
-      return showToast({ type: "error", message: cms.booking.validation.invalidEmail });
+      return showToast({ type: "error", message: "Email chưa đúng định dạng." });
     }
+
     if (!d) return showToast({ type: "error", message: cms.booking.validation.missingDate });
     if (d < todayISO) return showToast({ type: "error", message: cms.booking.validation.pastDate });
+
     if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(t)) {
-      return showToast({ type: "error", message: cms.booking.validation.invalidTime });
+      return showToast({ type: "error", message: "Giờ hẹn chưa đúng định dạng HH:mm." });
     }
     if (!branchId || !selectedBranch) {
-      return showToast({ type: "error", message: cms.booking.validation.missingBranch });
+      return showToast({ type: "error", message: "Vui lòng chọn chi nhánh để đặt lịch." });
     }
 
     setSubmitting(true);
@@ -314,10 +318,7 @@ export default function ServiceDetailPage() {
       if (matchedSlot && !matchedSlot.available) {
         return showToast({
           type: "error",
-          message: fillTemplate(cms.booking.slotUnavailableTemplate, {
-            slot: t,
-            branch: selectedBranch.name,
-          }),
+          message: `Khung giờ ${t} tại ${selectedBranch.name} đã hết chỗ. Vui lòng chọn giờ khác.`,
         });
       }
 
@@ -328,9 +329,11 @@ export default function ServiceDetailPage() {
         appointmentAt: `${d}T${t}:00`,
         note: note.trim() || undefined,
         branchId: Number(branchId),
-        serviceId: service.id
+        serviceId: service.id,
+        lang: currentLanguage,
       });
 
+      // ✅ dùng CMS success template
       const msg = fillTemplate(cms.booking.success.template, {
         serviceName: service.name,
         serviceId: String(service.id),
@@ -345,7 +348,7 @@ export default function ServiceDetailPage() {
     } catch (err: any) {
       showToast({
         type: "error",
-        message: err?.response?.data?.message || cms.booking.createFailedFallback,
+        message: err?.response?.data?.message || "Không thể tạo lịch hẹn. Vui lòng kiểm tra lại thông tin và thử lại.",
       });
     } finally {
       setSubmitting(false);
@@ -356,7 +359,9 @@ export default function ServiceDetailPage() {
     <div className="bg-slate-50 text-slate-900">
       <div className="page-content">
         <main className="px-4 pb-10">
-          {loading ? <div className="max-w-6xl mx-auto text-sm text-slate-500">{cms.page.loading}</div> : null}
+          {loading ? (
+            <div className="max-w-6xl mx-auto text-sm text-slate-500">Đang tải chi tiết dịch vụ...</div>
+          ) : null}
           {error ? <div className="max-w-6xl mx-auto text-sm text-rose-600">{error}</div> : null}
 
           {service ? (
@@ -373,20 +378,28 @@ export default function ServiceDetailPage() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-r from-slate-950/55 to-indigo-700/10" />
                   <div className="absolute inset-0 p-6 flex flex-col justify-end">
+                    {/* ✅ CMS */}
                     <div className="text-xs font-extrabold text-white/80">{cms.hero.eyebrow}</div>
+
                     <h1 className="text-2xl md:text-3xl font-extrabold text-white">
                       {service.name} (#{service.id})
                     </h1>
+
                     <div className="mt-2 flex gap-2 flex-wrap">
+                      {/* ✅ CMS duration suffix */}
                       <span className="chip">
                         <i className="fa-solid fa-clock text-indigo-600" />
                         {service.durationMin} {cms.hero.chips.durationSuffix}
                       </span>
+
+                      {/* ✅ CMS rating label */}
                       <span className="chip">
                         <i className="fa-solid fa-star star" />
-                        {service.ratingAvg.toFixed(1)} ({new Intl.NumberFormat("vi-VN").format(service.bookedCount)}{" "}
-                        {cms.hero.chips.ratingBookedLabel})
+                        {service.ratingAvg.toFixed(1)} (
+                        {new Intl.NumberFormat("vi-VN").format(service.bookedCount)} {cms.hero.chips.ratingBookedLabel})
                       </span>
+
+                      {/* ✅ CMS certified process */}
                       <span className="chip">
                         <i className="fa-solid fa-badge-check text-emerald-600" />
                         {cms.hero.chips.certifiedProcess}
@@ -397,11 +410,13 @@ export default function ServiceDetailPage() {
 
                 <div className="p-5 grid gap-4 md:grid-cols-3">
                   <div className="card p-4">
+                    {/* ✅ CMS */}
                     <div className="text-xs font-extrabold text-slate-500">{cms.pricing.title}</div>
                     <div className="text-2xl font-extrabold mt-1">{money(service.price)}</div>
                     <div className="text-xs text-slate-500 mt-2">{cms.pricing.includedNote}</div>
 
-                    <Link to={`/booking?serviceId=${service.id}`} className="btn btn-primary hover:text-purple-800 w-full mt-3">
+                    {/* ✅ CMS CTA */}
+                    <Link to={`/booking?serviceId=${service.id}`} className="btn btn-primary w-full mt-3">
                       <i className="fa-solid fa-calendar-check" />
                       {cms.pricing.ctaBooking}
                     </Link>
@@ -412,6 +427,7 @@ export default function ServiceDetailPage() {
                   </div>
 
                   <div className="card p-4 md:col-span-2">
+                    {/* ✅ CMS */}
                     <div className="font-extrabold">{cms.benefits.title}</div>
                     <ul className="mt-2 text-sm text-slate-700 space-y-2">
                       {service.goals.length ? (
@@ -422,7 +438,7 @@ export default function ServiceDetailPage() {
                           </li>
                         ))
                       ) : (
-                        <li>{cms.audience.updating}</li>
+                        <li>Đang cập nhật.</li>
                       )}
                     </ul>
                   </div>
@@ -430,6 +446,7 @@ export default function ServiceDetailPage() {
 
                 <div className="px-5 pb-5 grid gap-4 lg:grid-cols-2">
                   <div className="card p-5">
+                    {/* ✅ CMS */}
                     <div className="font-extrabold">{cms.process.title}</div>
                     <ol className="mt-3 text-sm text-slate-700 space-y-2">
                       {service.process.length ? (
@@ -439,13 +456,15 @@ export default function ServiceDetailPage() {
                           </li>
                         ))
                       ) : (
-                        <li>{cms.audience.updating}</li>
+                        <li>Đang cập nhật.</li>
                       )}
                     </ol>
                   </div>
 
                   <div className="card p-5">
+                    {/* ✅ CMS */}
                     <div className="font-extrabold">{cms.audience.title}</div>
+
                     <div className="font-extrabold mt-2 text-sm text-slate-700">{cms.audience.suitableFor}</div>
 
                     <div className="mt-2 flex gap-2 flex-wrap">
@@ -457,44 +476,50 @@ export default function ServiceDetailPage() {
                           </span>
                         ))
                       ) : (
-                        <span className="text-sm muted">{cms.audience.updating}</span>
+                        <span className="text-sm muted">Đang cập nhật.</span>
                       )}
                     </div>
 
-                    <div className="font-extrabold mt-2">{cms.audience.descriptionLabel} </div>
+                    <div className="font-extrabold mt-2">Mô tả: </div>
                     {service.description ? <div className="mt-1 text-sm">{service.description}</div> : null}
                   </div>
                 </div>
 
                 <div className="mx-5 mb-5 card p-5">
+                  {/* ✅ CMS */}
                   <div className="font-extrabold">{cms.reviews.title}</div>
+
                   <div className="mt-3 grid gap-3 md:grid-cols-2">
                     {service.reviews.length ? (
                       service.reviews.map((r) => (
                         <div key={r.id} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
                           <div className="flex items-center justify-between">
-                            <div className="font-extrabold">{r.customerName || cms.reviews.customerFallbackName}</div>
+                            <div className="font-extrabold">{r.customerName || "Khách hàng"}</div>
                             <div className="text-sm">
                               <i className="fa-solid fa-star star" /> {r.stars.toFixed(1)}
                             </div>
                           </div>
-                          <div className="text-sm text-slate-700 mt-2">{r.comment || cms.reviews.emptyComment}</div>
+                          <div className="text-sm text-slate-700 mt-2">
+                            {r.comment || "Khách hàng chưa để lại nhận xét."}
+                          </div>
                         </div>
                       ))
                     ) : (
-                      <div className="text-sm muted">{cms.reviews.empty}</div>
+                      <div className="text-sm muted">Chưa có đánh giá cho dịch vụ này.</div>
                     )}
                   </div>
                 </div>
               </section>
 
               <aside className="card p-6">
+                {/* ✅ CMS */}
                 <div className="font-extrabold">{cms.sidebar.title}</div>
                 <div className="text-sm muted mt-1">{cms.sidebar.subtitle}</div>
 
                 <div className="mt-3 grid gap-2">
                   <input className="field" value={service.name} readOnly />
 
+                  {/* ✅ CMS placeholders */}
                   <input
                     className="field"
                     placeholder={cms.sidebar.fields.namePlaceholder}
@@ -510,13 +535,13 @@ export default function ServiceDetailPage() {
                   <input
                     className="field"
                     type="email"
-                    placeholder={cms.sidebar.fields.emailPlaceholder}
+                    placeholder="Email (không bắt buộc)"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
 
                   <select className="field" value={branchId} onChange={(e) => setBranchId(e.target.value)}>
-                    <option value="">{cms.sidebar.fields.branchPlaceholder}</option>
+                    <option value="">Chọn chi nhánh</option>
                     {branches.map((item) => (
                       <option key={item.id} value={String(item.id)}>
                         {item.name}
@@ -535,12 +560,13 @@ export default function ServiceDetailPage() {
                     onChange={(e) => setNote(e.target.value)}
                   />
 
-                  <button onClick={submitBooking} className="btn btn-primary hover:text-purple-800" type="button" disabled={submitting || !service}>
+                  <button onClick={submitBooking} className="btn btn-primary" type="button" disabled={submitting || !service}>
                     <i className="fa-solid fa-calendar-check" />
-                    {submitting ? cms.sidebar.fields.submitting : cms.sidebar.fields.submit}
+                    {submitting ? "Đang đặt lịch..." : cms.sidebar.fields.submit}
                   </button>
                 </div>
 
+                {/* ✅ CMS pledge */}
                 <div className="mt-5 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
                   <div className="font-extrabold text-sm">{cms.sidebar.pledge.title}</div>
                   <ul className="mt-2 text-sm text-slate-700 space-y-1">

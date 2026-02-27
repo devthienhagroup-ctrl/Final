@@ -165,9 +165,7 @@ function Stars({ rating }: { rating: number }) {
   return <span className="flex items-center gap-1">{icons}</span>;
 }
 
-type ServiceCardCms = CmsData["card"];
-
-function ServiceCard({ s, cms }: { s: ApiService; cms: ServiceCardCms }) {
+function ServiceCard({ s }: { s: ApiService }) {
   return (
     <article className="card p-4">
       <img
@@ -200,7 +198,7 @@ function ServiceCard({ s, cms }: { s: ApiService; cms: ServiceCardCms }) {
         </div>
 
         <div className="mt-2 text-xs text-slate-500">
-          {s.id} • {s.duration} {cms.minutes}
+          {s.id} • {s.duration} phút
         </div>
       </div>
 
@@ -217,12 +215,12 @@ function ServiceCard({ s, cms }: { s: ApiService; cms: ServiceCardCms }) {
       <div className="mt-3 grid grid-cols-2 gap-2">
         <Link className="btn" to={`/services/${s.id}`}>
           <i className="fa-solid fa-circle-info" />
-          {cms.detailsButton}
+          Chi tiết
         </Link>
 
-        <Link className="btn btn-primary hover:text-purple-800" to={`/booking?serviceId=${s.dbId}`}>
+        <Link className="btn btn-primary" to={`/booking?serviceId=${s.dbId}`}>
           <i className="fa-solid fa-calendar-check" />
-          {cms.bookButton}
+          Đặt
         </Link>
       </div>
     </article>
@@ -488,7 +486,7 @@ export default function ServicesPage() {
                       {cmsData.listSection.servicesText}
                     </div>
                   </div>
-                  <Link to="/booking" className="btn btn-primary hover:text-purple-800">
+                  <Link to="/booking" className="btn btn-primary">
                     <i className="fa-solid fa-calendar-check" />
                     {cmsData.listSection.bookButton}
                   </Link>
@@ -502,7 +500,8 @@ export default function ServicesPage() {
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {pageItems.length ? (
-pageItems.map((s) => <ServiceCard key={s.id} s={s} cms={cmsData.card} />)                  ) : (
+                    pageItems.map((s) => <ServiceCard key={s.id} s={s} />)
+                  ) : (
                     <div className="text-slate-600 p-6">Không có dịch vụ phù hợp bộ lọc.</div>
                   )}
                 </div>

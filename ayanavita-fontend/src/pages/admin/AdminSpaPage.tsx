@@ -11,7 +11,7 @@ import type { BranchForm, CategoryForm, ServiceForm, SpecialistForm } from './ta
 import { useAuth } from '../../state/auth.store'
 
 type TabKey = 'branches' | 'categories' | 'services' | 'specialists' | 'appointments'
-type AdminLang = 'vi' | 'en-US' | 'de'
+type AdminLang = 'vi' | 'en' | 'de'
 
 const LANG_STORAGE_KEY = 'lang-admin'
 
@@ -35,7 +35,7 @@ const uiText: Record<AdminLang, Record<string, string>> = {
     loading: 'Đang tải dữ liệu...',
     specialistRole: 'Chuyên viên',
   },
-  'en-US': {
+  'en': {
     kicker: 'SERVIE OPERATIONS HUB',
     staffTitle: 'Specialist appointments',
     adminTitle: 'Servie Admin Dashboard',
@@ -75,21 +75,21 @@ const uiText: Record<AdminLang, Record<string, string>> = {
   },
 }
 
-const defaultServiceForm: ServiceForm = { name: '', description: '', categoryId: 0, goals: '', suitableFor: '', process: '', durationMin: 60, price: 0, tag: 'Spa', branchIds: [], isActive: true, translations: { 'en-US': { name: '', description: '', goals: '', suitableFor: '', process: '', tag: 'Spa' }, vi: { name: '', description: '', goals: '', suitableFor: '', process: '', tag: 'Spa' }, de: { name: '', description: '', goals: '', suitableFor: '', process: '', tag: 'Spa' } } }
-const defaultCategoryForm: CategoryForm = { name: '', translations: { 'en-US': { name: '' }, vi: { name: '' }, de: { name: '' } } }
-const defaultSpecialistForm: SpecialistForm = { name: '', email: '', level: 'SENIOR', bio: '', branchId: 0, serviceIds: [], translations: { 'en-US': { name: '', bio: '' }, vi: { name: '', bio: '' }, de: { name: '', bio: '' } } }
-const defaultBranchForm: BranchForm = { code: '', name: '', address: '', phone: '', isActive: true, translations: { 'en-US': { name: '', address: '' }, vi: { name: '', address: '' }, de: { name: '', address: '' } } }
+const defaultServiceForm: ServiceForm = { name: '', description: '', categoryId: 0, goals: '', suitableFor: '', process: '', durationMin: 60, price: 0, tag: 'Spa', branchIds: [], isActive: true, translations: { 'en': { name: '', description: '', goals: '', suitableFor: '', process: '', tag: 'Spa' }, vi: { name: '', description: '', goals: '', suitableFor: '', process: '', tag: 'Spa' }, de: { name: '', description: '', goals: '', suitableFor: '', process: '', tag: 'Spa' } } }
+const defaultCategoryForm: CategoryForm = { name: '', translations: { 'en': { name: '' }, vi: { name: '' }, de: { name: '' } } }
+const defaultSpecialistForm: SpecialistForm = { name: '', email: '', level: 'SENIOR', bio: '', branchId: 0, serviceIds: [], translations: { 'en': { name: '', bio: '' }, vi: { name: '', bio: '' }, de: { name: '', bio: '' } } }
+const defaultBranchForm: BranchForm = { code: '', name: '', address: '', phone: '', isActive: true, translations: { 'en': { name: '', address: '' }, vi: { name: '', address: '' }, de: { name: '', address: '' } } }
 
 const ensureCategoryTranslations = (category: ServiceCategory): NonNullable<CategoryForm['translations']> => ({
-  'en-US': { name: category.translations?.['en-US']?.name || category.name || '' },
+  'en': { name: category.translations?.['en']?.name || category.name || '' },
   vi: { name: category.translations?.vi?.name || category.name || '' },
   de: { name: category.translations?.de?.name || category.name || '' },
 })
 
 const ensureBranchTranslations = (branch: Branch): NonNullable<BranchForm['translations']> => ({
-  'en-US': {
-    name: branch.translations?.['en-US']?.name || branch.name || '',
-    address: branch.translations?.['en-US']?.address || branch.address || '',
+  'en': {
+    name: branch.translations?.['en']?.name || branch.name || '',
+    address: branch.translations?.['en']?.address || branch.address || '',
   },
   vi: {
     name: branch.translations?.vi?.name || branch.name || '',
@@ -102,9 +102,9 @@ const ensureBranchTranslations = (branch: Branch): NonNullable<BranchForm['trans
 })
 
 const ensureSpecialistTranslations = (specialist: Specialist): NonNullable<SpecialistForm['translations']> => ({
-  'en-US': {
-    name: specialist.translations?.['en-US']?.name || specialist.name || '',
-    bio: specialist.translations?.['en-US']?.bio || specialist.bio || '',
+  'en': {
+    name: specialist.translations?.['en']?.name || specialist.name || '',
+    bio: specialist.translations?.['en']?.bio || specialist.bio || '',
   },
   vi: {
     name: specialist.translations?.vi?.name || specialist.name || '',
@@ -119,13 +119,13 @@ const ensureSpecialistTranslations = (specialist: Specialist): NonNullable<Speci
 const ensureServiceTranslations = (service: SpaService): NonNullable<ServiceForm['translations']> => {
   const toText = (items?: string[]) => items?.join(', ') || ''
   return {
-    'en-US': {
-      name: service.translations?.['en-US']?.name || service.name || '',
-      description: service.translations?.['en-US']?.description || service.description || '',
-      goals: toText(service.translations?.['en-US']?.goals) || toText(service.goals),
-      suitableFor: toText(service.translations?.['en-US']?.suitableFor) || toText(service.suitableFor),
-      process: toText(service.translations?.['en-US']?.process) || toText(service.process),
-      tag: service.translations?.['en-US']?.tag || service.tag || 'Spa',
+    'en': {
+      name: service.translations?.['en']?.name || service.name || '',
+      description: service.translations?.['en']?.description || service.description || '',
+      goals: toText(service.translations?.['en']?.goals) || toText(service.goals),
+      suitableFor: toText(service.translations?.['en']?.suitableFor) || toText(service.suitableFor),
+      process: toText(service.translations?.['en']?.process) || toText(service.process),
+      tag: service.translations?.['en']?.tag || service.tag || 'Spa',
     },
     vi: {
       name: service.translations?.vi?.name || service.name || '',
@@ -187,7 +187,7 @@ export default function AdminSpaPage() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [lang, setLang] = useState<AdminLang>(() => {
     const saved = window.localStorage.getItem(LANG_STORAGE_KEY)
-    return saved === 'vi' || saved === 'en-US' || saved === 'de' ? saved : 'vi'
+    return saved === 'vi' || saved === 'en' || saved === 'de' ? saved : 'vi'
   })
 
   const [branchForm, setBranchForm] = useState<BranchForm>(defaultBranchForm)
@@ -289,7 +289,7 @@ export default function AdminSpaPage() {
         </div>
         <div className='admin-header-side'>
           <div className='admin-lang-switch' role='group' aria-label='Admin language switch'>
-            <button type='button' className={`admin-lang-option ${lang === 'en-US' ? 'active' : ''}`} onClick={() => setLang('en-US')} aria-label='English (US)'>
+            <button type='button' className={`admin-lang-option ${lang === 'en' ? 'active' : ''}`} onClick={() => setLang('en')} aria-label='English (US)'>
               <img src='https://flagcdn.com/w40/us.png' alt='USA flag' loading='lazy' />
             </button>
             <button type='button' className={`admin-lang-option ${lang === 'de' ? 'active' : ''}`} onClick={() => setLang('de')} aria-label='Deutsch'>

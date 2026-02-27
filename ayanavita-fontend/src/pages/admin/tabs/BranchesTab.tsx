@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import type { BranchesTabProps } from './types'
 import { autoTranslateFromVietnamese, type LocaleMode } from './i18nForm'
 
-const locales: LocaleMode[] = ['vi', 'en-US', 'de']
+const locales: LocaleMode[] = ['vi', 'en', 'de']
 
 export function BranchesTab({ lang = 'vi', branches, branchForm, editingBranch, onBranchFormChange, onSaveBranch, onEditBranch, onDeleteBranch, onCancelEdit }: BranchesTabProps) {
   const [mode, setMode] = useState<LocaleMode>('vi')
@@ -17,13 +17,13 @@ export function BranchesTab({ lang = 'vi', branches, branchForm, editingBranch, 
       translateReqRef.current += 1
       const reqId = translateReqRef.current
       onBranchFormChange({ ...nextForm, [field]: value })
-      void Promise.all([autoTranslateFromVietnamese(value, 'en-US'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => {
+      void Promise.all([autoTranslateFromVietnamese(value, 'en'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => {
         if (reqId !== translateReqRef.current) return
         onBranchFormChange({
           ...nextForm,
           translations: {
             ...nextTranslations,
-            'en-US': { ...(nextTranslations['en-US'] || { name: '', address: '' }), [field]: en },
+            'en': { ...(nextTranslations['en'] || { name: '', address: '' }), [field]: en },
             de: { ...(nextTranslations.de || { name: '', address: '' }), [field]: de },
           },
         })

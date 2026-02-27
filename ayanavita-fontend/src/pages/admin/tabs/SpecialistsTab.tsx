@@ -4,11 +4,11 @@ import { autoTranslateFromVietnamese, type LocaleMode } from './i18nForm'
 
 const textMap = {
   vi: { update: 'Cập nhật chuyên viên', add: 'Thêm chuyên viên', name: 'Tên chuyên viên', email: 'Email tài khoản', branch: 'Chi nhánh', chooseBranch: 'Chọn chi nhánh', level: 'Cấp độ', bio: 'Bio', bioPlaceholder: 'Mô tả năng lực chuyên viên', branchServices: 'Dịch vụ theo chi nhánh', chooseBranchHelp: 'Vui lòng chọn chi nhánh để tải dịch vụ.', save: 'Lưu thay đổi', cancel: 'Hủy', list: 'Danh sách chuyên viên', searchName: 'Tìm tên', searchPlaceholder: 'Nhập tên chuyên viên', perPage: '/Trang', colName: 'Tên', colEmail: 'Email', colLevel: 'Cấp độ', colBranch: 'Chi nhánh', colServices: 'Dịch vụ', colAction: 'Thao tác', edit: 'Sửa', del: 'Xóa', showing: 'Hiển thị', specialists: 'chuyên viên', prev: 'Trước', page: 'Trang', next: 'Sau', reset: 'Làm mới', localeHint: 'Mặc định nhập tiếng Việt, hệ thống tự dịch sang Anh/Đức. Khi lưu vui lòng kiểm tra lại bản dịch.' },
-  'en-US': { update: 'Update specialist', add: 'Add specialist', name: 'Specialist name', email: 'Account email', branch: 'Branch', chooseBranch: 'Select branch', level: 'Level', bio: 'Bio', bioPlaceholder: 'Describe specialist capabilities', branchServices: 'Services by branch', chooseBranchHelp: 'Select a branch to load services.', save: 'Save changes', cancel: 'Cancel', list: 'Specialist list', searchName: 'Search name', searchPlaceholder: 'Enter specialist name', perPage: '/Page', colName: 'Name', colEmail: 'Email', colLevel: 'Level', colBranch: 'Branch', colServices: 'Services', colAction: 'Actions', edit: 'Edit', del: 'Delete', showing: 'Showing', specialists: 'specialists', prev: 'Prev', page: 'Page', next: 'Next', reset: 'Reset', localeHint: 'Default input is Vietnamese; the system auto-translates to English/German. Please review translations before saving.' },
+  'en': { update: 'Update specialist', add: 'Add specialist', name: 'Specialist name', email: 'Account email', branch: 'Branch', chooseBranch: 'Select branch', level: 'Level', bio: 'Bio', bioPlaceholder: 'Describe specialist capabilities', branchServices: 'Services by branch', chooseBranchHelp: 'Select a branch to load services.', save: 'Save changes', cancel: 'Cancel', list: 'Specialist list', searchName: 'Search name', searchPlaceholder: 'Enter specialist name', perPage: '/Page', colName: 'Name', colEmail: 'Email', colLevel: 'Level', colBranch: 'Branch', colServices: 'Services', colAction: 'Actions', edit: 'Edit', del: 'Delete', showing: 'Showing', specialists: 'specialists', prev: 'Prev', page: 'Page', next: 'Next', reset: 'Reset', localeHint: 'Default input is Vietnamese; the system auto-translates to English/German. Please review translations before saving.' },
   de: { update: 'Spezialist aktualisieren', add: 'Spezialist hinzufügen', name: 'Name des Spezialisten', email: 'Konto-E-Mail', branch: 'Filiale', chooseBranch: 'Filiale wählen', level: 'Stufe', bio: 'Bio', bioPlaceholder: 'Fähigkeiten des Spezialisten beschreiben', branchServices: 'Leistungen nach Filiale', chooseBranchHelp: 'Bitte Filiale wählen, um Leistungen zu laden.', save: 'Änderungen speichern', cancel: 'Abbrechen', list: 'Spezialistenliste', searchName: 'Name suchen', searchPlaceholder: 'Name des Spezialisten eingeben', perPage: '/Seite', colName: 'Name', colEmail: 'E-Mail', colLevel: 'Stufe', colBranch: 'Filiale', colServices: 'Leistungen', colAction: 'Aktionen', edit: 'Bearbeiten', del: 'Löschen', showing: 'Anzeige', specialists: 'Spezialisten', prev: 'Zurück', page: 'Seite', next: 'Weiter', reset: 'Zurücksetzen', localeHint: 'Standardmäßig auf Vietnamesisch eingeben; das System übersetzt automatisch nach Englisch/Deutsch. Bitte Übersetzungen vor dem Speichern prüfen.' },
 } as const
 
-const locales: LocaleMode[] = ['vi', 'en-US', 'de']
+const locales: LocaleMode[] = ['vi', 'en', 'de']
 const emptySpecialistLocale = { name: '', bio: '' }
 
 export function SpecialistsTab({ lang = 'vi', branches, services, specialists, specialistForm, editingSpecialist, onSpecialistFormChange, onSaveSpecialist, onEditSpecialist, onDeleteSpecialist, onCancelEdit }: SpecialistsTabProps) {
@@ -26,13 +26,13 @@ export function SpecialistsTab({ lang = 'vi', branches, services, specialists, s
       translateReqRef.current += 1
       const reqId = translateReqRef.current
       onSpecialistFormChange({ ...nextForm, [field]: value })
-      void Promise.all([autoTranslateFromVietnamese(value, 'en-US'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => {
+      void Promise.all([autoTranslateFromVietnamese(value, 'en'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => {
         if (reqId !== translateReqRef.current) return
         onSpecialistFormChange({
           ...nextForm,
           translations: {
             ...nextTranslations,
-            'en-US': { ...(nextTranslations['en-US'] || emptySpecialistLocale), [field]: en },
+            'en': { ...(nextTranslations['en'] || emptySpecialistLocale), [field]: en },
             de: { ...(nextTranslations.de || emptySpecialistLocale), [field]: de },
           },
         })

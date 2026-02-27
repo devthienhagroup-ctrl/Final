@@ -90,7 +90,7 @@ export function TopicsTab({
           ))}
         </div>
 
-        <p className='admin-helper'>Mặc định nhập tiếng Việt, hệ thống tự gợi ý bản dịch Anh/Đức. Khi lưu vui lòng kiểm tra lại bản dịch.</p>
+        <p className='admin-helper'>{text.topicSub}</p>
 
         <div className='admin-form-grid'>
           <label className='admin-field'>

@@ -235,7 +235,7 @@ export function AdminOrdersPage() {
 
               <div className="admin-row">
                 <button
-                  className="admin-btn admin-btn-save"
+                  className="admin-btn admin-btn-save mb-3"
                   onClick={() => onMarkPaid(o.id)}
                   disabled={o.status === "PAID" || acting === o.id}
                   title={o.status === "PAID" ? "Already paid" : "Mark paid"}

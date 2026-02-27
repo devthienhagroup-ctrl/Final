@@ -397,14 +397,21 @@ export function CoursesTab({ courses, topics, text, onCreateCourse, onUpdateCour
     <section className='admin-card admin-card-glow admin-course-management-card'>
       <div className='admin-row' style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 className='admin-card-title'><i className='fa-solid fa-book' /> {text.coursesTab} ({courses.length})</h3>
-        <button className='admin-btn admin-btn-save' type='button' onClick={openCreate}><i className='fa-solid fa-circle-plus' /> Tạo khoá học</button>
+        <button
+            className="admin-btn admin-btn-save"
+            type="button"
+            style={{ marginBottom: '10px' }}
+            onClick={openCreate}
+        >
+          <i className="fa-solid fa-circle-plus" /> Tạo khoá học
+        </button>
       </div>
 
       <div className='admin-table-wrap'>
         <table className='admin-table admin-table-courses-full no-scroll-table'>
           <thead>
             <tr>
-              <th>ID</th><th>Tiêu đề</th><th>Slug</th><th>Chủ đề</th><th>Giá</th><th>Rating</th><th>Đăng ký</th><th>Bài học</th><th>Trạng thái</th><th>Hành động</th>
+              <th>ID</th><th>Tiêu đề</th><th>Chủ đề</th><th>Giá</th><th>Rating</th><th>Đăng ký</th><th>Bài học</th><th>Trạng thái</th><th>Hành động</th>
             </tr>
           </thead>
           <tbody>
@@ -412,7 +419,6 @@ export function CoursesTab({ courses, topics, text, onCreateCourse, onUpdateCour
               <tr key={c.id}>
                 <td>{c.id}</td>
                 <td className='td-strong'>{c.title}</td>
-                <td>{c.slug}</td>
                 <td>{c.topic?.name || 'Chưa gán'}</td>
                 <td>{(c.price || 0).toLocaleString('vi-VN')}đ</td>
                 <td>{c.ratingAvg ?? 0} ({c.ratingCount ?? 0})</td>

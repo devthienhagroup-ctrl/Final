@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { autoTranslateFromVietnamese } from '../tabs/i18nForm'
+import { adminCoursesApi } from '../../../api/adminCourses.api'
 import './CreateCourseModal.css'
 
 type AdminLang = 'vi' | 'en' | 'de'
@@ -161,6 +162,7 @@ const textMap: Record<AdminLang, Record<string, string>> = {
 export function CreateCourseModal({ open, lang, topics, onClose }: Props) {
   const [form, setForm] = useState<CourseForm>(() => initialForm())
   const [inputLang, setInputLang] = useState<AdminLang>('vi')
+  const [submitting, setSubmitting] = useState(false)
   const t = textMap[lang]
 
   const displayTopicName = (topic: TopicItem) => {
@@ -288,49 +290,72 @@ export function CreateCourseModal({ open, lang, topics, onClose }: Props) {
     })),
   })
 
-  const submit = () => {
+  const submit = async () => {
     if (!validate()) {
       if (Number.isFinite(getPrice()) && getPrice() >= 0) window.alert(t.required)
       return
     }
 
-    const now = new Date().toISOString()
-    const payload = {
-      title: form.title,
-      shortDescription: form.shortDescription,
-      description: form.description,
-      thumbnail: { uploadFileName: form.thumbnailFile?.name },
-      price: getPrice(),
-      published: form.published,
-      topicId: form.topicId,
-      objectives: form.objectives,
-      targetAudience: form.targetAudience,
-      benefits: form.benefits,
-      slug,
-      createdAt: now,
-      updatedAt: now,
-      lessons: form.lessons.map((lesson) => ({
-        title: lesson.title,
-        description: lesson.description,
-        orderIndex: lesson.orderIndex,
-        modules: lesson.modules.map((module) => ({
-          title: module.title,
-          description: module.description,
-          orderIndex: module.orderIndex,
-          medias: module.medias.map((media) => ({ type: media.type, uploadFileName: media.file?.name, orderIndex: media.orderIndex })),
-        })),
-      })),
-      languageVersions: {
-        vi: toLanguageVersion('vi'),
-        en: toLanguageVersion('en'),
-        de: toLanguageVersion('de'),
-      },
-    }
+    setSubmitting(true)
+    try {
+      const course = await adminCoursesApi.createCourse({
+        title: form.title.vi,
+        shortDescription: form.shortDescription.vi,
+        description: form.description.vi,
+        price: getPrice(),
+        published: form.published,
+        topicId: form.topicId,
+        objectives: form.objectives.vi.filter((v) => v.trim()),
+        targetAudience: form.targetAudience.vi.filter((v) => v.trim()),
+        benefits: form.benefits.vi.filter((v) => v.trim()),
+        slug,
+        translations: {
+          vi: { title: form.title.vi, shortDescription: form.shortDescription.vi, description: form.description.vi },
+          en: { title: form.title.en, shortDescription: form.shortDescription.en, description: form.description.en },
+          de: { title: form.title.de, shortDescription: form.shortDescription.de, description: form.description.de },
+        },
+        contentTranslations: {
+          vi: { objectives: form.objectives.vi.filter((v) => v.trim()), targetAudience: form.targetAudience.vi.filter((v) => v.trim()), benefits: form.benefits.vi.filter((v) => v.trim()) },
+          en: { objectives: form.objectives.en.filter((v) => v.trim()), targetAudience: form.targetAudience.en.filter((v) => v.trim()), benefits: form.benefits.en.filter((v) => v.trim()) },
+          de: { objectives: form.objectives.de.filter((v) => v.trim()), targetAudience: form.targetAudience.de.filter((v) => v.trim()), benefits: form.benefits.de.filter((v) => v.trim()) },
+        },
+      })
 
-    console.log('NEW_COURSE_PAYLOAD', payload)
-    onClose()
-    setForm(initialForm())
-    setInputLang('vi')
+      for (const lesson of form.lessons) {
+        const createdLesson = await adminCoursesApi.createLesson(course.id, {
+          title: lesson.title.vi,
+          slug: slugify(lesson.title.vi || `lesson-${lesson.orderIndex}`),
+          description: lesson.description.vi,
+          order: lesson.orderIndex,
+          published: form.published,
+          translations: { vi: { title: lesson.title.vi, description: lesson.description.vi }, en: { title: lesson.title.en, description: lesson.description.en }, de: { title: lesson.title.de, description: lesson.description.de } },
+          modules: lesson.modules.map((module) => ({
+            title: module.title.vi,
+            description: module.description.vi,
+            order: module.orderIndex,
+            published: true,
+            translations: { vi: { title: module.title.vi, description: module.description.vi }, en: { title: module.title.en, description: module.description.en }, de: { title: module.title.de, description: module.description.de } },
+            videos: module.medias.map((media) => ({ title: media.file?.name || media.type, description: '', order: media.orderIndex, mediaType: media.type === 'image' ? 'IMAGE' : 'VIDEO', published: true })),
+          })),
+        })
+
+        const detail = await adminCoursesApi.getLessonDetail(createdLesson.id)
+        for (const module of lesson.modules) {
+          const apiModule = detail.modules.find((m) => m.order === module.orderIndex)
+          if (!apiModule) continue
+          for (const media of module.medias) {
+            if (!media.file) continue
+            await adminCoursesApi.uploadModuleMedia(createdLesson.id, apiModule.id, media.file, media.type)
+          }
+        }
+      }
+
+      onClose()
+      setForm(initialForm())
+      setInputLang('vi')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   if (!open) return null
@@ -429,7 +454,7 @@ export function CreateCourseModal({ open, lang, topics, onClose }: Props) {
 
         <div className='admin-row create-course-footer'>
           <button type='button' className='admin-btn create-course-btn-add' onClick={addLesson}><i className='fa-solid fa-plus' /> {t.addLesson}</button>
-          <button type='button' className='admin-btn admin-btn-save' onClick={submit}><i className='fa-solid fa-paper-plane' /> {t.submit}</button>
+          <button type='button' className='admin-btn admin-btn-save' onClick={() => void submit()} disabled={submitting}><i className='fa-solid fa-paper-plane' /> {t.submit}</button>
         </div>
       </div>
     </div>

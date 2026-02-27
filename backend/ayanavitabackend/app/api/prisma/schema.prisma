@@ -252,9 +252,6 @@ model Course {
   thumbnail           String?
   price               Int      @default(0)
   published           Boolean  @default(false)
-  titleI18n           Json?
-  descriptionI18n     Json?
-  shortDescriptionI18n Json?
   objectives          Json?
   targetAudience      Json?
   benefits            Json?
@@ -268,6 +265,7 @@ model Course {
   enrollments Enrollment[]
   topic       CourseTopic? @relation(fields: [topicId], references: [id], onDelete: Restrict)
   translations CourseTranslation[]
+  contentTranslations CourseContentTranslation[]
 
   // ✅ ADD
   orderItems OrderItem[] // <— opposite for OrderItem.course
@@ -348,8 +346,6 @@ model Lesson {
   description     String?
   content         String?          @db.LongText
   videoUrl        String?
-  titleI18n       Json?
-  descriptionI18n Json?
   order           Int              @default(0)
   published       Boolean          @default(false)
   createdAt       DateTime         @default(now())
@@ -357,6 +353,7 @@ model Lesson {
   course          Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
   progress        LessonProgress[]
   modules         LessonModule[]
+  translations    LessonTranslation[]
 
   @@unique([courseId, slug])
   @@index([courseId, order])
@@ -367,8 +364,6 @@ model LessonModule {
   lessonId        Int
   title           String
   description     String?
-  titleI18n       Json?
-  descriptionI18n Json?
   order           Int          @default(0)
   published       Boolean      @default(true)
   createdAt       DateTime     @default(now())
@@ -376,6 +371,7 @@ model LessonModule {
 
   lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   videos LessonVideo[]
+  translations LessonModuleTranslation[]
 
   @@index([lessonId, order])
 }
@@ -385,8 +381,6 @@ model LessonVideo {
   moduleId        Int
   title           String
   description     String?
-  titleI18n       Json?
-  descriptionI18n Json?
   sourceUrl       String?
   hlsPlaylistKey  String?
   durationSec     Int          @default(0)
@@ -395,9 +389,74 @@ model LessonVideo {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
+  mediaType       LessonMediaType @default(VIDEO)
+
   module LessonModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  translations LessonVideoTranslation[]
 
   @@index([moduleId, order])
+}
+
+
+model CourseContentTranslation {
+  id             Int      @id @default(autoincrement())
+  courseId       Int
+  locale         String   @db.VarChar(10)
+  objectives     Json?
+  targetAudience Json?
+  benefits       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, locale])
+  @@index([locale])
+}
+
+model LessonTranslation {
+  id          Int      @id @default(autoincrement())
+  lessonId    Int
+  locale      String   @db.VarChar(10)
+  title       String   @db.VarChar(255)
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, locale])
+  @@index([locale])
+}
+
+model LessonModuleTranslation {
+  id          Int      @id @default(autoincrement())
+  moduleId    Int
+  locale      String   @db.VarChar(10)
+  title       String   @db.VarChar(255)
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  module LessonModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([moduleId, locale])
+  @@index([locale])
+}
+
+model LessonVideoTranslation {
+  id          Int      @id @default(autoincrement())
+  videoId     Int
+  locale      String   @db.VarChar(10)
+  title       String   @db.VarChar(255)
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  video LessonVideo @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([videoId, locale])
+  @@index([locale])
 }
 
 model Enrollment {
@@ -445,6 +504,11 @@ model LessonProgress {
 enum ProgressStatus {
   IN_PROGRESS
   COMPLETED
+}
+
+enum LessonMediaType {
+  VIDEO
+  IMAGE
 }
 
 enum SpecialistLevel {

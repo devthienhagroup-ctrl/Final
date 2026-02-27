@@ -10,13 +10,12 @@ export type CourseTopic = {
   _count?: { courses: number }
 }
 
-export type LocalizedText = { vi?: string; en?: string; 'en-US'?: string; de?: string }
+export type LocalizedText = { vi?: string; en?: string; de?: string }
 
 export type LessonVideoPayload = {
   title: string
   description?: string
-  titleI18n?: LocalizedText
-  descriptionI18n?: LocalizedText
+  translations?: Record<string, { title: string; shortDescription?: string; description?: string }>
   sourceUrl?: string
   durationSec?: number
   order?: number
@@ -26,8 +25,7 @@ export type LessonVideoPayload = {
 export type LessonModulePayload = {
   title: string
   description?: string
-  titleI18n?: LocalizedText
-  descriptionI18n?: LocalizedText
+  translations?: Record<string, { title: string; shortDescription?: string; description?: string }>
   order?: number
   published?: boolean
   videos?: LessonVideoPayload[]
@@ -37,8 +35,7 @@ export type LessonPayload = {
   title: string
   slug: string
   description?: string
-  titleI18n?: LocalizedText
-  descriptionI18n?: LocalizedText
+  translations?: Record<string, { title: string; description?: string }>
   content?: string
   videoUrl?: string
   modules?: LessonModulePayload[]
@@ -55,8 +52,7 @@ export type LessonAdmin = {
   title: string
   slug: string
   description?: string
-  titleI18n?: LocalizedText
-  descriptionI18n?: LocalizedText
+  translations?: Record<string, { title: string; description?: string }>
   content?: string
   order?: number
   published: boolean
@@ -77,12 +73,11 @@ export type CourseAdmin = {
   published: boolean
   price: number
   topic?: { id: number; name: string } | null
-  titleI18n?: LocalizedText
-  descriptionI18n?: LocalizedText
-  shortDescriptionI18n?: LocalizedText
+  translations?: Record<string, { title: string; description?: string }>
   objectives?: string[]
   targetAudience?: string[]
   benefits?: string[]
+  contentTranslations?: Record<string, { objectives?: string[]; targetAudience?: string[]; benefits?: string[] }>
   ratingAvg?: number
   ratingCount?: number
   enrollmentCount?: number
@@ -111,12 +106,11 @@ export type CoursePayload = {
   thumbnail?: string
   price?: number
   published?: boolean
-  titleI18n?: LocalizedText
-  descriptionI18n?: LocalizedText
-  shortDescriptionI18n?: LocalizedText
+  translations?: Record<string, { title: string; description?: string }>
   objectives?: string[]
   targetAudience?: string[]
   benefits?: string[]
+  contentTranslations?: Record<string, { objectives?: string[]; targetAudience?: string[]; benefits?: string[] }>
   ratingAvg?: number
   ratingCount?: number
   enrollmentCount?: number
@@ -154,13 +148,10 @@ export const adminCoursesApi = {
   updateLesson: (lessonId: number, body: Partial<LessonPayload>) => patch<LessonAdmin>(`/lessons/${lessonId}`, body, { auth: true }),
   deleteLesson: (lessonId: number) => del<{ id: number }>(`/lessons/${lessonId}`, { auth: true }),
 
-  uploadModuleVideo: (lessonId: number, moduleId: string | number, file: File) => {
+  uploadModuleMedia: (lessonId: number, moduleId: string | number, file: File, type: 'video' | 'image') => {
     const body = new FormData()
     body.append('file', file)
-    return post<{ moduleId: string; lessonId: number; hlsPlaylistKey: string; segmentCount: number; storage: string }>(
-      `/lessons/${lessonId}/modules/${moduleId}/videos/upload`,
-      body,
-      { auth: true },
-    )
+    body.append('type', type)
+    return post<{ moduleId?: string; lessonId?: number; hlsPlaylistKey?: string; segmentCount?: number; imageKey?: string; sourceUrl?: string; storage: string }>(`/lessons/${lessonId}/modules/${moduleId}/media/upload`, body, { auth: true })
   },
 }

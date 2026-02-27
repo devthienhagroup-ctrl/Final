@@ -50,15 +50,16 @@ export class LessonsController {
 
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
-  @Post('lessons/:id/modules/:moduleId/videos/upload')
+  @Post('lessons/:id/modules/:moduleId/media/upload')
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
-  uploadModuleVideo(
+  uploadModuleMedia(
     @Param('id', ParseIntPipe) lessonId: number,
     @Param('moduleId') moduleId: string,
     @UploadedFile() file?: any,
+    @Body('type') type?: string,
   ) {
-    if (!file) return { message: 'Missing video file' }
-    return this.lessons.uploadModuleVideo(lessonId, moduleId, file)
+    if (!file) return { message: 'Missing media file' }
+    return this.lessons.uploadModuleMedia(lessonId, moduleId, type === 'image' ? 'image' : 'video', file)
   }
 
   // ADMIN: update lesson

@@ -1,29 +1,34 @@
-import {
-  IsArray,
-  IsBoolean,
-  IsInt,
-  IsNumber,
-  IsObject,
-  IsOptional,
-  IsString,
-  Max,
-  Min,
-  ValidateNested,
-} from 'class-validator'
 import { Type } from 'class-transformer'
+import { IsArray, IsBoolean, IsInt, IsNumber, IsObject, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator'
 
-class I18nTextDto {
-  @IsOptional()
+class TranslationDto {
   @IsString()
-  vi?: string
-
-  @IsOptional()
-  @IsString()
-  'en'?: string
+  title: string
 
   @IsOptional()
   @IsString()
-  de?: string
+  shortDescription?: string
+
+  @IsOptional()
+  @IsString()
+  description?: string
+}
+
+class ContentTranslationDto {
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  objectives?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  targetAudience?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  benefits?: string[]
 }
 
 export class CreateCourseDto {
@@ -39,23 +44,8 @@ export class CreateCourseDto {
   shortDescription?: string
 
   @IsOptional()
-  @ValidateNested()
-  @Type(() => I18nTextDto)
-  titleI18n?: I18nTextDto
-
-  @IsOptional()
   @IsString()
   description?: string
-
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => I18nTextDto)
-  descriptionI18n?: I18nTextDto
-
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => I18nTextDto)
-  shortDescriptionI18n?: I18nTextDto
 
   @IsOptional()
   @IsString()
@@ -91,6 +81,18 @@ export class CreateCourseDto {
   benefits?: string[]
 
   @IsOptional()
+  @IsObject()
+  @ValidateNested({ each: true })
+  @Type(() => TranslationDto)
+  translations?: Record<string, TranslationDto>
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested({ each: true })
+  @Type(() => ContentTranslationDto)
+  contentTranslations?: Record<string, ContentTranslationDto>
+
+  @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(5)
@@ -105,8 +107,4 @@ export class CreateCourseDto {
   @IsInt()
   @Min(0)
   enrollmentCount?: number
-
-  @IsOptional()
-  @IsObject()
-  extraMeta?: Record<string, unknown>
 }

@@ -89,6 +89,23 @@ export class LessonsMediaService {
     })
   }
 
+
+  async convertImageToWebpAndUpload(file: { buffer: Buffer; originalname?: string }, lessonId: number, moduleId: string) {
+    const workDir = join(tmpdir(), `lms-img-${randomUUID()}`)
+    await mkdir(workDir, { recursive: true })
+    const inputPath = join(workDir, file.originalname || 'input')
+    const outputPath = join(workDir, 'image.webp')
+    try {
+      await writeFile(inputPath, file.buffer)
+      await this.runFfmpeg(['-y', '-i', inputPath, '-qscale', '75', outputPath])
+      const webp = await readFile(outputPath)
+      const imageKey = `private/courses/${lessonId}/modules/${moduleId}/${randomUUID()}.webp`
+      await this.uploadPrivateObject(imageKey, webp, 'image/webp')
+      return { imageKey, sourceUrl: imageKey, storage: 'private-bucket' }
+    } finally {
+      await rm(workDir, { recursive: true, force: true })
+    }
+  }
   async transcodeToHlsAndUpload(file: { buffer: Buffer; originalname?: string }, lessonId: number, moduleId: string) {
     const workDir = join(tmpdir(), `lms-hls-${randomUUID()}`)
     await mkdir(workDir, { recursive: true })

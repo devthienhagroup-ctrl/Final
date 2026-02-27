@@ -7,9 +7,6 @@ import { RegisterDto } from '../users/dto/register.dto'
 import { LoginDto } from '../users/dto/login.dto'
 import { SendOtpDto } from './dto/send-otp.dto'
 import { RegisterNewDto } from './dto/register-new.dto'
-import { UpdateProfileDto } from './dto/update-profile.dto'
-import { ChangePasswordDto } from './dto/change-password.dto'
-import { ForgotPasswordDto } from './dto/forgot-password.dto'
 
 type JwtPayload = { sub: number; email: string; role: string }
 
@@ -35,7 +32,7 @@ export class AuthService {
         name: dto.name,
         role: 'USER',
       },
-      select: { id: true, email: true, name: true, role: true, birthDate: true, gender: true, address: true },
+      select: { id: true, email: true, name: true, role: true },
     })
 
     const tokens = await this.issueTokens(user.id, user.email, user.role)
@@ -89,11 +86,8 @@ export class AuthService {
         name: dto.name,
         phone: dto.phone,
         role: 'USER',
-        birthDate: dto.birthDate ? new Date(dto.birthDate) : undefined,
-        gender: dto.gender,
-        address: dto.address,
       },
-      select: { id: true, email: true, name: true, role: true, phone: true, birthDate: true, gender: true, address: true },
+      select: { id: true, email: true, name: true, role: true, phone: true },
     })
 
     await this.prisma.registrationOtp.update({
@@ -107,88 +101,6 @@ export class AuthService {
     return { user, ...tokens }
   }
 
-  async getProfile(userId: number) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        phone: true,
-        role: true,
-        birthDate: true,
-        gender: true,
-        address: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    })
-
-    if (!user) throw new UnauthorizedException('User not found')
-    return user
-  }
-
-  async updateProfile(userId: number, dto: UpdateProfileDto) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } })
-    if (!user) throw new UnauthorizedException('User not found')
-
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        name: dto.name,
-        phone: dto.phone,
-        birthDate: dto.birthDate ? new Date(dto.birthDate) : undefined,
-        gender: dto.gender,
-        address: dto.address,
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        phone: true,
-        birthDate: true,
-        gender: true,
-        address: true,
-        updatedAt: true,
-      },
-    })
-  }
-
-  async changePassword(userId: number, dto: ChangePasswordDto) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } })
-    if (!user) throw new UnauthorizedException('User not found')
-
-    const isCurrentPasswordValid = await bcrypt.compare(dto.currentPassword, user.password)
-    if (!isCurrentPasswordValid) {
-      throw new ForbiddenException('Mật khẩu hiện tại không chính xác')
-    }
-
-    const newPasswordHash = await bcrypt.hash(dto.newPassword, 10)
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { password: newPasswordHash },
-    })
-
-    return { success: true, message: 'Đổi mật khẩu thành công' }
-  }
-
-  async forgotPassword(dto: ForgotPasswordDto) {
-    const email = dto.email.trim().toLowerCase()
-    const user = await this.prisma.user.findUnique({ where: { email } })
-
-    if (!user) {
-      return { success: true, message: 'Nếu email tồn tại, hệ thống đã xử lý yêu cầu.' }
-    }
-
-    const newPasswordHash = await bcrypt.hash(dto.newPassword, 10)
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { password: newPasswordHash },
-    })
-
-    return { success: true, message: 'Đặt lại mật khẩu thành công (prototype).' }
-  }
-
   async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({ where: { email: dto.email } })
     if (!user) throw new UnauthorizedException('Invalid credentials')
@@ -200,16 +112,7 @@ export class AuthService {
     await this.setRefreshTokenHash(user.id, tokens.refreshToken)
 
     return {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        phone: user.phone,
-        birthDate: user.birthDate,
-        gender: user.gender,
-        address: user.address,
-      },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, phone: user.phone },
       ...tokens,
     }
   }

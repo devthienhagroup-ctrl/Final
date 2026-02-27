@@ -14,9 +14,6 @@ model User {
   password           String
   name               String?
   phone              String?
-  birthDate          DateTime?
-  gender             Gender?
-  address            String?  @db.VarChar(500)
   role               Role     @default(USER)
   isActive           Boolean  @default(true)
   hashedRefreshToken String?  @db.Text
@@ -444,12 +441,6 @@ enum AppointmentStatus {
   CONFIRMED
   DONE
   CANCELED
-}
-
-enum Gender {
-  MALE
-  FEMALE
-  OTHER
 }
 
 enum Role {

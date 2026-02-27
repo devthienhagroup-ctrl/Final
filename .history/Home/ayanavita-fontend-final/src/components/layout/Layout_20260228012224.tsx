@@ -44,7 +44,7 @@ export default function AppLayout() {
         <>
             <Header cmsData={globalData?.sections?.[0]?.data}
                 cmsAuth={globalData?.sections?.[2]?.data}
-                cmsSuccess={globalData?.sections?.[3]?.data}
+                cmsSuccess={globalData?.sections?.[3]}
             />
             <main>
                 <Outlet />

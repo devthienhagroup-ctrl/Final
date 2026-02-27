@@ -1,9 +1,5 @@
 {
-<<<<<<< HEAD
-  "name": "host",
-=======
   "name": "ayanavita",
->>>>>>> 4b948bf2ec400ab59f778729e8a1a257d3282303
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -15,19 +11,13 @@
     "url": "https://github.com/devthienhagroup-ctrl/Ayanavita.git"
   },
   "private": true,
-<<<<<<< HEAD
   "dependencies": {
+    "@prisma/client": "^7.4.1",
+    "flag-icons": "^7.5.0",
+    "prisma": "^7.4.1",
     "vite": "^7.3.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.1.4"
-=======
-  "devDependencies": {
-    "vite": "^7.3.1"
-  },
-  "dependencies": {
-    "@prisma/client": "^7.4.1",
-    "prisma": "^7.4.1"
->>>>>>> 4b948bf2ec400ab59f778729e8a1a257d3282303
   }
 }

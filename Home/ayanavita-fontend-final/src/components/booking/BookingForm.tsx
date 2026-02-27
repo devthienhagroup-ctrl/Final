@@ -12,86 +12,6 @@ export type BookingDraft = {
   note: string;
 };
 
-export type BookingFormCmsField = {
-  label: string;
-  placeholder?: string;
-};
-
-export type BookingFormCmsData = {
-  headerEyebrow: string;
-  headerTitle: string;
-  headerDescription: string;
-  securityBadge: string;
-
-  fields: {
-    fullName: BookingFormCmsField;
-    phone: BookingFormCmsField;
-    email: BookingFormCmsField;
-    notify: BookingFormCmsField;
-    service: BookingFormCmsField;
-    staff: BookingFormCmsField;
-    branch: BookingFormCmsField;
-    date: BookingFormCmsField;
-    note: BookingFormCmsField;
-  };
-
-  notifyOptions: string[];
-  staffNoneOption: string;
-
-  summaryTexts: string[];
-  buttons: string[];
-  resetToast: string[];
-  validationToasts: string[];
-  successToast: string[];
-};
-
-const DEFAULT_CMS_DATA: BookingFormCmsData = {
-  headerEyebrow: "Form đặt lịch",
-  headerTitle: "Thông tin & lựa chọn",
-  headerDescription: "Bạn có thể đặt cho bản thân hoặc người thân.",
-  securityBadge: "Bảo mật",
-
-  fields: {
-    fullName: { label: "Họ và tên *", placeholder: "Ví dụ: Lê Hiếu" },
-    phone: { label: "Số điện thoại *", placeholder: "09xx xxx xxx" },
-    email: { label: "Email (tuỳ chọn)", placeholder: "email@example.com" },
-    notify: { label: "Kênh nhắc lịch" },
-    service: { label: "Dịch vụ *" },
-    staff: { label: "Chuyên viên" },
-    branch: { label: "Chi nhánh *" },
-    date: { label: "Ngày *" },
-    note: { label: "Ghi chú", placeholder: "Tình trạng da, nhu cầu…" },
-  },
-
-  notifyOptions: ["Zalo", "SMS", "Email"],
-  staffNoneOption: "Không chọn (hệ thống phân bổ)",
-
-  summaryTexts: ["Khung giờ đã chọn:", "Chưa chọn", "Dự kiến:", "phút", "Giá tham khảo:", "Có thể thay đổi theo tình trạng/ liệu trình."],
-  buttons: ["Reset", "➕ Tạo lịch hẹn"],
-  resetToast: ["Reset", "Bấm Reset ở page để làm sạch toàn bộ."],
-
-  validationToasts: [
-    "Thiếu thông tin",
-    "Vui lòng nhập họ và tên.",
-    "Số điện thoại chưa đúng",
-    "Vui lòng nhập số bắt đầu bằng 0 và đủ 10–11 số.",
-    "Thiếu ngày",
-    "Vui lòng chọn ngày.",
-    "Chưa chọn giờ",
-    "Vui lòng chọn một khung giờ.",
-  ],
-
-  successToast: ["Tạo lịch hẹn thành công", "Mã: {{id}} • {{date}} {{time}}"],
-};
-
-const resolveCmsData = (cmsData?: Partial<BookingFormCmsData>): BookingFormCmsData => {
-  // Shallow merge: primitive override; arrays override as-is (đúng kiểu CMS content)
-  return { ...DEFAULT_CMS_DATA, ...(cmsData ?? {}) };
-};
-
-const formatTemplate = (tpl: string, vars: Record<string, string>) =>
-    tpl.replace(/\{\{(\w+)\}\}/g, (_, k: string) => (vars[k] ?? ""));
-
 export function BookingForm({
   services,
   branches,
@@ -118,11 +38,8 @@ export function BookingForm({
   onServiceChange: (serviceId: string) => void;
   onBranchChange: (branchId: string) => void;
   onDateChange: (date: string) => void;
-  cmsData?: Partial<BookingFormCmsData>;
 }) {
-  const cms = useMemo(() => resolveCmsData(cmsData), [cmsData]);
   const tomorrow = useMemo(() => toISODate(new Date(Date.now() + 86400000)), []);
-
   const [draft, setDraft] = useState<BookingDraft>(() => ({
     name: initialName || "",
     phone: "",
@@ -186,159 +103,104 @@ export function BookingForm({
     };
 
     onCreate(booking);
-    onToast(
-        cms.successToast[0],
-        formatTemplate(cms.successToast[1], { id: booking.id, date: booking.date, time: booking.time })
-    );
+    onToast("Tạo lịch hẹn thành công", `Mã: ${booking.id} • ${booking.date} ${booking.time}`);
   };
 
   return (
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-xs font-extrabold text-slate-500">{cms.headerEyebrow}</div>
-            <div className="text-2xl font-extrabold">{cms.headerTitle}</div>
-            <div className="mt-1 text-sm text-slate-600">{cms.headerDescription}</div>
-          </div>
+    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-extrabold text-slate-500">Form đặt lịch</div>
+          <div className="text-2xl font-extrabold">Thông tin & lựa chọn</div>
+          <div className="mt-1 text-sm text-slate-600">Bạn có thể đặt cho bản thân hoặc người thân.</div>
+        </div>
+        <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-extrabold">
+          🔒 Bảo mật
+        </span>
+      </div>
 
-          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-extrabold">
-      <i className="fa-solid fa-lock"></i> {cms.securityBadge}
-    </span>
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <div>
+          <label className="text-sm font-extrabold text-slate-700">Họ và tên *</label>
+          <input className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100" placeholder="Ví dụ: Lê Hiếu" value={draft.name} onChange={(e) => update("name", e.target.value)} />
+        </div>
+        <div>
+          <label className="text-sm font-extrabold text-slate-700">Số điện thoại *</label>
+          <input className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100" placeholder="09xx xxx xxx" value={draft.phone} onChange={(e) => update("phone", e.target.value)} />
         </div>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          {/* Full name */}
-          <div>
-            <label className="text-sm font-extrabold text-slate-700">
-              {cms.fields.fullName.label}
-            </label>
-            <input
-                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
-                placeholder={cms.fields.fullName.placeholder}
-                value={draft.name}
-                onChange={(e) => update("name", e.target.value)}
-            />
-          </div>
-
-          {/* Phone */}
-          <div>
-            <label className="text-sm font-extrabold text-slate-700">
-              {cms.fields.phone.label}
-            </label>
-            <input
-                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
-                placeholder={cms.fields.phone.placeholder}
-                value={draft.phone}
-                onChange={(e) => update("phone", e.target.value)}
-            />
-          </div>
-
-          {/* Email */}
-          <div>
-            <label className="text-sm font-extrabold text-slate-700">
-              {cms.fields.email.label}
-            </label>
-            <input
-                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
-                placeholder={cms.fields.email.placeholder}
-                value={draft.email}
-                onChange={(e) => update("email", e.target.value)}
-            />
-          </div>
-
-          {/* Service */}
-          <div>
-            <label className="text-sm font-extrabold text-slate-700">
-              {cms.fields.service.label}
-            </label>
-            <select
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
-                value={selectedServiceId}
-                onChange={(e) => onServiceChange(e.target.value)}
-            >
-              {services.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} • {s.duration} {cms.summaryTexts[3]} • {money(s.price)}
-                  </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Branch */}
-          <div>
-            <label className="text-sm font-extrabold text-slate-700">
-              {cms.fields.branch.label}
-            </label>
-            <select
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
-                value={selectedBranchId}
-                disabled={!selectedServiceId || !branches.length}
-                onChange={(e) => onBranchChange(e.target.value)}
-            >
-              {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Date */}
-          <div>
-            <label className="text-sm font-extrabold text-slate-700">
-              {cms.fields.date.label}
-            </label>
-            <input
-                type="date"
-                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
-                value={draft.date}
-                onChange={(e) => {
-                  update("date", e.target.value);
-                  onDateChange(e.target.value);
-                }}
-            />
-          </div>
-
-          {/* Note */}
-          <div className="md:col-span-2">
-            <label className="text-sm font-extrabold text-slate-700">
-              {cms.fields.note.label}
-            </label>
-            <textarea
-                rows={3}
-                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
-                placeholder={cms.fields.note.placeholder}
-                value={draft.note}
-                onChange={(e) => update("note", e.target.value)}
-            />
-          </div>
+        <div>
+          <label className="text-sm font-extrabold text-slate-700">Email (tuỳ chọn)</label>
+          <input className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100" placeholder="email@example.com" value={draft.email} onChange={(e) => update("email", e.target.value)} />
         </div>
 
-        {/* Summary */}
-        <div className="mt-4 rounded-3xl bg-slate-50 p-4 ring-1 ring-slate-200">
-          <div className="text-sm text-slate-700">
-            {cms.summaryTexts[0]} <b>{selectedSlot || cms.summaryTexts[1]}</b>
-            <span className="text-slate-500"> • {cms.summaryTexts[2]} </span>
-            <b>{svc ? `${svc.duration} ${cms.summaryTexts[3]}` : "—"}</b>
-          </div>
+        <div>
+          <label className="text-sm font-extrabold text-slate-700">Dịch vụ *</label>
+          <select
+            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
+            value={selectedServiceId}
+            onChange={(e) => onServiceChange(e.target.value)}
+          >
+            {services.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name} • {s.duration} phút • {money(s.price)}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          <div className="mt-3 flex gap-2">
-            <button
-                type="button"
-                className="rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 px-4 py-3 text-sm font-extrabold text-white ring-1 ring-indigo-200 hover:opacity-95"
-                onClick={create}
-            >
-              {cms.buttons[1]}
-            </button>
-          </div>
+        <div>
+          <label className="text-sm font-extrabold text-slate-700">Chi nhánh *</label>
+          <select
+            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
+            value={selectedBranchId}
+            disabled={!selectedServiceId || !branches.length}
+            onChange={(e) => onBranchChange(e.target.value)}
+          >
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          <div className="mt-2 text-sm text-slate-600">
-            {cms.summaryTexts[4]} <b>{svc ? money(svc.price) : "—"}</b>{" "}
-            <span className="text-slate-500">• {cms.summaryTexts[5]}</span>
-          </div>
+        <div>
+          <label className="text-sm font-extrabold text-slate-700">Ngày *</label>
+          <input
+            type="date"
+            className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100"
+            value={draft.date}
+            onChange={(e) => {
+              update("date", e.target.value);
+              onDateChange(e.target.value);
+            }}
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <label className="text-sm font-extrabold text-slate-700">Ghi chú</label>
+          <textarea rows={3} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-100" placeholder="Tình trạng da, nhu cầu…" value={draft.note} onChange={(e) => update("note", e.target.value)} />
         </div>
       </div>
+
+      <div className="mt-4 rounded-3xl bg-slate-50 p-4 ring-1 ring-slate-200">
+        <div className="text-sm text-slate-700">
+          Khung giờ đã chọn: <b>{selectedSlot || "Chưa chọn"}</b>
+          <span className="text-slate-500"> • Dự kiến: </span>
+          <b>{svc ? `${svc.duration} phút` : "—"}</b>
+        </div>
+
+        <div className="mt-3 flex gap-2">
+          <button type="button" className="rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 px-4 py-3 text-sm font-extrabold text-white ring-1 ring-indigo-200 hover:opacity-95" onClick={create}>
+            ➕ Tạo lịch hẹn
+          </button>
+        </div>
+
+        <div className="mt-2 text-sm text-slate-600">
+          Giá tham khảo: <b>{svc ? money(svc.price) : "—"}</b> <span className="text-slate-500">• Có thể thay đổi theo tình trạng/ liệu trình.</span>
+        </div>
+      </div>
+    </div>
   );
 }
-
-export const BOOKING_FORM_DEFAULT_CMS_DATA: BookingFormCmsData = DEFAULT_CMS_DATA;

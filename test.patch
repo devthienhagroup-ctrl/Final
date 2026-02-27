@@ -1,28 +1,40 @@
-diff --git a/Home/ayanavita-fontend-final/vite.config.ts b/Home/ayanavita-fontend-final/vite.config.ts
-index 4c430d42efb5ca5a6867f6bdca9aada4df9f60de..4b92b72710ea47592a37ef1ec180c3ba8821cb75 100644
---- a/Home/ayanavita-fontend-final/vite.config.ts
-+++ b/Home/ayanavita-fontend-final/vite.config.ts
-@@ -1,11 +1,21 @@
- // vite.config.ts
- import { defineConfig } from "vite";
- import react from "@vitejs/plugin-react";
-
-+const enableFileWatch = process.env.VITE_ENABLE_WATCH === "true";
-+
- export default defineConfig({
-   plugins: [react()],
-   server: {
-     host: "0.0.0.0",
-     port: 5176,
-+    watch: enableFileWatch
-+      ? {
-+          usePolling: true,
-+          interval: 1000,
-+          binaryInterval: 1500,
-+          ignorePermissionErrors: true,
-+        }
-+      : null,
+diff --git a/package.json b/package.json
+index a00b3252195adf29d77c7207376d8bb1e89d359d..478984da23e163c762ae7c2afa1c3460c5a6d06d 100644
+--- a/package.json
++++ b/package.json
+@@ -1,33 +1,22 @@
+ {
+-<<<<<<< HEAD
+-  "name": "host",
+-=======
+   "name": "ayanavita",
+->>>>>>> 4b948bf2ec400ab59f778729e8a1a257d3282303
+   "version": "1.0.0",
+   "description": "",
+   "main": "index.js",
+   "scripts": {
+     "test": "echo \"Error: no test specified\" && exit 1"
    },
--});
-\ No newline at end of file
-+});
+   "repository": {
+     "type": "git",
+     "url": "https://github.com/devthienhagroup-ctrl/Ayanavita.git"
+   },
+   "private": true,
+-<<<<<<< HEAD
+   "dependencies": {
++    "@prisma/client": "^7.4.1",
++    "prisma": "^7.4.1",
+     "vite": "^7.3.1"
+   },
+   "devDependencies": {
+     "@vitejs/plugin-react": "^5.1.4"
+-=======
+-  "devDependencies": {
+-    "vite": "^7.3.1"
+-  },
+-  "dependencies": {
+-    "@prisma/client": "^7.4.1",
+-    "prisma": "^7.4.1"
+->>>>>>> 4b948bf2ec400ab59f778729e8a1a257d3282303
+   }
+ }

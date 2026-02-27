@@ -61,7 +61,7 @@ export type BookingFormCmsData = {
 };
 
 const DEFAULT_CMS_DATA: BookingFormCmsData = {
-  errorMessage: "Lỗi",
+  errorMesssage: "Lỗi",
   headerEyebrow: "Form đặt lịch",
   headerTitle: "Thông tin & lựa chọn",
   headerDescription: "Bạn có thể đặt cho bản thân hoặc người thân.",
@@ -158,12 +158,12 @@ export function BookingForm(props: any) {
     setDraft((d) => ({ ...d, [k]: v }));
 
   const create = () => {
-    if (!draft.name.trim()) return onToast(data.errorMessage, data.validationToasts.missingName);
-    if (!isValidPhone(draft.phone.trim())) return onToast(data.errorMessage, data.validationToasts.invalidPhone);
-    if (!draft.date) return onToast(data.errorMessage, data.validationToasts.missingDate);
-    if (!svc) return onToast(data.errorMessage, data.validationToasts.missingService);
-    if (!branchPick) return onToast(data.errorMessage, data.validationToasts.missingBranch);
-    if (!selectedSlot) return onToast(data.errorMessage, data.validationToasts.missingTime);
+    if (!draft.name.trim()) return onToast(data.errorMesssage, data.validationToasts.missingName);
+    if (!isValidPhone(draft.phone.trim())) return onToast(data.errorMesssage, data.validationToasts.invalidPhone);
+    if (!draft.date) return onToast(data.errorMesssage, data.validationToasts.missingDate);
+    if (!svc) return onToast(data.errorMesssage, data.validationToasts.missingService);
+    if (!branchPick) return onToast(data.errorMesssage, data.validationToasts.missingBranch);
+    if (!selectedSlot) return onToast(data.errorMesssage, data.validationToasts.missingTime);
 
     const booking: Booking = {
       id: uid("BK"),

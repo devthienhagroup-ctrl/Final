@@ -364,41 +364,7 @@ export default function AdminCoursesPage() {
   }
 
 
-  const createCourse = async (payload: any) => {
-    try {
-      await adminCoursesApi.createCourse(payload)
-      AlertJs.success('Đã tạo khoá học')
-      await loadCourses()
-    } catch (e: any) {
-      AlertJs.error(e?.message || 'Tạo khoá học thất bại')
-      throw e
-    }
-  }
 
-  const updateCourse = async (id: number, payload: any) => {
-    try {
-      await adminCoursesApi.updateCourse(id, payload)
-      AlertJs.success('Đã cập nhật khoá học')
-      await loadCourses()
-    } catch (e: any) {
-      AlertJs.error(e?.message || 'Cập nhật khoá học thất bại')
-      throw e
-    }
-  }
-
-  const deleteCourse = async (course: CourseAdmin) => {
-    const ok = window.confirm(`Xoá khoá học "${course.title}"?`)
-    if (!ok) return
-
-    try {
-      await adminCoursesApi.deleteCourse(course.id)
-      AlertJs.success('Đã xoá khoá học')
-      await loadCourses()
-    } catch (e: any) {
-      AlertJs.error(e?.message || 'Xoá khoá học thất bại')
-      throw e
-    }
-  }
 
   return (
     <main className={`admin-page admin-courses-theme ${theme === 'dark' ? 'admin-courses-theme-dark' : ''}`}>
@@ -512,9 +478,6 @@ export default function AdminCoursesPage() {
             setCoursePage(1)
           }}
           onChangePage={(nextPage) => setCoursePage(nextPage)}
-          onCreateCourse={createCourse}
-          onUpdateCourse={updateCourse}
-          onDeleteCourse={deleteCourse}
         />
       )}
     </main>

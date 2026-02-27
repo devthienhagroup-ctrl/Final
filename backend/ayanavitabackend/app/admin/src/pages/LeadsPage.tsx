@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { adminListLeads, type LeadRow, type LeadType } from "../api/leads.api";
 import { useAuth } from "../app/auth.store";
 import { useToast } from "../components/Toast";
+import { AppAlert } from "../components/AppAlert";
 
 export function LeadsPage() {
   const { token } = useAuth();
@@ -23,63 +24,73 @@ export function LeadsPage() {
     }
   }
 
-  useEffect(() => { load(type); }, [type]);
+  useEffect(() => {
+    load(type);
+  }, [type]);
 
   return (
-    <div className="card">
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <div>
-          <div className="h1">Leads</div>
-          <div className="muted" style={{ marginTop: 6 }}>Book / Talk submissions</div>
-        </div>
+    <div className="grid" style={{ gap: 14 }}>
+      <div className="card hero-card">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <div className="h1">Leads</div>
+            <div className="muted" style={{ marginTop: 6 }}>Book / Talk submissions với điều hướng rõ ràng.</div>
+          </div>
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button className={`btn ${type==="book" ? "btn-primary" : ""}`} onClick={() => setType("book")}>BOOK</button>
-          <button className={`btn ${type==="talk" ? "btn-primary" : ""}`} onClick={() => setType("talk")}>TALK</button>
-          <button className="btn" onClick={() => load(type)} disabled={loading}>{loading ? "Loading…" : "Refresh"}</button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button className={`btn ${type === "book" ? "btn-primary" : ""}`} onClick={() => setType("book")}>BOOK</button>
+            <button className={`btn ${type === "talk" ? "btn-primary" : ""}`} onClick={() => setType("talk")}>TALK</button>
+            <button className="btn" onClick={() => load(type)} disabled={loading}>{loading ? "Loading…" : "Refresh"}</button>
+          </div>
         </div>
       </div>
 
-      <div className="sep" />
+      <AppAlert
+        kind="success"
+        title="Mẹo thao tác"
+        message="Bạn có thể chuyển đổi BOOK/TALK để phân loại lead nhanh hơn trước khi xuất dữ liệu."
+      />
 
-      <table className="table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Created</th>
-            <th>Lang</th>
-            <th>Contact</th>
-            <th>Info</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.id}>
-              <td><code>{r.id}</code></td>
-              <td className="muted">{r.createdAt || ""}</td>
-              <td className="muted">{r.lang || "-"}</td>
-              <td>
-                <div style={{ fontWeight: 950 }}>
-                  {type === "book" ? (r.name || "-") : (r.contact || "-")}
-                </div>
-                <div className="muted">
-                  {type === "book" ? (r.phone || "-") : (r.topic || "-")}
-                </div>
-              </td>
-              <td className="muted" style={{ whiteSpace: "pre-wrap" }}>
-                {type === "book"
-                  ? `date=${r.date || "-"} time=${r.time || "-"}\nnote=${r.note || ""}`
-                  : `${r.message || ""}`}
-              </td>
-            </tr>
-          ))}
-          {rows.length === 0 ? (
+      <div className="card">
+        <table className="table">
+          <thead>
             <tr>
-              <td colSpan={5} className="muted">No leads.</td>
+              <th>ID</th>
+              <th>Created</th>
+              <th>Lang</th>
+              <th>Contact</th>
+              <th>Info</th>
             </tr>
-          ) : null}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id}>
+                <td><code>{r.id}</code></td>
+                <td className="muted">{r.createdAt || ""}</td>
+                <td className="muted">{r.lang || "-"}</td>
+                <td>
+                  <div style={{ fontWeight: 800 }}>
+                    {type === "book" ? (r.name || "-") : (r.contact || "-")}
+                  </div>
+                  <div className="muted">
+                    {type === "book" ? (r.phone || "-") : (r.topic || "-")}
+                  </div>
+                </td>
+                <td className="muted" style={{ whiteSpace: "pre-wrap" }}>
+                  {type === "book"
+                    ? `date=${r.date || "-"} time=${r.time || "-"}\nnote=${r.note || ""}`
+                    : `${r.message || ""}`}
+                </td>
+              </tr>
+            ))}
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="muted">No leads.</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

@@ -11,7 +11,7 @@
     "@nestjs/core": "^11.1.13",
     "@nestjs/platform-express": "^11.1.13",
     "@prisma/client": "^7.3.0",
-    "axios": "^1.13.4",
+    "axios": "1.13.5",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^6.30.3",

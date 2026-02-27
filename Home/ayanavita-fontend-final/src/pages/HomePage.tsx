@@ -1,5 +1,5 @@
 // src/pages/HomePage.tsx
-import React, { useCallback, useMemo, useState } from "react";
+import React, {useCallback, useEffect, useMemo, useState} from "react";
 import { ParticlesBackground } from "../components/layout/ParticlesBackground";
 import { Header } from "../components/layout/Header";
 import { Footer } from "../components/layout/Footer";
@@ -14,112 +14,101 @@ import { Outcomes } from "../components/home/Outcomes";
 import { Reviews } from "../components/home/Reviews";
 import { PricingSection } from "../components/home/PricingSection";
 import { ContactSection } from "../components/home/ContactSection";
-import { AuthModal } from "../components/home/AuthModal";
-import { SuccessModal } from "../components/home/SuccessModal";
 
 import { bannerSlides, partners } from "../data/home";
 import { BannerSlider } from "../components/home/BannerSlider";
 
-type AuthTab = "login" | "register";
-
-/**
- * Nếu bạn đã có component BannerSlider thật:
- * -> Hãy tạo file: src/components/home/BannerSlider.tsx
- * -> rồi import ở đây thay cho fallback bên dưới.
- */
-
-// ===== Fallback BannerSlider tối giản (không lỗi build) =====
-export type BannerSliderProps = {
-  slides?: any[];
-  onAction?: (action: unknown) => void;
-  intervalMs?: number;
-};
-
+import {http} from "../api/http"
 
 export default function HomePage() {
-  const [authOpen, setAuthOpen] = useState(false);
-  const [authTab, setAuthTab] = useState<AuthTab>("login");
-  const [success, setSuccess] = useState<{ open: boolean; message: string }>({
-    open: false,
-    message: "",
+  const [homeData, setHomeData] = useState<any>(null);
+  const [currentLanguage, setCurrentLanguage] = useState<string>(() => {
+    // Lấy language từ localStorage, mặc định là "vi"
+    return localStorage.getItem("preferred-language") || "vi";
   });
 
-  const openAuth = useCallback((tab: AuthTab) => {
-    setAuthTab(tab);
-    setAuthOpen(true);
+  // Lắng nghe sự kiện thay đổi ngôn ngữ từ Header
+  useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setCurrentLanguage(event.detail.language);
+    };
+
+    window.addEventListener('languageChange', handleLanguageChange as EventListener);
+
+    return () => {
+      window.removeEventListener('languageChange', handleLanguageChange as EventListener);
+    };
   }, []);
 
-  const openSuccess = useCallback((message: string) => {
-    setSuccess({ open: true, message });
-  }, []);
 
-  const onSlideAction = useCallback(
-    (action: unknown) => {
-      if (action === "OPEN_AUTH_REGISTER") openAuth("register");
-    },
-    [openAuth]
-  );
+  // Gọi API khi component mount và khi language thay đổi
+  useEffect(() => {
+    const fetchHome = async () => {
+      try {
+        console.log(`Test gọi API với ngôn ngữ: ${currentLanguage}`);
+        const res = await http.get(`/public/pages/home?lang=${currentLanguage}`);
+        console.log(res.data);
+        setHomeData(res.data);
+      } catch (error) {
+        console.error("Lỗi gọi API home:", error);
+      }
+    };
+
+    fetchHome();
+  }, [currentLanguage]); // Gọi lại API mỗi khi language thay đổi
+
+  const onSlideAction = useCallback((action: unknown) => {
+    // Xử lý action từ banner slider nếu cần
+    console.log("Slide action:", action);
+  }, []);
 
   const marqueeItems = useMemo(() => [...partners, ...partners], []);
-
   return (
-    <div className="bg-slate-50 text-slate-900">
-      <ParticlesBackground />
+      <div className="bg-slate-50 text-slate-900">
 
-      <div className="page-content">
-        <Header onLogin={() => openAuth("login")} onRegister={() => openAuth("register")} />
 
-        <TopBanner
-          onConsult={() =>
-            document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })
-          }
-        />
+        <div className="page-content">
 
-        <BannerSlider slides={bannerSlides} onAction={onSlideAction} />
+          <TopBanner cmsData={homeData?.sections[0]?.data}
+                     onConsult={() =>
+                         document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })
+                     }
+          />
 
-        <Stats />
+          <BannerSlider slides={homeData?.sections[1]?.data.bannerSlides} onAction={onSlideAction} />
 
-        <Partners gridItems={partners.slice(0, 6)} marqueeItems={marqueeItems} />
+          <Stats cmsData={homeData?.sections[2]?.data}/>
 
-        <CourseGallery onGetDeal={() => openAuth("register")} />
+          <Partners cmsData={homeData?.sections[3]?.data}/>
 
-        <RegisterSection
-          onRegisterSuccess={() => openSuccess("Đăng ký thành công.")}
-        />
+          <CourseGallery cmsData={homeData?.sections[4]?.data}
+                         onGetDeal={() => {}} />
 
-        <ProductSection />
+          <RegisterSection
+              cmsData={homeData?.sections[5]?.data}
+              onRegisterSuccess={() => {}}
+          />
 
-        <Outcomes />
+          <ProductSection
+              cmsData={homeData?.sections[6]?.data}
+          />
 
-        <Reviews />
+          <Outcomes
+              cmsData={homeData?.sections[7]?.data}
+          />
 
-        <PricingSection />
+          <Reviews
+              cmsData={homeData?.sections[9]?.data}
+          />
 
-        <ContactSection onSubmit={() => openSuccess("Đã nhận yêu cầu tư vấn (prototype).")} />
+          <PricingSection
+              cmsData={homeData?.sections[10]?.data}
+          />
 
-        <Footer />
+          <ContactSection
+              cmsData={homeData?.sections[8]?.data}
+              onSubmit={() => {}} />
+        </div>
       </div>
-
-      <SuccessModal
-        open={success.open}
-        message={success.message}
-        onClose={() => setSuccess({ open: false, message: "" })}
-      />
-
-      <AuthModal
-        open={authOpen}
-        tab={authTab}
-        onClose={() => setAuthOpen(false)}
-        onSwitchTab={setAuthTab}
-        onLoginSuccess={() => {
-          setAuthOpen(false);
-          openSuccess("Đăng nhập thành công.");
-        }}
-        onRegisterSuccess={() => {
-          setAuthOpen(false);
-          openSuccess("Đăng ký thành công.");
-        }}
-      />
-    </div>
   );
 }

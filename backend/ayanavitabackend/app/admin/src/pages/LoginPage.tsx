@@ -25,7 +25,7 @@ export function LoginPage() {
     } catch {}
   }, []);
 
-  const redirectTo = useMemo(() => loc?.state?.from || "/cms/pages", [loc]);
+  const redirectTo = useMemo(() => loc?.state?.from || "/", [loc]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

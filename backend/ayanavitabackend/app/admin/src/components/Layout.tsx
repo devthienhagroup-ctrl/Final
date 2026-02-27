@@ -5,10 +5,7 @@ import { ToastProvider } from "./Toast";
 
 function NavItem({ to, label }: { to: string; label: string }) {
   return (
-    <NavLink
-      to={to}
-      className={({ isActive }) => `btn ${isActive ? "btn-primary" : ""}`}
-    >
+    <NavLink to={to} className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
       {label}
     </NavLink>
   );
@@ -20,26 +17,30 @@ export function Layout() {
 
   return (
     <ToastProvider>
-      <div className="topbar">
-        <div className="row">
+      <div className="app-shell">
+        <aside className="side-nav">
           <Link to="/" className="brand" aria-label="Home">
             <span className="dot" aria-hidden="true" />
             <div>
               <span className="g-text">AYANAVITA Admin</span>
-              <div className="muted" style={{ fontSize: 12, fontWeight: 900, marginTop: 2 }}>
-                CMS • Leads • Publish
+              <div className="muted" style={{ fontSize: 12, fontWeight: 800, marginTop: 2 }}>
+                Modern control center
               </div>
             </div>
           </Link>
 
-          <div className="nav">
+          <div className="nav-list">
+            <NavItem to="/" label="Trang chủ" />
             <NavItem to="/cms/pages" label="CMS Pages" />
             <NavItem to="/leads" label="Leads" />
+            <NavItem to="/catalog/products" label="Products" />
+            <NavItem to="/catalog/crud" label="Catalog CRUD" />
+          </div>
 
+          <div className="side-footer">
             <span className="pill" title="JWT token (short)">
-              {token ? `${token.slice(0, 10)}…` : "no-token"}
+              {token ? `${token.slice(0, 12)}…` : "no-token"}
             </span>
-
             <button
               className="btn btn-danger"
               type="button"
@@ -51,11 +52,13 @@ export function Layout() {
               Logout
             </button>
           </div>
-        </div>
-      </div>
+        </aside>
 
-      <div className="container">
-        <Outlet />
+        <main className="main-content">
+          <div className="container">
+            <Outlet />
+          </div>
+        </main>
       </div>
     </ToastProvider>
   );

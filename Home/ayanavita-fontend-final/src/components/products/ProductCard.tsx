@@ -5,75 +5,135 @@ import type { CategoryProduct } from "../../data/productCategory.data";
 import { money } from "../../services/booking.utils";
 import { addProductToCart } from "../../services/productCart.utils";
 
-function Stars({ rating }: { rating: number }) {
-  const full = Math.floor(rating);
-  const half = rating - full >= 0.5;
+export type ProductCardCmsData = {
+    soldLabel: string;
+    updatedLabel: string;
+    infoButtonTitle: string;
+    addToCartButtonText: string;
+    addToCartSuccessAlert: string;
+    compareButtonText: string;
+    compareSuccessAlert: string;
+};
 
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex items-center gap-1">
-        {Array.from({ length: full }).map((_, i) => (
-          <i key={i} className="fa-solid fa-star star" />
-        ))}
-        {half ? <i className="fa-solid fa-star-half-stroke star" /> : null}
-      </div>
-      <b>{rating.toFixed(1)}</b>
-    </div>
-  );
+const DEFAULT_CMS_DATA: ProductCardCmsData = {
+    soldLabel: "Đã bán",
+    updatedLabel: "Cập nhật:",
+    infoButtonTitle: "Xem chi tiết",
+    addToCartButtonText: "Thêm",
+    addToCartSuccessAlert: "Đã thêm vào giỏ (demo).",
+    compareButtonText: "So sánh",
+    compareSuccessAlert: "Đã thêm vào so sánh (demo).",
+};
+
+function Stars({ rating }: { rating: number }) {
+    const full = Math.floor(rating);
+    const half = rating - full >= 0.5;
+
+    return (
+        <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+                {Array.from({ length: full }).map((_, i) => (
+                    <i key={i} className="fa-solid fa-star star" />
+                ))}
+                {half ? <i className="fa-solid fa-star-half-stroke star" /> : null}
+            </div>
+            <b>{rating.toFixed(1)}</b>
+        </div>
+    );
 }
 
-export function ProductCard({ p, detailTo }: { p: CategoryProduct; detailTo: string }) {
-  const soldText = useMemo(() => new Intl.NumberFormat("vi-VN").format(p.sold), [p.sold]);
+export function ProductCard({
+                                p,
+                                detailTo,
+                                cmsData,
+                                onCompare,
+                            }: {
+    p: CategoryProduct;
+    detailTo: string;
+    cmsData?: Partial<ProductCardCmsData>;
+    onCompare?: (productId: string) => void;
+}) {
+    const soldText = useMemo(
+        () => new Intl.NumberFormat("vi-VN").format(p.sold),
+        [p.sold]
+    );
 
-  return (
-    <article className="card p-4">
-      <img className="h-36 w-full rounded-2xl object-cover ring-1 ring-slate-200" src={p.img} alt={p.name} />
+    const cms = useMemo(
+        () => ({ ...DEFAULT_CMS_DATA, ...(cmsData ?? {}) }),
+        [cmsData]
+    );
 
-      <div className="mt-3 flex items-start justify-between gap-2">
-        <div>
-          <div className="font-extrabold">{p.name}</div>
-          <div className="text-xs text-slate-500">
-            {p.id} • Bán chạy: {soldText}
-          </div>
-        </div>
-        <span className="chip">
-          <i className="fa-solid fa-tag text-emerald-600" />
-          {money(p.price)}
+    return (
+        <article className="card p-4 flex flex-col gap-3">
+            {/* Image */}
+            <img
+                className="h-36 w-full rounded-xl object-cover ring-1 ring-slate-200"
+                src={p.img}
+                alt={p.name}
+            />
+
+            {/* Title */}
+            <div>
+                <div className="font-bold leading-tight">{p.name}</div>
+                <div className="text-xs text-slate-500">
+                    {p.id} • {cms.soldLabel} {soldText}
+                </div>
+            </div>
+
+            {/* Price */}
+            <div className="text-lg font-extrabold text-emerald-600">
+                {money(p.price)}
+            </div>
+
+            {/* Rating + updated */}
+            <div className="flex items-center justify-between text-xs text-slate-500">
+                <Stars rating={p.rating} />
+                <span>
+          {cms.updatedLabel} {p.updated}
         </span>
-      </div>
+            </div>
 
-      <div className="mt-2 flex items-center justify-between text-sm text-slate-700">
-        <Stars rating={p.rating} />
-        <span className="text-slate-500">Cập nhật: {p.updated}</span>
-      </div>
+            {/* Actions */}
+            <div className="flex gap-2">
+                <Link
+                    to={detailTo}
+                    className="flex items-center justify-center px-2 py-1 text-xs rounded-md
+                     ring-1 ring-slate-300 hover:bg-slate-100"
+                    title={cms.infoButtonTitle}
+                >
+                    <i className="fa-solid fa-circle-info" />
+                </Link>
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <Link className="btn text-center" to={detailTo}>
-          <i className="fa-solid fa-circle-info mr-2" />
-          Chi tiết
-        </Link>
+                <button
+                    type="button"
+                    className="flex-1 px-3 py-1 text-xs font-semibold rounded-md
+                     bg-purple-600 text-white hover:bg-purple-700"
+                    onClick={() => {
+                        addProductToCart(p.sku, 1);
+                        window.alert(cms.addToCartSuccessAlert);
+                    }}
+                >
+                    <i className="fa-solid fa-cart-plus mr-1" />
+                    {cms.addToCartButtonText}
+                </button>
+            </div>
 
-        <button
-          className="btn btn-primary"
-          type="button"
-          onClick={() => {
-            addProductToCart(p.sku, 1);
-            window.alert("Đã thêm vào giỏ (demo).");
-          }}
-        >
-          <i className="fa-solid fa-cart-plus mr-2" />
-          Thêm
-        </button>
-      </div>
-
-      <button
-        className="mt-2 btn w-full"
-        type="button"
-        onClick={() => window.alert("Đã thêm vào so sánh (demo).")}
-      >
-        <i className="fa-solid fa-scale-balanced mr-2" />
-        So sánh
-      </button>
-    </article>
-  );
+            {/* Compare */}
+            <button
+                type="button"
+                className="px-3 py-1 text-xs rounded-md
+                   ring-1 ring-slate-300 hover:bg-slate-100"
+                onClick={() => {
+                    if (onCompare) {
+                        onCompare(String(p.sku || p.id));
+                        return;
+                    }
+                    window.alert(cms.compareSuccessAlert);
+                }}
+            >
+                <i className="fa-solid fa-scale-balanced mr-1" />
+                {cms.compareButtonText}
+            </button>
+        </article>
+    );
 }

@@ -8,7 +8,6 @@ import {
   type CmsPageDetail,
   type CmsSection,
   type CmsSectionLocale,
-  type CmsSectionKey,
 } from "../api/cms.api";
 import { useAuth } from "../app/auth.store";
 import { useToast } from "../components/Toast";
@@ -16,9 +15,9 @@ import { useToast } from "../components/Toast";
 // =====================
 // HARD SWITCH: AUTOSAVE
 // =====================
-const AUTOSAVE = (import.meta as any)?.env?.VITE_CMS_AUTOSAVE === "1"; // false => manual only
+const AUTOSAVE = (import.meta as any)?.env?.VITE_CMS_AUTOSAVE === "1";
 
-// ===== helpers =====
+// ===== helpers (giữ nguyên) =====
 function pickLocale(sec: CmsSection, locale: CmsLocale): CmsSectionLocale | undefined {
   return sec.locales?.find((x) => x.locale === locale);
 }
@@ -30,15 +29,59 @@ function fmtDate(s?: string | null) {
   return d.toLocaleString();
 }
 
-function safeObj(v: any) {
-  return v && typeof v === "object" ? v : {};
+function is401(e: any) {
+  const status = e?.status ?? e?.response?.status ?? e?.cause?.status;
+  if (status === 401) return true;
+  const msg = String(e?.message || e || "");
+  return msg.includes("401") || msg.toLowerCase().includes("unauthorized");
 }
-function clampStr(v: any) {
-  return typeof v === "string" ? v : "";
+
+function deepClone<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj));
 }
-function arrStr(v: any): string[] {
-  if (!Array.isArray(v)) return [];
-  return v.filter((x) => typeof x === "string");
+
+function setIn(obj: any, path: (string | number)[], value: any): any {
+  if (path.length === 0) return value;
+  const [head, ...rest] = path;
+  if (Array.isArray(obj)) {
+    const index = head as number;
+    const newArr = [...obj];
+    newArr[index] = setIn(obj[index], rest, value);
+    return newArr;
+  } else {
+    return { ...obj, [head]: setIn(obj[head] ?? {}, rest, value) };
+  }
+}
+
+function cleanData(data: any): any {
+  if (Array.isArray(data)) {
+    return data.map(cleanData).filter((v) => v !== undefined);
+  } else if (data && typeof data === "object") {
+    const cleaned: any = {};
+    for (const [k, v] of Object.entries(data)) {
+      const cleanedVal = cleanData(v);
+      if (cleanedVal !== undefined && cleanedVal !== null && cleanedVal !== "") {
+        cleaned[k] = cleanedVal;
+      }
+    }
+    return Object.keys(cleaned).length ? cleaned : undefined;
+  } else if (typeof data === "string") {
+    const trimmed = data.trim();
+    return trimmed === "" ? undefined : trimmed;
+  } else {
+    return data;
+  }
+}
+
+function isDescriptionKey(key: string | number): boolean {
+  if (typeof key !== "string") return false;
+  const descKeys = ["description", "desc", "body", "subtitle", "paragraphs", "content"];
+  return descKeys.some((dk) => key.toLowerCase().includes(dk));
+}
+
+function isImageKey(key: string | number): boolean {
+  if (typeof key !== "string") return false;
+  return key.toLowerCase().includes("img") || key.toLowerCase().includes("image") || key.toLowerCase().includes("logourl");
 }
 
 function stableStringify(v: any) {
@@ -53,161 +96,169 @@ function stableStringify(v: any) {
   }
 }
 
-function is401(e: any) {
-  const status = e?.status ?? e?.response?.status ?? e?.cause?.status;
-  if (status === 401) return true;
-  const msg = String(e?.message || e || "");
-  return msg.includes("401") || msg.toLowerCase().includes("unauthorized");
+// =====================
+// Image Field Component – hiện tại dùng input text để nhập link
+// =====================
+function ImageField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+      <div className="image-field">
+        {value && (
+            <div className="image-preview">
+              <img src={value} alt="preview" />
+            </div>
+        )}
+        <div className="image-actions">
+          <input
+              type="text"
+              className="input2"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder="Nhập URL hình ảnh..."
+          />
+          {value && (
+              <button className="btn" type="button" onClick={() => onChange("")}>
+                Remove
+              </button>
+          )}
+        </div>
+      </div>
+  );
 }
 
-// ===== types =====
-type HeroForm = { pill: string; title: string; subtitle: string };
-type AboutForm = { title: string; paragraphsText: string };
-type CardsForm = { items: { tag: string; title: string; desc: string }[] };
-type CtaForm = { title: string; body: string; hint: string; primaryText: string; secondaryText: string };
-type FooterForm = { left: string; right: string };
+// =====================
+// Dynamic Field Renderer (giữ nguyên, dùng CSS class)
+// =====================
+interface DynamicFieldProps {
+  data: any;
+  form: any;
+  path: (string | number)[];
+  onFormChange: (path: (string | number)[], value: any) => void;
+}
 
-type FormState = {
-  hero: HeroForm;
-  about: AboutForm;
-  cards: CardsForm;
-  cta: CtaForm;
-  footer: FooterForm;
-};
+function DynamicField({ data, form, path, onFormChange }: DynamicFieldProps) {
+  if (data === null || data === undefined) {
+    return <div className="muted">(no data)</div>;
+  }
 
-function defaultForm(): FormState {
-  return {
-    hero: { pill: "", title: "", subtitle: "" },
-    about: { title: "", paragraphsText: "" },
-    cards: {
-      items: [
-        { tag: "", title: "", desc: "" },
-        { tag: "", title: "", desc: "" },
-        { tag: "", title: "", desc: "" },
-      ],
-    },
-    cta: { title: "", body: "", hint: "", primaryText: "", secondaryText: "" },
-    footer: { left: "", right: "" },
+  // ARRAY
+  if (Array.isArray(data)) {
+    const arrayForm = Array.isArray(form) ? form : [];
+
+    const addItem = () => {
+      const template = data.length > 0 ? data[0] : {};
+      const newItem = deepClone(template);
+      if (typeof newItem === "object" && newItem !== null) {
+        Object.keys(newItem).forEach((k) => {
+          if (typeof newItem[k] === "string") newItem[k] = "";
+        });
+      }
+      onFormChange(path, [...arrayForm, newItem]);
+    };
+
+    const removeItem = (index: number) => {
+      onFormChange(path, arrayForm.filter((_, i) => i !== index));
+    };
+
+    return (
+        <div className="dynamic-array">
+          <div className="array-header">
+            <span className="array-label">{path[path.length - 1]?.toString() || "Array"}</span>
+            <button className="btn array-add" onClick={addItem} type="button">
+              + Add
+            </button>
+          </div>
+          <div className="array-items">
+            {arrayForm.map((item, idx) => (
+                <div key={idx} className="array-item">
+                  <div className="array-item-header">
+                    <span className="array-item-index">#{idx + 1}</span>
+                    <button className="btn array-remove" onClick={() => removeItem(idx)} type="button">
+                      ✕
+                    </button>
+                  </div>
+                  <DynamicField
+                      data={data[idx] ?? data[0] ?? {}}
+                      form={item}
+                      path={[...path, idx]}
+                      onFormChange={onFormChange}
+                  />
+                </div>
+            ))}
+            {arrayForm.length === 0 && (
+                <div className="muted array-empty">(empty)</div>
+            )}
+          </div>
+        </div>
+    );
+  }
+
+  // OBJECT
+  if (typeof data === "object" && data !== null) {
+    const objectForm = (form && typeof form === "object") ? form : {};
+
+    return (
+        <div className="dynamic-object">
+          {Object.keys(data).map((key) => {
+            const childData = data[key];
+            const childForm = objectForm[key];
+            return (
+                <div key={key} className="object-field">
+                  <div className="field-label">{key}</div>
+                  <DynamicField
+                      data={childData}
+                      form={childForm}
+                      path={[...path, key]}
+                      onFormChange={onFormChange}
+                  />
+                </div>
+            );
+          })}
+        </div>
+    );
+  }
+
+  // PRIMITIVE
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    onFormChange(path, e.target.value);
   };
-}
 
-function parseSectionToForm(key: CmsSectionKey, data: any, prev: FormState): FormState {
-  const d = safeObj(data);
-  const next = { ...prev };
+  const lastKey = path[path.length - 1];
+  const inputValue = form ?? data ?? "";
 
-  if (key === "hero") next.hero = { pill: clampStr(d.pill), title: clampStr(d.title), subtitle: clampStr(d.subtitle) };
-
-  if (key === "about") {
-    const paragraphs = arrStr(d.paragraphs);
-    next.about = { title: clampStr(d.title), paragraphsText: paragraphs.join("\n") };
+  if (isImageKey(lastKey) && typeof data === "string") {
+    return (
+        <div className="dynamic-primitive">
+          <ImageField value={inputValue} onChange={(v) => onFormChange(path, v)} />
+        </div>
+    );
   }
 
-  if (key === "cards") {
-    const items = Array.isArray(d.items) ? d.items : [];
-    next.cards = {
-      items: [0, 1, 2].map((i) => {
-        const it = safeObj(items[i]);
-        return { tag: clampStr(it.tag), title: clampStr(it.title), desc: clampStr(it.desc) };
-      }),
-    };
-  }
+  const useTextArea = typeof data === "string" && isDescriptionKey(lastKey);
 
-  if (key === "cta") {
-    next.cta = {
-      title: clampStr(d.title),
-      body: clampStr(d.body),
-      hint: clampStr(d.hint),
-      primaryText: clampStr(d.primaryText),
-      secondaryText: clampStr(d.secondaryText),
-    };
-  }
-
-  if (key === "footer") next.footer = { left: clampStr(d.left), right: clampStr(d.right) };
-
-  return next;
-}
-
-function formToDraftData(key: CmsSectionKey, form: FormState): any {
-  if (key === "hero")
-    return {
-      pill: form.hero.pill?.trim() || undefined,
-      title: form.hero.title?.trim() || undefined,
-      subtitle: form.hero.subtitle?.trim() || undefined,
-    };
-
-  if (key === "about") {
-    const lines = form.about.paragraphsText.split("\n").map((x) => x.trim()).filter(Boolean);
-    return { title: form.about.title?.trim() || undefined, paragraphs: lines };
-  }
-
-  if (key === "cards") {
-    return {
-      items: (form.cards.items || []).map((it) => ({
-        tag: it.tag?.trim() || undefined,
-        title: it.title?.trim() || undefined,
-        desc: it.desc?.trim() || undefined,
-      })),
-    };
-  }
-
-  if (key === "cta") {
-    return {
-      title: form.cta.title?.trim() || undefined,
-      body: form.cta.body?.trim() || undefined,
-      hint: form.cta.hint?.trim() || undefined,
-      primaryText: form.cta.primaryText?.trim() || undefined,
-      secondaryText: form.cta.secondaryText?.trim() || undefined,
-    };
-  }
-
-  if (key === "footer") return { left: form.footer.left?.trim() || undefined, right: form.footer.right?.trim() || undefined };
-
-  return {};
-}
-
-// =====================
-// ✅ TOP-LEVEL INPUTS (fix focus)
-// =====================
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  placeholder?: string;
-  onChange: (v: string) => void;
-}) {
   return (
-    <div className="f">
-      <div className="lab">{label}</div>
-      <input className="input2" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
-    </div>
+      <div className="dynamic-primitive">
+        {useTextArea ? (
+            <textarea
+                className="textarea2"
+                value={inputValue}
+                onChange={handleChange}
+                rows={5}
+            />
+        ) : (
+            <input
+                type="text"
+                className="input2"
+                value={inputValue}
+                onChange={handleChange}
+            />
+        )}
+      </div>
   );
 }
 
-function Area({
-  label,
-  value,
-  onChange,
-  placeholder,
-  rows = 5,
-}: {
-  label: string;
-  value: string;
-  placeholder?: string;
-  rows?: number;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div className="f">
-      <div className="lab">{label}</div>
-      <textarea className="textarea2" value={value} rows={rows} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
-    </div>
-  );
-}
-
+// =====================
+// Main Component - Layout mới với toolbar trên cùng, CSS tùy chỉnh
+// =====================
 export function CmsEditPage() {
   const { slug } = useParams<{ slug: string }>();
   const nav = useNavigate();
@@ -216,17 +267,14 @@ export function CmsEditPage() {
 
   const [page, setPage] = useState<CmsPageDetail | null>(null);
   const [loading, setLoading] = useState(true);
-
   const [locale, setLocale] = useState<CmsLocale>("vi");
   const [sectionId, setSectionId] = useState<number | null>(null);
-
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
-
-  const [form, setForm] = useState<FormState>(() => defaultForm());
+  const [form, setForm] = useState<any>({});
 
   const section = useMemo(() => page?.sections?.find((s) => s.id === sectionId) || null, [page, sectionId]);
-  const key = (section?.key || "hero") as CmsSectionKey;
+  const key = section?.key || "unknown";
 
   const locInfo = useMemo(() => (section ? pickLocale(section, locale) || null : null), [section, locale]);
   const effectiveData = useMemo(() => locInfo?.draftData ?? locInfo?.publishedData ?? {}, [locInfo]);
@@ -236,8 +284,8 @@ export function CmsEditPage() {
   const baselineRef = useRef<string>("");
   const saveTimerRef = useRef<number | null>(null);
 
-  const currentDraftFromForm = useMemo(() => formToDraftData(key, form), [key, form]);
-  const draftSig = useMemo(() => stableStringify(currentDraftFromForm), [currentDraftFromForm]);
+  const cleanedForm = useMemo(() => cleanData(form), [form]);
+  const draftSig = useMemo(() => stableStringify(cleanedForm), [cleanedForm]);
   const dirty = useMemo(() => (baselineRef.current || "") !== draftSig, [draftSig]);
 
   async function load() {
@@ -267,22 +315,19 @@ export function CmsEditPage() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
   const dataSig = useMemo(() => `${sectionId ?? ""}|${locale}`, [sectionId, locale]);
-
   useEffect(() => {
     if (!section) return;
-
-    setForm((prev) => {
-      const next = parseSectionToForm(key, effectiveData, prev);
-      baselineRef.current = stableStringify(formToDraftData(key, next));
-      return next;
+    setForm(() => {
+      const newForm = deepClone(effectiveData);
+      baselineRef.current = stableStringify(cleanData(newForm));
+      return newForm;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataSig, section?.id]);
 
+  // Auto-save effect
   useEffect(() => {
     if (!AUTOSAVE) return;
     if (!section) return;
@@ -295,8 +340,8 @@ export function CmsEditPage() {
     saveTimerRef.current = window.setTimeout(async () => {
       try {
         setSaving(true);
-        await adminSaveDraft(token, section.id, locale, currentDraftFromForm);
-        baselineRef.current = stableStringify(currentDraftFromForm);
+        await adminSaveDraft(token, section.id, locale, cleanedForm);
+        baselineRef.current = stableStringify(cleanedForm);
       } catch (e: any) {
         if (is401(e)) {
           toast.push({ kind: "err", title: "Phiên đăng nhập hết hạn", detail: "401 Unauthorized. Vui lòng đăng nhập lại." });
@@ -312,7 +357,7 @@ export function CmsEditPage() {
     return () => {
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     };
-  }, [dirty, token, section?.id, locale, currentDraftFromForm, saving, publishing, nav, toast]);
+  }, [dirty, token, section?.id, locale, cleanedForm, saving, publishing, nav, toast]);
 
   function guardedSwitch(nextLocale: CmsLocale, nextSectionId?: number | null) {
     if (dirty && !AUTOSAVE) {
@@ -325,7 +370,6 @@ export function CmsEditPage() {
 
   async function onSaveDraft() {
     if (!section) return;
-
     if (!token) {
       toast.push({ kind: "err", title: "Chưa có token", detail: "Vui lòng đăng nhập lại." });
       nav("/login", { replace: true });
@@ -334,8 +378,8 @@ export function CmsEditPage() {
 
     setSaving(true);
     try {
-      await adminSaveDraft(token, section.id, locale, currentDraftFromForm);
-      baselineRef.current = stableStringify(currentDraftFromForm);
+      await adminSaveDraft(token, section.id, locale, cleanedForm);
+      baselineRef.current = stableStringify(cleanedForm);
       toast.push({ kind: "ok", title: "Saved draft", detail: `section=${section.key} locale=${locale}` });
       await load();
     } catch (e: any) {
@@ -352,7 +396,6 @@ export function CmsEditPage() {
 
   async function onPublish() {
     if (!section) return;
-
     if (!token) {
       toast.push({ kind: "err", title: "Chưa có token", detail: "Vui lòng đăng nhập lại." });
       nav("/login", { replace: true });
@@ -397,8 +440,12 @@ export function CmsEditPage() {
     }
     const ok = window.confirm("Copy Published → Form (ghi đè nội dung form hiện tại). Tiếp tục?");
     if (!ok) return;
-    setForm((prev) => parseSectionToForm(key, pub, prev));
+    setForm(deepClone(pub));
   }
+
+  const handleFormChange = (path: (string | number)[], value: any) => {
+    setForm((prev: any) => setIn(prev, path, value));
+  };
 
   const statusBadge = useMemo(() => {
     const st = (locInfo?.status || "").toUpperCase();
@@ -408,174 +455,27 @@ export function CmsEditPage() {
     return <span className="badge">{st}</span>;
   }, [locInfo]);
 
-  function renderRightBadge() {
-    if (saving) return <span className="badge warn">SAVING…</span>;
-    return <span className={`badge ${dirty ? "warn" : "ok"}`}>{dirty ? "UNSAVED" : "SAVED"}</span>;
-  }
-
-  function renderEditorPanel() {
-    if (!section) {
-      return (
-        <div className="card glass editorCard">
-          <div className="pad muted">Chưa có section để chỉnh.</div>
-        </div>
-      );
-    }
-
-    if (key === "hero") {
-      return (
-        <div className="card glass editorCard">
-          <div className="editorTop">
-            <div>
-              <div className="h2">HERO CONTENT</div>
-              <div className="muted">Chỉ chỉnh text • không chỉnh JSON</div>
-            </div>
-            <div className="rightBadges">{renderRightBadge()}</div>
-          </div>
-          <div className="sep" />
-          <div className="pad gridX">
-            <Field label="Pill" value={form.hero.pill} placeholder='VD: "AYANAVITA • Intro"' onChange={(v) => setForm((p) => ({ ...p, hero: { ...p.hero, pill: v } }))} />
-            <Field label="Title" value={form.hero.title} placeholder='VD: "AYANAVITA"' onChange={(v) => setForm((p) => ({ ...p, hero: { ...p.hero, title: v } }))} />
-            <Area label="Subtitle" rows={4} value={form.hero.subtitle} placeholder="Mô tả ngắn dưới tiêu đề…" onChange={(v) => setForm((p) => ({ ...p, hero: { ...p.hero, subtitle: v } }))} />
-          </div>
-        </div>
-      );
-    }
-
-    if (key === "about") {
-      return (
-        <div className="card glass editorCard">
-          <div className="editorTop">
-            <div>
-              <div className="h2">ABOUT CONTENT</div>
-              <div className="muted">Paragraphs: mỗi dòng = 1 đoạn</div>
-            </div>
-            <div className="rightBadges">{renderRightBadge()}</div>
-          </div>
-          <div className="sep" />
-          <div className="pad gridX">
-            <Field label="Title" value={form.about.title} onChange={(v) => setForm((p) => ({ ...p, about: { ...p.about, title: v } }))} />
-            <Area label="Paragraphs (mỗi dòng 1 đoạn)" rows={8} value={form.about.paragraphsText} placeholder={"Đoạn 1...\nĐoạn 2...\nĐoạn 3..."} onChange={(v) => setForm((p) => ({ ...p, about: { ...p.about, paragraphsText: v } }))} />
-          </div>
-        </div>
-      );
-    }
-
-    if (key === "cards") {
-      return (
-        <div className="card glass editorCard">
-          <div className="editorTop">
-            <div>
-              <div className="h2">CARDS CONTENT</div>
-              <div className="muted">3 cards (tag/title/desc)</div>
-            </div>
-            <div className="rightBadges">{renderRightBadge()}</div>
-          </div>
-          <div className="sep" />
-          <div className="pad">
-            <div className="cardsGrid">
-              {form.cards.items.map((it, idx) => (
-                <div key={idx} className="cardMini">
-                  <div className="cardMiniTitle">Card #{idx + 1}</div>
-                  <Field
-                    label="Tag"
-                    value={it.tag}
-                    onChange={(v) =>
-                      setForm((p) => {
-                        const items = p.cards.items.slice();
-                        items[idx] = { ...items[idx], tag: v };
-                        return { ...p, cards: { items } };
-                      })
-                    }
-                  />
-                  <Field
-                    label="Title"
-                    value={it.title}
-                    onChange={(v) =>
-                      setForm((p) => {
-                        const items = p.cards.items.slice();
-                        items[idx] = { ...items[idx], title: v };
-                        return { ...p, cards: { items } };
-                      })
-                    }
-                  />
-                  <Area
-                    label="Description"
-                    rows={4}
-                    value={it.desc}
-                    onChange={(v) =>
-                      setForm((p) => {
-                        const items = p.cards.items.slice();
-                        items[idx] = { ...items[idx], desc: v };
-                        return { ...p, cards: { items } };
-                      })
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (key === "cta") {
-      return (
-        <div className="card glass editorCard">
-          <div className="editorTop">
-            <div>
-              <div className="h2">CTA CONTENT</div>
-              <div className="muted">Text + button labels</div>
-            </div>
-            <div className="rightBadges">{renderRightBadge()}</div>
-          </div>
-          <div className="sep" />
-          <div className="pad gridX">
-            <Field label="Title" value={form.cta.title} onChange={(v) => setForm((p) => ({ ...p, cta: { ...p.cta, title: v } }))} />
-            <Area label="Body" rows={5} value={form.cta.body} onChange={(v) => setForm((p) => ({ ...p, cta: { ...p.cta, body: v } }))} />
-            <Area label="Hint" rows={3} value={form.cta.hint} onChange={(v) => setForm((p) => ({ ...p, cta: { ...p.cta, hint: v } }))} />
-            <div className="row2">
-              <Field label="Primary button text" value={form.cta.primaryText} onChange={(v) => setForm((p) => ({ ...p, cta: { ...p.cta, primaryText: v } }))} />
-              <Field label="Secondary button text" value={form.cta.secondaryText} onChange={(v) => setForm((p) => ({ ...p, cta: { ...p.cta, secondaryText: v } }))} />
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="card glass editorCard">
-        <div className="editorTop">
-          <div>
-            <div className="h2">FOOTER CONTENT</div>
-            <div className="muted">left / right</div>
-          </div>
-          <div className="rightBadges">{renderRightBadge()}</div>
-        </div>
-        <div className="sep" />
-        <div className="pad gridX">
-          <Field label="Left" value={form.footer.left} onChange={(v) => setForm((p) => ({ ...p, footer: { ...p.footer, left: v } }))} />
-          <Field label="Right" value={form.footer.right} onChange={(v) => setForm((p) => ({ ...p, footer: { ...p.footer, right: v } }))} />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="aya-editor">
-      <aside className="left">
-        <div className="card glass">
-          <div className="hdr">
+      <div className="aya-editor">
+        {/* Toolbar container - card glass */}
+        <div className="toolbar glass">
+          {/* Header row */}
+          <div className="toolbar-header">
             <div>
               <div className="h1">
                 Edit CMS: <span className="g-text">{slug}</span>
-                {saving ? <span className="dirty">● Saving…</span> : dirty ? <span className="dirty">● Unsaved</span> : <span className="saved">✓ Saved</span>}
+                {saving ? (
+                    <span className="dirty">● Saving…</span>
+                ) : dirty ? (
+                    <span className="dirty">● Unsaved</span>
+                ) : (
+                    <span className="saved">✓ Saved</span>
+                )}
               </div>
               <div className="muted sub">
                 Chỉnh text theo section • <b>{AUTOSAVE ? "Auto-save" : "Manual Save"}</b> • Publish
               </div>
             </div>
-
             <div className="hdrRight">
               {statusBadge}
               <button className="btn" onClick={load} disabled={loading}>
@@ -584,196 +484,511 @@ export function CmsEditPage() {
             </div>
           </div>
 
-          <div className="sep" />
-
-          <div className="block">
-            <div className="h2">Locale</div>
-            <div className="row">
-              {(["vi", "en", "de"] as CmsLocale[]).map((l) => {
-                const on = locale === l;
-                return (
-                  <button key={l} className={`btn ${on ? "btn-primary" : ""}`} onClick={() => guardedSwitch(l)} type="button">
-                    {l.toUpperCase()}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="block">
-            <div className="h2">Sections</div>
-            <div className="muted" style={{ marginTop: 6 }}>
-              Click để chọn section
-            </div>
-
-            <div className="sep" />
-
-            <div className="sections">
-              {sectionsSorted.map((s) => {
-                const active = s.id === sectionId;
-                return (
-                  <button key={s.id} className={`sec ${active ? "on" : ""}`} type="button" onClick={() => guardedSwitch(locale, s.id)}>
-                    <div className="secLeft">
-                      <div className="secKey">{s.key}</div>
-                      <div className="secMeta muted">
-                        id={s.id} • #{s.sortOrder}
-                      </div>
-                    </div>
-                    <span className="pill">#{s.sortOrder}</span>
-                  </button>
-                );
-              })}
-              {!sectionsSorted.length ? <div className="muted">Không có sections.</div> : null}
-            </div>
-          </div>
-
-          <div className="block">
-            <div className="h2">Status</div>
-            <div className="sep" />
-            <div className="kv">
-              <div>
-                <span className="muted">locale</span>: <b>{locInfo?.locale ?? "-"}</b>
-              </div>
-              <div>
-                <span className="muted">status</span>: <b>{locInfo?.status ?? "-"}</b>
-              </div>
-              <div>
-                <span className="muted">publishedAt</span>: <b>{fmtDate((locInfo as any)?.publishedAt)}</b>
-              </div>
-              <div>
-                <span className="muted">updatedAt</span>: <b>{fmtDate((locInfo as any)?.updatedAt)}</b>
+          {/* Controls row */}
+          <div className="toolbar-controls">
+            {/* Locale selector */}
+            <div className="control-group">
+              <span className="control-label">Locale:</span>
+              <div className="btn-group">
+                {(["vi", "en", "de"] as CmsLocale[]).map((l) => {
+                  const active = locale === l;
+                  return (
+                      <button
+                          key={l}
+                          className={`btn ${active ? "btn-primary" : ""}`}
+                          onClick={() => guardedSwitch(l)}
+                          type="button"
+                      >
+                        {l.toUpperCase()}
+                      </button>
+                  );
+                })}
               </div>
             </div>
-          </div>
 
-          <div className="block">
-            <div className="h2">Quick actions</div>
-            <div className="sep" />
-            <div className="row wrap">
-              <button className="btn" type="button" onClick={onCopyPublishedToDraft} disabled={!section}>
-                Copy Published → Form
+            {/* Quick actions */}
+            <div className="control-group actions-group">
+              <button
+                  className="btn"
+                  onClick={onCopyPublishedToDraft}
+                  disabled={!section}
+              >
+                Copy Published
               </button>
-              <button className="btn" type="button" onClick={onReset} disabled={!dirty}>
+              <button
+                  className="btn"
+                  onClick={onReset}
+                  disabled={!dirty}
+              >
                 Reset
               </button>
             </div>
-          </div>
 
-          <div className="actions">
-            <button className="btn btn-primary" type="button" onClick={onSaveDraft} disabled={!section || saving}>
-              {saving ? "Saving…" : "Save Draft"}
-            </button>
-            <button className="btn" type="button" onClick={onPublish} disabled={!section || publishing}>
-              {publishing ? "Publishing…" : "Publish"}
-            </button>
+            {/* Save & Publish */}
+            <div className="control-group primary-actions">
+              <button
+                  className="btn btn-primary"
+                  onClick={onSaveDraft}
+                  disabled={!section || saving}
+              >
+                {saving ? "Saving…" : "Save Draft"}
+              </button>
+              <button
+                  className="btn btn-success"
+                  onClick={onPublish}
+                  disabled={!section || publishing}
+              >
+                {publishing ? "Publishing…" : "Publish"}
+              </button>
+            </div>
           </div>
+          <div className="toolbar-controls">
+            {/* Sections tabs */}
+            <div className="control-group sections-tabs">
+              <div className="tabs-scroll">
+                {sectionsSorted.map((s) => {
+                  const active = s.id === sectionId;
+                  return (
+                      <button
+                          key={s.id}
+                          className={`tab ${active ? "active" : ""}`}
+                          onClick={() => guardedSwitch(locale, s.id)}
+                          type="button"
+                      >
+                        <span>{s.key}</span>
+                        <span className="tab-order">#{s.sortOrder}</span>
+                      </button>
+                  );
+                })}
+                {!sectionsSorted.length && (
+                    <span className="muted">Không có sections.</span>
+                )}
+              </div>
+            </div>
+          </div>
+          {/* Status info row (optional) */}
+          {locInfo && (
+              <div className="toolbar-status">
+                <div><span className="muted">locale:</span> <b>{locInfo.locale}</b></div>
+                <div><span className="muted">status:</span> <b>{locInfo.status}</b></div>
+                <div><span className="muted">published:</span> <b>{fmtDate((locInfo as any)?.publishedAt)}</b></div>
+                <div><span className="muted">updated:</span> <b>{fmtDate((locInfo as any)?.updatedAt)}</b></div>
+              </div>
+          )}
         </div>
-      </aside>
 
-      <section className="right">{renderEditorPanel()}</section>
+        {/* Editor Panel */}
+        <div className="editor-panel glass">
+          {!section ? (
+              <div className="pad muted">Chưa có section để chỉnh.</div>
+          ) : (
+              <>
+                <div className="editor-header">
+                  <div>
+                    <div className="h2">{key.toUpperCase()} CONTENT</div>
+                    <div className="muted">Dynamic fields • click để chỉnh sửa</div>
+                  </div>
+                  <div className="editor-badges">
+                    {saving && <span className="badge warn">SAVING…</span>}
+                    <span className={`badge ${dirty ? "warn" : "ok"}`}>
+                  {dirty ? "UNSAVED" : "SAVED"}
+                </span>
+                  </div>
+                </div>
+                <div className="pad dynamic-editor">
+                  <DynamicField
+                      data={effectiveData}
+                      form={form}
+                      path={[]}
+                      onFormChange={handleFormChange}
+                  />
+                </div>
+              </>
+          )}
+        </div>
 
-      <style>{`
-        .aya-editor{ display:grid; grid-template-columns: 460px 1fr; gap:14px; align-items:start; }
-        @media (max-width:1100px){ .aya-editor{ grid-template-columns: 1fr; } .left{ position:relative; top:auto; } }
-        .left{ position: sticky; top: 12px; }
-        .right{ min-width:0; }
-
-        .card.glass{
-          border-radius:18px;
-          border:1px solid rgba(148,163,184,.18);
-          background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.04));
-          box-shadow: 0 22px 60px rgba(0,0,0,.35);
-          overflow:hidden;
+        {/* CSS (phỏng theo file gốc, điều chỉnh cho layout mới) */}
+        <style>{`
+        .aya-editor {
+          padding: 14px;
+          min-height: 100vh;
+          color: #1e293b;
+          font-family: system-ui, -apple-system, sans-serif;
+          background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 48%, #f8fafc 100%);
+          border-radius: 20px;
+        }
+        .glass {
+          border-radius: 18px;
+          border: 1px solid #dbe7ff;
+          background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+          box-shadow: 0 14px 38px rgba(37, 99, 235, 0.08);
+        }
+        .toolbar {
+          margin-bottom: 20px;
+        }
+        .toolbar-header {
+          padding: 16px 20px;
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          flex-wrap: wrap;
+          gap: 12px;
+          border-bottom: 1px solid #e2e8f0;
+        }
+        .h1 {
+          font-size: 22px;
+          font-weight: 950;
+          letter-spacing: 0.2px;
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+        .h2 {
+          font-size: 14px;
+          font-weight: 950;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          opacity: 0.92;
+        }
+        .g-text {
+          color: #4f46e5;
+        }
+        .dirty, .saved {
+          font-size: 12px;
+          font-weight: 950;
+          padding: 6px 10px;
+          border-radius: 999px;
+        }
+        .dirty {
+          border: 1px solid #facc15;
+          background: #fef9c3;
+          color: #854d0e;
+        }
+        .saved {
+          border: 1px solid #86efac;
+          background: #dcfce7;
+          color: #166534;
+        }
+        .muted {
+          opacity: 1;
+          color: #64748b;
+          font-size: 14px;
+        }
+        .sub {
+          margin-top: 6px;
+        }
+        .hdrRight {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 8px 16px;
+          border-radius: 12px;
+          font-weight: 600;
+          font-size: 14px;
+          border: 1px solid #cbd5e1;
+          background: #ffffff;
+          color: inherit;
+          cursor: pointer;
+          transition: all 0.1s ease;
+          text-decoration: none;
+          line-height: 1;
+        }
+        .btn:hover:not(:disabled) {
+          background: #eef2ff;
+          border-color: #818cf8;
+          transform: translateY(-1px);
+        }
+        .btn:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+        .btn-primary {
+          background: #4f46e5;
+          border-color: #4338ca;
+          color: #ffffff;
+        }
+        .btn-primary:hover:not(:disabled) {
+          background: #4338ca;
+        }
+        .btn-success {
+          background: #059669;
+          border-color: #047857;
+          color: #ffffff;
+        }
+        .btn-success:hover:not(:disabled) {
+          background: #047857;
+        }
+        .badge {
+          display: inline-flex;
+          align-items: center;
+          padding: 6px 10px;
+          border-radius: 999px;
+          font-size: 12px;
+          font-weight: 950;
+          letter-spacing: 0.06em;
+          border: 1px solid #dbeafe;
+          background: #eff6ff;
+        }
+        .badge.ok {
+          border-color: #86efac;
+          background: #dcfce7;
+          color: #166534;
+        }
+        .badge.off {
+          border-color: #fca5a5;
+          background: #fee2e2;
+          color: #991b1b;
+        }
+        .badge.warn {
+          border-color: #fcd34d;
+          background: #fef3c7;
+          color: #92400e;
         }
 
-        .hdr{ padding:14px; display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap; }
-        .hdrRight{ display:flex; align-items:center; gap:10px; }
-        .sub{ margin-top:6px; opacity:.78; }
-
-        .h1{ font-size:22px; font-weight:950; letter-spacing:.2px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-        .h2{ font-size:14px; font-weight:950; letter-spacing:.08em; text-transform:uppercase; opacity:.92; }
-
-        .dirty{ font-size:12px; font-weight:950; padding:6px 10px; border-radius:999px; border:1px solid rgba(245,158,11,.25); background: rgba(245,158,11,.10); }
-        .saved{ font-size:12px; font-weight:950; padding:6px 10px; border-radius:999px; border:1px solid rgba(34,197,94,.25); background: rgba(34,197,94,.10); }
-
-        .block{ padding:12px 14px; }
-        .row{ display:flex; gap:10px; margin-top:10px; flex-wrap:nowrap; }
-        .row.wrap{ flex-wrap:wrap; }
-        .row2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-        @media(max-width:900px){ .row2{ grid-template-columns:1fr; } }
-
-        .sections{ display:grid; gap:10px; }
-        .sec{
-          width:100%; text-align:left;
-          display:flex; justify-content:space-between; align-items:center; gap:12px;
-          padding:12px; border-radius:16px;
-          border:1px solid rgba(148,163,184,.14);
-          background: rgba(2,6,23,.18);
-          color: inherit; cursor:pointer;
-          transition: transform .08s ease, border-color .12s ease, background .12s ease;
+        /* Toolbar controls */
+        .toolbar-controls {
+          padding: 16px 20px;
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 24px;
+          border-bottom: 1px solid #e2e8f0;
         }
-        .sec:hover{ transform: translateY(-1px); border-color: rgba(99,102,241,.32); background: rgba(99,102,241,.10); }
-        .sec.on{ border-color: rgba(99,102,241,.50); background: rgba(99,102,241,.16); }
-        .secKey{ font-weight:950; }
-        .secMeta{ margin-top:4px; font-size:12px; opacity:.72; }
-
-        .pill{
-          padding:6px 10px; border-radius:999px;
-          border:1px solid rgba(148,163,184,.14);
-          background: rgba(255,255,255,.05);
-          font-weight:950; font-size:12px; opacity:.9; white-space:nowrap;
+        .control-group {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .control-label {
+          font-size: 12px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: #64748b;
+        }
+        .btn-group {
+          display: flex;
+          gap: 4px;
+        }
+        .btn-group .btn {
+          padding: 6px 12px;
+          font-size: 13px;
         }
 
-        .kv{ display:grid; gap:8px; font-size:14px; }
-
-        .actions{
-          padding:14px; display:flex; gap:10px; flex-wrap:wrap;
-          border-top:1px solid rgba(148,163,184,.12);
-          background: rgba(2,6,23,.12);
+        /* Sections tabs */
+        .sections-tabs {
+          flex: 1;
+          min-width: 200px;
+        }
+        .tabs-scroll {
+          display: flex;
+          gap: 4px;
+          overflow-x: auto;
+          padding-bottom: 2px;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(148,163,184,0.3) transparent;
+        }
+        .tabs-scroll::-webkit-scrollbar {
+          height: 4px;
+        }
+        .tabs-scroll::-webkit-scrollbar-thumb {
+          background: rgba(100,116,139,0.3);
+          border-radius: 4px;
+        }
+        .tab {
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 14px;
+          border-radius: 12px;
+          font-size: 14px;
+          font-weight: 600;
+          border: 1px solid transparent;
+          background: #f8fafc;
+          color: #334155;
+          cursor: pointer;
+          transition: all 0.1s ease;
+          white-space: nowrap;
+        }
+        .tab:hover {
+          background: #eef2ff;
+          border-color: #c7d2fe;
+        }
+        .tab.active {
+          background: #e0e7ff;
+          border-color: #818cf8;
+          color: #3730a3;
+        }
+        .tab-order {
+          font-size: 11px;
+          opacity: 0.6;
+          font-weight: 500;
         }
 
-        .badge{
-          display:inline-flex; align-items:center;
-          padding:6px 10px; border-radius:999px;
-          font-size:12px; font-weight:950; letter-spacing:.06em;
-          border:1px solid rgba(148,163,184,.14);
-          background: rgba(255,255,255,.04);
+        .actions-group {
+          display: flex;
+          gap: 4px;
         }
-        .badge.ok{ border-color: rgba(34,197,94,.25); background: rgba(34,197,94,.10); }
-        .badge.off{ border-color: rgba(239,68,68,.25); background: rgba(239,68,68,.10); }
-        .badge.warn{ border-color: rgba(245,158,11,.25); background: rgba(245,158,11,.10); }
-
-        .sep{ height:1px; background: rgba(148,163,184,.12); width:100%; }
-
-        .editorCard{ overflow:hidden; }
-        .editorTop{ padding:14px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; }
-        .rightBadges{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-
-        .pad{ padding:14px; }
-        .gridX{ display:grid; gap:12px; }
-
-        .f{ display:grid; gap:8px; }
-        .lab{ font-size:12px; font-weight:950; letter-spacing:.06em; text-transform:uppercase; opacity:.86; }
-        .input2, .textarea2{
-          width:100%; border-radius:14px;
-          border:1px solid rgba(148,163,184,.18);
-          background: rgba(2,6,23,.20);
-          color: inherit; outline:none; padding:12px;
-        }
-        .input2:focus, .textarea2:focus{
-          border-color: rgba(99,102,241,.55);
-          box-shadow: 0 0 0 4px rgba(99,102,241,.18);
+        .primary-actions {
+          display: flex;
+          gap: 8px;
         }
 
-        .cardsGrid{ display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px; }
-        @media(max-width:1100px){ .cardsGrid{ grid-template-columns:1fr; } }
-        .cardMini{
-          border-radius:16px; border:1px solid rgba(148,163,184,.14);
-          background: rgba(2,6,23,.14);
-          padding:12px; display:grid; gap:12px;
+        /* Toolbar status row */
+        .toolbar-status {
+          padding: 12px 20px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 20px;
+          font-size: 13px;
+          border-top: 1px solid #e2e8f0;
+          background: #f8fafc;
         }
-        .cardMiniTitle{ font-weight:950; opacity:.92; }
+        .toolbar-status div {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        /* Editor panel */
+        .editor-panel {
+          margin-top: 20px;
+        }
+        .editor-header {
+          padding: 16px 20px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 12px;
+          border-bottom: 1px solid #e2e8f0;
+        }
+        .editor-badges {
+          display: flex;
+          gap: 8px;
+        }
+        .pad {
+          padding: 20px;
+        }
+
+        /* Dynamic field styles (giữ nguyên từ file cũ) */
+        .dynamic-object {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          margin-left: 8px;
+          border-left: 1px dashed #cbd5e1;
+          padding-left: 12px;
+        }
+        .object-field {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .field-label {
+          font-size: 12px;
+          font-weight: 950;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          opacity: 0.7;
+          margin-bottom: 4px;
+        }
+        .dynamic-array {
+          border: 1px solid #dbeafe;
+          border-radius: 16px;
+          padding: 12px;
+          background: #f8fbff;
+        }
+        .array-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+        .array-label {
+          font-weight: 950;
+          font-size: 13px;
+          text-transform: uppercase;
+        }
+        .array-add {
+          font-size: 12px;
+          padding: 4px 10px;
+        }
+        .array-items {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .array-item {
+          border: 1px solid #dbeafe;
+          border-radius: 14px;
+          padding: 12px;
+          background: #ffffff;
+        }
+        .array-item-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+        .array-item-index {
+          font-weight: 950;
+          font-size: 12px;
+        }
+        .array-remove {
+          font-size: 12px;
+          padding: 2px 8px;
+          background: #fee2e2;
+          border-color: #fca5a5;
+          color: #991b1b;
+        }
+        .array-empty {
+          padding: 8px;
+          text-align: center;
+        }
+        .dynamic-primitive {
+          width: 100%;
+        }
+        .input2, .textarea2 {
+          width: 100%;
+          border-radius: 14px;
+          border: 1px solid #cbd5e1;
+          background: #ffffff;
+          color: inherit;
+          outline: none;
+          padding: 12px;
+        }
+        .input2:focus, .textarea2:focus {
+          border-color: #818cf8;
+          box-shadow: 0 0 0 4px rgba(99,102,241,0.15);
+        }
+        .image-field {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .image-preview img {
+          max-width: 100%;
+          max-height: 150px;
+          border-radius: 12px;
+          border: 1px solid #dbeafe;
+          background: #f8fafc;
+          object-fit: cover;
+        }
+        .image-actions {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
       `}</style>
-    </div>
+      </div>
   );
 }

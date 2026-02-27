@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import type { CourseTopic } from '../../../api/adminCourses.api'
 import { autoTranslateFromVietnamese, type LocaleMode } from '../tabs/i18nForm'
 
-type AdminLang = 'vi' | 'en-US' | 'de'
+type AdminLang = 'vi' | 'en' | 'de'
 type TopicI18nForm = Record<AdminLang, { name: string; description: string }>
 
 type Props = {
@@ -19,7 +19,7 @@ type Props = {
   onDelete: (topic: CourseTopic) => void
 }
 
-const LANGS: LocaleMode[] = ['vi', 'en-US', 'de']
+const LANGS: LocaleMode[] = ['vi', 'en', 'de']
 
 export function TopicsTab({
   topics,
@@ -45,9 +45,9 @@ export function TopicsTab({
 
     translateNameReqRef.current += 1
     const reqId = translateNameReqRef.current
-    void Promise.all([autoTranslateFromVietnamese(value, 'en-US'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => {
+    void Promise.all([autoTranslateFromVietnamese(value, 'en'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => {
       if (reqId !== translateNameReqRef.current) return
-      setTopicField('en-US', 'name', en)
+      setTopicField('en', 'name', en)
       setTopicField('de', 'name', de)
     })
   }
@@ -59,9 +59,9 @@ export function TopicsTab({
 
     translateDescReqRef.current += 1
     const reqId = translateDescReqRef.current
-    void Promise.all([autoTranslateFromVietnamese(value, 'en-US'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => {
+    void Promise.all([autoTranslateFromVietnamese(value, 'en'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => {
       if (reqId !== translateDescReqRef.current) return
-      setTopicField('en-US', 'description', en)
+      setTopicField('en', 'description', en)
       setTopicField('de', 'description', de)
     })
   }
@@ -85,7 +85,7 @@ export function TopicsTab({
               onClick={() => setMode(lang)}
               type='button'
             >
-              {lang === 'en-US' ? 'EN' : lang.toUpperCase()}
+              {lang === 'en' ? 'EN' : lang.toUpperCase()}
             </button>
           ))}
         </div>

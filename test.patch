@@ -1,1745 +1,617 @@
-diff --git a/Home/ayanavita-fontend-final/src/components/products/ProductCard.tsx b/Home/ayanavita-fontend-final/src/components/products/ProductCard.tsx
-index 0b4e194bbffcd0186eb8a9d5d54d1e9acbc9f693..2cc023260408bac39e4b1e5dc8cfe0397940d160 100644
---- a/Home/ayanavita-fontend-final/src/components/products/ProductCard.tsx
-+++ b/Home/ayanavita-fontend-final/src/components/products/ProductCard.tsx
-@@ -24,54 +24,56 @@ const DEFAULT_CMS_DATA: ProductCardCmsData = {
-     compareButtonText: "So sánh",
-     compareSuccessAlert: "Đã thêm vào so sánh (demo).",
+diff --git a/Home/ayanavita-fontend-final/src/App.tsx b/Home/ayanavita-fontend-final/src/App.tsx
+index ec0414b697beac79b80e2be8f84c8b11fc5ffafb..3ac96cbb997fddd2695c68b639f0dd5868d89c94 100644
+--- a/Home/ayanavita-fontend-final/src/App.tsx
++++ b/Home/ayanavita-fontend-final/src/App.tsx
+@@ -14,44 +14,44 @@ import HomePage from "./pages/HomePage";
+ import LessonDetailPage from "./pages/LessonDetailPage";
+ import ProductCheckoutPage from "./pages/ProductCheckoutPage";
+ import ProductDetailPage from "./pages/ProductDetailPage";
+
+ import ProductsPage from "./pages/ProductsPage";
+ import ReviewsCenterPage from "./pages/ReviewsCenterPage";
+ import ServiceDetailPage from "./pages/ServiceDetailPage";
+ import ServicesPage from "./pages/ServicesPage";
+ import TrackOrderPage from "./pages/TrackOrderPage";
+
+ export default function App() {
+   return (
+     <Routes>
+       <Route element={<Layout />}>
+         <Route path="/" element={<HomePage />} />
+         <Route path="/services" element={<ServicesPage />} />
+         <Route path="/services/:serviceId" element={<ServiceDetailPage />} />
+         <Route path="/booking" element={<BookingPage />} />
+
+         <Route path="/courses" element={<CoursesPage />} />
+         <Route path="/courses/:courseId" element={<CourseDetailPage />} />
+         <Route path="/courses/:courseId/lesson" element={<LessonDetailPage />} />
+         <Route path="/courses/player" element={<CoursePlayerPage />} />
+
+         <Route path="/products" element={<ProductsPage />} />
+-        <Route path="/products/:sku" element={<ProductDetailPage />} />
++        <Route path="/products/:slug" element={<ProductDetailPage />} />
+         <Route path="/cart" element={<CartPage />} />
+         <Route path="/product-checkout" element={<ProductCheckoutPage />} />
+         <Route path="/checkout" element={<CheckoutPage />} />
+         <Route path="/compare" element={<ComparePage />} />
+         <Route path="/track-order" element={<TrackOrderPage />} />
+
+         <Route path="/reviews" element={<ReviewsCenterPage />} />
+         <Route path="/blog" element={<BlogPage />} />
+         <Route path="/contact" element={<ContactPage />} />
+
+
+         <Route path="/franchise" element={<div className="p-6">Franchise (todo)</div>} />
+         <Route path="/account" element={<div className="p-6">Account (todo)</div>} />
+         <Route path="*" element={<div className="p-6">Not found</div>} />
+       </Route>
+     </Routes>
+   );
+ }
+diff --git a/Home/ayanavita-fontend-final/src/pages/ProductDetailPage.tsx b/Home/ayanavita-fontend-final/src/pages/ProductDetailPage.tsx
+index 846f6fa15fdb1799b2cb22e7a86594f0db6b37db..37eeed5d3c95d72fc9ebc8d5597fe3edfa8f30ef 100644
+--- a/Home/ayanavita-fontend-final/src/pages/ProductDetailPage.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/ProductDetailPage.tsx
+@@ -131,51 +131,51 @@ const defaultCmsData = {
+       items: [
+         "Giá niêm yết rõ ràng",
+         "Hỗ trợ tư vấn routine",
+         "Review minh bạch (demo)"
+       ],
+       bulletIcon: "•"
+     }
+   },
+   ingredients: {
+     sectionTitle: "Thành phần",
+     title: "Thành phần nổi bật (demo)",
+     description: "Bạn thay bằng thành phần thật theo sản phẩm trong DB.",
+     chip: { text: "INCI (mô phỏng)", icon: "fa-solid fa-flask", iconColor: "text-indigo-600" },
+     noteTitle: "Lưu ý",
+     noteText: "Prototype: không đưa claim y khoa. Khi làm thật nên có cảnh báo dị ứng/patch test và hướng dẫn theo chuyên gia."
+   },
+   usage: {
+     sectionTitle: "Cách dùng",
+     title: "Routine gợi ý",
+     morning: { title: "Buổi sáng", icon: "fa-solid fa-sun", iconColor: "text-amber-600" },
+     evening: { title: "Buổi tối", icon: "fa-solid fa-moon", iconColor: "text-indigo-600" },
+     checklistTitle: "Checklist nhanh"
+   },
+   combo: {
+     sectionTitle: "Combo đề xuất",
+-    title: "Mua cùng",
++    title: "Sản phẩm cùng danh mục",
+     disclaimer: "Prototype: sản phẩm liên quan lấy từ dữ liệu demo."
+   },
+   reviews: {
+     sectionTitle: "Đánh giá",
+     summaryTitle: "Tổng quan review",
+     filterTitle: "Bộ lọc",
+     sortOptions: [
+       { value: "new", text: "Mới nhất" },
+       { value: "high", text: "Sao cao" },
+       { value: "low", text: "Sao thấp" }
+     ],
+     starFilterOptions: [
+       { value: "all", text: "Tất cả sao" },
+       { value: "5", text: "5 sao" },
+       { value: "4", text: "4 sao" },
+       { value: "3", text: "3 sao" },
+       { value: "2", text: "2 sao" },
+       { value: "1", text: "1 sao" }
+     ],
+     writeReviewButton: { text: "Viết đánh giá", icon: "fa-solid fa-pen-to-square" },
+     listTitle: "Review",
+     listSubtitle: "Khách hàng nói gì?",
+     disclaimer: "Prototype: review lưu localStorage, bạn có thể nối backend.",
+     searchPlaceholder: "Tìm trong review...",
+     noReviewsText: "Không có review phù hợp bộ lọc."
+@@ -193,129 +193,129 @@ const defaultCmsData = {
+         answer: "Thường 7–14 ngày (demo). Khi làm thật mô tả theo khuyến nghị thực tế."
+       },
+       {
+         question: "Giá niêm yết có thay đổi không?",
+         answer: "Giá có thể cập nhật theo thời điểm. Khi làm thật, lưu lịch sử giá/khuyến mãi."
+       }
+     ]
+   }
  };
 
- function Stars({ rating }: { rating: number }) {
-     const full = Math.floor(rating);
-     const half = rating - full >= 0.5;
-
-     return (
-         <div className="flex items-center gap-2">
-             <div className="flex items-center gap-1">
-                 {Array.from({ length: full }).map((_, i) => (
-                     <i key={i} className="fa-solid fa-star star" />
-                 ))}
-                 {half ? <i className="fa-solid fa-star-half-stroke star" /> : null}
-             </div>
-             <b>{rating.toFixed(1)}</b>
-         </div>
-     );
+ // ==================== UTILS ====================
+ function copyToClipboard(text: string) {
+   if (!text) return;
+   const nav: any = navigator;
+   if (nav.clipboard?.writeText) return nav.clipboard.writeText(text);
+   const ta = document.createElement("textarea");
+   ta.value = text;
+   document.body.appendChild(ta);
+   ta.select();
+   document.execCommand("copy");
+   document.body.removeChild(ta);
  }
 
- export function ProductCard({
-                                 p,
-                                 detailTo,
-                                 cmsData,
-+                                onCompare,
-                             }: {
-     p: CategoryProduct;
-     detailTo: string;
-     cmsData?: Partial<ProductCardCmsData>;
-+    onCompare?: (productId: string) => void;
- }) {
-     const soldText = useMemo(
-         () => new Intl.NumberFormat("vi-VN").format(p.sold),
-         [p.sold]
-     );
+ // ==================== COMPONENT ====================
+ export default function ProductDetailPage() {
+-  const { sku: skuParam } = useParams<{ sku: string }>();
++  const { slug: slugParam } = useParams<{ slug: string }>();
+   const navigate = useNavigate();
 
-     const cms = useMemo(
-         () => ({ ...DEFAULT_CMS_DATA, ...(cmsData ?? {}) }),
-         [cmsData]
-     );
+   // ===== NGÔN NGỮ & CMS DYNAMIC =====
+   const [currentLanguage, setCurrentLanguage] = useState<string>(() => {
+     return localStorage.getItem("preferred-language") || "vi";
+   });
 
-     return (
-         <article className="card p-4 flex flex-col gap-3">
-             {/* Image */}
-             <img
-                 className="h-36 w-full rounded-xl object-cover ring-1 ring-slate-200"
-                 src={p.img}
-                 alt={p.name}
-             />
+   const [detailData, setDetailData] = useState<any>(null);
+   const [cmsData, setCmsData] = useState(defaultCmsData);
+   const [apiProduct, setApiProduct] = useState<any>(null);
+   const [loadingProduct, setLoadingProduct] = useState(false);
+   const [productError, setProductError] = useState<string | null>(null);
 
-             {/* Title */}
-             <div>
-                 <div className="font-bold leading-tight">{p.name}</div>
-                 <div className="text-xs text-slate-500">
-                     {p.id} • {cms.soldLabel} {soldText}
-@@ -99,33 +101,39 @@ export function ProductCard({
-                      ring-1 ring-slate-300 hover:bg-slate-100"
-                     title={cms.infoButtonTitle}
-                 >
-                     <i className="fa-solid fa-circle-info" />
-                 </Link>
+   // Lắng nghe sự kiện thay đổi ngôn ngữ
+   useEffect(() => {
+     const handleLanguageChange = (event: CustomEvent) => {
+       setCurrentLanguage(event.detail.language);
+     };
 
-                 <button
-                     type="button"
-                     className="flex-1 px-3 py-1 text-xs font-semibold rounded-md
-                      bg-purple-600 text-white hover:bg-purple-700"
-                     onClick={() => {
-                         addProductToCart(p.sku, 1);
-                         window.alert(cms.addToCartSuccessAlert);
-                     }}
-                 >
-                     <i className="fa-solid fa-cart-plus mr-1" />
-                     {cms.addToCartButtonText}
-                 </button>
-             </div>
+     window.addEventListener('languageChange', handleLanguageChange as EventListener);
+     return () => {
+       window.removeEventListener('languageChange', handleLanguageChange as EventListener);
+     };
+   }, []);
 
-             {/* Compare */}
-             <button
-                 type="button"
-                 className="px-3 py-1 text-xs rounded-md
-                    ring-1 ring-slate-300 hover:bg-slate-100"
--                onClick={() => window.alert(cms.compareSuccessAlert)}
-+                onClick={() => {
-+                    if (onCompare) {
-+                        onCompare(String(p.sku || p.id));
-+                        return;
-+                    }
-+                    window.alert(cms.compareSuccessAlert);
-+                }}
-             >
-                 <i className="fa-solid fa-scale-balanced mr-1" />
-                 {cms.compareButtonText}
-             </button>
-         </article>
-     );
--}
-\ No newline at end of file
-+}
-diff --git a/Home/ayanavita-fontend-final/src/components/products/ProductFilters.tsx b/Home/ayanavita-fontend-final/src/components/products/ProductFilters.tsx
-index 76390e8320a03b10abe82032f5642c9d61e0e36a..ecebc196fac6d3c572cccec483db19b9e9d290c2 100644
---- a/Home/ayanavita-fontend-final/src/components/products/ProductFilters.tsx
-+++ b/Home/ayanavita-fontend-final/src/components/products/ProductFilters.tsx
-@@ -1,190 +1,148 @@
- // src/components/products/ProductFilters.tsx
- import React from "react";
- import type { ProductType, SkinConcern } from "../../data/productCategory.data";
- import { TYPE_LABEL, CONCERN_LABEL } from "../../data/productCategory.data";
+   // Gọi API khi ngôn ngữ thay đổi
+   useEffect(() => {
+     const fetchData = async () => {
+       try {
+         const res = await http.get(`/public/pages/productDetail?lang=${currentLanguage}`);
+         setDetailData(res.data);
+         console.log("Product Detail CMS data:", res.data);
+         // Ghi đè cmsData bằng dữ liệu từ sections[2] nếu có
+         if (res.data?.sections?.[2]?.data) {
+           console.log("Overriding CMS data with API data from sections[2].data", res.data.sections[2].data);
+           setCmsData(res.data.sections[2].data);
+           setTimeout(() => {console.log("Sau khi đợi 2s",cmsData)}, 2000)
 
- export type PriceRange = "all" | "lt200" | "200-400" | "gt400";
- export type SortKey = "best" | "new" | "priceAsc" | "priceDesc" | "rating";
+         }
+       } catch (error) {
+         console.error("Failed to fetch CMS data:", error);
+         // Giữ nguyên cmsData mặc định
+       }
+     };
+     fetchData();
+   }, [currentLanguage]);
 
--/**
-- * cmsData chỉ chứa nội dung (label / placeholder / text).
-- * - Không chứa màu sắc, kích thước, className...
-- * - Không chứa options (options lấy theo dữ liệu mặc định trong code).
-- * - Không chứa phần liên quan DB.
-- */
- export type ProductFiltersCmsData = {
-   title: string;
-   resetTitle: string;
+   useEffect(() => {
+-    if (!skuParam) return;
++    if (!slugParam) return;
 
-   searchLabel: string;
-   searchPlaceholder: string;
+     let cancelled = false;
+     const fetchProductDetail = async () => {
+       setLoadingProduct(true);
+       setProductError(null);
+       try {
+-        const res = await http.get(`/public/catalog/products/${skuParam}?lang=${currentLanguage}`);
++        const res = await http.get(`/public/catalog/products/slug/${slugParam}?lang=${currentLanguage}`);
+         if (!cancelled) {
+           setApiProduct(res.data);
+         }
+-        console.log(`GET /public/catalog/products/${skuParam} response:`, res.data);
++        console.log(`GET /public/catalog/products/slug/${slugParam} response:`, res.data);
+       } catch (error) {
+-        console.error('GET /public/catalog/products/:sku failed:', error);
++        console.error('GET /public/catalog/products/slug/:slug failed:', error);
+         if (!cancelled) {
+           setApiProduct(null);
+           setProductError("Không tải được dữ liệu sản phẩm từ API.");
+         }
+       } finally {
+         if (!cancelled) setLoadingProduct(false);
+       }
+     };
 
-   typeLabel: string;
+     fetchProductDetail();
+     return () => {
+       cancelled = true;
+     };
+-  }, [skuParam, currentLanguage]);
++  }, [slugParam, currentLanguage]);
 
-   concernLabel: string;
-   concernAllLabel: string;
+-  const productKey = useMemo(() => String(apiProduct?.sku || skuParam || ""), [apiProduct?.sku, skuParam]);
++  const productKey = useMemo(() => String(apiProduct?.sku || slugParam || ""), [apiProduct?.sku, slugParam]);
 
-   priceLabel: string;
+   const images = useMemo(() => {
+     const rows = Array.isArray(apiProduct?.images) ? apiProduct.images.slice() : [];
+     // Ưu tiên sortOrder tăng dần, rồi ưu tiên isPrimary
+     rows.sort((a: any, b: any) => {
+       const ao = Number.isFinite(Number(a?.sortOrder)) ? Number(a.sortOrder) : 999999;
+       const bo = Number.isFinite(Number(b?.sortOrder)) ? Number(b.sortOrder) : 999999;
+       if (ao !== bo) return ao - bo;
+       if (!!a?.isPrimary !== !!b?.isPrimary) return a?.isPrimary ? -1 : 1;
+       return 0;
+     });
+     const urls = rows.map((x: any) => x?.imageUrl).filter(Boolean);
+     if (urls.length) {
+       const primary = rows.find((x: any) => x?.isPrimary && x?.imageUrl)?.imageUrl;
+       if (primary) return [primary, ...urls.filter((u: string) => u !== primary)];
+       return urls;
+     }
+     return apiProduct?.image ? [apiProduct.image] : [];
+   }, [apiProduct]);
 
-   sortLabel: string;
- };
+   const [mainImg, setMainImg] = useState(images[0]);
+   useEffect(() => {
+     setMainImg(images[0]);
+     window.scrollTo({ top: 0, behavior: "smooth" });
+   }, [productKey, images]);
+@@ -369,57 +369,57 @@ export default function ProductDetailPage() {
+   const shortDesc = apiProduct?.shortDescription || "";
+   const longDesc = apiProduct?.description || "";
 
- const DEFAULT_CMS_DATA: ProductFiltersCmsData = {
-   title: "Bộ lọc",
-   resetTitle: "Reset",
+   const ingredients = useMemo(() => {
+     return Array.isArray(apiProduct?.ingredients)
+         ? apiProduct.ingredients
+             .map((x: any) => ({ name: x?.name, desc: x?.value || x?.note || "" }))
+             .filter((x: any) => x?.name)
+         : [];
+   }, [apiProduct?.ingredients]);
 
-   searchLabel: "Tìm kiếm",
-   searchPlaceholder: "Tên sản phẩm...",
-
-   typeLabel: "Loại",
-
-   concernLabel: "Vấn đề da",
-   concernAllLabel: "Tất cả",
-
-   priceLabel: "Khoảng giá",
-
-   sortLabel: "Sắp xếp",
- };
-
--// Options mặc định (KHÔNG nằm trong cmsData)
--const DEFAULT_TYPE_OPTIONS: Array<[ProductType, string]> = (
--    ["cleanser", "serum", "cream", "mask"] as ProductType[]
--).map((t) => [t, TYPE_LABEL[t]]);
-+const DEFAULT_TYPE_OPTIONS: Array<[ProductType, string]> = (["cleanser", "serum", "cream", "mask"] as ProductType[]).map((t) => [
-+  t,
-+  TYPE_LABEL[t],
-+]);
-
--const DEFAULT_CONCERN_OPTIONS: Array<[SkinConcern, string]> = (Object.keys(CONCERN_LABEL) as SkinConcern[]).map(
--    (k) => [k, CONCERN_LABEL[k]]
--);
-+const DEFAULT_CONCERN_OPTIONS: Array<[SkinConcern, string]> = (Object.keys(CONCERN_LABEL) as SkinConcern[]).map((k) => [k, CONCERN_LABEL[k]]);
-
- const DEFAULT_PRICE_OPTIONS: Array<[PriceRange, string]> = [
-   ["all", "Tất cả"],
-   ["lt200", "Dưới 200k"],
-   ["200-400", "200k–400k"],
-   ["gt400", "Trên 400k"],
- ];
-
- const DEFAULT_SORT_OPTIONS: Array<[SortKey, string]> = [
-   ["best", "Bán chạy"],
-   ["new", "Mới nhất"],
-   ["priceAsc", "Giá tăng"],
-   ["priceDesc", "Giá giảm"],
-   ["rating", "Đánh giá"],
- ];
-
- export function ProductFilters(props: {
-   q: string;
-   onQ: (v: string) => void;
-
-   types: ProductType[];
-   onToggleType: (t: ProductType) => void;
-+  typeOptions?: Array<[ProductType, string]>;
-
-   concern: "all" | SkinConcern;
-   onConcern: (v: "all" | SkinConcern) => void;
-
-   priceRange: PriceRange;
-   onPriceRange: (v: PriceRange) => void;
-
-   sort: SortKey;
-   onSort: (v: SortKey) => void;
-
-   onReset: () => void;
-
--  /**
--   * Nội dung cấu hình từ CMS (optional).
--   * Nếu không truyền sẽ dùng DEFAULT_CMS_DATA (nội dung hiện tại).
--   */
-   cmsData?: Partial<ProductFiltersCmsData>;
- }) {
--  const {
--    q,
--    onQ,
--    types,
--    onToggleType,
--    concern,
--    onConcern,
--    priceRange,
--    onPriceRange,
--    sort,
--    onSort,
--    onReset,
--    cmsData,
--  } = props;
--
--  // Merge: field nào không có thì fallback về default.
-+  const { q, onQ, types, onToggleType, typeOptions, concern, onConcern, priceRange, onPriceRange, sort, onSort, onReset, cmsData } = props;
-+
-   const cms: ProductFiltersCmsData = {
-     ...DEFAULT_CMS_DATA,
-     ...cmsData,
+   const formatAttributeValue = (a: any) => {
+     if (a?.valueText != null && String(a.valueText).trim() !== "") return String(a.valueText);
+     if (a?.valueNumber != null && a.valueNumber !== "") return String(a.valueNumber);
+     if (a?.valueBoolean != null) return a.valueBoolean ? "Có" : "Không";
+     if (a?.valueJson != null) {
+       try {
+         return typeof a.valueJson === "string" ? a.valueJson : JSON.stringify(a.valueJson);
+       } catch {
+         return "[json]";
+       }
+     }
+     return "—";
    };
 
--  return (
--      <div className="card p-5">
--        <div className="flex items-center justify-between">
--          <div className="font-extrabold">{cms.title}</div>
--          <button className="btn px-3 py-2" type="button" onClick={onReset} title={cms.resetTitle}>
--            <i className="fa-solid fa-rotate-left" />
--          </button>
--        </div>
-+  const resolvedTypeOptions = typeOptions?.length ? typeOptions : DEFAULT_TYPE_OPTIONS;
+-  if (!skuParam) {
++  if (!slugParam) {
+     return (
+         <div className="text-slate-900">
+           <main className="px-4 pb-10">
+             <div className="max-w-4xl mx-auto card p-6">
+               <div className="text-2xl font-extrabold">Thiếu mã sản phẩm</div>
+-              <div className="mt-2 text-slate-600">URL không có tham số SKU.</div>
++              <div className="mt-2 text-slate-600">URL không có tham số slug sản phẩm.</div>
+               <Link className="mt-4 btn btn-primary inline-block" to="/products">Về danh mục</Link>
+             </div>
+           </main>
+         </div>
+     );
+   }
 
--        <div className="mt-3">
--          <label className="text-sm font-extrabold text-slate-700">{cms.searchLabel}</label>
--          <input
--              className="field mt-2"
--              value={q}
--              onChange={(e) => onQ(e.target.value)}
--              placeholder={cms.searchPlaceholder}
--          />
--        </div>
-+  return (
-+    <div className="card p-5">
-+      <div className="flex items-center justify-between">
-+        <div className="font-extrabold">{cms.title}</div>
-+        <button className="btn px-3 py-2" type="button" onClick={onReset} title={cms.resetTitle}>
-+          <i className="fa-solid fa-rotate-left" />
-+        </button>
-+      </div>
+   if (loadingProduct) {
+     return (
+         <div className="text-slate-900">
+           <main className="px-4 pb-10">
+             <div className="max-w-7xl mx-auto">
+               <div className="card p-6">
+                 <div className="text-2xl font-extrabold">Đang tải sản phẩm…</div>
+                 <div className="mt-2 text-slate-600">Vui lòng đợi một chút.</div>
+               </div>
+             </div>
+           </main>
+         </div>
+     );
+   }
 
--        <div className="mt-4 grid gap-3">
--          <div>
--            <div className="text-sm font-extrabold text-slate-700">{cms.typeLabel}</div>
--            <div className="mt-2 grid gap-2 text-sm">
--              {DEFAULT_TYPE_OPTIONS.map(([t, label]) => (
--                  <label key={t} className="flex items-center gap-2">
--                    <input type="checkbox" checked={types.includes(t)} onChange={() => onToggleType(t)} />
--                    {label}
--                  </label>
--              ))}
--            </div>
--          </div>
-+      <div className="mt-3">
-+        <label className="text-sm font-extrabold text-slate-700">{cms.searchLabel}</label>
-+        <input className="field mt-2" value={q} onChange={(e) => onQ(e.target.value)} placeholder={cms.searchPlaceholder} />
-+      </div>
+   if (productError || !apiProduct) {
+     return (
+         <div className="text-slate-900">
+@@ -754,65 +754,65 @@ export default function ProductDetailPage() {
+         {/* USAGE */}
+         <section id="usage" className="mx-auto max-w-7xl px-4 pb-10">
+           <div className="grid gap-5 lg:grid-cols-3">
+             <div className="card p-6 lg:col-span-2">
+               <div className="text-xs font-extrabold text-slate-500">{cmsData.usage.sectionTitle}</div>
+               <div className="text-2xl font-extrabold">{cmsData.usage.title}</div>
+               <p>{guideIntro || "—"}</p>
+               <div className="mt-4">
+                 <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
+                   <ol className="mt-3 grid gap-2 text-sm text-slate-700">
+                     {guideSteps.length ? guideSteps.map((s: any, idx: number) => (
+                         <li key={`${s?.order || idx}`} className="flex gap-2">
+                           <span className="font-extrabold text-amber-600">{idx + 1}. </span>
+                           {s?.content || "—"}
+                         </li>
+                     )) : (
+                         <li className="text-slate-600">Chưa có các bước hướng dẫn.</li>
+                     )}
 
--{/*          <div>
--            <div className="text-sm font-extrabold text-slate-700">{cms.concernLabel}</div>
--            <select className="field mt-2" value={concern} onChange={(e) => onConcern(e.target.value as any)}>
--              <option value="all">{cms.concernAllLabel}</option>
--              {DEFAULT_CONCERN_OPTIONS.map(([k, label]) => (
--                  <option key={k} value={k}>
--                    {label}
--                  </option>
--              ))}
--            </select>
--          </div>*/} {/*Phát triển sau*/}
--
--          <div>
--            <div className="text-sm font-extrabold text-slate-700">{cms.priceLabel}</div>
--            <select className="field mt-2" value={priceRange} onChange={(e) => onPriceRange(e.target.value as any)}>
--              {DEFAULT_PRICE_OPTIONS.map(([v, label]) => (
--                  <option key={v} value={v}>
--                    {label}
--                  </option>
--              ))}
--            </select>
-+      <div className="mt-4 grid gap-3">
-+        <div>
-+          <div className="text-sm font-extrabold text-slate-700">{cms.typeLabel}</div>
-+          <div className="mt-2 grid gap-2 text-sm">
-+            {resolvedTypeOptions.map(([t, label]) => (
-+              <label key={t} className="flex items-center gap-2">
-+                <input type="checkbox" checked={types.includes(t)} onChange={() => onToggleType(t)} />
-+                {label}
-+              </label>
-+            ))}
+                   </ol>
+                 </div>
+               </div>
+
+             </div>
+
+-            {/* Combo đề xuất: chỉ hiển thị khi backend có dữ liệu liên quan */}
++            {/* Sản phẩm cùng danh mục: chỉ hiển thị khi backend có dữ liệu liên quan */}
+             {Array.isArray(apiProduct?.relatedProducts) && apiProduct.relatedProducts.length ? (
+                 <div className="card p-6">
+                   <div className="text-xs font-extrabold text-slate-500">{cmsData.combo.sectionTitle}</div>
+                   <div className="text-2xl font-extrabold">{cmsData.combo.title}</div>
+
+                   <div className="mt-4 grid gap-3">
+-                    {apiProduct.relatedProducts.map((p: any) => (
++                    {apiProduct.relatedProducts.slice(0, 5).map((p: any) => (
+                         <div key={p?.sku || p?.id} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                           <div className="flex gap-3">
+                             <img className="h-16 w-16 rounded-2xl object-cover border border-slate-200" src={p?.image || p?.img || images?.[0]} alt={p?.name || ""} />
+                             <div className="min-w-0">
+                               <div className="font-extrabold truncate">{p?.name}</div>
+                               <div className="text-sm text-slate-500">{money(Number(p?.price || 0))}</div>
+-                              <button className="btn mt-2 w-full" type="button" onClick={() => navigate(`/products/${p?.sku || p?.id}`)}>
++                              <button className="btn mt-2 w-full" type="button" onClick={() => navigate(`/products/${p?.slug || p?.sku || p?.id}`)}>
+                                 <i className="fa-solid fa-arrow-right mr-2" />Xem
+                               </button>
+                             </div>
+                           </div>
+                         </div>
+                     ))}
+                   </div>
+
+                   <div className="mt-4 text-xs text-slate-500">{cmsData.combo.disclaimer}</div>
+                 </div>
+             ) : null}
            </div>
-+        </div>
+         </section>
 
--          <div>
--            <div className="text-sm font-extrabold text-slate-700">{cms.sortLabel}</div>
--            <select className="field mt-2" value={sort} onChange={(e) => onSort(e.target.value as any)}>
--              {DEFAULT_SORT_OPTIONS.map(([v, label]) => (
--                  <option key={v} value={v}>
--                    {label}
--                  </option>
--              ))}
--            </select>
--          </div>
-+        {/*Phát triển sau*/}
-+
-+        <div>
-+          <div className="text-sm font-extrabold text-slate-700">{cms.priceLabel}</div>
-+          <select className="field mt-2" value={priceRange} onChange={(e) => onPriceRange(e.target.value as any)}>
-+            {DEFAULT_PRICE_OPTIONS.map(([v, label]) => (
-+              <option key={v} value={v}>
-+                {label}
-+              </option>
-+            ))}
-+          </select>
-         </div>
+         {/* REVIEWS */}
+         <section id="reviews" className="mx-auto max-w-7xl px-4 pb-10">
+           <div className="grid gap-5 lg:grid-cols-3">
+             <div className="card p-6">
+               <div className="text-xs font-extrabold text-slate-500">{cmsData.reviews.sectionTitle}</div>
+               <div className="text-2xl font-extrabold">{cmsData.reviews.summaryTitle}</div>
 
--        {/* <div className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 text-sm text-slate-700">
--        Gợi ý: Chọn filter → danh sách cập nhật theo thời gian thực (demo).
--      </div> */}
-+        <div>
-+          <div className="text-sm font-extrabold text-slate-700">{cms.sortLabel}</div>
-+          <select className="field mt-2" value={sort} onChange={(e) => onSort(e.target.value as any)}>
-+            {DEFAULT_SORT_OPTIONS.map(([v, label]) => (
-+              <option key={v} value={v}>
-+                {label}
-+              </option>
-+            ))}
-+          </select>
-+        </div>
-       </div>
-+    </div>
-   );
- }
-diff --git a/Home/ayanavita-fontend-final/src/pages/ComparePage.tsx b/Home/ayanavita-fontend-final/src/pages/ComparePage.tsx
-index 2643b35f76fece951bb61f75fa5e791a8b2b5254..7d4be9d0288cb0ea1f2416ead3f53a5218e4da61 100644
---- a/Home/ayanavita-fontend-final/src/pages/ComparePage.tsx
-+++ b/Home/ayanavita-fontend-final/src/pages/ComparePage.tsx
-@@ -1,171 +1,327 @@
--import React, { useMemo, useState } from "react";
-+import React, { useEffect, useMemo, useState } from "react";
- import { Link } from "react-router-dom";
-
--import { SiteHeader } from "../components/layout/SiteHeader";
--import { Footer } from "../components/layout/Footer";
--import { PRODUCTS, type ProductSku } from "../data/products.data";
--import { money } from "../services/booking.utils";
--import { buildCatalogMetas } from "../data/shopCatalog.data";
-+import { http } from "../api/http";
-+import { MAX_COMPARE_PRODUCTS, MIN_COMPARE_PRODUCTS, readCompareProductIds, writeCompareProductIds } from "../services/compare.utils";
-
--function pricePerMl(price: number, ml: number) {
--  if (!ml) return "—";
--  return `${money(Math.round(price / ml))}/ml`;
-+type CompareProduct = {
-+  id: string | number;
-+  sku: string;
-+  name: string;
-+  shortDescription?: string | null;
-+  price: number;
-+  image?: string | null;
-+  attributes?: Array<{ key?: string; name?: string; valueText?: string | null; valueNumber?: number | null; valueBoolean?: boolean | null }>;
-+};
-+
-+type ProductListItem = {
-+  sku: string;
-+  id: string | number;
-+  name: string;
-+  image?: string | null;
-+  shortDescription?: string | null;
-+  price: number;
-+};
-+
-+const DASH = "—";
-+
-+function attributeValue(a: any): string {
-+  if (a?.valueText) return String(a.valueText);
-+  if (typeof a?.valueNumber === "number") return String(a.valueNumber);
-+  if (typeof a?.valueBoolean === "boolean") return a.valueBoolean ? "Có" : "Không";
-+  return DASH;
- }
-
- export default function ComparePage() {
--  const metas = useMemo(() => buildCatalogMetas(), []);
--  const skus = useMemo(() => metas.map((m) => m.sku), [metas]);
-+  const [currentLanguage, setCurrentLanguage] = useState<string>(() => localStorage.getItem("preferred-language") || "vi");
-+  const [selectedSkus, setSelectedSkus] = useState<string[]>(() => readCompareProductIds());
-+  const [catalogItems, setCatalogItems] = useState<ProductListItem[]>([]);
-+  const [products, setProducts] = useState<CompareProduct[]>([]);
-+  const [openPicker, setOpenPicker] = useState(false);
-+  const [pickerSearch, setPickerSearch] = useState("");
-+  const [pickerSelected, setPickerSelected] = useState<string[]>([]);
-+
-+  useEffect(() => {
-+    const handleLanguageChange = (event: CustomEvent) => setCurrentLanguage(event.detail.language);
-+    const syncCompare = () => setSelectedSkus(readCompareProductIds());
-+
-+    window.addEventListener("languageChange", handleLanguageChange as EventListener);
-+    window.addEventListener("aya_compare_changed", syncCompare as EventListener);
-+    return () => {
-+      window.removeEventListener("languageChange", handleLanguageChange as EventListener);
-+      window.removeEventListener("aya_compare_changed", syncCompare as EventListener);
-+    };
-+  }, []);
-+
-+  useEffect(() => {
-+    let cancelled = false;
-+
-+    (async () => {
-+      try {
-+        const res = await http.get("/public/catalog/products", {
-+          params: { lang: currentLanguage, page: 1, pageSize: 100, sort: "nameAsc" },
-+        });
-+        if (cancelled) return;
-+        const rows = Array.isArray(res.data?.items) ? res.data.items : [];
-+        setCatalogItems(rows);
-+      } catch (error) {
-+        console.error("GET /public/catalog/products failed on compare:", error);
-+        if (!cancelled) setCatalogItems([]);
-+      }
-+    })();
-+
-+    return () => {
-+      cancelled = true;
-+    };
-+  }, [currentLanguage]);
-+
-+  useEffect(() => {
-+    let cancelled = false;
-+    const loadDetails = async () => {
-+      if (!selectedSkus.length) {
-+        setProducts([]);
-+        return;
-+      }
-
--  const [a, setA] = useState<ProductSku | "">((skus[0] as any) || "");
--  const [b, setB] = useState<ProductSku | "">((skus[1] as any) || "");
--  const [c, setC] = useState<ProductSku | "">((skus[2] as any) || "");
-+      try {
-+        const rows = await Promise.all(
-+          selectedSkus.map(async (sku) => {
-+            const res = await http.get(`/public/catalog/products/${sku}?lang=${currentLanguage}`);
-+            return res.data;
-+          })
-+        );
-+        if (!cancelled) setProducts(rows);
-+      } catch (error) {
-+        console.error("GET /public/catalog/products/:sku failed on compare:", error);
-+        if (!cancelled) setProducts([]);
-+      }
-+    };
-
--  const A = a ? PRODUCTS[a as ProductSku] : null;
--  const B = b ? PRODUCTS[b as ProductSku] : null;
--  const C = c ? PRODUCTS[c as ProductSku] : null;
-+    loadDetails();
-+    return () => {
-+      cancelled = true;
-+    };
-+  }, [selectedSkus, currentLanguage]);
-
--  const mA = a ? metas.find((x) => x.sku === a) : null;
--  const mB = b ? metas.find((x) => x.sku === b) : null;
--  const mC = c ? metas.find((x) => x.sku === c) : null;
-+  const filteredCatalog = useMemo(() => {
-+    const q = pickerSearch.trim().toLowerCase();
-+    if (!q) return catalogItems;
-+    return catalogItems.filter((p) => String(p.name).toLowerCase().includes(q) || String(p.sku).toLowerCase().includes(q));
-+  }, [catalogItems, pickerSearch]);
-
--  function reset() {
--    setA((skus[0] as any) || "");
--    setB((skus[1] as any) || "");
--    setC((skus[2] as any) || "");
-+  const attributeRows = useMemo(() => {
-+    const counters = new Map<string, number>();
-+    products.forEach((p) => {
-+      (p.attributes || []).forEach((a) => {
-+        const key = String(a?.key || a?.name || "").trim();
-+        if (!key) return;
-+        counters.set(key, (counters.get(key) || 0) + 1);
-+      });
-+    });
-+
-+    const all = Array.from(counters.entries()).map(([key, count]) => ({ key, count }));
-+    all.sort((a, b) => (b.count === a.count ? a.key.localeCompare(b.key) : b.count - a.count));
-+    return all;
-+  }, [products]);
-+
-+  function openModal() {
-+    setPickerSelected(selectedSkus.slice(0, MAX_COMPARE_PRODUCTS));
-+    setPickerSearch("");
-+    setOpenPicker(true);
-   }
-
--  function suggest() {
--    reset();
--    window.alert("Đã chọn routine phục hồi (demo).");
-+  function applyPicker() {
-+    if (pickerSelected.length < MIN_COMPARE_PRODUCTS || pickerSelected.length > MAX_COMPARE_PRODUCTS) return;
-+    writeCompareProductIds(pickerSelected);
-+    setSelectedSkus(pickerSelected);
-+    setOpenPicker(false);
-+  }
-+
-+  function removeSku(sku: string) {
-+    const next = selectedSkus.filter((x) => x !== sku);
-+    writeCompareProductIds(next);
-+    setSelectedSkus(next);
-   }
-
-   return (
-     <div className="text-slate-900">
-       <main className="px-4 py-10">
-         <div className="max-w-6xl mx-auto grid gap-4">
-           <section className="card p-6">
-             <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-               <div>
-                 <div className="text-xs font-extrabold text-slate-500">Compare</div>
-                 <h1 className="text-2xl font-extrabold">So sánh sản phẩm</h1>
--                <div className="mt-1 text-sm text-slate-600">
--                  Chọn tối đa 3 sản phẩm để so sánh theo giá/ML, rating (demo).
--                </div>
-+                <div className="mt-1 text-sm text-slate-600">Chọn tối thiểu 2 và tối đa 3 sản phẩm để so sánh.</div>
-               </div>
-               <div className="flex gap-2">
--                <button className="btn" type="button" onClick={reset}>
--                  <i className="fa-solid fa-rotate-left mr-2" />Reset
-+                <button className="btn" type="button" onClick={openModal}>
-+                  <i className="fa-solid fa-plus mr-2" />Thêm sản phẩm
-                 </button>
-               </div>
-             </div>
-
--            <div className="mt-5 grid gap-3 md:grid-cols-3">
--              <div>
--                <label className="text-sm font-extrabold text-slate-700">Sản phẩm A</label>
--                <select className="field mt-2" value={a} onChange={(e) => setA(e.target.value as any)}>
--                  {skus.map((sku) => <option key={sku} value={sku}>{PRODUCTS[sku].name} ({PRODUCTS[sku].id})</option>)}
--                </select>
--              </div>
--              <div>
--                <label className="text-sm font-extrabold text-slate-700">Sản phẩm B</label>
--                <select className="field mt-2" value={b} onChange={(e) => setB(e.target.value as any)}>
--                  {skus.map((sku) => <option key={sku} value={sku}>{PRODUCTS[sku].name} ({PRODUCTS[sku].id})</option>)}
--                </select>
--              </div>
--              <div>
--                <label className="text-sm font-extrabold text-slate-700">Sản phẩm C (tuỳ chọn)</label>
--                <select className="field mt-2" value={c} onChange={(e) => setC(e.target.value as any)}>
--                  <option value="">(Không chọn)</option>
--                  {skus.map((sku) => <option key={sku} value={sku}>{PRODUCTS[sku].name} ({PRODUCTS[sku].id})</option>)}
--                </select>
--              </div>
-+            <div className="mt-4 flex flex-wrap gap-2">
-+              {selectedSkus.map((sku) => (
-+                <span key={sku} className="chip">
-+                  {sku}
-+                  <button className="ml-2" onClick={() => removeSku(sku)}>
-+                    ✕
-+                  </button>
-+                </span>
-+              ))}
-             </div>
-
--            <div className="mt-5 overflow-auto">
--              <table className="w-full min-w-[980px] text-sm">
--                <thead className="text-left text-slate-500">
--                  <tr className="border-b border-slate-200">
--                    <th className="py-3 pr-4">Tiêu chí</th>
--                    <th className="py-3 pr-4">A</th>
--                    <th className="py-3 pr-4">B</th>
--                    <th className="py-3 pr-4">C</th>
--                  </tr>
--                </thead>
--                <tbody className="text-slate-700">
--                  <tr className="border-b border-slate-100">
--                    <td className="py-3 pr-4 font-extrabold">Sản phẩm</td>
--                    <td className="py-3 pr-4">{A ? <div className="flex items-center gap-3"><img className="h-14 w-14 rounded-xl object-cover ring-1 ring-slate-200" src={A.img} alt={A.name} /><div><div className="font-extrabold">{A.name}</div><div className="text-xs text-slate-500">{A.id}</div></div></div> : "—"}</td>
--                    <td className="py-3 pr-4">{B ? <div className="flex items-center gap-3"><img className="h-14 w-14 rounded-xl object-cover ring-1 ring-slate-200" src={B.img} alt={B.name} /><div><div className="font-extrabold">{B.name}</div><div className="text-xs text-slate-500">{B.id}</div></div></div> : "—"}</td>
--                    <td className="py-3 pr-4">{C ? <div className="flex items-center gap-3"><img className="h-14 w-14 rounded-xl object-cover ring-1 ring-slate-200" src={C.img} alt={C.name} /><div><div className="font-extrabold">{C.name}</div><div className="text-xs text-slate-500">{C.id}</div></div></div> : "—"}</td>
--                  </tr>
--
--                  <tr className="border-b border-slate-100">
--                    <td className="py-3 pr-4 font-extrabold">Giá</td>
--                    <td className="py-3 pr-4">{A ? money(A.price) : "—"}</td>
--                    <td className="py-3 pr-4">{B ? money(B.price) : "—"}</td>
--                    <td className="py-3 pr-4">{C ? money(C.price) : "—"}</td>
--                  </tr>
--
--                  <tr className="border-b border-slate-100">
--                    <td className="py-3 pr-4 font-extrabold">Dung tích (demo)</td>
--                    <td className="py-3 pr-4">{mA ? `${mA.ml} ml` : "—"}</td>
--                    <td className="py-3 pr-4">{mB ? `${mB.ml} ml` : "—"}</td>
--                    <td className="py-3 pr-4">{mC ? `${mC.ml} ml` : "—"}</td>
--                  </tr>
--
--                  <tr className="border-b border-slate-100">
--                    <td className="py-3 pr-4 font-extrabold">Giá/ML</td>
--                    <td className="py-3 pr-4">{A && mA ? pricePerMl(A.price, mA.ml) : "—"}</td>
--                    <td className="py-3 pr-4">{B && mB ? pricePerMl(B.price, mB.ml) : "—"}</td>
--                    <td className="py-3 pr-4">{C && mC ? pricePerMl(C.price, mC.ml) : "—"}</td>
--                  </tr>
--
--                  <tr className="border-b border-slate-100">
--                    <td className="py-3 pr-4 font-extrabold">Đánh giá</td>
--                    <td className="py-3 pr-4">{mA ? `${mA.rating}★` : "—"}</td>
--                    <td className="py-3 pr-4">{mB ? `${mB.rating}★` : "—"}</td>
--                    <td className="py-3 pr-4">{mC ? `${mC.rating}★` : "—"}</td>
--                  </tr>
--
--                  <tr className="border-b border-slate-100">
--                    <td className="py-3 pr-4 font-extrabold">Phù hợp (demo)</td>
--                    <td className="py-3 pr-4">{mA ? mA.concern.join(", ") : "—"}</td>
--                    <td className="py-3 pr-4">{mB ? mB.concern.join(", ") : "—"}</td>
--                    <td className="py-3 pr-4">{mC ? mC.concern.join(", ") : "—"}</td>
--                  </tr>
--                </tbody>
--              </table>
--            </div>
-+            {products.length >= MIN_COMPARE_PRODUCTS ? (
-+              <div className="mt-5 overflow-auto">
-+                <table className="w-full min-w-[780px] text-sm">
-+                  <thead className="text-left text-slate-500">
-+                    <tr className="border-b border-slate-200">
-+                      <th className="py-3 pr-4">Tiêu chí</th>
-+                      {products.map((p) => (
-+                        <th key={p.sku} className="py-3 pr-4">
-+                          {p.name}
-+                        </th>
-+                      ))}
-+                    </tr>
-+                  </thead>
-+                  <tbody className="text-slate-700">
-+                    <tr className="border-b border-slate-100">
-+                      <td className="py-3 pr-4 font-extrabold">Sản phẩm</td>
-+                      {products.map((p) => (
-+                        <td key={p.sku} className="py-3 pr-4">
-+                          <div className="flex items-center gap-3">
-+                            <img className="h-14 w-14 rounded-xl object-cover ring-1 ring-slate-200" src={p.image || ""} alt={p.name} />
-+                            <div>
-+                              <div className="font-extrabold">{p.name}</div>
-+                              <div className="text-xs text-slate-500">{p.sku}</div>
-+                            </div>
-+                          </div>
-+                        </td>
-+                      ))}
-+                    </tr>
-+
-+                    <tr className="border-b border-slate-100">
-+                      <td className="py-3 pr-4 font-extrabold">Mô tả ngắn</td>
-+                      {products.map((p) => (
-+                        <td key={p.sku} className="py-3 pr-4">
-+                          {p.shortDescription || DASH}
-+                        </td>
-+                      ))}
-+                    </tr>
-+
-+                    <tr className="border-b border-slate-100">
-+                      <td className="py-3 pr-4 font-extrabold">Giá</td>
-+                      {products.map((p) => (
-+                        <td key={p.sku} className="py-3 pr-4">
-+                          {new Intl.NumberFormat(currentLanguage === "vi" ? "vi-VN" : "en-US", {
-+                            style: "currency",
-+                            currency: "VND",
-+                            maximumFractionDigits: 0,
-+                          }).format(Number(p.price || 0))}
-+                        </td>
-+                      ))}
-+                    </tr>
-+
-+                    <tr className="border-b border-slate-100">
-+                      <td className="py-3 pr-4 font-extrabold">Đánh giá</td>
-+                      {products.map((p) => (
-+                        <td key={p.sku} className="py-3 pr-4">
-+                          5.0★
-+                        </td>
-+                      ))}
-+                    </tr>
-+
-+                    {attributeRows.map((row) => (
-+                      <tr key={row.key} className="border-b border-slate-100">
-+                        <td className="py-3 pr-4 font-extrabold">{row.key}</td>
-+                        {products.map((p) => {
-+                          const matched = (p.attributes || []).find((a) => String(a?.key || a?.name) === row.key);
-+                          return (
-+                            <td key={`${p.sku}-${row.key}`} className="py-3 pr-4">
-+                              {matched ? attributeValue(matched) : DASH}
-+                            </td>
-+                          );
-+                        })}
-+                      </tr>
-+                    ))}
-+                  </tbody>
-+                </table>
-+              </div>
-+            ) : (
-+              <div className="mt-5 rounded-2xl bg-amber-50 p-4 text-sm text-amber-700">Vui lòng chọn ít nhất 2 sản phẩm để bắt đầu so sánh.</div>
-+            )}
-
-             <div className="mt-5 grid gap-3 md:grid-cols-3">
--              <Link className="btn text-center" to="/cart">
--                <i className="fa-solid fa-cart-shopping mr-2" />Về giỏ hàng
-+              <Link className="btn text-center" to="/products">
-+                <i className="fa-solid fa-arrow-left mr-2" />Quay lại danh sách sản phẩm
-               </Link>
-             </div>
-           </section>
-+        </div>
-+      </main>
-
--          <section className="card p-6">
-+      {openPicker ? (
-+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4">
-+          <div className="w-full max-w-3xl rounded-2xl bg-white p-5 shadow-2xl">
-             <div className="flex items-center justify-between">
--              <div className="font-extrabold">Gợi ý routine</div>
--              <span className="chip"><i className="fa-solid fa-lightbulb text-amber-600" />Khuyến nghị</span>
-+              <h2 className="text-lg font-extrabold">Chọn sản phẩm so sánh</h2>
-+              <button className="btn" onClick={() => setOpenPicker(false)}>
-+                Đóng
-+              </button>
-+            </div>
-+
-+            <input
-+              className="field mt-3"
-+              value={pickerSearch}
-+              onChange={(e) => setPickerSearch(e.target.value)}
-+              placeholder="Tìm theo tên hoặc SKU"
-+            />
-+
-+            <div className="mt-3 max-h-[360px] overflow-auto space-y-2">
-+              {filteredCatalog.map((p) => {
-+                const checked = pickerSelected.includes(p.sku);
-+                const disabled = !checked && pickerSelected.length >= MAX_COMPARE_PRODUCTS;
-+                return (
-+                  <label key={p.sku} className={`flex items-center gap-3 rounded-xl border p-3 ${disabled ? "opacity-60" : ""}`}>
-+                    <input
-+                      type="checkbox"
-+                      checked={checked}
-+                      disabled={disabled}
-+                      onChange={() => {
-+                        if (checked) {
-+                          setPickerSelected((prev) => prev.filter((x) => x !== p.sku));
-+                          return;
-+                        }
-+                        if (pickerSelected.length >= MAX_COMPARE_PRODUCTS) return;
-+                        setPickerSelected((prev) => [...prev, p.sku]);
-+                      }}
-+                    />
-+                    <img className="h-12 w-12 rounded-lg object-cover ring-1 ring-slate-200" src={p.image || ""} alt={p.name} />
-+                    <div className="min-w-0">
-+                      <div className="font-semibold">{p.name}</div>
-+                      <div className="text-xs text-slate-500">{p.sku}</div>
-+                    </div>
-+                  </label>
-+                );
-+              })}
-             </div>
-
--            <div className="mt-3 text-sm text-slate-700">
--              <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
--                <div className="font-extrabold">Routine đề xuất (demo)</div>
--                <ol className="mt-2 space-y-2">
--                  <li>1) Làm sạch: <b>{A?.name || "—"}</b></li>
--                  <li>2) Treatment/Serum: <b>{B?.name || "—"}</b></li>
--                  <li>3) Dưỡng khoá ẩm: <b>{C?.name || "Kem dưỡng (demo)"}</b></li>
--                </ol>
--                <div className="mt-2 text-sm text-slate-600">Bạn có thể tuỳ chỉnh theo loại da và mục tiêu.</div>
-+            <div className="mt-4 flex items-center justify-between text-sm">
-+              <div>
-+                Đã chọn: <b>{pickerSelected.length}</b> / {MAX_COMPARE_PRODUCTS} (tối thiểu {MIN_COMPARE_PRODUCTS})
-               </div>
-+              <button
-+                className={`btn ${pickerSelected.length < MIN_COMPARE_PRODUCTS ? "opacity-60" : ""}`}
-+                disabled={pickerSelected.length < MIN_COMPARE_PRODUCTS}
-+                onClick={applyPicker}
-+              >
-+                Áp dụng
-+              </button>
-             </div>
--          </section>
-+          </div>
-         </div>
--
--        <div className="max-w-6xl mx-auto mt-4 text-center text-sm text-slate-500">© 2025 AYANAVITA • Prototype Compare</div>
--      </main>
-+      ) : null}
-     </div>
-   );
- }
+               <div className="mt-4 rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
+                 <div className="text-5xl font-extrabold">{effectiveAvg ? effectiveAvg.toFixed(1) : "—"}</div>
+                 <div className="mt-2 text-xl"><Stars value={effectiveAvg} /></div>
+                 <div className="mt-1 text-sm text-slate-500">{effectiveCount} {cmsData.purchaseBox.reviewText} • (demo)</div>
 diff --git a/Home/ayanavita-fontend-final/src/pages/ProductsPage.tsx b/Home/ayanavita-fontend-final/src/pages/ProductsPage.tsx
-index f332d316613c0b199809bcfd5317765adba4d9d2..b4257987a00cc7d3411dcc7e64b9f1dbcdb5714b 100644
+index 057571275eef1f7332637219ce694c283dc5f284..ce6a6a62a7406d6f1579ef9664569c1a37f9b941 100644
 --- a/Home/ayanavita-fontend-final/src/pages/ProductsPage.tsx
 +++ b/Home/ayanavita-fontend-final/src/pages/ProductsPage.tsx
-@@ -1,382 +1,431 @@
- // src/pages/ProductsPage.tsx
- import React, { useEffect, useMemo, useState } from "react";
- import { Link } from "react-router-dom";
+@@ -365,51 +365,51 @@ export default function ProductsPage() {
+               </div>
+             </aside>
 
--
--import {http} from "../api/http";
-+import { http } from "../api/http";
-
- import { CATEGORY_PRODUCTS, type SkinConcern, type ProductType } from "../data/productCategory.data";
- import { ProductFilters, type PriceRange, type SortKey } from "../components/products/ProductFilters";
- import { ProductCard } from "../components/products/ProductCard";
-+import { addCompareProductId } from "../services/compare.utils";
-
--// NOTE: Tách nội dung tĩnh ra cmsData để dùng như CMS động.
--// cmsData chỉ chứa nội dung (text, link, src...), không chứa style (màu/kích thước/className...).
--// Ưu tiên thuộc tính đơn & mảng; hạn chế object lồng sâu; không nhét DB hay logic data vào đây.
- const defaultCmsData = {
--    banner: {
--        imageAlt: "banner",
--        imageSrc:
--            "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=1400&q=70",
--        eyebrow: "Danh mục",
--        title: "Chăm sóc da • Sức khoẻ • Spa at Home",
--        subtitle: "Lọc nhanh theo loại da, vấn đề, giá và đánh giá.",
--    },
--    actions: {
--        cartLabel: "Giỏ hàng",
--        compareLabel: "So sánh",
--        compareAlert: "So sánh (demo).",
--    },
--    badges: [
--        { icon: "fa-solid fa-star", text: "Đánh giá thật" },
--        { icon: "fa-solid fa-shield-halved", text: "Chính hãng" },
--        { icon: "fa-solid fa-truck-fast", text: "Giao nhanh" },
--    ],
--    results: {
--        label: "Hiển thị",
--        unit: "sản phẩm",
--    },
--    emptyState: "Không có sản phẩm phù hợp bộ lọc.",
--    pagination: {
--        prev: "Trước",
--        next: "Sau",
--        pageLabel: "Trang",
--    },
--    footer: "© 2025 AYANAVITA • Prototype Category",
-+  banner: {
-+    imageAlt: "banner",
-+    imageSrc: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=1400&q=70",
-+    eyebrow: "Danh mục",
-+    title: "Chăm sóc da • Sức khoẻ • Spa at Home",
-+    subtitle: "Lọc nhanh theo loại da, vấn đề, giá và đánh giá.",
-+  },
-+  actions: {
-+    cartLabel: "Giỏ hàng",
-+    compareLabel: "So sánh",
-+  },
-+  badges: [
-+    { icon: "fa-solid fa-star", text: "Đánh giá thật" },
-+    { icon: "fa-solid fa-shield-halved", text: "Chính hãng" },
-+    { icon: "fa-solid fa-truck-fast", text: "Giao nhanh" },
-+  ],
-+  results: {
-+    label: "Hiển thị",
-+    unit: "sản phẩm",
-+  },
-+  emptyState: "Không có sản phẩm phù hợp bộ lọc.",
-+  pagination: {
-+    prev: "Trước",
-+    next: "Sau",
-+    pageLabel: "Trang",
-+  },
-+  footer: "© 2025 AYANAVITA • Prototype Category",
- } as const;
-
--// --- PaginationBar được đưa trực tiếp vào file ---
--function PaginationBar({
--                           page,
--                           totalPages,
--                           onPrev,
--                           onNext,
--                           cmsData,
--                       }: {
--    page: number;
--    totalPages: number;
--    onPrev: () => void;
--    onNext: () => void;
--    cmsData: any;
--}) {
--    const prevDisabled = page <= 1;
--    const nextDisabled = page >= totalPages;
--
--    return (
--        <div className="mt-5 flex items-center justify-between">
--            <button
--                className={`btn ${prevDisabled ? "opacity-50" : ""}`}
--                type="button"
--                disabled={prevDisabled}
--                onClick={onPrev}
--            >
--                {cmsData?.pagination?.prev}
--            </button>
--            <div className="chip">
--                {cmsData?.pagination?.pageLabel} <span className="font-extrabold">{page}</span>/
--                <span className="font-extrabold">{totalPages}</span>
--            </div>
--            <button
--                className={`btn ${nextDisabled ? "opacity-50" : ""}`}
--                type="button"
--                disabled={nextDisabled}
--                onClick={onNext}
--            >
--                {cmsData?.pagination?.next}
--            </button>
--        </div>
--    );
-+function PaginationBar({ page, totalPages, onPrev, onNext, cmsData }: { page: number; totalPages: number; onPrev: () => void; onNext: () => void; cmsData: any }) {
-+  const prevDisabled = page <= 1;
-+  const nextDisabled = page >= totalPages;
-+
-+  return (
-+    <div className="mt-5 flex items-center justify-between">
-+      <button className={`btn ${prevDisabled ? "opacity-50" : ""}`} type="button" disabled={prevDisabled} onClick={onPrev}>
-+        {cmsData?.pagination?.prev}
-+      </button>
-+      <div className="chip">
-+        {cmsData?.pagination?.pageLabel} <span className="font-extrabold">{page}</span>/<span className="font-extrabold">{totalPages}</span>
-+      </div>
-+      <button className={`btn ${nextDisabled ? "opacity-50" : ""}`} type="button" disabled={nextDisabled} onClick={onNext}>
-+        {cmsData?.pagination?.next}
-+      </button>
-+    </div>
-+  );
- }
--// --- Kết thúc PaginationBar ---
-
- function inRange(price: number, r: PriceRange) {
--    if (r === "all") return true;
--    if (r === "lt200") return price < 200_000;
--    if (r === "200-400") return price >= 200_000 && price <= 400_000;
--    if (r === "gt400") return price > 400_000;
--    return true;
-+  if (r === "all") return true;
-+  if (r === "lt200") return price < 200_000;
-+  if (r === "200-400") return price >= 200_000 && price <= 400_000;
-+  if (r === "gt400") return price > 400_000;
-+  return true;
- }
-
--
- type ApiCatalogProduct = {
--    id: string | number;
--    sku: string;
--    price: number;
--    name: string;
--    shortDescription?: string | null;
--    image?: string | null;
-+  id: string | number;
-+  sku: string;
-+  price: number;
-+  name: string;
-+  shortDescription?: string | null;
-+  image?: string | null;
-+  category?: { id: string | number; slug?: string | null; name?: string | null } | null;
-+};
-+
-+type ApiCategory = {
-+  id: string | number;
-+  code?: string;
-+  translations?: Array<{ languageCode?: string; name?: string | null }>;
- };
-
- function toPriceFilter(r: PriceRange): { minPrice?: number; maxPrice?: number } {
--    if (r === "lt200") return { maxPrice: 200_000 };
--    if (r === "200-400") return { minPrice: 200_000, maxPrice: 400_000 };
--    if (r === "gt400") return { minPrice: 400_000 };
--    return {};
-+  if (r === "lt200") return { maxPrice: 200_000 };
-+  if (r === "200-400") return { minPrice: 200_000, maxPrice: 400_000 };
-+  if (r === "gt400") return { minPrice: 400_000 };
-+  return {};
- }
-
- function toApiSort(sort: SortKey): "newest" | "priceAsc" | "priceDesc" | "nameAsc" {
--    if (sort === "new") return "newest";
--    if (sort === "priceAsc") return "priceAsc";
--    if (sort === "priceDesc") return "priceDesc";
--    if (sort === "rating") return "nameAsc";
--    return "newest";
-+  if (sort === "new") return "newest";
-+  if (sort === "priceAsc") return "priceAsc";
-+  if (sort === "priceDesc") return "priceDesc";
-+  if (sort === "rating") return "nameAsc";
-+  return "newest";
- }
-
--export default function ProductsPage() {
--    // ====== language ======
--    const [currentLanguage, setCurrentLanguage] = useState<string>(() => {
--        return localStorage.getItem("preferred-language") || "vi";
--    });
--
--    // Lắng nghe sự kiện thay đổi ngôn ngữ
--    useEffect(() => {
--        const handleLanguageChange = (event: CustomEvent) => {
--            setCurrentLanguage(event.detail.language);
--        };
-+function mapTypeFromCategoryName(raw: string): ProductType {
-+  const value = raw.toLowerCase();
-+  if (value.includes("serum")) return "serum";
-+  if (value.includes("cream") || value.includes("kem")) return "cream";
-+  if (value.includes("mask") || value.includes("mặt nạ")) return "mask";
-+  return "cleanser";
-+}
-
--        window.addEventListener("languageChange", handleLanguageChange as EventListener);
--        return () => {
--            window.removeEventListener("languageChange", handleLanguageChange as EventListener);
--        };
--    }, []);
--
--    // ====== fetch CMS product page ======
--    const [productData, setProductData] = useState<any>(null);
--
--    useEffect(() => {
--        let cancelled = false;
--
--        (async () => {
--            try {
--                const res = await http.get(`/public/pages/product?lang=${currentLanguage}`);
--                if (!cancelled) setProductData(res.data);
--            } catch (err) {
--                console.error("GET /public/pages/product failed:", err);
--                if (!cancelled) setProductData(null);
--            }
--        })();
--
--        return () => {
--            cancelled = true;
--        };
--    }, [currentLanguage]);
--
--    // ghi đè cmsData bằng productData?.sections[2]?.data
--    const cmsData = useMemo(() => {
--        return productData?.sections?.[2]?.data || defaultCmsData;
--    }, [productData]);
--
--    // filters
--    const [q, setQ] = useState("");
--    const [types, setTypes] = useState<ProductType[]>([]);
--    const [concern, setConcern] = useState<"all" | SkinConcern>("all");
--    const [priceRange, setPriceRange] = useState<PriceRange>("all");
--    const [sort, setSort] = useState<SortKey>("best");
--
--    // paging
--    const [page, setPage] = useState(1);
--    const pageSize = 6;
--
--    const [apiItems, setApiItems] = useState<ApiCatalogProduct[]>([]);
--    const [apiTotal, setApiTotal] = useState<number>(0);
--    const [apiTotalPages, setApiTotalPages] = useState<number>(1);
--
--    useEffect(() => {
--        let cancelled = false;
--
--        const fetchProducts = async () => {
--            try {
--                const priceFilter = toPriceFilter(priceRange);
--                const params: any = {
--                    lang: currentLanguage,
--                    page,
--                    pageSize,
--                    search: q || undefined,
--                    sort: toApiSort(sort),
--                    ...priceFilter,
--                };
--
--                const res = await http.get('/public/catalog/products', { params });
--                if (cancelled) return;
--                setApiItems(Array.isArray(res.data?.items) ? res.data.items : []);
--                setApiTotal(Number(res.data?.total ?? 0));
--                setApiTotalPages(Number(res.data?.totalPages ?? 1));
--            } catch (error) {
--                console.error('GET /public/catalog/products failed:', error);
--                if (cancelled) {
--                    return;
--                }
--                const qq = q.trim().toLowerCase();
--                let fallback = CATEGORY_PRODUCTS.filter((p) => {
--                    const okQ = !qq || p.name.toLowerCase().includes(qq) || p.id.toLowerCase().includes(qq);
--                    const okT = !types.length || types.includes(p.type);
--                    const okC = concern === 'all' ? true : (p.concerns || []).includes(concern);
--                    const okP = inRange(p.price, priceRange);
--                    return okQ && okT && okC && okP;
--                });
--
--                if (sort === 'best') fallback = fallback.slice().sort((a, b) => b.sold - a.sold);
--                if (sort === 'new') fallback = fallback.slice().sort((a, b) => (b.updated > a.updated ? 1 : -1));
--                if (sort === 'priceAsc') fallback = fallback.slice().sort((a, b) => a.price - b.price);
--                if (sort === 'priceDesc') fallback = fallback.slice().sort((a, b) => b.price - a.price);
--                if (sort === 'rating') fallback = fallback.slice().sort((a, b) => b.rating - a.rating);
--
--                const start = (page - 1) * pageSize;
--                const pageRows = fallback.slice(start, start + pageSize).map((p) => ({
--                    id: p.id,
--                    sku: p.sku,
--                    price: p.price,
--                    name: p.name,
--                    image: p.img,
--                }));
--                setApiItems(pageRows);
--                setApiTotal(fallback.length);
--                setApiTotalPages(Math.max(1, Math.ceil(fallback.length / pageSize)));
--            }
-+export default function ProductsPage() {
-+  const [currentLanguage, setCurrentLanguage] = useState<string>(() => {
-+    return localStorage.getItem("preferred-language") || "vi";
-+  });
-+
-+  const [compareToast, setCompareToast] = useState<{ open: boolean; message: string }>({ open: false, message: "" });
-+
-+  useEffect(() => {
-+    const handleLanguageChange = (event: CustomEvent) => {
-+      setCurrentLanguage(event.detail.language);
-+    };
-+
-+    window.addEventListener("languageChange", handleLanguageChange as EventListener);
-+    return () => {
-+      window.removeEventListener("languageChange", handleLanguageChange as EventListener);
-+    };
-+  }, []);
-+
-+  const [productData, setProductData] = useState<any>(null);
-+  const [categoryOptions, setCategoryOptions] = useState<Array<[ProductType, string]>>([]);
-+  const [typeToCategoryIds, setTypeToCategoryIds] = useState<Record<string, number[]>>({});
-+
-+  useEffect(() => {
-+    let cancelled = false;
-+
-+    (async () => {
-+      try {
-+        const res = await http.get(`/public/pages/product?lang=${currentLanguage}`);
-+        if (!cancelled) setProductData(res.data);
-+      } catch (err) {
-+        console.error("GET /public/pages/product failed:", err);
-+        if (!cancelled) setProductData(null);
-+      }
-+    })();
-+
-+    return () => {
-+      cancelled = true;
-+    };
-+  }, [currentLanguage]);
-+
-+  useEffect(() => {
-+    let cancelled = false;
-+
-+    (async () => {
-+      try {
-+        const res = await http.get("/catalog/categories");
-+        const rows = Array.isArray(res.data) ? (res.data as ApiCategory[]) : [];
-+        if (cancelled) return;
-+
-+        const grouped: Record<string, number[]> = {};
-+        const options: Array<[ProductType, string]> = [];
-+
-+        rows.forEach((item) => {
-+          const translated = item.translations?.find((t) => t.languageCode === currentLanguage)?.name;
-+          const fallback = item.translations?.[0]?.name || item.code || `Category ${item.id}`;
-+          const label = translated || fallback;
-+          const mappedType = mapTypeFromCategoryName(String(item.code || label));
-+          const id = Number(item.id);
-+
-+          if (!grouped[mappedType]) {
-+            grouped[mappedType] = [];
-+            options.push([mappedType, String(label)]);
-+          }
-+          if (Number.isFinite(id)) grouped[mappedType].push(id);
-+        });
-+
-+        setCategoryOptions(options);
-+        setTypeToCategoryIds(grouped);
-+      } catch (error) {
-+        console.error("GET /catalog/categories failed:", error);
-+        if (!cancelled) {
-+          setCategoryOptions([]);
-+          setTypeToCategoryIds({});
-+        }
-+      }
-+    })();
-+
-+    return () => {
-+      cancelled = true;
-+    };
-+  }, [currentLanguage]);
-+
-+  const cmsData = useMemo(() => {
-+    return productData?.sections?.[2]?.data || defaultCmsData;
-+  }, [productData]);
-+
-+  const [q, setQ] = useState("");
-+  const [types, setTypes] = useState<ProductType[]>([]);
-+  const [concern, setConcern] = useState<"all" | SkinConcern>("all");
-+  const [priceRange, setPriceRange] = useState<PriceRange>("all");
-+  const [sort, setSort] = useState<SortKey>("best");
-+
-+  const [page, setPage] = useState(1);
-+  const pageSize = 6;
-+
-+  const [apiItems, setApiItems] = useState<ApiCatalogProduct[]>([]);
-+  const [apiTotal, setApiTotal] = useState<number>(0);
-+  const [apiTotalPages, setApiTotalPages] = useState<number>(1);
-+
-+  useEffect(() => {
-+    let cancelled = false;
-+
-+    const fetchProducts = async () => {
-+      try {
-+        const priceFilter = toPriceFilter(priceRange);
-+        const categoryIdList = Array.from(new Set(types.flatMap((t) => typeToCategoryIds[t] || [])));
-+        const params: any = {
-+          lang: currentLanguage,
-+          page,
-+          pageSize,
-+          search: q || undefined,
-+          sort: toApiSort(sort),
-+          ...priceFilter,
-+          categoryIds: categoryIdList.length ? categoryIdList.join(",") : undefined,
-         };
-
--        fetchProducts();
--        return () => {
--            cancelled = true;
--        };
--    }, [currentLanguage, q, types, concern, priceRange, sort, page]);
--
--    const list = useMemo(() => {
--        return apiItems.map((item, idx) => ({
--            sku: (item.sku as any),
--            id: String(item.id ?? item.sku),
--            name: item.name,
--            type: ((types[0] ?? 'cleanser') as ProductType),
--            concerns: concern === 'all' ? [] : [concern],
--            price: Number(item.price ?? 0),
--            rating: 5,
--            sold: 0,
--            updated: new Date().toISOString().slice(0, 10),
--            img: item.image || CATEGORY_PRODUCTS[idx % CATEGORY_PRODUCTS.length]?.img || '',
-+        const res = await http.get("/public/catalog/products", { params });
-+        if (cancelled) return;
-+        setApiItems(Array.isArray(res.data?.items) ? res.data.items : []);
-+        setApiTotal(Number(res.data?.total ?? 0));
-+        setApiTotalPages(Number(res.data?.totalPages ?? 1));
-+      } catch (error) {
-+        console.error("GET /public/catalog/products failed:", error);
-+        if (cancelled) {
-+          return;
-+        }
-+        const qq = q.trim().toLowerCase();
-+        let fallback = CATEGORY_PRODUCTS.filter((p) => {
-+          const okQ = !qq || p.name.toLowerCase().includes(qq) || p.id.toLowerCase().includes(qq);
-+          const okT = !types.length || types.includes(p.type);
-+          const okC = concern === "all" ? true : (p.concerns || []).includes(concern);
-+          const okP = inRange(p.price, priceRange);
-+          return okQ && okT && okC && okP;
-+        });
-+
-+        if (sort === "best") fallback = fallback.slice().sort((a, b) => b.sold - a.sold);
-+        if (sort === "new") fallback = fallback.slice().sort((a, b) => (b.updated > a.updated ? 1 : -1));
-+        if (sort === "priceAsc") fallback = fallback.slice().sort((a, b) => a.price - b.price);
-+        if (sort === "priceDesc") fallback = fallback.slice().sort((a, b) => b.price - a.price);
-+        if (sort === "rating") fallback = fallback.slice().sort((a, b) => b.rating - a.rating);
-+
-+        const start = (page - 1) * pageSize;
-+        const pageRows = fallback.slice(start, start + pageSize).map((p) => ({
-+          id: p.id,
-+          sku: p.sku,
-+          price: p.price,
-+          name: p.name,
-+          image: p.img,
-+          category: null,
-         }));
--    }, [apiItems, types, concern]);
--
--    const totalPages = useMemo(() => Math.max(1, apiTotalPages), [apiTotalPages]);
--    const safePage = Math.min(page, totalPages);
--
--    const pageItems = useMemo(() => list, [list]);
--
--    function toggleType(t: ProductType) {
--        setPage(1);
--        setTypes((cur) => (cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]));
--    }
--
--    function resetFilters() {
--        setQ("");
--        setTypes([]);
--        setConcern("all");
--        setPriceRange("all");
--        setSort("best");
--        setPage(1);
--    }
--
--    return (
--        <div className="text-slate-900">
--            {/*<SiteHeader active="products" />*/}
--
--            <main className="px-4 pb-10">
--                <div className="max-w-6xl mx-auto card overflow-hidden">
--                    {/* Banner */}
--                    <div className="relative">
--                        <img className="h-44 w-full object-cover" alt={cmsData?.banner?.imageAlt} src={cmsData?.banner?.imageSrc} />
--                        <div className="absolute inset-0 bg-gradient-to-r from-slate-900/55 to-indigo-700/20" />
--                        <div className="absolute inset-0 p-6 flex flex-col justify-end">
--                            <div className="text-xs font-extrabold text-white/80">{cmsData?.banner?.eyebrow}</div>
--                            <h1 className="text-2xl md:text-3xl font-extrabold text-white">{cmsData?.banner?.title}</h1>
--                            <div className="mt-1 text-sm text-white/80">{cmsData?.banner?.subtitle}</div>
--                        </div>
--                    </div>
--
--                    <div className="p-6 grid gap-4 lg:grid-cols-4">
--                        {/* Filters */}
--                        <aside className="lg:col-span-1">
--                            <ProductFilters
--                                cmsData={productData?.sections?.[0]?.data}
--                                q={q}
--                                onQ={(v) => {
--                                    setQ(v);
--                                    setPage(1);
--                                }}
--                                types={types}
--                                onToggleType={toggleType}
--                                concern={concern}
--                                onConcern={(v) => {
--                                    setConcern(v);
--                                    setPage(1);
--                                }}
--                                priceRange={priceRange}
--                                onPriceRange={(v) => {
--                                    setPriceRange(v);
--                                    setPage(1);
--                                }}
--                                sort={sort}
--                                onSort={(v) => {
--                                    setSort(v);
--                                    setPage(1);
--                                }}
--                                onReset={resetFilters}
--                            />
--
--                            <div className="mt-3 flex flex-col gap-2 flex-wrap">
--                                <Link className="btn flex-1" to="/cart">
--                                    <i className="fa-solid fa-cart-shopping mr-2" />
--                                    {cmsData?.actions?.cartLabel}
--                                </Link>
--                                <button className="btn flex-1" type="button" onClick={() => window.alert(cmsData?.actions?.compareAlert)}>
--                                    <i className="fa-solid fa-scale-balanced mr-2" />
--                                    {cmsData?.actions?.compareLabel}
--                                </button>
--                            </div>
--                        </aside>
--
--                        {/* Products */}
--                        <section className="lg:col-span-3">
--                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
--                                <div className="flex items-center gap-2 flex-wrap">
--                                    {(cmsData?.badges || []).map((b: any) => (
--                                        <span key={`${b.icon}-${b.text}`} className="chip">
-+        setApiItems(pageRows);
-+        setApiTotal(fallback.length);
-+        setApiTotalPages(Math.max(1, Math.ceil(fallback.length / pageSize)));
-+      }
-+    };
-+
-+    fetchProducts();
-+    return () => {
-+      cancelled = true;
-+    };
-+  }, [currentLanguage, q, types, concern, priceRange, sort, page, typeToCategoryIds]);
-+
-+  const list = useMemo(() => {
-+    return apiItems.map((item, idx) => ({
-+      sku: item.sku as any,
-+      id: String(item.id ?? item.sku),
-+      name: item.name,
-+      type: ((types[0] ?? "cleanser") as ProductType),
-+      concerns: concern === "all" ? [] : [concern],
-+      price: Number(item.price ?? 0),
-+      rating: 5,
-+      sold: 0,
-+      updated: new Date().toISOString().slice(0, 10),
-+      img: item.image || CATEGORY_PRODUCTS[idx % CATEGORY_PRODUCTS.length]?.img || "",
-+    }));
-+  }, [apiItems, types, concern]);
-+
-+  const totalPages = useMemo(() => Math.max(1, apiTotalPages), [apiTotalPages]);
-+  const safePage = Math.min(page, totalPages);
-+
-+  const pageItems = useMemo(() => list, [list]);
-+
-+  function toggleType(t: ProductType) {
-+    setPage(1);
-+    setTypes((cur) => (cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]));
-+  }
-+
-+  function resetFilters() {
-+    setQ("");
-+    setTypes([]);
-+    setConcern("all");
-+    setPriceRange("all");
-+    setSort("best");
-+    setPage(1);
-+  }
-+
-+  function handleCompareProduct(productId: string) {
-+    addCompareProductId(productId);
-+    setCompareToast({ open: true, message: "Đã thêm sản phẩm vào trang so sánh." });
-+    window.setTimeout(() => {
-+      setCompareToast({ open: false, message: "" });
-+    }, 3200);
-+  }
-+
-+  return (
-+    <div className="text-slate-900">
-+      <main className="px-4 pb-10">
-+        <div className="max-w-6xl mx-auto card overflow-hidden">
-+          <div className="relative">
-+            <img className="h-44 w-full object-cover" alt={cmsData?.banner?.imageAlt} src={cmsData?.banner?.imageSrc} />
-+            <div className="absolute inset-0 bg-gradient-to-r from-slate-900/55 to-indigo-700/20" />
-+            <div className="absolute inset-0 p-6 flex flex-col justify-end">
-+              <div className="text-xs font-extrabold text-white/80">{cmsData?.banner?.eyebrow}</div>
-+              <h1 className="text-2xl md:text-3xl font-extrabold text-white">{cmsData?.banner?.title}</h1>
-+              <div className="mt-1 text-sm text-white/80">{cmsData?.banner?.subtitle}</div>
-+            </div>
-+          </div>
-+
-+          <div className="p-6 grid gap-4 lg:grid-cols-4">
-+            <aside className="lg:col-span-1">
-+              <ProductFilters
-+                cmsData={productData?.sections?.[0]?.data}
-+                q={q}
-+                onQ={(v) => {
-+                  setQ(v);
-+                  setPage(1);
-+                }}
-+                types={types}
-+                typeOptions={categoryOptions}
-+                onToggleType={toggleType}
-+                concern={concern}
-+                onConcern={(v) => {
-+                  setConcern(v);
-+                  setPage(1);
-+                }}
-+                priceRange={priceRange}
-+                onPriceRange={(v) => {
-+                  setPriceRange(v);
-+                  setPage(1);
-+                }}
-+                sort={sort}
-+                onSort={(v) => {
-+                  setSort(v);
-+                  setPage(1);
-+                }}
-+                onReset={resetFilters}
-+              />
-+
-+              <div className="mt-3 flex flex-col gap-2 flex-wrap">
-+                <Link className="btn flex-1" to="/cart">
-+                  <i className="fa-solid fa-cart-shopping mr-2" />
-+                  {cmsData?.actions?.cartLabel}
-+                </Link>
-+                <Link className="btn flex-1" to="/products/compare">
-+                  <i className="fa-solid fa-scale-balanced mr-2" />
-+                  {cmsData?.actions?.compareLabel}
-+                </Link>
-+              </div>
-+            </aside>
-+
-+            <section className="lg:col-span-3">
-+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-+                <div className="flex items-center gap-2 flex-wrap">
-+                  {(cmsData?.badges || []).map((b: any) => (
-+                    <span key={`${b.icon}-${b.text}`} className="chip">
+             <section className="lg:col-span-3">
+               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                 <div className="flex items-center gap-2 flex-wrap">
+                   {(cmsData?.badges || []).map((b: any) => (
+                     <span key={`${b.icon}-${b.text}`} className="chip">
                        <i className={b.icon} />
                        <span className="ml-2">{b.text}</span>
                      </span>
--                                    ))}
--                                </div>
--                                <div className="text-sm text-slate-600">
--                                    {cmsData?.results?.label}: <b>{apiTotal}</b> {cmsData?.results?.unit}
--                                </div>
--                            </div>
--
--                            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
--                                {pageItems.length ? (
--                                    pageItems.map((p) => (
--                                        <ProductCard
--                                            cmsData={productData?.sections?.[1]?.data}
--                                            key={p.id}
--                                            p={p}
--                                            detailTo={`/products/${String(p.sku)}`}
--                                        />
--                                    ))
--                                ) : (
--                                    <div className="text-slate-600 p-6">{cmsData?.emptyState}</div>
--                                )}
--                            </div>
--
--                            <PaginationBar
--                                cmsData={cmsData}
--                                page={safePage}
--                                totalPages={totalPages}
--                                onPrev={() => setPage((p) => Math.max(1, p - 1))}
--                                onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
--                            />
--                        </section>
--                    </div>
-+                  ))}
+                   ))}
                  </div>
-+                <div className="text-sm text-slate-600">
-+                  {cmsData?.results?.label}: <b>{apiTotal}</b> {cmsData?.results?.unit}
-+                </div>
-+              </div>
-+
-+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-+                {pageItems.length ? (
-+                  pageItems.map((p) => (
-+                    <ProductCard
-+                      cmsData={productData?.sections?.[1]?.data}
-+                      key={p.id}
-+                      p={p}
-+                      detailTo={`/products/${String(p.sku)}`}
-+                      onCompare={handleCompareProduct}
-+                    />
-+                  ))
-+                ) : (
-+                  <div className="text-slate-600 p-6">{cmsData?.emptyState}</div>
-+                )}
-+              </div>
-+
-+              <PaginationBar
-+                cmsData={cmsData}
-+                page={safePage}
-+                totalPages={totalPages}
-+                onPrev={() => setPage((p) => Math.max(1, p - 1))}
-+                onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
-+              />
-+            </section>
-+          </div>
-+        </div>
+                 <div className="text-sm text-slate-600">
+                   {cmsData?.results?.label}: <b>{apiTotal}</b> {cmsData?.results?.unit}
+                 </div>
+               </div>
 
--                <div className="max-w-6xl mx-auto mt-4 text-center text-sm text-slate-500">{cmsData?.footer}</div>
--            </main>
-+        <div className="max-w-6xl mx-auto mt-4 text-center text-sm text-slate-500">{cmsData?.footer}</div>
-+      </main>
-+
-+      {compareToast.open ? (
-+        <div className="fixed bottom-4 right-4 z-[90] w-[min(420px,calc(100vw-32px))] rounded-2xl border border-white/10 bg-slate-900 p-3 text-white shadow-2xl">
-+          <div className="flex items-start justify-between gap-3">
-+            <div>
-+              <div className="font-extrabold">Thành công</div>
-+              <div className="mt-1 text-sm text-white/80">{compareToast.message}</div>
-+              <Link className="mt-2 inline-block text-sm text-emerald-300 hover:text-emerald-200" to="/products/compare">
-+                Đi đến trang so sánh →
-+              </Link>
-+            </div>
-+            <button className="opacity-80 hover:opacity-100" onClick={() => setCompareToast({ open: false, message: "" })}>
-+              ✕
-+            </button>
-+          </div>
+               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                 {pageItems.length ? (
+                   pageItems.map((p) => (
+                     <ProductCard
+                       cmsData={productData?.sections?.[1]?.data}
+                       key={p.id}
+                       p={p}
+-                      detailTo={`/products/${String(p.sku)}`}
++                      detailTo={`/products/${String((p as any).slug || p.sku)}`}
+                       onCompare={handleCompareProduct}
+                     />
+                   ))
+                 ) : (
+                   <div className="text-slate-600 p-6">{cmsData?.emptyState}</div>
+                 )}
+               </div>
+
+               <PaginationBar
+                 cmsData={cmsData}
+                 page={safePage}
+                 totalPages={totalPages}
+                 onPrev={() => setPage((p) => Math.max(1, p - 1))}
+                 onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+               />
+             </section>
+           </div>
          </div>
--    );
--}
-\ No newline at end of file
-+      ) : null}
-+    </div>
-+  );
-+}
-diff --git a/Home/ayanavita-fontend-final/src/services/compare.utils.ts b/Home/ayanavita-fontend-final/src/services/compare.utils.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..b6fb0adf0d9592c96958e480e779d0626892e7cf
---- /dev/null
-+++ b/Home/ayanavita-fontend-final/src/services/compare.utils.ts
-@@ -0,0 +1,28 @@
-+export const COMPARE_PRODUCT_STORAGE_KEY = "aya_compare_products_v1";
-+export const MAX_COMPARE_PRODUCTS = 3;
-+export const MIN_COMPARE_PRODUCTS = 2;
-+
-+export function readCompareProductIds(): string[] {
-+  try {
-+    const raw = localStorage.getItem(COMPARE_PRODUCT_STORAGE_KEY);
-+    if (!raw) return [];
-+    const data = JSON.parse(raw);
-+    if (!Array.isArray(data)) return [];
-+    return data.map((x) => String(x)).filter(Boolean);
-+  } catch {
-+    return [];
-+  }
-+}
-+
-+export function writeCompareProductIds(ids: string[]) {
-+  const cleaned = Array.from(new Set(ids.map((id) => String(id)).filter(Boolean))).slice(0, MAX_COMPARE_PRODUCTS);
-+  localStorage.setItem(COMPARE_PRODUCT_STORAGE_KEY, JSON.stringify(cleaned));
-+  window.dispatchEvent(new CustomEvent("aya_compare_changed", { detail: cleaned }));
-+  return cleaned;
-+}
-+
-+export function addCompareProductId(id: string) {
-+  const current = readCompareProductIds().filter((x) => x !== id);
-+  current.unshift(id);
-+  return writeCompareProductIds(current);
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/dto/public-catalog-query.dto.ts b/backend/ayanavitabackend/app/api/src/catalog/dto/public-catalog-query.dto.ts
-index 261615f065bbe2b49d7a0979eb4ba32d12b41454..07fe5384ebb40883b5c5d9a67b0a1aa8aaa5b548 100644
---- a/backend/ayanavitabackend/app/api/src/catalog/dto/public-catalog-query.dto.ts
-+++ b/backend/ayanavitabackend/app/api/src/catalog/dto/public-catalog-query.dto.ts
-@@ -1,40 +1,45 @@
- import { Type } from 'class-transformer'
- import { IsIn, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator'
 
- export class PublicCatalogQueryDto {
-   @IsOptional()
-   @IsString()
-   @MaxLength(255)
-   search?: string
+         <div className="max-w-6xl mx-auto mt-4 text-center text-sm text-slate-500">{cmsData?.footer}</div>
+       </main>
 
-   @IsOptional()
-   @Type(() => Number)
-   @IsInt()
-   @Min(1)
-   categoryId?: number
+       {compareToast.open ? (
+         <div className="fixed bottom-4 right-4 z-[90] w-[min(420px,calc(100vw-32px))] rounded-2xl border border-white/10 bg-slate-900 p-3 text-white shadow-2xl">
+           <div className="flex items-start justify-between gap-3">
+diff --git a/backend/ayanavitabackend/app/api/src/catalog/public-catalog.controller.ts b/backend/ayanavitabackend/app/api/src/catalog/public-catalog.controller.ts
+index ebd49346c86df40081210422e0c1849c0fc22922..705fe07f930a0564fac051070bc617d768ac4ef4 100644
+--- a/backend/ayanavitabackend/app/api/src/catalog/public-catalog.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/catalog/public-catalog.controller.ts
+@@ -1,18 +1,23 @@
+ import { Controller, Get, Param, Query } from '@nestjs/common'
+ import { PublicCatalogService } from './public-catalog.service'
+ import { PublicCatalogQueryDto } from './dto/public-catalog-query.dto'
 
-+  @IsOptional()
-+  @IsString()
-+  @MaxLength(1000)
-+  categoryIds?: string
-+
-   @IsOptional()
-   @Type(() => Number)
-   @IsInt()
-   @Min(1)
-   page?: number
+ @Controller('public/catalog')
+ export class PublicCatalogController {
+   constructor(private readonly service: PublicCatalogService) {}
 
-   @IsOptional()
-   @Type(() => Number)
-   @IsInt()
-   @Min(1)
-   pageSize?: number
-
-   @IsOptional()
-   @Type(() => Number)
-   @Min(0)
-   minPrice?: number
-
-   @IsOptional()
-   @Type(() => Number)
-   @Min(0)
-   maxPrice?: number
-
-   @IsOptional()
-   @IsString()
-   @IsIn(['newest', 'priceAsc', 'priceDesc', 'nameAsc', 'nameDesc'])
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/public-catalog.service.ts b/backend/ayanavitabackend/app/api/src/catalog/public-catalog.service.ts
-index 50c5e2bdc5103576f5eb6ccb97668f1051714249..c29cbb72b016cef1e62da985553d7493ce3366bf 100644
---- a/backend/ayanavitabackend/app/api/src/catalog/public-catalog.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/catalog/public-catalog.service.ts
-@@ -55,53 +55,62 @@ export class PublicCatalogService {
-         ? {
-             id: item.category.id,
-             name: categoryTranslation?.name ?? null,
-             slug: categoryTranslation?.slug ?? null,
-           }
-         : null,
-       image: primaryImage?.imageUrl ?? null,
-       images: (item.images ?? []).map((img: any) => ({
-         id: img.id,
-         imageUrl: img.imageUrl,
-         isPrimary: img.isPrimary,
-         sortOrder: img.sortOrder,
-       })),
-       attributes,
-       ingredients,
-       createdAt: item.createdAt,
-       updatedAt: item.updatedAt,
-     }
+   @Get('products')
+   list(@Query() query: PublicCatalogQueryDto) {
+     return this.service.list(query, query.lang ?? 'vi')
    }
 
-   async list(query: PublicCatalogQueryDto, lang = 'vi') {
-     const page = query.page ?? 1
-     const pageSize = Math.min(query.pageSize ?? 12, 100)
-     const skip = (page - 1) * pageSize
-
-+    const parsedCategoryIds = String(query.categoryIds || '')
-+      .split(',')
-+      .map((x) => Number(x.trim()))
-+      .filter((x) => Number.isInteger(x) && x > 0)
+   @Get('products/:sku')
+   detail(@Param('sku') sku: string, @Query('lang') lang = 'vi') {
+     return this.service.detailBySku(sku, lang)
+   }
 +
-     const where: Prisma.CatalogProductWhereInput = {
-       status: 'active',
--      ...(query.categoryId ? { categoryId: BigInt(query.categoryId) } : {}),
-+      ...(parsedCategoryIds.length
-+        ? { categoryId: { in: parsedCategoryIds.map((id) => BigInt(id)) } }
-+        : query.categoryId
-+          ? { categoryId: BigInt(query.categoryId) }
-+          : {}),
-       ...(query.minPrice !== undefined || query.maxPrice !== undefined
-         ? {
-             price: {
-               ...(query.minPrice !== undefined ? { gte: query.minPrice } : {}),
-               ...(query.maxPrice !== undefined ? { lte: query.maxPrice } : {}),
-             },
-           }
-         : {}),
-       ...(query.search
-         ? {
-             OR: [
-               { sku: { contains: query.search } },
-               {
-                 translations: {
-                   some: {
-                     languageCode: lang,
-                     OR: [
-                       { name: { contains: query.search } },
-                       { shortDescription: { contains: query.search } },
-                       { description: { contains: query.search } },
-                     ],
-                   },
-                 },
-               },
-             ],
++  @Get('products/slug/:slug')
++  detailBySlug(@Param('slug') slug: string, @Query('lang') lang = 'vi') {
++    return this.service.detailBySlug(slug, lang)
++  }
+ }
+diff --git a/backend/ayanavitabackend/app/api/src/catalog/public-catalog.service.ts b/backend/ayanavitabackend/app/api/src/catalog/public-catalog.service.ts
+index c29cbb72b016cef1e62da985553d7493ce3366bf..4154a1a8b7a5385867fd13092ae440396609438f 100644
+--- a/backend/ayanavitabackend/app/api/src/catalog/public-catalog.service.ts
++++ b/backend/ayanavitabackend/app/api/src/catalog/public-catalog.service.ts
+@@ -139,68 +139,129 @@ export class PublicCatalogService {
+         skip,
+         take: pageSize,
+       }),
+       this.prisma.catalogProduct.count({ where }),
+     ])
+
+     const items = rows.map((item) => this.mapProduct(item, lang))
+
+     if (query.sort === 'nameAsc') {
+       items.sort((a, b) => String(a.name).localeCompare(String(b.name), lang))
+     }
+
+     if (query.sort === 'nameDesc') {
+       items.sort((a, b) => String(b.name).localeCompare(String(a.name), lang))
+     }
+
+     return normalizeBigInt({
+       items,
+       page,
+       pageSize,
+       total,
+       totalPages: Math.max(1, Math.ceil(total / pageSize)),
+     })
+   }
+
+-  async detailBySku(sku: string, lang = 'vi') {
+-    const row = await this.prisma.catalogProduct.findFirst({
++  private getDetailInclude(lang: string): Prisma.CatalogProductInclude {
++    return {
++      translations: { where: { languageCode: lang }, take: 1 },
++      category: {
++        include: {
++          translations: { where: { languageCode: lang }, take: 1 },
++        },
++      },
++      images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }, { id: 'asc' }] },
++      attributes: {
++        include: {
++          attributeKey: {
++            include: {
++              translations: { where: { languageCode: lang }, take: 1 },
++            },
++          },
++        },
++      },
++      ingredients: {
++        include: {
++          ingredientKey: {
++            include: {
++              translations: { where: { languageCode: lang }, take: 1 },
++            },
++          },
++        },
++        orderBy: { sortOrder: 'asc' },
++      },
++    }
++  }
++
++  private async buildDetailResponse(row: any, lang: string) {
++    const mapped = this.mapProduct(row, lang)
++
++    const relatedRows = await this.prisma.catalogProduct.findMany({
+       where: {
+-        sku,
+         status: 'active',
++        categoryId: row.categoryId,
++        id: { not: row.id },
+         translations: {
+           some: { languageCode: lang },
+         },
+       },
+       include: {
+         translations: { where: { languageCode: lang }, take: 1 },
+-        category: {
+-          include: {
+-            translations: { where: { languageCode: lang }, take: 1 },
+-          },
+-        },
+         images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }, { id: 'asc' }] },
+-        attributes: {
+-          include: {
+-            attributeKey: {
+-              include: {
+-                translations: { where: { languageCode: lang }, take: 1 },
+-              },
+-            },
+-          },
++      },
++      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
++      take: 5,
++    })
++
++    const relatedProducts = relatedRows.map((item) => {
++      const translation = item.translations[0] ?? null
++      const primaryImage = item.images?.[0] ?? null
++      return {
++        id: item.id,
++        sku: item.sku,
++        slug: translation?.slug ?? item.sku,
++        name: translation?.name ?? item.sku,
++        price: item.price,
++        image: primaryImage?.imageUrl ?? null,
++      }
++    })
++
++    return normalizeBigInt({
++      ...mapped,
++      relatedProducts,
++    })
++  }
++
++  async detailBySku(sku: string, lang = 'vi') {
++    const row = await this.prisma.catalogProduct.findFirst({
++      where: {
++        sku,
++        status: 'active',
++        translations: {
++          some: { languageCode: lang },
+         },
+-        ingredients: {
+-          include: {
+-            ingredientKey: {
+-              include: {
+-                translations: { where: { languageCode: lang }, take: 1 },
+-              },
+-            },
++      },
++      include: this.getDetailInclude(lang),
++    })
++
++    if (!row) throw new NotFoundException('Product not found')
++    return this.buildDetailResponse(row, lang)
++  }
++
++  async detailBySlug(slug: string, lang = 'vi') {
++    const row = await this.prisma.catalogProduct.findFirst({
++      where: {
++        status: 'active',
++        translations: {
++          some: {
++            languageCode: lang,
++            slug,
+           },
+-          orderBy: { sortOrder: 'asc' },
+         },
+       },
++      include: this.getDetailInclude(lang),
+     })
+
+     if (!row) throw new NotFoundException('Product not found')
+-    return normalizeBigInt(this.mapProduct(row, lang))
++    return this.buildDetailResponse(row, lang)
+   }
+ }

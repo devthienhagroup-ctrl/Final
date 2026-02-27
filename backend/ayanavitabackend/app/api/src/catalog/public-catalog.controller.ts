@@ -15,4 +15,9 @@ export class PublicCatalogController {
   detail(@Param('sku') sku: string, @Query('lang') lang = 'vi') {
     return this.service.detailBySku(sku, lang)
   }
+
+  @Get('products/slug/:slug')
+  detailBySlug(@Param('slug') slug: string, @Query('lang') lang = 'vi') {
+    return this.service.detailBySlug(slug, lang)
+  }
 }

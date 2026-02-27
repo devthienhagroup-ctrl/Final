@@ -71,6 +71,7 @@ type ApiCatalogProduct = {
   sku: string;
   price: number;
   name: string;
+  slug?: string ;
   shortDescription?: string | null;
   image?: string | null;
   category?: { id: string | number; slug?: string | null; name?: string | null } | null;
@@ -271,6 +272,7 @@ export default function ProductsPage() {
     return apiItems.map((item, idx) => ({
       sku: item.sku as any,
       id: String(item.id ?? item.sku),
+      slug: item.slug,
       name: item.name,
       type: ((types[0] ?? "cleanser") as ProductType),
       concerns: concern === "all" ? [] : [concern],
@@ -387,7 +389,7 @@ export default function ProductsPage() {
                       cmsData={productData?.sections?.[1]?.data}
                       key={p.id}
                       p={p}
-                      detailTo={`/products/${String(p.sku)}`}
+                      detailTo={`/products/${encodeURIComponent(p.slug)}`}
                       onCompare={handleCompareProduct}
                     />
                   ))

@@ -153,7 +153,7 @@ const defaultCmsData = {
   },
   combo: {
     sectionTitle: "Combo đề xuất",
-    title: "Mua cùng",
+    title: "Sản phẩm cùng danh mục",
     disclaimer: "Prototype: sản phẩm liên quan lấy từ dữ liệu demo."
   },
   reviews: {
@@ -215,7 +215,7 @@ function copyToClipboard(text: string) {
 
 // ==================== COMPONENT ====================
 export default function ProductDetailPage() {
-  const { sku: skuParam } = useParams<{ sku: string }>();
+  const { slug: slugParam } = useParams<{ slug: string }>();
   const navigate = useNavigate();
 
   // ===== NGÔN NGỮ & CMS DYNAMIC =====
@@ -226,6 +226,9 @@ export default function ProductDetailPage() {
   const [detailData, setDetailData] = useState<any>(null);
   const [cmsData, setCmsData] = useState(defaultCmsData);
   const [apiProduct, setApiProduct] = useState<any>(null);
+  // SKU đã resolve từ lần fetch theo slug. Khi đổi ngôn ngữ sẽ fetch theo SKU
+  // vì slug mỗi ngôn ngữ khác nhau.
+  const [resolvedSku, setResolvedSku] = useState<string | null>(null);
   const [loadingProduct, setLoadingProduct] = useState(false);
   const [productError, setProductError] = useState<string | null>(null);
 
@@ -263,23 +266,30 @@ export default function ProductDetailPage() {
     fetchData();
   }, [currentLanguage]);
 
+  // 1) Lần đầu load trang (hoặc khi đổi route slug): gọi theo slug + lang.
+  //    Sau khi lấy được, lưu SKU để lần đổi ngôn ngữ gọi theo SKU.
   useEffect(() => {
-    if (!skuParam) return;
+    if (!slugParam) return;
+
+    // đổi slug route => reset sku đã resolve
+    setResolvedSku(null);
 
     let cancelled = false;
-    const fetchProductDetail = async () => {
+    const fetchProductBySlug = async () => {
       setLoadingProduct(true);
       setProductError(null);
       try {
-        const res = await http.get(`/public/catalog/products/${skuParam}?lang=${currentLanguage}`);
-        if (!cancelled) {
-          setApiProduct(res.data);
-        }
-        console.log(`GET /public/catalog/products/${skuParam} response:`, res.data);
+        const res = await http.get(`/public/catalog/products/slug/${slugParam}?lang=${currentLanguage}`);
+        if (cancelled) return;
+        setApiProduct(res.data);
+        const sku = String(res.data?.sku || "").trim();
+        setResolvedSku(sku || null);
+        console.log(`GET /public/catalog/products/slug/${slugParam}?lang=${currentLanguage} response:`, res.data);
       } catch (error) {
-        console.error('GET /public/catalog/products/:sku failed:', error);
+        console.error("GET /public/catalog/products/slug/:slug failed:", error);
         if (!cancelled) {
           setApiProduct(null);
+          setResolvedSku(null);
           setProductError("Không tải được dữ liệu sản phẩm từ API.");
         }
       } finally {
@@ -287,13 +297,46 @@ export default function ProductDetailPage() {
       }
     };
 
-    fetchProductDetail();
+    fetchProductBySlug();
     return () => {
       cancelled = true;
     };
-  }, [skuParam, currentLanguage]);
+    // CHỈ phụ thuộc slugParam: đúng yêu cầu "lần đầu" fetch theo slug.
+    // Đổi ngôn ngữ sẽ do effect bên dưới xử lý bằng SKU.
+  }, [slugParam]);
 
-  const productKey = useMemo(() => String(apiProduct?.sku || skuParam || ""), [apiProduct?.sku, skuParam]);
+  // 2) Những lần sau khi ngôn ngữ thay đổi: gọi theo SKU + lang
+  useEffect(() => {
+    if (!resolvedSku) return;
+
+    let cancelled = false;
+    const fetchProductBySku = async () => {
+      setLoadingProduct(true);
+      setProductError(null);
+      try {
+        // Backend: @Get('public/catalog/products/:sku')
+        const res = await http.get(`/public/catalog/products/${resolvedSku}?lang=${currentLanguage}`);
+        if (cancelled) return;
+        setApiProduct(res.data);
+        console.log(`GET /public/catalog/products/${resolvedSku}?lang=${currentLanguage} response:`, res.data);
+      } catch (error) {
+        console.error("GET /public/catalog/products/:sku failed:", error);
+        if (!cancelled) {
+          setApiProduct(null);
+          setProductError("Không tải được dữ liệu sản phẩm theo ngôn ngữ mới.");
+        }
+      } finally {
+        if (!cancelled) setLoadingProduct(false);
+      }
+    };
+
+    fetchProductBySku();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentLanguage, resolvedSku]);
+
+  const productKey = useMemo(() => String(apiProduct?.sku || slugParam || ""), [apiProduct?.sku, slugParam]);
 
   const images = useMemo(() => {
     const rows = Array.isArray(apiProduct?.images) ? apiProduct.images.slice() : [];
@@ -391,13 +434,13 @@ export default function ProductDetailPage() {
     return "—";
   };
 
-  if (!skuParam) {
+  if (!slugParam) {
     return (
         <div className="text-slate-900">
           <main className="px-4 pb-10">
             <div className="max-w-4xl mx-auto card p-6">
               <div className="text-2xl font-extrabold">Thiếu mã sản phẩm</div>
-              <div className="mt-2 text-slate-600">URL không có tham số SKU.</div>
+              <div className="mt-2 text-slate-600">URL không có tham số slug sản phẩm.</div>
               <Link className="mt-4 btn btn-primary inline-block" to="/products">Về danh mục</Link>
             </div>
           </main>
@@ -776,21 +819,21 @@ export default function ProductDetailPage() {
 
             </div>
 
-            {/* Combo đề xuất: chỉ hiển thị khi backend có dữ liệu liên quan */}
+            {/* Sản phẩm cùng danh mục: chỉ hiển thị khi backend có dữ liệu liên quan */}
             {Array.isArray(apiProduct?.relatedProducts) && apiProduct.relatedProducts.length ? (
                 <div className="card p-6">
                   <div className="text-xs font-extrabold text-slate-500">{cmsData.combo.sectionTitle}</div>
                   <div className="text-2xl font-extrabold">{cmsData.combo.title}</div>
 
                   <div className="mt-4 grid gap-3">
-                    {apiProduct.relatedProducts.map((p: any) => (
+                    {apiProduct.relatedProducts.slice(0, 5).map((p: any) => (
                         <div key={p?.sku || p?.id} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
                           <div className="flex gap-3">
                             <img className="h-16 w-16 rounded-2xl object-cover border border-slate-200" src={p?.image || p?.img || images?.[0]} alt={p?.name || ""} />
                             <div className="min-w-0">
                               <div className="font-extrabold truncate">{p?.name}</div>
                               <div className="text-sm text-slate-500">{money(Number(p?.price || 0))}</div>
-                              <button className="btn mt-2 w-full" type="button" onClick={() => navigate(`/products/${p?.sku || p?.id}`)}>
+                              <button className="btn mt-2 w-full" type="button" onClick={() => navigate(`/products/${p?.slug || p?.sku || p?.id}`)}>
                                 <i className="fa-solid fa-arrow-right mr-2" />Xem
                               </button>
                             </div>

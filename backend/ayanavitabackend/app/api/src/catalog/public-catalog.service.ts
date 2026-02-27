@@ -161,6 +161,76 @@ export class PublicCatalogService {
     })
   }
 
+  private getDetailInclude(lang: string): Prisma.CatalogProductInclude {
+    return {
+      translations: { where: { languageCode: lang }, take: 1 },
+      category: {
+        include: {
+          translations: { where: { languageCode: lang }, take: 1 },
+        },
+      },
+      images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }, { id: 'asc' }] },
+      attributes: {
+        include: {
+          attributeKey: {
+            include: {
+              translations: { where: { languageCode: lang }, take: 1 },
+            },
+          },
+        },
+      },
+      ingredients: {
+        include: {
+          ingredientKey: {
+            include: {
+              translations: { where: { languageCode: lang }, take: 1 },
+            },
+          },
+        },
+        orderBy: { sortOrder: 'asc' },
+      },
+    }
+  }
+
+  private async buildDetailResponse(row: any, lang: string) {
+    const mapped = this.mapProduct(row, lang)
+
+    const relatedRows = await this.prisma.catalogProduct.findMany({
+      where: {
+        status: 'active',
+        categoryId: row.categoryId,
+        id: { not: row.id },
+        translations: {
+          some: { languageCode: lang },
+        },
+      },
+      include: {
+        translations: { where: { languageCode: lang }, take: 1 },
+        images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }, { id: 'asc' }] },
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: 5,
+    })
+
+    const relatedProducts = relatedRows.map((item) => {
+      const translation = item.translations[0] ?? null
+      const primaryImage = item.images?.[0] ?? null
+      return {
+        id: item.id,
+        sku: item.sku,
+        slug: translation?.slug ?? item.sku,
+        name: translation?.name ?? item.sku,
+        price: item.price,
+        image: primaryImage?.imageUrl ?? null,
+      }
+    })
+
+    return normalizeBigInt({
+      ...mapped,
+      relatedProducts,
+    })
+  }
+
   async detailBySku(sku: string, lang = 'vi') {
     const row = await this.prisma.catalogProduct.findFirst({
       where: {
@@ -170,37 +240,28 @@ export class PublicCatalogService {
           some: { languageCode: lang },
         },
       },
-      include: {
-        translations: { where: { languageCode: lang }, take: 1 },
-        category: {
-          include: {
-            translations: { where: { languageCode: lang }, take: 1 },
-          },
-        },
-        images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }, { id: 'asc' }] },
-        attributes: {
-          include: {
-            attributeKey: {
-              include: {
-                translations: { where: { languageCode: lang }, take: 1 },
-              },
-            },
-          },
-        },
-        ingredients: {
-          include: {
-            ingredientKey: {
-              include: {
-                translations: { where: { languageCode: lang }, take: 1 },
-              },
-            },
-          },
-          orderBy: { sortOrder: 'asc' },
-        },
-      },
+      include: this.getDetailInclude(lang),
     })
 
     if (!row) throw new NotFoundException('Product not found')
-    return normalizeBigInt(this.mapProduct(row, lang))
+    return this.buildDetailResponse(row, lang)
+  }
+
+  async detailBySlug(slug: string, lang = 'vi') {
+    const row = await this.prisma.catalogProduct.findFirst({
+      where: {
+        status: 'active',
+        translations: {
+          some: {
+            languageCode: lang,
+            slug,
+          },
+        },
+      },
+      include: this.getDetailInclude(lang),
+    })
+
+    if (!row) throw new NotFoundException('Product not found')
+    return this.buildDetailResponse(row, lang)
   }
 }

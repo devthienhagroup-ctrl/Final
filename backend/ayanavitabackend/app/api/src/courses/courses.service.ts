@@ -117,7 +117,7 @@ export class CoursesService {
   async findAll(query: CourseQueryDto, user?: { sub: number; role: string } | null) {
     const activeLang = (query.lang || 'vi').toLowerCase()
     const courseLocale = activeLang === 'en-us' || activeLang === 'en' ? 'en' : activeLang === 'de' ? 'de' : 'vi'
-    const topicLocale = activeLang === 'en' ? 'en-US' : activeLang === 'en-us' ? 'en-US' : activeLang === 'de' ? 'de' : 'vi'
+    const topicLocale = activeLang === 'en' ? 'en' : activeLang === 'en-us' ? 'en' : activeLang === 'de' ? 'de' : 'vi'
 
     const where: Prisma.CourseWhereInput = {
       ...(user?.role === 'ADMIN' ? {} : { published: true }),
@@ -318,7 +318,7 @@ export class CoursesService {
 
   private async syncCourseTranslations(courseId: number, dto: Partial<CreateCourseDto>) {
     const locales: Array<'vi' | 'en' | 'de'> = ['vi', 'en', 'de']
-    const mapLocale = (locale: 'vi' | 'en' | 'de') => (locale === 'en' ? 'en-US' : locale)
+    const mapLocale = (locale: 'vi' | 'en' | 'de') => (locale === 'en' ? 'en' : locale)
 
     await Promise.all(
       locales.map((locale) => {

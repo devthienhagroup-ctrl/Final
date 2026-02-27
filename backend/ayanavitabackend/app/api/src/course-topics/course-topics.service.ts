@@ -6,7 +6,7 @@ import { UpdateCourseTopicDto } from './dto/update-course-topic.dto'
 
 @Injectable()
 export class CourseTopicsService {
-  private readonly supportedLocales = ['vi', 'en-US', 'de'] as const
+  private readonly supportedLocales = ['vi', 'en', 'de'] as const
 
   constructor(private readonly prisma: PrismaService) {}
 

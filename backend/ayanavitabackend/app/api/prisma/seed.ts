@@ -359,11 +359,11 @@ async function main() {
 
 
   const branchTranslations = [
-    { code: 'HCM_Q1', locale: 'en-US', name: 'AYANAVITA • District 1 (HCMC)', address: '12 Nguyen Hue, District 1, Ho Chi Minh City' },
+    { code: 'HCM_Q1', locale: 'en', name: 'AYANAVITA • District 1 (HCMC)', address: '12 Nguyen Hue, District 1, Ho Chi Minh City' },
     { code: 'HCM_Q1', locale: 'de', name: 'AYANAVITA • Bezirk 1 (HCMC)', address: '12 Nguyen Hue, Bezirk 1, Ho-Chi-Minh-Stadt' },
-    { code: 'HN_CG', locale: 'en-US', name: 'AYANAVITA • Cau Giay (Hanoi)', address: '88 Tran Thai Tong, Cau Giay, Hanoi' },
+    { code: 'HN_CG', locale: 'en', name: 'AYANAVITA • Cau Giay (Hanoi)', address: '88 Tran Thai Tong, Cau Giay, Hanoi' },
     { code: 'HN_CG', locale: 'de', name: 'AYANAVITA • Cau Giay (Hanoi)', address: '88 Tran Thai Tong, Cau Giay, Hanoi' },
-    { code: 'DN_HC', locale: 'en-US', name: 'AYANAVITA • Hai Chau (Da Nang)', address: '25 Bach Dang, Hai Chau, Da Nang' },
+    { code: 'DN_HC', locale: 'en', name: 'AYANAVITA • Hai Chau (Da Nang)', address: '25 Bach Dang, Hai Chau, Da Nang' },
     { code: 'DN_HC', locale: 'de', name: 'AYANAVITA • Hai Chau (Da Nang)', address: '25 Bach Dang, Hai Chau, Da Nang' },
   ] as const
 
@@ -380,13 +380,13 @@ async function main() {
   const categoriesWithId = await prisma.serviceCategory.findMany({ select: { id: true, name: true } })
   const categoryByName = new Map(categoriesWithId.map((c) => [c.name, c.id]))
   const categoryTranslations = [
-    { name: 'Chăm sóc da', locale: 'en-US', value: 'Skin care' },
+    { name: 'Chăm sóc da', locale: 'en', value: 'Skin care' },
     { name: 'Chăm sóc da', locale: 'de', value: 'Hautpflege' },
-    { name: 'Chăm sóc cơ thể', locale: 'en-US', value: 'Body care' },
+    { name: 'Chăm sóc cơ thể', locale: 'en', value: 'Body care' },
     { name: 'Chăm sóc cơ thể', locale: 'de', value: 'Körperpflege' },
-    { name: 'Dưỡng sinh', locale: 'en-US', value: 'Wellness therapy' },
+    { name: 'Dưỡng sinh', locale: 'en', value: 'Wellness therapy' },
     { name: 'Dưỡng sinh', locale: 'de', value: 'Wellness-Therapie' },
-    { name: 'Combo liệu trình', locale: 'en-US', value: 'Treatment combo' },
+    { name: 'Combo liệu trình', locale: 'en', value: 'Treatment combo' },
     { name: 'Combo liệu trình', locale: 'de', value: 'Behandlungskombination' },
   ] as const
 
@@ -403,7 +403,7 @@ async function main() {
   const serviceTranslationSeeds = [
     {
       sourceName: 'Chăm sóc da chuyên sâu 👏',
-      locale: 'en-US',
+      locale: 'en',
       name: 'Deep skin treatment',
       description: 'Deep cleansing and skin recovery therapy.',
       goals: ['restore', 'bright'],
@@ -423,7 +423,7 @@ async function main() {
     },
     {
       sourceName: 'Massage thư giãn toàn thân 🤗',
-      locale: 'en-US',
+      locale: 'en',
       name: 'Full body relaxing massage',
       description: 'Massage to relax body and reduce muscle tension.',
       goals: ['relax'],
@@ -458,9 +458,9 @@ async function main() {
   const specialistsForTranslation = await prisma.specialist.findMany({ select: { id: true, name: true } })
   for (const specialist of specialistsForTranslation) {
     await prisma.specialistTranslation.upsert({
-      where: { specialistId_locale: { specialistId: specialist.id, locale: 'en-US' } },
+      where: { specialistId_locale: { specialistId: specialist.id, locale: 'en' } },
       update: { name: specialist.name.replace('Chuyên viên', 'Specialist'), bio: 'Experienced specialist at AYANAVITA.' },
-      create: { specialistId: specialist.id, locale: 'en-US', name: specialist.name.replace('Chuyên viên', 'Specialist'), bio: 'Experienced specialist at AYANAVITA.' },
+      create: { specialistId: specialist.id, locale: 'en', name: specialist.name.replace('Chuyên viên', 'Specialist'), bio: 'Experienced specialist at AYANAVITA.' },
     })
     await prisma.specialistTranslation.upsert({
       where: { specialistId_locale: { specialistId: specialist.id, locale: 'de' } },

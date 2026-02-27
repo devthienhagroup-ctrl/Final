@@ -436,7 +436,6 @@ export default function AdminCoursesPage() {
                   aria-label={item.label}
                 >
                   <img src={item.flagUrl} alt={item.label} loading='lazy' />
-                  <span>{item.code}</span>
                 </button>
               )
             })}

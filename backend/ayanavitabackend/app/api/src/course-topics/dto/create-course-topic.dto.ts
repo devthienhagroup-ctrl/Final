@@ -22,7 +22,7 @@ class CourseTopicTranslationsDto {
   @IsOptional()
   @ValidateNested()
   @Type(() => CourseTopicTranslationItemDto)
-  'en-US'?: CourseTopicTranslationItemDto
+  'en'?: CourseTopicTranslationItemDto
 
   @IsOptional()
   @ValidateNested()

@@ -5,7 +5,7 @@ export class BranchResponseDto {
   address!: string
   phone?: string | null
   isActive!: boolean
-  translations?: Partial<Record<'en-US' | 'vi' | 'de', { name: string; address: string }>>
+  translations?: Partial<Record<'en' | 'vi' | 'de', { name: string; address: string }>>
 }
 
 export class ServiceCatalogItemDto {
@@ -39,7 +39,7 @@ export class ServiceResponseDto {
   imageUrl?: string | null
   branchIds!: number[]
   isActive!: boolean
-  translations?: Partial<Record<'en-US' | 'vi' | 'de', { name: string; description?: string | null; goals?: string[]; suitableFor?: string[]; process?: string[]; tag?: string | null }>>
+  translations?: Partial<Record<'en' | 'vi' | 'de', { name: string; description?: string | null; goals?: string[]; suitableFor?: string[]; process?: string[]; tag?: string | null }>>
 }
 
 export class ServiceListResponseDto {
@@ -67,7 +67,7 @@ export class ServiceDetailResponseDto {
   imageUrl?: string | null
   branchIds!: number[]
   isActive!: boolean
-  translations?: Partial<Record<'en-US' | 'vi' | 'de', { name: string; description?: string | null; goals?: string[]; suitableFor?: string[]; process?: string[]; tag?: string | null }>>
+  translations?: Partial<Record<'en' | 'vi' | 'de', { name: string; description?: string | null; goals?: string[]; suitableFor?: string[]; process?: string[]; tag?: string | null }>>
   reviews!: ServiceReviewResponseDto[]
 }
 
@@ -75,7 +75,7 @@ export class ServiceCategoryResponseDto {
   id!: number
   name!: string
   serviceCount!: number
-  translations?: Partial<Record<'en-US' | 'vi' | 'de', { name: string }>>
+  translations?: Partial<Record<'en' | 'vi' | 'de', { name: string }>>
 }
 
 export class SpecialistResponseDto {
@@ -86,7 +86,7 @@ export class SpecialistResponseDto {
   bio?: string | null
   branchId!: number
   serviceIds!: number[]
-  translations?: Partial<Record<'en-US' | 'vi' | 'de', { name: string; bio?: string | null }>>
+  translations?: Partial<Record<'en' | 'vi' | 'de', { name: string; bio?: string | null }>>
 }
 
 export class ServiceReviewResponseDto {

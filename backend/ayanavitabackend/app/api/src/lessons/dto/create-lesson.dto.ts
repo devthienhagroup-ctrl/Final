@@ -17,7 +17,7 @@ class I18nTextDto {
 
   @IsOptional()
   @IsString()
-  'en-US'?: string
+  'en'?: string
 
   @IsOptional()
   @IsString()

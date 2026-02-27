@@ -26,28 +26,29 @@ export class BookingService {
   private readonly logger = new Logger(BookingService.name)
 
 
-  private readonly supportedLocales = ['en-US', 'vi', 'de'] as const
+  private readonly supportedLocales = ['en', 'vi', 'de'] as const
 
   private normalizeLocale(locale?: string) {
-    if (!locale) return 'en-US'
-    return this.supportedLocales.includes(locale as any) ? locale as 'en-US' | 'vi' | 'de' : 'en-US'
+    if (!locale) return 'en'
+    const normalized = locale.toLowerCase() === 'en-us' ? 'en' : locale
+    return this.supportedLocales.includes(normalized as any) ? normalized as 'en' | 'vi' | 'de' : 'en'
   }
 
   private pickTranslation<T extends { locale: string }>(translations: T[] | undefined, locale: string) {
     if (!translations?.length) return undefined
     return translations.find((item) => item.locale === locale)
-      ?? translations.find((item) => item.locale === 'en-US')
+      ?? translations.find((item) => item.locale === 'en')
       ?? translations[0]
   }
 
   private toTranslationRecord<T extends { locale: string }, TData>(
     translations: T[] | undefined,
     mapper: (item: T) => TData,
-  ): Partial<Record<'en-US' | 'vi' | 'de', TData>> {
+  ): Partial<Record<'en' | 'vi' | 'de', TData>> {
     if (!translations?.length) return {}
-    return translations.reduce<Partial<Record<'en-US' | 'vi' | 'de', TData>>>((acc, item) => {
+    return translations.reduce<Partial<Record<'en' | 'vi' | 'de', TData>>>((acc, item) => {
       if (!this.supportedLocales.includes(item.locale as any)) return acc
-      acc[item.locale as 'en-US' | 'vi' | 'de'] = mapper(item)
+      acc[item.locale as 'en' | 'vi' | 'de'] = mapper(item)
       return acc
     }, {})
   }
@@ -1222,9 +1223,9 @@ export class BookingService {
   }
 
 
-  private normalizeTranslations(input: any, fields: string[]): Array<{ locale: 'en-US' | 'vi' | 'de'; data: Record<string, any> }> {
+  private normalizeTranslations(input: any, fields: string[]): Array<{ locale: 'en' | 'vi' | 'de'; data: Record<string, any> }> {
     if (!input || typeof input !== 'object') return []
-    return this.supportedLocales.reduce<Array<{ locale: 'en-US' | 'vi' | 'de'; data: Record<string, any> }>>((acc, locale) => {
+    return this.supportedLocales.reduce<Array<{ locale: 'en' | 'vi' | 'de'; data: Record<string, any> }>>((acc, locale) => {
       const value = input[locale]
       if (!value || typeof value !== 'object') return acc
       const data: Record<string, any> = {}

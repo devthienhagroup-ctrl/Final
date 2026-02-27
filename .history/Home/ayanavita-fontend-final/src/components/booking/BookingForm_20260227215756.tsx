@@ -161,9 +161,9 @@ export function BookingForm(props: any) {
     if (!draft.name.trim()) return onToast(data.errorMesssage, data.validationToasts.missingName);
     if (!isValidPhone(draft.phone.trim())) return onToast(data.errorMesssage, data.validationToasts.invalidPhone);
     if (!draft.date) return onToast(data.errorMesssage, data.validationToasts.missingDate);
-    if (!svc) return onToast(data.errorMesssage, data.validationToasts.missingService);
-    if (!branchPick) return onToast(data.errorMesssage, data.validationToasts.missingBranch);
-    if (!selectedSlot) return onToast(data.errorMesssage, data.validationToasts.missingTime);
+    if (!svc) return onToast("Lỗi", data.validationToasts.missingService);
+    if (!branchPick) return onToast("Lỗi", data.validationToasts.missingBranch);
+    if (!selectedSlot) return onToast("Lỗi", data.validationToasts.missingTime);
 
     const booking: Booking = {
       id: uid("BK"),

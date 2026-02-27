@@ -35,6 +35,10 @@ export class CreateCourseDto {
   title?: string
 
   @IsOptional()
+  @IsString()
+  shortDescription?: string
+
+  @IsOptional()
   @ValidateNested()
   @Type(() => I18nTextDto)
   titleI18n?: I18nTextDto

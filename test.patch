@@ -1,40 +1,1836 @@
-diff --git a/package.json b/package.json
-index a00b3252195adf29d77c7207376d8bb1e89d359d..478984da23e163c762ae7c2afa1c3460c5a6d06d 100644
---- a/package.json
-+++ b/package.json
-@@ -1,33 +1,22 @@
- {
--<<<<<<< HEAD
--  "name": "host",
--=======
-   "name": "ayanavita",
-->>>>>>> 4b948bf2ec400ab59f778729e8a1a257d3282303
-   "version": "1.0.0",
-   "description": "",
-   "main": "index.js",
-   "scripts": {
-     "test": "echo \"Error: no test specified\" && exit 1"
-   },
-   "repository": {
-     "type": "git",
-     "url": "https://github.com/devthienhagroup-ctrl/Ayanavita.git"
-   },
-   "private": true,
--<<<<<<< HEAD
-   "dependencies": {
-+    "@prisma/client": "^7.4.1",
-+    "prisma": "^7.4.1",
-     "vite": "^7.3.1"
-   },
-   "devDependencies": {
-     "@vitejs/plugin-react": "^5.1.4"
--=======
--  "devDependencies": {
--    "vite": "^7.3.1"
--  },
--  "dependencies": {
--    "@prisma/client": "^7.4.1",
--    "prisma": "^7.4.1"
-->>>>>>> 4b948bf2ec400ab59f778729e8a1a257d3282303
+diff --git a/ayanavita-fontend/src/api/adminCourses.api.ts b/ayanavita-fontend/src/api/adminCourses.api.ts
+index 0f8781a0286cc222b0d9817b7445ae9bb5bbf619..7f4ee7b295265e7a35433c9a98e2591a76d71bea 100644
+--- a/ayanavita-fontend/src/api/adminCourses.api.ts
++++ b/ayanavita-fontend/src/api/adminCourses.api.ts
+@@ -1,38 +1,38 @@
+ import { del, get, patch, post } from './http'
+
+ export type CourseTopicTranslations = Record<string, { name?: string; description?: string | null }>
+
+ export type CourseTopic = {
+   id: number
+   name: string
+   description?: string | null
+   translations?: CourseTopicTranslations
+   _count?: { courses: number }
+ }
+
+-export type LocalizedText = { vi?: string; 'en-US'?: string; de?: string }
++export type LocalizedText = { vi?: string; en?: string; 'en-US'?: string; de?: string }
+
+ export type LessonVideoPayload = {
+   title: string
+   description?: string
+   titleI18n?: LocalizedText
+   descriptionI18n?: LocalizedText
+   sourceUrl?: string
+   durationSec?: number
+   order?: number
+   published?: boolean
+ }
+
+ export type LessonModulePayload = {
+   title: string
+   description?: string
+   titleI18n?: LocalizedText
+   descriptionI18n?: LocalizedText
+   order?: number
+   published?: boolean
+   videos?: LessonVideoPayload[]
+ }
+
+ export type LessonPayload = {
+   title: string
+   slug: string
+@@ -48,98 +48,119 @@ export type LessonPayload = {
+
+ export type LessonVideoAdmin = LessonVideoPayload & { id: number; hlsPlaylistKey?: string }
+ export type LessonModuleAdmin = LessonModulePayload & { id: number; videos: LessonVideoAdmin[] }
+
+ export type LessonAdmin = {
+   id: number
+   courseId: number
+   title: string
+   slug: string
+   description?: string
+   titleI18n?: LocalizedText
+   descriptionI18n?: LocalizedText
+   content?: string
+   order?: number
+   published: boolean
+   createdAt?: string
+   updatedAt?: string
+ }
+
+ export type LessonDetailAdmin = LessonAdmin & { modules: LessonModuleAdmin[] }
+
+ export type CourseAdmin = {
+   id: number
+   topicId?: number | null
+   title: string
++  shortDescription?: string | null
+   slug: string
+   description?: string | null
+   thumbnail?: string | null
+   published: boolean
+   price: number
+   topic?: { id: number; name: string } | null
+   titleI18n?: LocalizedText
+   descriptionI18n?: LocalizedText
+   shortDescriptionI18n?: LocalizedText
+   objectives?: string[]
+   targetAudience?: string[]
+   benefits?: string[]
+   ratingAvg?: number
+   ratingCount?: number
+   enrollmentCount?: number
++  createdAt?: string
++  updatedAt?: string
++  videoCount?: number
+   _count?: { lessons?: number }
+ }
+
+ export type TopicPayload = {
+   name?: string
+   description?: string
+   translations?: {
+     vi?: { name?: string; description?: string }
+     'en-US'?: { name?: string; description?: string }
+     de?: { name?: string; description?: string }
    }
  }
+
+ export type CoursePayload = {
+   topicId?: number
+   title: string
++  shortDescription?: string
+   slug: string
+   description?: string
+   thumbnail?: string
+   price?: number
+   published?: boolean
+   titleI18n?: LocalizedText
+   descriptionI18n?: LocalizedText
+   shortDescriptionI18n?: LocalizedText
+   objectives?: string[]
+   targetAudience?: string[]
+   benefits?: string[]
+   ratingAvg?: number
+   ratingCount?: number
+   enrollmentCount?: number
+ }
+
++export type CourseListResponse = {
++  items: CourseAdmin[]
++  total: number
++  page: number
++  pageSize: number
++}
++
+ export const adminCoursesApi = {
+   listTopics: () => get<CourseTopic[]>('/admin/course-topics', { auth: true }),
+   createTopic: (body: TopicPayload) => post<CourseTopic>('/admin/course-topics', body, { auth: true }),
+   updateTopic: (id: number, body: TopicPayload) => patch<CourseTopic>(`/admin/course-topics/${id}`, body, { auth: true }),
+   deleteTopic: (id: number) => del<{ id: number }>(`/admin/course-topics/${id}`, { auth: true }),
+-  listCourses: () => get<CourseAdmin[]>('/courses', { auth: true }),
++  listCourses: (params?: { topicId?: number; search?: string; page?: number; pageSize?: number; lang?: string }) => {
++    const qs = new URLSearchParams()
++    if (params?.topicId) qs.set('topicId', String(params.topicId))
++    if (params?.search?.trim()) qs.set('search', params.search.trim())
++    if (params?.page) qs.set('page', String(params.page))
++    if (params?.pageSize) qs.set('pageSize', String(params.pageSize))
++    if (params?.lang) qs.set('lang', params.lang)
++    const suffix = qs.toString() ? `?${qs.toString()}` : ''
++    return get<CourseListResponse>(`/courses${suffix}`, { auth: true })
++  },
+   createCourse: (body: CoursePayload) => post<CourseAdmin>('/courses', body, { auth: true }),
+   updateCourse: (id: number, body: Partial<CoursePayload>) => patch<CourseAdmin>(`/courses/${id}`, body, { auth: true }),
+   deleteCourse: (id: number) => del<{ id: number }>(`/courses/${id}`, { auth: true }),
+
+   listCourseLessons: (courseId: number) => get<LessonAdmin[]>(`/courses/${courseId}/lessons-outline`, { auth: true }),
+   getLessonDetail: (lessonId: number) => get<LessonDetailAdmin>(`/lessons/${lessonId}`, { auth: true }),
+   createLesson: (courseId: number, body: LessonPayload) => post<LessonAdmin>(`/courses/${courseId}/lessons`, body, { auth: true }),
+   updateLesson: (lessonId: number, body: Partial<LessonPayload>) => patch<LessonAdmin>(`/lessons/${lessonId}`, body, { auth: true }),
+   deleteLesson: (lessonId: number) => del<{ id: number }>(`/lessons/${lessonId}`, { auth: true }),
+
+   uploadModuleVideo: (lessonId: number, moduleId: string | number, file: File) => {
+     const body = new FormData()
+     body.append('file', file)
+     return post<{ moduleId: string; lessonId: number; hlsPlaylistKey: string; segmentCount: number; storage: string }>(
+       `/lessons/${lessonId}/modules/${moduleId}/videos/upload`,
+       body,
+       { auth: true },
+     )
+   },
+ }
+diff --git a/ayanavita-fontend/src/pages/admin/AdminCoursesPage.css b/ayanavita-fontend/src/pages/admin/AdminCoursesPage.css
+index 1a37784f9303cf823df02700e0e5f4c6f02f9a8e..22f77c6629017605a90a858bf710aa8532fcd7c3 100644
+--- a/ayanavita-fontend/src/pages/admin/AdminCoursesPage.css
++++ b/ayanavita-fontend/src/pages/admin/AdminCoursesPage.css
+@@ -70,81 +70,91 @@
+
+ .admin-courses-theme-switch {
+   display: inline-flex;
+   align-items: center;
+   flex-wrap: wrap;
+   gap: 10px;
+   padding: 8px 12px;
+   border-radius: 999px;
+   border: 1px solid rgba(255, 255, 255, 0.45);
+   background: rgba(255, 255, 255, 0.16);
+   backdrop-filter: blur(8px);
+ }
+
+ .admin-lang-switch {
+   position: relative;
+   display: inline-flex;
+   align-items: center;
+   gap: 6px;
+   padding: 6px;
+   border-radius: 999px;
+   background: rgba(15, 23, 42, 0.24);
+   border: 1px solid rgba(255, 255, 255, 0.38);
+ }
+
+ .admin-lang-option {
+-  width: 42px;
++  min-width: 42px;
+   height: 32px;
+   border: none;
+   background: transparent;
+   border-radius: 999px;
+   padding: 0;
+   cursor: pointer;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   transition: all .2s ease;
+ }
+
+ .admin-lang-option img {
+   width: 24px;
+   height: 16px;
+   border-radius: 2px;
+   object-fit: cover;
+   opacity: .75;
+   transition: opacity .2s ease;
+ }
+
+ .admin-lang-option.active {
+   background: rgba(255, 255, 255, 0.92);
+   box-shadow: 0 8px 16px rgba(30, 41, 59, .18);
+ }
+
+ .admin-lang-option.active img {
+   opacity: 1;
+ }
+
++.admin-input option {
++  color: #000;
++  background: #fff;
++}
++
++.admin-courses-theme-dark .admin-input option {
++  color: #000;
++  background: #fff;
++}
++
+
+ .admin-courses-theme-switch-label {
+   font-size: 12px;
+   font-weight: 800;
+   letter-spacing: 0.06em;
+   text-transform: uppercase;
+   color: #dffcff;
+ }
+
+ .admin-courses-theme-toggle {
+   width: 50px;
+   height: 28px;
+   border: 1px solid rgba(255, 255, 255, 0.4);
+   border-radius: 999px;
+   background: rgba(15, 23, 42, 0.3);
+   cursor: pointer;
+   position: relative;
+   padding: 0;
+   transition: all 0.2s ease;
+ }
+
+ .admin-courses-theme-toggle-thumb {
+   width: 20px;
+   height: 20px;
+   position: absolute;
+diff --git a/ayanavita-fontend/src/pages/admin/AdminCoursesPage.tsx b/ayanavita-fontend/src/pages/admin/AdminCoursesPage.tsx
+index f3c81f7694a235d95f125765164536ca60a30b9d..356b33d46a682f0b1d293e8608ee3cf76067e669 100644
+--- a/ayanavita-fontend/src/pages/admin/AdminCoursesPage.tsx
++++ b/ayanavita-fontend/src/pages/admin/AdminCoursesPage.tsx
+@@ -37,188 +37,276 @@ const uiText: Record<AdminLang, Record<string, string>> = {
+     topicsTab: 'Chủ đề khóa học',
+     coursesTab: 'Khoá học hiện có',
+     loading: 'Đang tải dữ liệu...',
+     topicForm: 'Form chủ đề khóa học',
+     topicName: 'Tên chủ đề',
+     topicSub: 'Vui lòng nhập nội dung bằng tiếng Việt làm mặc định. Hệ thống sẽ tự động gợi ý bản dịch tiếng Anh và Đức. Vui lòng kiểm tra kỹ bản dịch trước khi lưu.',
+     topicNamePlaceholder: 'Nhập tên chủ đề',
+     topicDescription: 'Mô tả ngắn',
+     topicDescriptionPlaceholder: 'Mô tả tuỳ chọn',
+     updateTopic: 'Cập nhật chủ đề',
+     createTopic: 'Tạo chủ đề',
+     cancelEdit: 'Huỷ chỉnh sửa',
+     topicList: 'Danh sách chủ đề',
+     courseCountCol: 'Số khoá học',
+     actions: 'Thao tác',
+     editTopic: 'Sửa chủ đề',
+     deleteTopic: 'Xoá chủ đề',
+     validateName: 'Vui lòng nhập tên chủ đề cho ngôn ngữ hiện tại',
+     updateSuccess: 'Đã cập nhật chủ đề',
+     createSuccess: 'Đã tạo chủ đề mới',
+     deleteSuccess: 'Đã xóa chủ đề thành công',
+     loadFailed: 'Không thể tải dữ liệu quản trị khóa học',
+     saveFailed: 'Lưu chủ đề thất bại',
+     deleteFailed: 'Không thể xóa chủ đề',
+     displayMode: 'Chế độ hiển thị',
++    filterByTopic: 'Lọc theo chủ đề',
++    allTopics: 'Tất cả chủ đề',
++    searchByCourseName: 'Tìm theo tên khóa học',
++    searchPlaceholder: 'Nhập tên khóa học...',
++    titleCol: 'Tiêu đề',
++    topicCol: 'Chủ đề',
++    priceCol: 'Giá',
++    ratingCol: 'Rating',
++    enrollmentCol: 'Đăng ký',
++    lessonCol: 'Bài học',
++    videoCountCol: 'Số video',
++    createdAtCol: 'Tạo lúc',
++    updatedAtCol: 'Sửa lúc',
++    statusCol: 'Trạng thái',
++    unassigned: 'Chưa gán',
++    publishedStatus: 'Published',
++    draftStatus: 'Draft',
++    pageLabel: 'Trang',
++    totalCoursesLabel: 'Tổng khóa học',
++    prevPage: 'Trước',
++    nextPage: 'Sau',
+   },
+   'en-US': {
+     kicker: 'COURSE ADMIN CENTER',
+     title: 'Manage course topics & categories',
+     subtitle: 'Service-admin style interface with multilingual input and language-based display for operators.',
+     darkMode: 'Dark mode',
+     topicCount: 'Course topics',
+     topicCountDesc: 'Existing topic groups',
+     courseCount: 'Total courses',
+     courseCountDesc: 'Courses under management',
+     publishedCount: 'Published',
+     publishedCountDesc: 'Courses in Published status',
+     draftCount: 'Draft',
+     draftCountDesc: 'Courses in Draft status',
+     topicsTab: 'Course topics',
+     coursesTab: 'Current courses',
+     loading: 'Loading data...',
+     topicForm: 'Course topic form',
+     topicName: 'Topic name',
+     topicSub: 'Please enter content in Vietnamese by default. The system will automatically suggest English and German translations. Please review the translations carefully before saving.',
+     topicNamePlaceholder: 'Enter topic name',
+     topicDescription: 'Short description',
+     topicDescriptionPlaceholder: 'Optional description',
+     updateTopic: 'Update topic',
+     createTopic: 'Create topic',
+     cancelEdit: 'Cancel edit',
+     topicList: 'Topic list',
+     courseCountCol: 'Course count',
+     actions: 'Actions',
+     editTopic: 'Edit topic',
+     deleteTopic: 'Delete topic',
+     validateName: 'Please enter topic name for active language',
+     updateSuccess: 'Topic updated',
+     createSuccess: 'Topic created',
+     deleteSuccess: 'Topic deleted successfully',
+     loadFailed: 'Unable to load course admin data',
+     saveFailed: 'Failed to save topic',
+     deleteFailed: 'Unable to delete topic',
+     displayMode: 'Display mode',
++    filterByTopic: 'Filter by topic',
++    allTopics: 'All topics',
++    searchByCourseName: 'Search by course name',
++    searchPlaceholder: 'Enter course name...',
++    titleCol: 'Title',
++    topicCol: 'Topic',
++    priceCol: 'Price',
++    ratingCol: 'Rating',
++    enrollmentCol: 'Enrollments',
++    lessonCol: 'Lessons',
++    videoCountCol: 'Videos',
++    createdAtCol: 'Created at',
++    updatedAtCol: 'Updated at',
++    statusCol: 'Status',
++    unassigned: 'Unassigned',
++    publishedStatus: 'Published',
++    draftStatus: 'Draft',
++    pageLabel: 'Page',
++    totalCoursesLabel: 'Total courses',
++    prevPage: 'Prev',
++    nextPage: 'Next',
+   },
+   de: {
+     kicker: 'KURS-ADMIN-ZENTRUM',
+     title: 'Kursthemen & Kategorien verwalten',
+     subtitle: 'Service-Management-Stil mit mehrsprachiger Eingabe und sprachabhängiger Anzeige für Admins.',
+     darkMode: 'Dark mode',
+     topicCount: 'Kursthemen',
+     topicCountDesc: 'Vorhandene Themengruppen',
+     courseCount: 'Gesamte Kurse',
+     courseCountDesc: 'Verwaltete Kurse',
+     publishedCount: 'Veröffentlicht',
+     publishedCountDesc: 'Kurse im Status Published',
+     draftCount: 'Entwurf',
+     draftCountDesc: 'Kurse im Status Draft',
+     topicsTab: 'Kursthemen',
+     coursesTab: 'Aktuelle Kurse',
+     loading: 'Daten werden geladen...',
+     topicForm: 'Kursthema-Formular',
+     topicName: 'Themenname',
+     topicSub: 'Bitte geben Sie den Inhalt standardmäßig auf Vietnamesisch ein. Das System schlägt automatisch englische und deutsche Übersetzungen vor. Bitte überprüfen Sie die Übersetzungen sorgfältig, bevor Sie speichern.',
+     topicNamePlaceholder: 'Themenname eingeben',
+     topicDescription: 'Kurzbeschreibung',
+     topicDescriptionPlaceholder: 'Optionale Beschreibung',
+     updateTopic: 'Thema aktualisieren',
+     createTopic: 'Thema erstellen',
+     cancelEdit: 'Bearbeitung abbrechen',
+     topicList: 'Themenliste',
+     courseCountCol: 'Kursanzahl',
+     actions: 'Aktionen',
+     editTopic: 'Thema bearbeiten',
+     deleteTopic: 'Thema löschen',
+     validateName: 'Bitte Themenname für aktive Sprache eingeben',
+     updateSuccess: 'Thema wurde aktualisiert',
+     createSuccess: 'Thema wurde erstellt',
+     deleteSuccess: 'Thema erfolgreich gelöscht',
+     loadFailed: 'Kursverwaltungsdaten konnten nicht geladen werden',
+     saveFailed: 'Thema konnte nicht gespeichert werden',
+     deleteFailed: 'Thema konnte nicht gelöscht werden',
+     displayMode: 'Anzeigemodus',
++    filterByTopic: 'Nach Thema filtern',
++    allTopics: 'Alle Themen',
++    searchByCourseName: 'Nach Kursname suchen',
++    searchPlaceholder: 'Kursname eingeben...',
++    titleCol: 'Titel',
++    topicCol: 'Thema',
++    priceCol: 'Preis',
++    ratingCol: 'Bewertung',
++    enrollmentCol: 'Anmeldungen',
++    lessonCol: 'Lektionen',
++    videoCountCol: 'Videos',
++    createdAtCol: 'Erstellt am',
++    updatedAtCol: 'Aktualisiert am',
++    statusCol: 'Status',
++    unassigned: 'Nicht zugeordnet',
++    publishedStatus: 'Published',
++    draftStatus: 'Draft',
++    pageLabel: 'Seite',
++    totalCoursesLabel: 'Gesamtkurse',
++    prevPage: 'Zurück',
++    nextPage: 'Weiter',
+   },
+ }
+
+-const languageMeta: Record<AdminLang, { label: string; flagUrl: string; alt: string }> = {
+-  'en-US': { label: 'English (US)', flagUrl: 'https://flagcdn.com/w40/us.png', alt: 'USA flag' },
+-  de: { label: 'Deutsch', flagUrl: 'https://flagcdn.com/w40/de.png', alt: 'Germany flag' },
+-  vi: { label: 'Tiếng Việt', flagUrl: 'https://flagcdn.com/w40/vn.png', alt: 'Vietnam flag' },
++const languageMeta: Record<AdminLang, { label: string; code: string; flagUrl: string }> = {
++  'en-US': { label: 'English (US)', code: 'en', flagUrl: 'https://flagcdn.com/w40/gb.png' },
++  de: { label: 'Deutsch', code: 'de', flagUrl: 'https://flagcdn.com/w40/de.png' },
++  vi: { label: 'Tiếng Việt', code: 'vi', flagUrl: 'https://flagcdn.com/w40/vn.png' },
+ }
+
+ const toTopicForm = (topic?: CourseTopic | null): TopicI18nForm => ({
+   vi: {
+     name: topic?.translations?.vi?.name || topic?.name || '',
+     description: topic?.translations?.vi?.description || topic?.description || '',
+   },
+   'en-US': {
+     name: topic?.translations?.['en-US']?.name || topic?.name || '',
+     description: topic?.translations?.['en-US']?.description || topic?.description || '',
+   },
+   de: {
+     name: topic?.translations?.de?.name || topic?.name || '',
+     description: topic?.translations?.de?.description || topic?.description || '',
+   },
+ })
+
+ export default function AdminCoursesPage() {
+   const [tab, setTab] = useState<TabKey>('topics')
+   const [topics, setTopics] = useState<CourseTopic[]>([])
+   const [courses, setCourses] = useState<CourseAdmin[]>([])
++  const [coursesTotal, setCoursesTotal] = useState(0)
++  const [coursePage, setCoursePage] = useState(1)
++  const [coursePageSize] = useState(8)
++  const [selectedTopicId, setSelectedTopicId] = useState<number | 'all'>('all')
++  const [searchTerm, setSearchTerm] = useState('')
+   const [topicForm, setTopicForm] = useState<TopicI18nForm>(() => emptyTopicForm())
+   const [editingId, setEditingId] = useState<number | null>(null)
+   const [loading, setLoading] = useState(false)
+   const [theme, setTheme] = useState<ThemeMode>(() => {
+     const saved = window.localStorage.getItem(THEME_STORAGE_KEY)
+     return saved === 'dark' ? 'dark' : 'light'
+   })
+   const [lang, setLang] = useState<AdminLang>(() => {
+     const saved = window.localStorage.getItem(LANG_STORAGE_KEY)
+     return saved === 'en-US' || saved === 'de' ? saved : 'vi'
+   })
+
+   const t = uiText[lang]
+
+-  const loadAll = async () => {
++  const loadTopics = async () => {
+     setLoading(true)
+     try {
+-      const [topicItems, courseItems] = await Promise.all([adminCoursesApi.listTopics(), adminCoursesApi.listCourses()])
++      const topicItems = await adminCoursesApi.listTopics()
+       setTopics(topicItems)
+-      setCourses(courseItems)
+     } catch (e: any) {
+       AlertJs.error(e?.message || t.loadFailed)
+     } finally {
+       setLoading(false)
+     }
+   }
+
++  const loadCourses = async () => {
++    try {
++      const courseResp = await adminCoursesApi.listCourses({
++        topicId: selectedTopicId === 'all' ? undefined : selectedTopicId,
++        search: searchTerm,
++        page: coursePage,
++        pageSize: coursePageSize,
++        lang,
++      })
++      setCourses(courseResp.items)
++      setCoursesTotal(courseResp.total)
++    } catch (e: any) {
++      AlertJs.error(e?.message || t.loadFailed)
++    }
++  }
++
+   useEffect(() => {
+-    void loadAll()
++    void loadTopics()
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [])
+
++  useEffect(() => {
++    void loadCourses()
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [lang, selectedTopicId, searchTerm, coursePage, coursePageSize])
++
+   useEffect(() => {
+     window.localStorage.setItem(THEME_STORAGE_KEY, theme)
+   }, [theme])
+
+   useEffect(() => {
+     window.localStorage.setItem(LANG_STORAGE_KEY, lang)
+   }, [lang])
+
+   const resetForm = () => {
+     setTopicForm(emptyTopicForm())
+     setEditingId(null)
+   }
+
+   const coursesByTopic = useMemo(() => {
+     const map: Record<number, number> = {}
+     courses.forEach((course) => {
+       if (course.topicId) map[course.topicId] = (map[course.topicId] || 0) + 1
+     })
+     return map
+   }, [courses])
+
+   const setTopicField = (activeLang: AdminLang, field: 'name' | 'description', value: string) => {
+     setTopicForm((prev) => ({
+       ...prev,
+       [activeLang]: {
+@@ -232,191 +320,203 @@ export default function AdminCoursesPage() {
+     const fallbackName = topicForm.vi.name || topicForm['en-US'].name || topicForm.de.name
+     if (!fallbackName.trim()) {
+       AlertJs.error(t.validateName)
+       return
+     }
+
+     const payload = {
+       name: fallbackName.trim(),
+       description: (topicForm.vi.description || topicForm['en-US'].description || topicForm.de.description || '').trim() || undefined,
+       translations: {
+         vi: { name: topicForm.vi.name.trim(), description: topicForm.vi.description.trim() },
+         'en-US': { name: topicForm['en-US'].name.trim(), description: topicForm['en-US'].description.trim() },
+         de: { name: topicForm.de.name.trim(), description: topicForm.de.description.trim() },
+       },
+     }
+
+     try {
+       if (editingId) {
+         await adminCoursesApi.updateTopic(editingId, payload)
+         AlertJs.success(t.updateSuccess)
+       } else {
+         await adminCoursesApi.createTopic(payload)
+         AlertJs.success(t.createSuccess)
+       }
+       resetForm()
+-      await loadAll()
++      await loadTopics()
+     } catch (e: any) {
+       AlertJs.error(e?.message || t.saveFailed)
+     }
+   }
+
+   const deleteTopic = async (topic: CourseTopic) => {
+     try {
+       await adminCoursesApi.deleteTopic(topic.id)
+       AlertJs.success(t.deleteSuccess)
+-      await loadAll()
++      await loadTopics()
+     } catch (e: any) {
+       AlertJs.error(e?.message || t.deleteFailed)
+     }
+   }
+
+   const startEditTopic = (topic: CourseTopic) => {
+     setEditingId(topic.id)
+     setTopicForm(toTopicForm(topic))
+   }
+
+
+   const createCourse = async (payload: any) => {
+     try {
+       await adminCoursesApi.createCourse(payload)
+       AlertJs.success('Đã tạo khoá học')
+-      await loadAll()
++      await loadCourses()
+     } catch (e: any) {
+       AlertJs.error(e?.message || 'Tạo khoá học thất bại')
+       throw e
+     }
+   }
+
+   const updateCourse = async (id: number, payload: any) => {
+     try {
+       await adminCoursesApi.updateCourse(id, payload)
+       AlertJs.success('Đã cập nhật khoá học')
+-      await loadAll()
++      await loadCourses()
+     } catch (e: any) {
+       AlertJs.error(e?.message || 'Cập nhật khoá học thất bại')
+       throw e
+     }
+   }
+
+   const deleteCourse = async (course: CourseAdmin) => {
+     const ok = window.confirm(`Xoá khoá học "${course.title}"?`)
+     if (!ok) return
+
+     try {
+       await adminCoursesApi.deleteCourse(course.id)
+       AlertJs.success('Đã xoá khoá học')
+-      await loadAll()
++      await loadCourses()
+     } catch (e: any) {
+       AlertJs.error(e?.message || 'Xoá khoá học thất bại')
+       throw e
+     }
+   }
+
+   return (
+     <main className={`admin-page admin-courses-theme ${theme === 'dark' ? 'admin-courses-theme-dark' : ''}`}>
+       <section className='admin-header'>
+         <div>
+           <p className='admin-header-kicker'>{t.kicker}</p>
+           <h1>{t.title}</h1>
+           <p>{t.subtitle}</p>
+         </div>
+
+         <div className='admin-courses-theme-switch' role='group' aria-label='Display settings'>
+           <span className='admin-courses-theme-switch-label'>{t.darkMode}</span>
+           <button
+             type='button'
+             className={`admin-courses-theme-toggle ${theme === 'dark' ? 'active' : ''}`}
+             onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+             aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+             aria-pressed={theme === 'dark'}
+           >
+             <span className='admin-courses-theme-toggle-thumb' />
+           </button>
+
+           <div className='admin-lang-switch' role='group' aria-label={t.displayMode}>
+             {(['en-US', 'de', 'vi'] as AdminLang[]).map((code) => {
+               const item = languageMeta[code]
+               const active = lang === code
+               return (
+                 <button
+                   key={code}
+                   type='button'
+                   className={`admin-lang-option ${active ? 'active' : ''}`}
+                   onClick={() => setLang(code)}
+                   aria-pressed={active}
+                   title={item.label}
+                   aria-label={item.label}
+                 >
+-                  <img src={item.flagUrl} alt={item.alt} loading='lazy' />
++                  <img src={item.flagUrl} alt={item.label} loading='lazy' />
+                 </button>
+               )
+             })}
+           </div>
+         </div>
+       </section>
+
+       <section className='admin-overview'>
+         <article className='overview-card'>
+           <span><i className='fa-solid fa-layer-group' /> {t.topicCount}</span>
+           <strong>{topics.length}</strong>
+           <small>{t.topicCountDesc}</small>
+         </article>
+         <article className='overview-card'>
+           <span><i className='fa-solid fa-book-open-reader' /> {t.courseCount}</span>
+-          <strong>{courses.length}</strong>
++          <strong>{coursesTotal}</strong>
+           <small>{t.courseCountDesc}</small>
+         </article>
+         <article className='overview-card'>
+           <span><i className='fa-solid fa-circle-check' /> {t.publishedCount}</span>
+           <strong>{courses.filter((course) => course.published).length}</strong>
+           <small>{t.publishedCountDesc}</small>
+         </article>
+         <article className='overview-card'>
+           <span><i className='fa-solid fa-pen-to-square' /> {t.draftCount}</span>
+           <strong>{courses.filter((course) => !course.published).length}</strong>
+           <small>{t.draftCountDesc}</small>
+         </article>
+       </section>
+
+       <section className='admin-tabs'>
+         <button className={`admin-tab ${tab === 'topics' ? 'active' : ''}`} onClick={() => setTab('topics')}>
+           <i className='fa-solid fa-tags' /> {t.topicsTab}
+         </button>
+         <button className={`admin-tab ${tab === 'courses' ? 'active' : ''}`} onClick={() => setTab('courses')}>
+           <i className='fa-solid fa-graduation-cap' /> {t.coursesTab}
+         </button>
+       </section>
+
+       {loading && <p className='admin-helper'>{t.loading}</p>}
+
+       {!loading && tab === 'topics' && (
+         <TopicsTab
+           topics={topics}
+           coursesByTopic={coursesByTopic}
+           topicForm={topicForm}
+           editingId={editingId}
+           displayLang={lang}
+           text={{ ...t, courseCount: t.courseCountCol }}
+           setTopicField={setTopicField}
+           onSave={saveTopic}
+           onReset={resetForm}
+           onEdit={startEditTopic}
+           onDelete={(topic) => {
+             void deleteTopic(topic)
+           }}
+         />
+       )}
+
+       {!loading && tab === 'courses' && (
+         <CoursesTab
+           courses={courses}
+           topics={topics}
+           text={t}
++          lang={lang}
++          selectedTopicId={selectedTopicId}
++          searchTerm={searchTerm}
++          page={coursePage}
++          totalPages={Math.max(1, Math.ceil(coursesTotal / coursePageSize))}
++          totalItems={coursesTotal}
++          onChangeFilters={(patch) => {
++            if (patch.selectedTopicId !== undefined) setSelectedTopicId(patch.selectedTopicId)
++            if (patch.searchTerm !== undefined) setSearchTerm(patch.searchTerm)
++            setCoursePage(1)
++          }}
++          onChangePage={(nextPage) => setCoursePage(nextPage)}
+           onCreateCourse={createCourse}
+           onUpdateCourse={updateCourse}
+           onDeleteCourse={deleteCourse}
+         />
+       )}
+     </main>
+   )
+ }
+diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx
+index 935382a001f502a52f9b9175328c0068ea7168d2..87611b848455dc77a3053bd2f12cb6ae76b28a96 100644
+--- a/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx
++++ b/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx
+@@ -1,45 +1,53 @@
+-import { useMemo, useState } from 'react'
++import { useState } from 'react'
+ import {
+   adminCoursesApi,
+   type CourseAdmin,
+   type CoursePayload,
+   type CourseTopic,
+   type LessonAdmin,
+   type LessonDetailAdmin,
+   type LessonModulePayload,
+   type LessonPayload,
+   type LessonVideoPayload,
+   type LocalizedText,
+ } from '../../../api/adminCourses.api'
+ import { AlertJs } from '../../../utils/alertJs'
+ import { autoTranslateFromVietnamese } from '../tabs/i18nForm'
+
+ type Props = {
+   courses: CourseAdmin[]
+   topics: CourseTopic[]
+   text: Record<string, string>
++  lang: 'vi' | 'en-US' | 'de'
++  selectedTopicId: number | 'all'
++  searchTerm: string
++  page: number
++  totalPages: number
++  totalItems: number
++  onChangeFilters: (patch: { selectedTopicId?: number | 'all'; searchTerm?: string }) => void
++  onChangePage: (page: number) => void
+   onCreateCourse: (payload: CoursePayload) => Promise<void>
+   onUpdateCourse: (id: number, payload: Partial<CoursePayload>) => Promise<void>
+   onDeleteCourse: (course: CourseAdmin) => Promise<void>
+ }
+
+ type Lang = 'vi' | 'en-US' | 'de'
+
+ type CourseForm = {
+   topicId?: number
+   title: string
+   slug: string
+   description: string
+   thumbnail: string
+   price: number
+   published: boolean
+   titleI18n: LocalizedText
+   descriptionI18n: LocalizedText
+   objectivesText: string
+   audienceText: string
+   benefitsText: string
+   ratingAvg: number
+   ratingCount: number
+   enrollmentCount: number
+ }
+
+@@ -115,63 +123,66 @@ function toLessonDraft(detail: LessonDetailAdmin): LessonDraft {
+     order: detail.order || 1,
+     published: detail.published,
+     modules: (detail.modules || []).map((m, mi) => ({
+       id: m.id,
+       title: m.title,
+       description: m.description,
+       titleI18n: m.titleI18n || { vi: '', 'en-US': '', de: '' },
+       descriptionI18n: m.descriptionI18n || { vi: '', 'en-US': '', de: '' },
+       order: m.order ?? mi + 1,
+       published: m.published ?? true,
+       videos: (m.videos || []).map((v, vi) => ({
+         id: v.id,
+         title: v.title,
+         description: v.description,
+         titleI18n: v.titleI18n || { vi: '', 'en-US': '', de: '' },
+         descriptionI18n: v.descriptionI18n || { vi: '', 'en-US': '', de: '' },
+         sourceUrl: v.sourceUrl,
+         durationSec: v.durationSec,
+         order: v.order ?? vi + 1,
+         published: v.published ?? true,
+       })),
+     })),
+   }
+ }
+
+-export function CoursesTab({ courses, topics, text, onCreateCourse, onUpdateCourse, onDeleteCourse }: Props) {
++export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searchTerm, page, totalPages, totalItems, onChangeFilters, onChangePage, onCreateCourse, onUpdateCourse, onDeleteCourse }: Props) {
+   const [langMode, setLangMode] = useState<Lang>('vi')
+   const [form, setForm] = useState<CourseForm>(emptyCourseForm)
+   const [editing, setEditing] = useState<CourseAdmin | null>(null)
+   const [modalOpen, setModalOpen] = useState(false)
+   const [saving, setSaving] = useState(false)
+
+   const [lessons, setLessons] = useState<LessonAdmin[]>([])
+   const [lessonDraft, setLessonDraft] = useState<LessonDraft>(emptyLessonDraft)
+   const [editingLessonId, setEditingLessonId] = useState<number | null>(null)
+   const [uploadingFor, setUploadingFor] = useState<string>('')
+-
+-  const sortedCourses = useMemo(() => [...courses].sort((a, b) => b.id - a.id), [courses])
++  const displayTopicName = (topic: CourseTopic) => {
++    if (lang === 'de') return topic.translations?.de?.name || topic.name
++    if (lang === 'en-US') return topic.translations?.['en-US']?.name || topic.name
++    return topic.translations?.vi?.name || topic.name
++  }
+
+   const loadLessons = async (courseId: number) => {
+     try {
+       setLessons(await adminCoursesApi.listCourseLessons(courseId))
+     } catch (e: any) {
+       AlertJs.error(e?.message || 'Không tải được bài học')
+       setLessons([])
+     }
+   }
+
+   const openCreate = () => {
+     setEditing(null)
+     setForm(emptyCourseForm)
+     setLessons([])
+     setLessonDraft(emptyLessonDraft)
+     setEditingLessonId(null)
+     setLangMode('vi')
+     setModalOpen(true)
+   }
+
+   const openEdit = async (course: CourseAdmin) => {
+     setEditing(course)
+     setForm(toCourseForm(course))
+     setLessonDraft(emptyLessonDraft)
+     setEditingLessonId(null)
+@@ -375,90 +386,117 @@ export function CoursesTab({ courses, topics, text, onCreateCourse, onUpdateCour
+       AlertJs.error(e?.message || 'Xoá bài học thất bại')
+     }
+   }
+
+   const uploadVideo = async (lessonId: number, moduleId?: number, file?: File | null) => {
+     if (!moduleId || !file) {
+       AlertJs.error('Hãy lưu bài học trước để có module ID rồi mới upload video')
+       return
+     }
+     const key = `${lessonId}-${moduleId}`
+     setUploadingFor(key)
+     try {
+       await adminCoursesApi.uploadModuleVideo(lessonId, moduleId, file)
+       AlertJs.success('Đã upload video, backend đang xử lý HLS + lưu private bucket')
+     } catch (e: any) {
+       AlertJs.error(e?.message || 'Upload video thất bại')
+     } finally {
+       setUploadingFor('')
+     }
+   }
+
+   return (
+     <section className='admin-card admin-card-glow admin-course-management-card'>
+       <div className='admin-row' style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+         <h3 className='admin-card-title'><i className='fa-solid fa-book' /> {text.coursesTab} ({courses.length})</h3>
+-        <button
+-            className="admin-btn admin-btn-save"
+-            type="button"
+-            style={{ marginBottom: '10px' }}
+-            onClick={openCreate}
+-        >
+-          <i className="fa-solid fa-circle-plus" /> Tạo khoá học
+-        </button>
++      </div>
++
++      <div className='admin-row' style={{ marginBottom: 12, gap: 12, alignItems: 'flex-end' }}>
++        <label className='admin-field' style={{ marginBottom: 0 }}>
++          <span className='admin-label'>{text.filterByTopic}</span>
++          <select
++            className='admin-input'
++            value={selectedTopicId}
++            onChange={(e) => {
++              onChangeFilters({ selectedTopicId: e.target.value === 'all' ? 'all' : Number(e.target.value) })
++            }}
++          >
++            <option value='all'>{text.allTopics}</option>
++            {topics.map((topic) => (
++              <option key={topic.id} value={topic.id}>{displayTopicName(topic)}</option>
++            ))}
++          </select>
++        </label>
++
++        <label className='admin-field' style={{ marginBottom: 0, minWidth: 280 }}>
++          <span className='admin-label'>{text.searchByCourseName}</span>
++          <input
++            className='admin-input'
++            value={searchTerm}
++            placeholder={text.searchPlaceholder}
++            onChange={(e) => {
++              onChangeFilters({ searchTerm: e.target.value })
++            }}
++          />
++        </label>
+       </div>
+
+       <div className='admin-table-wrap'>
+         <table className='admin-table admin-table-courses-full no-scroll-table'>
+           <thead>
+             <tr>
+-              <th>ID</th><th>Tiêu đề</th><th>Chủ đề</th><th>Giá</th><th>Rating</th><th>Đăng ký</th><th>Bài học</th><th>Trạng thái</th><th>Hành động</th>
++              <th>ID</th><th>{text.titleCol}</th><th>{text.topicCol}</th><th>{text.priceCol}</th><th>{text.ratingCol}</th><th>{text.enrollmentCol}</th><th>{text.lessonCol}</th><th>{text.videoCountCol}</th><th>{text.createdAtCol}</th><th>{text.updatedAtCol}</th><th>{text.statusCol}</th>
+             </tr>
+           </thead>
+           <tbody>
+-            {sortedCourses.map((c) => (
++            {courses.map((c) => (
+               <tr key={c.id}>
+                 <td>{c.id}</td>
+                 <td className='td-strong'>{c.title}</td>
+-                <td>{c.topic?.name || 'Chưa gán'}</td>
++                <td>{c.topic?.name || text.unassigned}</td>
+                 <td>{(c.price || 0).toLocaleString('vi-VN')}đ</td>
+                 <td>{c.ratingAvg ?? 0} ({c.ratingCount ?? 0})</td>
+                 <td>{c.enrollmentCount ?? 0}</td>
+                 <td>{c._count?.lessons ?? 0}</td>
+-                <td><span className={`status-pill ${c.published ? 'is-published' : 'is-draft'}`}>{c.published ? 'Published' : 'Draft'}</span></td>
+-                <td>
+-                  <div className='admin-row'>
+-                    <button className='admin-btn admin-btn-primary' type='button' onClick={() => void openEdit(c)}><i className='fa-solid fa-pen' /></button>
+-                    <button className='admin-btn admin-btn-danger' type='button' onClick={() => void onDeleteCourse(c)}><i className='fa-solid fa-trash' /></button>
+-                  </div>
+-                </td>
++                <td>{c.videoCount ?? 0}</td>
++                <td>{c.createdAt ? new Date(c.createdAt).toLocaleString('vi-VN') : '--'}</td>
++                <td>{c.updatedAt ? new Date(c.updatedAt).toLocaleString('vi-VN') : '--'}</td>
++                <td><span className={`status-pill ${c.published ? 'is-published' : 'is-draft'}`}>{c.published ? text.publishedStatus : text.draftStatus}</span></td>
+               </tr>
+             ))}
+           </tbody>
+         </table>
+       </div>
+
++      <div className='admin-row' style={{ justifyContent: 'space-between', marginTop: 12 }}>
++        <span>{text.pageLabel} {Math.min(page, totalPages)} / {totalPages} • {text.totalCoursesLabel} {totalItems}</span>
++        <div className='admin-row'>
++          <button className='admin-btn admin-btn-ghost' type='button' disabled={page <= 1} onClick={() => onChangePage(Math.max(1, page - 1))}>{text.prevPage}</button>
++          <button className='admin-btn admin-btn-ghost' type='button' disabled={page >= totalPages} onClick={() => onChangePage(Math.min(totalPages, page + 1))}>{text.nextPage}</button>
++        </div>
++      </div>
++
+       {modalOpen && (
+         <div className='admin-modal-backdrop' role='dialog' aria-modal='true'>
+           <div className='admin-modal admin-modal-compact'>
+             <div className='admin-modal-header'>
+               <h4><i className='fa-solid fa-pen-ruler' /> {editing ? 'Chỉnh sửa khoá học' : 'Tạo khoá học mới'}</h4>
+               <div className='admin-row'>
+                 {(['vi', 'en-US', 'de'] as Lang[]).map((l) => (
+                   <button key={l} type='button' className={`admin-btn ${langMode === l ? 'admin-btn-primary' : 'admin-btn-ghost'}`} onClick={() => setLangMode(l)}>{l === 'en-US' ? 'EN' : l.toUpperCase()}</button>
+                 ))}
+                 <button type='button' className='admin-btn admin-btn-ghost' onClick={closeModal}>Đóng</button>
+               </div>
+             </div>
+
+             <section className='admin-form-grid admin-form-grid-2col'>
+               <label className='admin-field'><span className='admin-label'>Tiêu đề *</span><input className='admin-input' value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} /></label>
+               <label className='admin-field'><span className='admin-label'>Slug *</span><input className='admin-input' value={form.slug} onChange={(e) => setForm((p) => ({ ...p, slug: e.target.value }))} /></label>
+               <label className='admin-field'><span className='admin-label'>Chủ đề</span><select className='admin-input' value={form.topicId || ''} onChange={(e) => setForm((p) => ({ ...p, topicId: e.target.value ? Number(e.target.value) : undefined }))}><option value=''>-- Chưa gán --</option>{topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
+               <label className='admin-field'><span className='admin-label'>Ảnh khoá học (public URL)</span><input className='admin-input' value={form.thumbnail} onChange={(e) => setForm((p) => ({ ...p, thumbnail: e.target.value }))} /></label>
+               <label className='admin-field admin-field-full'><span className='admin-label'>Mô tả</span><textarea rows={2} className='admin-input' value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} /></label>
+               <label className='admin-field'><span className='admin-label'>Giá (VND)</span><input type='number' className='admin-input' value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: Number(e.target.value) }))} /></label>
+               <label className='admin-field'><span className='admin-label'>Rating TB</span><input type='number' min={0} max={5} step={0.1} className='admin-input' value={form.ratingAvg} onChange={(e) => setForm((p) => ({ ...p, ratingAvg: Number(e.target.value) }))} /></label>
+               <label className='admin-field'><span className='admin-label'>Lượt đánh giá</span><input type='number' className='admin-input' value={form.ratingCount} onChange={(e) => setForm((p) => ({ ...p, ratingCount: Number(e.target.value) }))} /></label>
+               <label className='admin-field'><span className='admin-label'>Số đăng ký</span><input type='number' className='admin-input' value={form.enrollmentCount} onChange={(e) => setForm((p) => ({ ...p, enrollmentCount: Number(e.target.value) }))} /></label>
+
+               <div className='admin-field admin-field-full'>
+diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202603080001_course_translation_strings/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202603080001_course_translation_strings/migration.sql
+new file mode 100644
+index 0000000000000000000000000000000000000000..d5893d94517b5c0c60d9c1977bf80724546db4fd
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/prisma/migrations/202603080001_course_translation_strings/migration.sql
+@@ -0,0 +1,21 @@
++ALTER TABLE `Course`
++  ADD COLUMN `shortDescription` VARCHAR(500) NULL AFTER `title`;
++
++CREATE TABLE `CourseTranslation` (
++  `id` INTEGER NOT NULL AUTO_INCREMENT,
++  `courseId` INTEGER NOT NULL,
++  `locale` VARCHAR(10) NOT NULL,
++  `title` VARCHAR(255) NOT NULL,
++  `shortDescription` VARCHAR(500) NULL,
++  `description` TEXT NULL,
++  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
++  `updatedAt` DATETIME(3) NOT NULL,
++
++  UNIQUE INDEX `CourseTranslation_courseId_locale_key`(`courseId`, `locale`),
++  INDEX `CourseTranslation_locale_idx`(`locale`),
++  PRIMARY KEY (`id`)
++) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
++
++ALTER TABLE `CourseTranslation`
++  ADD CONSTRAINT `CourseTranslation_courseId_fkey`
++  FOREIGN KEY (`courseId`) REFERENCES `Course`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+index 803320a86406d1a7c856a9dc6b9fff429ea6b17a..e143a75c7bff7ffa1bdbb7abd317a6bc356b0c2e 100644
+--- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
++++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+@@ -224,77 +224,95 @@ model ServiceReview {
+   customerName String? @db.VarChar(255)
+   createdAt  DateTime @default(now())
+   updatedAt  DateTime @updatedAt
+
+   service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+   user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+   @@index([serviceId])
+ }
+
+
+ model RegistrationOtp {
+   id        Int      @id @default(autoincrement())
+   email     String   @unique
+   code      String   @db.VarChar(6)
+   expiresAt DateTime
+   usedAt    DateTime?
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
+ }
+
+ model Course {
+   id                  Int      @id @default(autoincrement())
+   topicId             Int?
+   title               String
++  shortDescription    String?  @db.VarChar(500)
+   slug                String   @unique
+   description         String?
+   thumbnail           String?
+   price               Int      @default(0)
+   published           Boolean  @default(false)
+   titleI18n           Json?
+   descriptionI18n     Json?
+   shortDescriptionI18n Json?
+   objectives          Json?
+   targetAudience      Json?
+   benefits            Json?
+   ratingAvg           Float    @default(0)
+   ratingCount         Int      @default(0)
+   enrollmentCount     Int      @default(0)
+   createdAt           DateTime @default(now())
+   updatedAt           DateTime @updatedAt
+
+   lessons     Lesson[]
+   enrollments Enrollment[]
+   topic       CourseTopic? @relation(fields: [topicId], references: [id], onDelete: Restrict)
++  translations CourseTranslation[]
+
+   // ✅ ADD
+   orderItems OrderItem[] // <— opposite for OrderItem.course
+
+   @@index([topicId])
+ }
+
++model CourseTranslation {
++  id               Int      @id @default(autoincrement())
++  courseId         Int
++  locale           String   @db.VarChar(10)
++  title            String   @db.VarChar(255)
++  shortDescription String?  @db.VarChar(500)
++  description      String?  @db.Text
++  createdAt        DateTime @default(now())
++  updatedAt        DateTime @updatedAt
++
++  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
++
++  @@unique([courseId, locale])
++  @@index([locale])
++}
++
+ model CourseTopic {
+   id          Int      @id @default(autoincrement())
+   name        String   @unique @db.VarChar(120)
+   description String?  @db.VarChar(255)
+   createdAt   DateTime @default(now())
+   updatedAt   DateTime @updatedAt
+
+   courses      Course[]
+   translations CourseTopicTranslation[]
+ }
+
+ model CourseTopicTranslation {
+   id          Int      @id @default(autoincrement())
+   topicId     Int
+   locale      String   @db.VarChar(10)
+   name        String   @db.VarChar(120)
+   description String?  @db.VarChar(255)
+   createdAt   DateTime @default(now())
+   updatedAt   DateTime @updatedAt
+
+   topic CourseTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+   @@unique([topicId, locale])
+   @@index([locale])
+ }
+diff --git a/backend/ayanavitabackend/app/api/prisma/seed.ts b/backend/ayanavitabackend/app/api/prisma/seed.ts
+index a37f6c2dee7941a4f0029b9b48d3b3f6393bc5b7..5ee7056f72181581e7a4f5788a3a136b9b74fbc5 100644
+--- a/backend/ayanavitabackend/app/api/prisma/seed.ts
++++ b/backend/ayanavitabackend/app/api/prisma/seed.ts
+@@ -501,38 +501,116 @@ async function main() {
+       update: a,
+       create: a,
+     })
+   }
+
+   const serviceReviewSeeds = [
+     { serviceId: services[0]?.id, userId: user.id, stars: 5, comment: 'Rất hài lòng 👏👏👏', customerName: 'Thu Hà' },
+     { serviceId: services[1]?.id, userId: user.id, stars: 4, comment: 'Dịch vụ tốt, nhân viên nhiệt tình 🤗', customerName: 'Minh Anh' },
+     { serviceId: services[2]?.id, userId: null, stars: 5, comment: 'Thư giãn đúng nghĩa, sẽ quay lại!', customerName: 'Khách lẻ' },
+   ].filter((r) => r.serviceId)
+
+   for (const review of serviceReviewSeeds) {
+     const existing = await prisma.serviceReview.findFirst({
+       where: {
+         serviceId: review.serviceId,
+         customerName: review.customerName ?? undefined,
+         comment: review.comment ?? undefined,
+       },
+     })
+
+     if (!existing) {
+       await prisma.serviceReview.create({ data: review })
+     }
+   }
+
++  const topicSkincare = await prisma.courseTopic.upsert({
++    where: { name: 'Chăm sóc da cơ bản' },
++    update: { description: 'Chủ đề khóa học chăm sóc da nền tảng.' },
++    create: { name: 'Chăm sóc da cơ bản', description: 'Chủ đề khóa học chăm sóc da nền tảng.' },
++  })
++
++  const courseSeeds = [
++    {
++      slug: 'co-ban-cham-soc-da',
++      topicId: topicSkincare.id,
++      title: 'Khóa học chăm sóc da cơ bản',
++      shortDescription: 'Nắm vững nền tảng chăm sóc da trong 7 ngày.',
++      description: 'Khóa học hướng dẫn từ làm sạch, dưỡng ẩm tới chống nắng theo lộ trình thực hành hằng ngày.',
++      price: 399000,
++      published: true,
++      translations: [
++        { locale: 'vi', title: 'Khóa học chăm sóc da cơ bản', shortDescription: 'Nắm vững nền tảng chăm sóc da trong 7 ngày.', description: 'Khóa học hướng dẫn từ làm sạch, dưỡng ẩm tới chống nắng theo lộ trình thực hành hằng ngày.' },
++        { locale: 'en', title: 'Skincare Fundamentals Course', shortDescription: 'Master daily skincare basics in 7 days.', description: 'This course guides cleansing, moisturizing, and sunscreen routines with practical steps.' },
++        { locale: 'de', title: 'Grundkurs Hautpflege', shortDescription: 'Lerne die Hautpflege-Basics in 7 Tagen.', description: 'Der Kurs zeigt Reinigung, Feuchtigkeitspflege und Sonnenschutz mit praktischer Routine.' },
++      ],
++    },
++    {
++      slug: 'tri-mun-an-toan',
++      topicId: topicSkincare.id,
++      title: 'Khóa học xử lý mụn an toàn',
++      shortDescription: 'Kiểm soát mụn viêm và giảm thâm đúng cách.',
++      description: 'Tập trung vào thói quen chăm sóc da mụn, lựa chọn hoạt chất và theo dõi tiến độ cải thiện.',
++      price: 499000,
++      published: false,
++      translations: [
++        { locale: 'vi', title: 'Khóa học xử lý mụn an toàn', shortDescription: 'Kiểm soát mụn viêm và giảm thâm đúng cách.', description: 'Tập trung vào thói quen chăm sóc da mụn, lựa chọn hoạt chất và theo dõi tiến độ cải thiện.' },
++        { locale: 'en', title: 'Safe Acne Treatment Course', shortDescription: 'Control acne breakouts and dark spots safely.', description: 'Focuses on acne care habits, active ingredients, and progress tracking.' },
++        { locale: 'de', title: 'Sichere Aknebehandlung', shortDescription: 'Entzündete Akne und Flecken sicher reduzieren.', description: 'Fokus auf Akne-Routine, Wirkstoffe und kontinuierliche Fortschrittskontrolle.' },
++      ],
++    },
++  ]
++
++  for (const seed of courseSeeds) {
++    const course = await prisma.course.upsert({
++      where: { slug: seed.slug },
++      update: {
++        topicId: seed.topicId,
++        title: seed.title,
++        shortDescription: seed.shortDescription,
++        description: seed.description,
++        price: seed.price,
++        published: seed.published,
++      },
++      create: {
++        topicId: seed.topicId,
++        title: seed.title,
++        shortDescription: seed.shortDescription,
++        slug: seed.slug,
++        description: seed.description,
++        price: seed.price,
++        published: seed.published,
++      },
++    })
++
++    for (const trans of seed.translations) {
++      await prisma.courseTranslation.upsert({
++        where: { courseId_locale: { courseId: course.id, locale: trans.locale } },
++        update: {
++          title: trans.title,
++          shortDescription: trans.shortDescription,
++          description: trans.description,
++        },
++        create: {
++          courseId: course.id,
++          locale: trans.locale,
++          title: trans.title,
++          shortDescription: trans.shortDescription,
++          description: trans.description,
++        },
++      })
++    }
++  }
++
+   const courses = await prisma.course.findMany({ orderBy: { id: 'asc' } })
+   console.log('🌱 Seed OK')
+   console.log({ userId: user.id, coursesCount: courses.length, branches: branches.length, services: services.length, specialists: specialists.length })
+ }
+
+ main()
+   .catch((e) => {
+     console.error(e)
+     process.exit(1)
+   })
+   .finally(async () => {
+     await prisma.$disconnect()
+   })
+diff --git a/backend/ayanavitabackend/app/api/src/auth/guards/optional-access-token.guard.ts b/backend/ayanavitabackend/app/api/src/auth/guards/optional-access-token.guard.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..9bcc2c55ea815ca7713c93d2df6d06436bca22bd
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/auth/guards/optional-access-token.guard.ts
+@@ -0,0 +1,14 @@
++import { ExecutionContext, Injectable } from '@nestjs/common'
++import { AuthGuard } from '@nestjs/passport'
++
++@Injectable()
++export class OptionalAccessTokenGuard extends AuthGuard('jwt-access') {
++  handleRequest(err: any, user: any) {
++    if (err || !user) return null
++    return user
++  }
++
++  canActivate(context: ExecutionContext) {
++    return super.canActivate(context)
++  }
++}
+diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
+index 472fb40a91c28cdf88c0cdcd4c6b0cc91c0b1314..0e5ecde7ab5a012bb0f0262b7884125d536bd334 100644
+--- a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
+@@ -1,87 +1,93 @@
+ import {
+   Body,
+   Controller,
+   Delete,
+   Get,
+   Param,
+   ParseIntPipe,
+   Patch,
+   Post,
++  Query,
+   UseGuards,
+ } from "@nestjs/common";
+ import { CreateCourseDto } from "./dto/create-course.dto";
+ import { UpdateCourseDto } from "./dto/update-course.dto";
+ import { CurrentUser } from "../auth/decorators/current-user.decorator";
+ import { AccessTokenGuard } from "../auth/guards/access-token.guard";
++import { OptionalAccessTokenGuard } from "../auth/guards/optional-access-token.guard";
+ import { RolesGuard } from "../auth/guards/roles.guard";
+ import { Roles } from "../auth/decorators/roles.decorator";
+ import { CoursesService } from "./courses.service";
++import { CourseQueryDto } from "./dto/course-query.dto";
+
+ type JwtUser = { sub: number; role: string }
+
+-@UseGuards(AccessTokenGuard)
+ @Controller("courses")
+-@UseGuards(AccessTokenGuard) // 🔒 mọi route phải đăng nhập
+ export class CoursesController {
+   constructor(private readonly courses: CoursesService) {}
+
+
+    // ... các route khác của bạn
+
+   // Outline lessons (ai login cũng xem được)
+   // GET /courses/:id/lessons-outline
++  @UseGuards(AccessTokenGuard)
+   @Get('courses/:id/lessons-outline')
+   lessonsOutline(
+     @CurrentUser() user: JwtUser,
+     @Param('id', ParseIntPipe) id: number,
+   ) {
+     return this.courses.lessonsOutline(user, id)
+   }
+
+   @Get()
+-  findAll() {
+-    return this.courses.findAll();
++  @UseGuards(OptionalAccessTokenGuard)
++  findAll(@CurrentUser() user: JwtUser | null, @Query() query: CourseQueryDto) {
++    return this.courses.findAll(query, user);
+   }
+
++  @UseGuards(AccessTokenGuard)
+   @Get(":id")
+   findOne(@Param("id", ParseIntPipe) id: number) {
+     return this.courses.findOne(id);
+   }
+
++  @UseGuards(AccessTokenGuard)
+   @Get(":id/lessons")
+   listLessons(@CurrentUser() user: any, @Param("id", ParseIntPipe) id: number) {
+     return this.courses.listLessons(user, id);
+   }
+
+   // ✅ NEW: Lesson detail (theo lessonId)
++  @UseGuards(AccessTokenGuard)
+   @Get(":id/lessons/:lessonId")
+   getLesson(
+     @CurrentUser() user: any,
+     @Param("id", ParseIntPipe) courseId: number,
+     @Param("lessonId", ParseIntPipe) lessonId: number
+   ) {
+     return this.courses.getLessonDetail(user, courseId, lessonId);
+   }
+
+   // ===== ADMIN ONLY =====
+-  @UseGuards(RolesGuard)
++  @UseGuards(AccessTokenGuard, RolesGuard)
+   @Roles("ADMIN")
+   @Post()
+   create(@Body() dto: CreateCourseDto) {
+     return this.courses.create(dto);
+   }
+
+-  @UseGuards(RolesGuard)
++  @UseGuards(AccessTokenGuard, RolesGuard)
+   @Roles("ADMIN")
+   @Patch(":id")
+   update(@Param("id", ParseIntPipe) id: number, @Body() dto: UpdateCourseDto) {
+     return this.courses.update(id, dto);
+   }
+
+-  @UseGuards(RolesGuard)
++  @UseGuards(AccessTokenGuard, RolesGuard)
+   @Roles("ADMIN")
+   @Delete(":id")
+   remove(@Param("id", ParseIntPipe) id: number) {
+     return this.courses.remove(id);
+   }
+ }
+diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
+index 7929163457e2b58e73bb24d688a6d6e2d1cc7df8..6e064104be94fabdf63ad8e1c7d3346c89ae2331 100644
+--- a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
++++ b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
+@@ -1,182 +1,268 @@
+ import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+ import { PrismaService } from "../prisma/prisma.service";
+ import { EnrollmentsService } from "../enrollments/enrollments.service";
+ import { CreateCourseDto } from "./dto/create-course.dto";
+ import { UpdateCourseDto } from "./dto/update-course.dto";
+ import { Prisma, ProgressStatus } from "@prisma/client";
++import { CourseQueryDto } from "./dto/course-query.dto";
+
+ type JwtUser = { sub: number; role: string }
+
+ @Injectable()
+ export class CoursesService {
+   constructor(
+     private readonly prisma: PrismaService,
+     private readonly enrollments: EnrollmentsService
+   ) {}
+
+   private readonly baseCourseSelect = {
+     id: true,
+     topicId: true,
+     title: true,
++    shortDescription: true,
+     slug: true,
+     description: true,
+     thumbnail: true,
+     price: true,
+     published: true,
+     titleI18n: true,
+     descriptionI18n: true,
+     shortDescriptionI18n: true,
+     objectives: true,
+     targetAudience: true,
+     benefits: true,
+     ratingAvg: true,
+     ratingCount: true,
+     enrollmentCount: true,
+     createdAt: true,
+     updatedAt: true,
+     topic: { select: { id: true, name: true } },
+     _count: { select: { lessons: true } },
+   } as const
+
+   private buildCreateCoursePayload(dto: CreateCourseDto & { title: string }): Prisma.CourseUncheckedCreateInput {
+     return {
+       title: dto.title,
+       slug: dto.slug,
+       ...(dto.description !== undefined ? { description: dto.description } : {}),
++      ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
+       ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
+       ...(dto.price !== undefined ? { price: dto.price } : {}),
+       ...(dto.published !== undefined ? { published: dto.published } : {}),
+       ...(dto.topicId !== undefined ? { topicId: dto.topicId } : {}),
+       ...(dto.titleI18n !== undefined ? { titleI18n: dto.titleI18n as any } : {}),
+       ...(dto.descriptionI18n !== undefined ? { descriptionI18n: dto.descriptionI18n as any } : {}),
+       ...(dto.shortDescriptionI18n !== undefined ? { shortDescriptionI18n: dto.shortDescriptionI18n as any } : {}),
+       ...(dto.objectives !== undefined ? { objectives: dto.objectives as any } : {}),
+       ...(dto.targetAudience !== undefined ? { targetAudience: dto.targetAudience as any } : {}),
+       ...(dto.benefits !== undefined ? { benefits: dto.benefits as any } : {}),
+       ...(dto.ratingAvg !== undefined ? { ratingAvg: dto.ratingAvg } : {}),
+       ...(dto.ratingCount !== undefined ? { ratingCount: dto.ratingCount } : {}),
+       ...(dto.enrollmentCount !== undefined ? { enrollmentCount: dto.enrollmentCount } : {}),
+     }
+   }
+
+   private buildUpdateCoursePayload(dto: UpdateCourseDto): Prisma.CourseUncheckedUpdateInput {
+     return {
+       ...(dto.title !== undefined ? { title: dto.title } : {}),
+       ...(dto.slug !== undefined ? { slug: dto.slug } : {}),
+       ...(dto.description !== undefined ? { description: dto.description } : {}),
++      ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
+       ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
+       ...(dto.price !== undefined ? { price: dto.price } : {}),
+       ...(dto.published !== undefined ? { published: dto.published } : {}),
+       ...(dto.topicId !== undefined ? { topicId: dto.topicId } : {}),
+       ...(dto.titleI18n !== undefined ? { titleI18n: dto.titleI18n as any } : {}),
+       ...(dto.descriptionI18n !== undefined ? { descriptionI18n: dto.descriptionI18n as any } : {}),
+       ...(dto.shortDescriptionI18n !== undefined ? { shortDescriptionI18n: dto.shortDescriptionI18n as any } : {}),
+       ...(dto.objectives !== undefined ? { objectives: dto.objectives as any } : {}),
+       ...(dto.targetAudience !== undefined ? { targetAudience: dto.targetAudience as any } : {}),
+       ...(dto.benefits !== undefined ? { benefits: dto.benefits as any } : {}),
+       ...(dto.ratingAvg !== undefined ? { ratingAvg: dto.ratingAvg } : {}),
+       ...(dto.ratingCount !== undefined ? { ratingCount: dto.ratingCount } : {}),
+       ...(dto.enrollmentCount !== undefined ? { enrollmentCount: dto.enrollmentCount } : {}),
+     }
+   }
+
+   async lessonsOutline(user: JwtUser, courseId: number) {
+     const course = await this.prisma.course.findUnique({
+       where: { id: courseId },
+       select: { id: true, published: true },
+     })
+     if (!course) throw new NotFoundException('Course not found')
+
+     if (user.role !== 'ADMIN' && !course.published) {
+       throw new NotFoundException('Course not found')
+     }
+
+     return this.prisma.lesson.findMany({
+       where: {
+         courseId,
+         ...(user.role === 'ADMIN' ? {} : { published: true }),
+       },
+       select: {
+         id: true,
+         courseId: true,
+         title: true,
+         slug: true,
+         order: true,
+         published: true,
+         createdAt: true,
+         updatedAt: true,
+       },
+       orderBy: [{ order: 'asc' }, { id: 'asc' }],
+     })
+   }
+
+-  findAll() {
+-    return this.prisma.course.findMany({
+-      select: this.baseCourseSelect,
++  async findAll(query: CourseQueryDto, user?: { sub: number; role: string } | null) {
++    const activeLang = (query.lang || 'vi').toLowerCase()
++    const courseLocale = activeLang === 'en-us' || activeLang === 'en' ? 'en' : activeLang === 'de' ? 'de' : 'vi'
++    const topicLocale = activeLang === 'en' ? 'en-US' : activeLang === 'en-us' ? 'en-US' : activeLang === 'de' ? 'de' : 'vi'
++
++    const where: Prisma.CourseWhereInput = {
++      ...(user?.role === 'ADMIN' ? {} : { published: true }),
++      ...(query.topicId ? { topicId: query.topicId } : {}),
++      ...(query.search?.trim()
++        ? {
++            OR: [
++              { title: { contains: query.search.trim() } },
++              { slug: { contains: query.search.trim() } },
++            ],
++          }
++        : {}),
++    }
++
++    const page = Math.max(1, Number(query.page || 1))
++    const pageSize = Math.min(100, Math.max(1, Number(query.pageSize || 10)))
++
++    const [rows, total] = await Promise.all([
++      this.prisma.course.findMany({
++      where,
++      select: {
++        ...this.baseCourseSelect,
++        translations: {
++          where: { locale: { in: [courseLocale, 'vi'] } },
++          select: { locale: true, title: true, shortDescription: true, description: true },
++        },
++        topic: {
++          select: {
++            id: true,
++            name: true,
++            translations: {
++              where: { locale: { in: [topicLocale, 'vi'] } },
++              select: { locale: true, name: true },
++            },
++          },
++        },
++      },
++      skip: (page - 1) * pageSize,
++      take: pageSize,
+       orderBy: { id: "desc" },
+-    });
++      }),
++      this.prisma.course.count({ where }),
++    ])
++
++    const courseIds = rows.map((row) => row.id)
++    if (!courseIds.length) {
++      return { items: [], total, page, pageSize }
++    }
++
++    const videoRows = await this.prisma.$queryRaw<Array<{ courseId: number; videoCount: bigint | number }>>`
++      SELECT l.courseId as courseId, COUNT(v.id) as videoCount
++      FROM LessonVideo v
++      INNER JOIN LessonModule m ON m.id = v.moduleId
++      INNER JOIN Lesson l ON l.id = m.lessonId
++      WHERE l.courseId IN (${Prisma.join(courseIds)})
++      GROUP BY l.courseId
++    `
++
++    const videoCountMap = new Map(videoRows.map((row) => [Number(row.courseId), Number(row.videoCount)]))
++    const items = rows.map((row: any) => {
++      const chosenCourseTrans = row.translations?.find((item: any) => item.locale === courseLocale) || row.translations?.find((item: any) => item.locale === 'vi')
++      const chosenTopicTrans = row.topic?.translations?.find((item: any) => item.locale === topicLocale) || row.topic?.translations?.find((item: any) => item.locale === 'vi')
++
++      return {
++        ...row,
++        title: chosenCourseTrans?.title || row.title,
++        shortDescription: chosenCourseTrans?.shortDescription || row.shortDescription,
++        description: chosenCourseTrans?.description || row.description,
++        topic: row.topic
++          ? {
++              id: row.topic.id,
++              name: chosenTopicTrans?.name || row.topic.name,
++            }
++          : null,
++        videoCount: videoCountMap.get(row.id) || 0,
++      }
++    })
++
++    return { items, total, page, pageSize }
+   }
+
+   async findOne(id: number) {
+     const course = await this.prisma.course.findUnique({
+       where: { id },
+       select: this.baseCourseSelect,
+     });
+     if (!course) throw new NotFoundException("Course not found");
+     return course;
+   }
+
+   async create(dto: CreateCourseDto) {
+     if (!dto.title?.trim()) {
+       throw new BadRequestException("Title is required")
+     }
+
+     try {
+-      return await this.prisma.course.create({
++      const created = await this.prisma.course.create({
+         data: this.buildCreateCoursePayload({ ...dto, title: dto.title.trim() }),
+         select: this.baseCourseSelect,
+-      });
++      })
++      await this.syncCourseTranslations(created.id, dto)
++      return created
+     } catch (e) {
+       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+         const target = (e.meta as any)?.target;
+         if (Array.isArray(target) ? target.includes("slug") : String(target).includes("slug")) {
+           throw new ConflictException("Slug already exists");
+         }
+         throw new ConflictException("Unique constraint failed");
+       }
+       throw e;
+     }
+   }
+
+   async update(id: number, dto: UpdateCourseDto) {
+     await this.ensureCourseExists(id);
+-    return this.prisma.course.update({
++    const updated = await this.prisma.course.update({
+       where: { id },
+       data: this.buildUpdateCoursePayload(dto),
+       select: this.baseCourseSelect,
+-    });
++    })
++    await this.syncCourseTranslations(id, dto)
++    return updated
+   }
+
+   async remove(id: number) {
+     await this.ensureCourseExists(id);
+     return this.prisma.course.delete({ where: { id }, select: { id: true } });
+   }
+
+   async listLessons(user: { sub: number; role: string }, courseId: number) {
+     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } });
+     if (!course) throw new NotFoundException("Course not found");
+     await this.enrollments.assertEnrolledOrAdmin(user, courseId);
+     if (user.role !== "ADMIN" && !course.published) throw new NotFoundException("Course not found");
+
+     const lessons = await this.prisma.lesson.findMany({
+       where: { courseId, ...(user.role === "ADMIN" ? {} : { published: true }) },
+       select: { id: true, courseId: true, title: true, slug: true, order: true, published: true, createdAt: true, updatedAt: true },
+       orderBy: [{ order: "asc" }, { id: "asc" }],
+     });
+
+     if (user.role === "ADMIN") return lessons.map((l) => ({ ...l, locked: false, lockReason: null, progress: null }));
+
+     const progressRows = await this.prisma.lessonProgress.findMany({
+       where: { userId: user.sub, lessonId: { in: lessons.map((l) => l.id) } },
+       select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true },
+     });
+@@ -207,26 +293,58 @@ export class CoursesService {
+
+     if (user.role !== "ADMIN") {
+       const orderedLessons = await this.prisma.lesson.findMany({ where: { courseId, published: true }, select: { id: true }, orderBy: [{ order: "asc" }, { id: "asc" }] });
+       const idx = orderedLessons.findIndex((l) => l.id === lessonId);
+       if (idx < 0) throw new NotFoundException("Lesson not found");
+       if (idx > 0) {
+         const prevLessonId = orderedLessons[idx - 1].id;
+         const prevProgress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId: prevLessonId } }, select: { status: true } });
+         const unlocked = prevProgress?.status === ProgressStatus.COMPLETED;
+         if (!unlocked) throw new ForbiddenException("Lesson locked");
+       }
+     }
+
+     const progress = await this.prisma.lessonProgress.findUnique({
+       where: { userId_lessonId: { userId: user.sub, lessonId } },
+       select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true },
+     });
+
+     return { ...lesson, progress: progress ?? null };
+   }
+
+   private async ensureCourseExists(id: number) {
+     const ok = await this.prisma.course.findUnique({ where: { id }, select: { id: true } });
+     if (!ok) throw new NotFoundException("Course not found");
+   }
++
++  private async syncCourseTranslations(courseId: number, dto: Partial<CreateCourseDto>) {
++    const locales: Array<'vi' | 'en' | 'de'> = ['vi', 'en', 'de']
++    const mapLocale = (locale: 'vi' | 'en' | 'de') => (locale === 'en' ? 'en-US' : locale)
++
++    await Promise.all(
++      locales.map((locale) => {
++        const inputLocale = mapLocale(locale)
++        const title = dto.titleI18n?.[inputLocale] || (locale === 'vi' ? dto.title : undefined)
++        const description = dto.descriptionI18n?.[inputLocale] || (locale === 'vi' ? dto.description : undefined)
++        const shortDescription = dto.shortDescriptionI18n?.[inputLocale] || (locale === 'vi' ? dto.shortDescription : undefined)
++
++        if (!title?.trim()) return Promise.resolve(null)
++
++        return this.prisma.courseTranslation.upsert({
++          where: { courseId_locale: { courseId, locale } },
++          update: {
++            title: title.trim(),
++            shortDescription: shortDescription?.trim() || null,
++            description: description?.trim() || null,
++          },
++          create: {
++            courseId,
++            locale,
++            title: title.trim(),
++            shortDescription: shortDescription?.trim() || null,
++            description: description?.trim() || null,
++          },
++        })
++      }),
++    )
++  }
+ }
+diff --git a/backend/ayanavitabackend/app/api/src/courses/dto/course-query.dto.ts b/backend/ayanavitabackend/app/api/src/courses/dto/course-query.dto.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..75745e4ba390dff84aa6ba04a084c92c99a83de4
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/courses/dto/course-query.dto.ts
+@@ -0,0 +1,31 @@
++import { Type } from 'class-transformer'
++import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
++
++export class CourseQueryDto {
++  @IsOptional()
++  @Type(() => Number)
++  @IsInt()
++  @Min(1)
++  topicId?: number
++
++  @IsOptional()
++  @IsString()
++  search?: string
++
++  @IsOptional()
++  @IsString()
++  lang?: string
++
++  @IsOptional()
++  @Type(() => Number)
++  @IsInt()
++  @Min(1)
++  page?: number
++
++  @IsOptional()
++  @Type(() => Number)
++  @IsInt()
++  @Min(1)
++  @Max(100)
++  pageSize?: number
++}
+diff --git a/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts b/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts
+index 2fcb2baff649f3ef7e45123d3589138b41c626fa..34e62c4d56ed74c819cea10b6a48026950f93d82 100644
+--- a/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts
++++ b/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts
+@@ -12,50 +12,54 @@ import {
+ } from 'class-validator'
+ import { Type } from 'class-transformer'
+
+ class I18nTextDto {
+   @IsOptional()
+   @IsString()
+   vi?: string
+
+   @IsOptional()
+   @IsString()
+   'en-US'?: string
+
+   @IsOptional()
+   @IsString()
+   de?: string
+ }
+
+ export class CreateCourseDto {
+   @IsString()
+   slug: string
+
+   @IsOptional()
+   @IsString()
+   title?: string
+
++  @IsOptional()
++  @IsString()
++  shortDescription?: string
++
+   @IsOptional()
+   @ValidateNested()
+   @Type(() => I18nTextDto)
+   titleI18n?: I18nTextDto
+
+   @IsOptional()
+   @IsString()
+   description?: string
+
+   @IsOptional()
+   @ValidateNested()
+   @Type(() => I18nTextDto)
+   descriptionI18n?: I18nTextDto
+
+   @IsOptional()
+   @ValidateNested()
+   @Type(() => I18nTextDto)
+   shortDescriptionI18n?: I18nTextDto
+
+   @IsOptional()
+   @IsString()
+   thumbnail?: string
+
+   @IsOptional()
+   @IsInt()

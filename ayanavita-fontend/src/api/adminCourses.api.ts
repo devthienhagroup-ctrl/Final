@@ -10,7 +10,7 @@ export type CourseTopic = {
   _count?: { courses: number }
 }
 
-export type LocalizedText = { vi?: string; 'en-US'?: string; de?: string }
+export type LocalizedText = { vi?: string; en?: string; 'en-US'?: string; de?: string }
 
 export type LessonVideoPayload = {
   title: string
@@ -70,6 +70,7 @@ export type CourseAdmin = {
   id: number
   topicId?: number | null
   title: string
+  shortDescription?: string | null
   slug: string
   description?: string | null
   thumbnail?: string | null
@@ -85,6 +86,9 @@ export type CourseAdmin = {
   ratingAvg?: number
   ratingCount?: number
   enrollmentCount?: number
+  createdAt?: string
+  updatedAt?: string
+  videoCount?: number
   _count?: { lessons?: number }
 }
 
@@ -101,6 +105,7 @@ export type TopicPayload = {
 export type CoursePayload = {
   topicId?: number
   title: string
+  shortDescription?: string
   slug: string
   description?: string
   thumbnail?: string
@@ -117,12 +122,28 @@ export type CoursePayload = {
   enrollmentCount?: number
 }
 
+export type CourseListResponse = {
+  items: CourseAdmin[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 export const adminCoursesApi = {
   listTopics: () => get<CourseTopic[]>('/admin/course-topics', { auth: true }),
   createTopic: (body: TopicPayload) => post<CourseTopic>('/admin/course-topics', body, { auth: true }),
   updateTopic: (id: number, body: TopicPayload) => patch<CourseTopic>(`/admin/course-topics/${id}`, body, { auth: true }),
   deleteTopic: (id: number) => del<{ id: number }>(`/admin/course-topics/${id}`, { auth: true }),
-  listCourses: () => get<CourseAdmin[]>('/courses', { auth: true }),
+  listCourses: (params?: { topicId?: number; search?: string; page?: number; pageSize?: number; lang?: string }) => {
+    const qs = new URLSearchParams()
+    if (params?.topicId) qs.set('topicId', String(params.topicId))
+    if (params?.search?.trim()) qs.set('search', params.search.trim())
+    if (params?.page) qs.set('page', String(params.page))
+    if (params?.pageSize) qs.set('pageSize', String(params.pageSize))
+    if (params?.lang) qs.set('lang', params.lang)
+    const suffix = qs.toString() ? `?${qs.toString()}` : ''
+    return get<CourseListResponse>(`/courses${suffix}`, { auth: true })
+  },
   createCourse: (body: CoursePayload) => post<CourseAdmin>('/courses', body, { auth: true }),
   updateCourse: (id: number, body: Partial<CoursePayload>) => patch<CourseAdmin>(`/courses/${id}`, body, { auth: true }),
   deleteCourse: (id: number) => del<{ id: number }>(`/courses/${id}`, { auth: true }),

@@ -523,6 +523,84 @@ async function main() {
     }
   }
 
+  const topicSkincare = await prisma.courseTopic.upsert({
+    where: { name: 'Chăm sóc da cơ bản' },
+    update: { description: 'Chủ đề khóa học chăm sóc da nền tảng.' },
+    create: { name: 'Chăm sóc da cơ bản', description: 'Chủ đề khóa học chăm sóc da nền tảng.' },
+  })
+
+  const courseSeeds = [
+    {
+      slug: 'co-ban-cham-soc-da',
+      topicId: topicSkincare.id,
+      title: 'Khóa học chăm sóc da cơ bản',
+      shortDescription: 'Nắm vững nền tảng chăm sóc da trong 7 ngày.',
+      description: 'Khóa học hướng dẫn từ làm sạch, dưỡng ẩm tới chống nắng theo lộ trình thực hành hằng ngày.',
+      price: 399000,
+      published: true,
+      translations: [
+        { locale: 'vi', title: 'Khóa học chăm sóc da cơ bản', shortDescription: 'Nắm vững nền tảng chăm sóc da trong 7 ngày.', description: 'Khóa học hướng dẫn từ làm sạch, dưỡng ẩm tới chống nắng theo lộ trình thực hành hằng ngày.' },
+        { locale: 'en', title: 'Skincare Fundamentals Course', shortDescription: 'Master daily skincare basics in 7 days.', description: 'This course guides cleansing, moisturizing, and sunscreen routines with practical steps.' },
+        { locale: 'de', title: 'Grundkurs Hautpflege', shortDescription: 'Lerne die Hautpflege-Basics in 7 Tagen.', description: 'Der Kurs zeigt Reinigung, Feuchtigkeitspflege und Sonnenschutz mit praktischer Routine.' },
+      ],
+    },
+    {
+      slug: 'tri-mun-an-toan',
+      topicId: topicSkincare.id,
+      title: 'Khóa học xử lý mụn an toàn',
+      shortDescription: 'Kiểm soát mụn viêm và giảm thâm đúng cách.',
+      description: 'Tập trung vào thói quen chăm sóc da mụn, lựa chọn hoạt chất và theo dõi tiến độ cải thiện.',
+      price: 499000,
+      published: false,
+      translations: [
+        { locale: 'vi', title: 'Khóa học xử lý mụn an toàn', shortDescription: 'Kiểm soát mụn viêm và giảm thâm đúng cách.', description: 'Tập trung vào thói quen chăm sóc da mụn, lựa chọn hoạt chất và theo dõi tiến độ cải thiện.' },
+        { locale: 'en', title: 'Safe Acne Treatment Course', shortDescription: 'Control acne breakouts and dark spots safely.', description: 'Focuses on acne care habits, active ingredients, and progress tracking.' },
+        { locale: 'de', title: 'Sichere Aknebehandlung', shortDescription: 'Entzündete Akne und Flecken sicher reduzieren.', description: 'Fokus auf Akne-Routine, Wirkstoffe und kontinuierliche Fortschrittskontrolle.' },
+      ],
+    },
+  ]
+
+  for (const seed of courseSeeds) {
+    const course = await prisma.course.upsert({
+      where: { slug: seed.slug },
+      update: {
+        topicId: seed.topicId,
+        title: seed.title,
+        shortDescription: seed.shortDescription,
+        description: seed.description,
+        price: seed.price,
+        published: seed.published,
+      },
+      create: {
+        topicId: seed.topicId,
+        title: seed.title,
+        shortDescription: seed.shortDescription,
+        slug: seed.slug,
+        description: seed.description,
+        price: seed.price,
+        published: seed.published,
+      },
+    })
+
+    for (const trans of seed.translations) {
+      await prisma.courseTranslation.upsert({
+        where: { courseId_locale: { courseId: course.id, locale: trans.locale } },
+        update: {
+          title: trans.title,
+          shortDescription: trans.shortDescription,
+          description: trans.description,
+        },
+        create: {
+          courseId: course.id,
+          locale: trans.locale,
+          title: trans.title,
+          shortDescription: trans.shortDescription,
+          description: trans.description,
+        },
+      })
+    }
+  }
+
   const courses = await prisma.course.findMany({ orderBy: { id: 'asc' } })
   console.log('🌱 Seed OK')
   console.log({ userId: user.id, coursesCount: courses.length, branches: branches.length, services: services.length, specialists: specialists.length })

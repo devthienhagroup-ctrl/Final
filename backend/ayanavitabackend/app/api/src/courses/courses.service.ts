@@ -4,6 +4,7 @@ import { EnrollmentsService } from "../enrollments/enrollments.service";
 import { CreateCourseDto } from "./dto/create-course.dto";
 import { UpdateCourseDto } from "./dto/update-course.dto";
 import { Prisma, ProgressStatus } from "@prisma/client";
+import { CourseQueryDto } from "./dto/course-query.dto";
 
 type JwtUser = { sub: number; role: string }
 
@@ -18,6 +19,7 @@ export class CoursesService {
     id: true,
     topicId: true,
     title: true,
+    shortDescription: true,
     slug: true,
     description: true,
     thumbnail: true,
@@ -43,6 +45,7 @@ export class CoursesService {
       title: dto.title,
       slug: dto.slug,
       ...(dto.description !== undefined ? { description: dto.description } : {}),
+      ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
       ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
       ...(dto.price !== undefined ? { price: dto.price } : {}),
       ...(dto.published !== undefined ? { published: dto.published } : {}),
@@ -64,6 +67,7 @@ export class CoursesService {
       ...(dto.title !== undefined ? { title: dto.title } : {}),
       ...(dto.slug !== undefined ? { slug: dto.slug } : {}),
       ...(dto.description !== undefined ? { description: dto.description } : {}),
+      ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
       ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
       ...(dto.price !== undefined ? { price: dto.price } : {}),
       ...(dto.published !== undefined ? { published: dto.published } : {}),
@@ -110,11 +114,89 @@ export class CoursesService {
     })
   }
 
-  findAll() {
-    return this.prisma.course.findMany({
-      select: this.baseCourseSelect,
+  async findAll(query: CourseQueryDto, user?: { sub: number; role: string } | null) {
+    const activeLang = (query.lang || 'vi').toLowerCase()
+    const courseLocale = activeLang === 'en-us' || activeLang === 'en' ? 'en' : activeLang === 'de' ? 'de' : 'vi'
+    const topicLocale = activeLang === 'en' ? 'en-US' : activeLang === 'en-us' ? 'en-US' : activeLang === 'de' ? 'de' : 'vi'
+
+    const where: Prisma.CourseWhereInput = {
+      ...(user?.role === 'ADMIN' ? {} : { published: true }),
+      ...(query.topicId ? { topicId: query.topicId } : {}),
+      ...(query.search?.trim()
+        ? {
+            OR: [
+              { title: { contains: query.search.trim() } },
+              { slug: { contains: query.search.trim() } },
+            ],
+          }
+        : {}),
+    }
+
+    const page = Math.max(1, Number(query.page || 1))
+    const pageSize = Math.min(100, Math.max(1, Number(query.pageSize || 10)))
+
+    const [rows, total] = await Promise.all([
+      this.prisma.course.findMany({
+      where,
+      select: {
+        ...this.baseCourseSelect,
+        translations: {
+          where: { locale: { in: [courseLocale, 'vi'] } },
+          select: { locale: true, title: true, shortDescription: true, description: true },
+        },
+        topic: {
+          select: {
+            id: true,
+            name: true,
+            translations: {
+              where: { locale: { in: [topicLocale, 'vi'] } },
+              select: { locale: true, name: true },
+            },
+          },
+        },
+      },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
       orderBy: { id: "desc" },
-    });
+      }),
+      this.prisma.course.count({ where }),
+    ])
+
+    const courseIds = rows.map((row) => row.id)
+    if (!courseIds.length) {
+      return { items: [], total, page, pageSize }
+    }
+
+    const videoRows = await this.prisma.$queryRaw<Array<{ courseId: number; videoCount: bigint | number }>>`
+      SELECT l.courseId as courseId, COUNT(v.id) as videoCount
+      FROM LessonVideo v
+      INNER JOIN LessonModule m ON m.id = v.moduleId
+      INNER JOIN Lesson l ON l.id = m.lessonId
+      WHERE l.courseId IN (${Prisma.join(courseIds)})
+      GROUP BY l.courseId
+    `
+
+    const videoCountMap = new Map(videoRows.map((row) => [Number(row.courseId), Number(row.videoCount)]))
+    const items = rows.map((row: any) => {
+      const chosenCourseTrans = row.translations?.find((item: any) => item.locale === courseLocale) || row.translations?.find((item: any) => item.locale === 'vi')
+      const chosenTopicTrans = row.topic?.translations?.find((item: any) => item.locale === topicLocale) || row.topic?.translations?.find((item: any) => item.locale === 'vi')
+
+      return {
+        ...row,
+        title: chosenCourseTrans?.title || row.title,
+        shortDescription: chosenCourseTrans?.shortDescription || row.shortDescription,
+        description: chosenCourseTrans?.description || row.description,
+        topic: row.topic
+          ? {
+              id: row.topic.id,
+              name: chosenTopicTrans?.name || row.topic.name,
+            }
+          : null,
+        videoCount: videoCountMap.get(row.id) || 0,
+      }
+    })
+
+    return { items, total, page, pageSize }
   }
 
   async findOne(id: number) {
@@ -132,10 +214,12 @@ export class CoursesService {
     }
 
     try {
-      return await this.prisma.course.create({
+      const created = await this.prisma.course.create({
         data: this.buildCreateCoursePayload({ ...dto, title: dto.title.trim() }),
         select: this.baseCourseSelect,
-      });
+      })
+      await this.syncCourseTranslations(created.id, dto)
+      return created
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
         const target = (e.meta as any)?.target;
@@ -150,11 +234,13 @@ export class CoursesService {
 
   async update(id: number, dto: UpdateCourseDto) {
     await this.ensureCourseExists(id);
-    return this.prisma.course.update({
+    const updated = await this.prisma.course.update({
       where: { id },
       data: this.buildUpdateCoursePayload(dto),
       select: this.baseCourseSelect,
-    });
+    })
+    await this.syncCourseTranslations(id, dto)
+    return updated
   }
 
   async remove(id: number) {
@@ -228,5 +314,37 @@ export class CoursesService {
   private async ensureCourseExists(id: number) {
     const ok = await this.prisma.course.findUnique({ where: { id }, select: { id: true } });
     if (!ok) throw new NotFoundException("Course not found");
+  }
+
+  private async syncCourseTranslations(courseId: number, dto: Partial<CreateCourseDto>) {
+    const locales: Array<'vi' | 'en' | 'de'> = ['vi', 'en', 'de']
+    const mapLocale = (locale: 'vi' | 'en' | 'de') => (locale === 'en' ? 'en-US' : locale)
+
+    await Promise.all(
+      locales.map((locale) => {
+        const inputLocale = mapLocale(locale)
+        const title = dto.titleI18n?.[inputLocale] || (locale === 'vi' ? dto.title : undefined)
+        const description = dto.descriptionI18n?.[inputLocale] || (locale === 'vi' ? dto.description : undefined)
+        const shortDescription = dto.shortDescriptionI18n?.[inputLocale] || (locale === 'vi' ? dto.shortDescription : undefined)
+
+        if (!title?.trim()) return Promise.resolve(null)
+
+        return this.prisma.courseTranslation.upsert({
+          where: { courseId_locale: { courseId, locale } },
+          update: {
+            title: title.trim(),
+            shortDescription: shortDescription?.trim() || null,
+            description: description?.trim() || null,
+          },
+          create: {
+            courseId,
+            locale,
+            title: title.trim(),
+            shortDescription: shortDescription?.trim() || null,
+            description: description?.trim() || null,
+          },
+        })
+      }),
+    )
   }
 }

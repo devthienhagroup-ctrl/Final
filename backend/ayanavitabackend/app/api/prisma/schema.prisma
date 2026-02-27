@@ -246,6 +246,7 @@ model Course {
   id                  Int      @id @default(autoincrement())
   topicId             Int?
   title               String
+  shortDescription    String?  @db.VarChar(500)
   slug                String   @unique
   description         String?
   thumbnail           String?
@@ -266,11 +267,28 @@ model Course {
   lessons     Lesson[]
   enrollments Enrollment[]
   topic       CourseTopic? @relation(fields: [topicId], references: [id], onDelete: Restrict)
+  translations CourseTranslation[]
 
   // ✅ ADD
   orderItems OrderItem[] // <— opposite for OrderItem.course
 
   @@index([topicId])
+}
+
+model CourseTranslation {
+  id               Int      @id @default(autoincrement())
+  courseId         Int
+  locale           String   @db.VarChar(10)
+  title            String   @db.VarChar(255)
+  shortDescription String?  @db.VarChar(500)
+  description      String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, locale])
+  @@index([locale])
 }
 
 model CourseTopic {

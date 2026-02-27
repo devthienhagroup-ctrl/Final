@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import {
   adminCoursesApi,
   type CourseAdmin,
@@ -18,12 +18,20 @@ type Props = {
   courses: CourseAdmin[]
   topics: CourseTopic[]
   text: Record<string, string>
+  lang: 'vi' | 'en' | 'de'
+  selectedTopicId: number | 'all'
+  searchTerm: string
+  page: number
+  totalPages: number
+  totalItems: number
+  onChangeFilters: (patch: { selectedTopicId?: number | 'all'; searchTerm?: string }) => void
+  onChangePage: (page: number) => void
   onCreateCourse: (payload: CoursePayload) => Promise<void>
   onUpdateCourse: (id: number, payload: Partial<CoursePayload>) => Promise<void>
   onDeleteCourse: (course: CourseAdmin) => Promise<void>
 }
 
-type Lang = 'vi' | 'en-US' | 'de'
+type Lang = 'vi' | 'en' | 'de'
 
 type CourseForm = {
   topicId?: number
@@ -60,17 +68,17 @@ type LessonDraft = {
 
 const emptyCourseForm: CourseForm = {
   title: '', slug: '', description: '', thumbnail: '', price: 0, published: false,
-  titleI18n: { vi: '', 'en-US': '', de: '' },
-  descriptionI18n: { vi: '', 'en-US': '', de: '' },
+  titleI18n: { vi: '', 'en': '', de: '' },
+  descriptionI18n: { vi: '', 'en': '', de: '' },
   objectivesText: '', audienceText: '', benefitsText: '',
   ratingAvg: 0, ratingCount: 0, enrollmentCount: 0,
 }
 
 const emptyLessonDraft: LessonDraft = {
-  title: '', slug: '', description: '', titleI18n: { vi: '', 'en-US': '', de: '' },
-  descriptionI18n: { vi: '', 'en-US': '', de: '' },
+  title: '', slug: '', description: '', titleI18n: { vi: '', 'en': '', de: '' },
+  descriptionI18n: { vi: '', 'en': '', de: '' },
   content: '', order: 1, published: true,
-  modules: [{ title: '', description: '', titleI18n: { vi: '', 'en-US': '', de: '' }, descriptionI18n: { vi: '', 'en-US': '', de: '' }, order: 1, published: true, videos: [{ title: '', description: '', titleI18n: { vi: '', 'en-US': '', de: '' }, descriptionI18n: { vi: '', 'en-US': '', de: '' }, sourceUrl: '', durationSec: 0, order: 1, published: true }] }],
+  modules: [{ title: '', description: '', titleI18n: { vi: '', 'en': '', de: '' }, descriptionI18n: { vi: '', 'en': '', de: '' }, order: 1, published: true, videos: [{ title: '', description: '', titleI18n: { vi: '', 'en': '', de: '' }, descriptionI18n: { vi: '', 'en': '', de: '' }, sourceUrl: '', durationSec: 0, order: 1, published: true }] }],
 }
 
 const linesToArray = (v: string) => v.split('\n').map((x) => x.trim()).filter(Boolean)
@@ -86,12 +94,12 @@ function toCourseForm(course: CourseAdmin): CourseForm {
     published: Boolean(course.published),
     titleI18n: {
       vi: course.titleI18n?.vi || course.title || '',
-      'en-US': course.titleI18n?.['en-US'] || '',
+      'en': course.titleI18n?.['en'] || '',
       de: course.titleI18n?.de || '',
     },
     descriptionI18n: {
       vi: course.descriptionI18n?.vi || course.description || '',
-      'en-US': course.descriptionI18n?.['en-US'] || '',
+      'en': course.descriptionI18n?.['en'] || '',
       de: course.descriptionI18n?.de || '',
     },
     objectivesText: (course.objectives || []).join('\n'),
@@ -109,8 +117,8 @@ function toLessonDraft(detail: LessonDetailAdmin): LessonDraft {
     title: detail.title,
     slug: detail.slug,
     description: detail.description,
-    titleI18n: detail.titleI18n || { vi: '', 'en-US': '', de: '' },
-    descriptionI18n: detail.descriptionI18n || { vi: '', 'en-US': '', de: '' },
+    titleI18n: detail.titleI18n || { vi: '', 'en': '', de: '' },
+    descriptionI18n: detail.descriptionI18n || { vi: '', 'en': '', de: '' },
     content: detail.content,
     order: detail.order || 1,
     published: detail.published,
@@ -118,16 +126,16 @@ function toLessonDraft(detail: LessonDetailAdmin): LessonDraft {
       id: m.id,
       title: m.title,
       description: m.description,
-      titleI18n: m.titleI18n || { vi: '', 'en-US': '', de: '' },
-      descriptionI18n: m.descriptionI18n || { vi: '', 'en-US': '', de: '' },
+      titleI18n: m.titleI18n || { vi: '', 'en': '', de: '' },
+      descriptionI18n: m.descriptionI18n || { vi: '', 'en': '', de: '' },
       order: m.order ?? mi + 1,
       published: m.published ?? true,
       videos: (m.videos || []).map((v, vi) => ({
         id: v.id,
         title: v.title,
         description: v.description,
-        titleI18n: v.titleI18n || { vi: '', 'en-US': '', de: '' },
-        descriptionI18n: v.descriptionI18n || { vi: '', 'en-US': '', de: '' },
+        titleI18n: v.titleI18n || { vi: '', 'en': '', de: '' },
+        descriptionI18n: v.descriptionI18n || { vi: '', 'en': '', de: '' },
         sourceUrl: v.sourceUrl,
         durationSec: v.durationSec,
         order: v.order ?? vi + 1,
@@ -137,7 +145,7 @@ function toLessonDraft(detail: LessonDetailAdmin): LessonDraft {
   }
 }
 
-export function CoursesTab({ courses, topics, text, onCreateCourse, onUpdateCourse, onDeleteCourse }: Props) {
+export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searchTerm, page, totalPages, totalItems, onChangeFilters, onChangePage, onCreateCourse, onUpdateCourse, onDeleteCourse }: Props) {
   const [langMode, setLangMode] = useState<Lang>('vi')
   const [form, setForm] = useState<CourseForm>(emptyCourseForm)
   const [editing, setEditing] = useState<CourseAdmin | null>(null)
@@ -148,8 +156,11 @@ export function CoursesTab({ courses, topics, text, onCreateCourse, onUpdateCour
   const [lessonDraft, setLessonDraft] = useState<LessonDraft>(emptyLessonDraft)
   const [editingLessonId, setEditingLessonId] = useState<number | null>(null)
   const [uploadingFor, setUploadingFor] = useState<string>('')
-
-  const sortedCourses = useMemo(() => [...courses].sort((a, b) => b.id - a.id), [courses])
+  const displayTopicName = (topic: CourseTopic) => {
+    if (lang === 'de') return topic.translations?.de?.name || topic.name
+    if (lang === 'en') return topic.translations?.['en']?.name || topic.name
+    return topic.translations?.vi?.name || topic.name
+  }
 
   const loadLessons = async (courseId: number) => {
     try {
@@ -187,8 +198,8 @@ export function CoursesTab({ courses, topics, text, onCreateCourse, onUpdateCour
 
   const autoTranslateCourse = (field: 'titleI18n' | 'descriptionI18n', value: string) => {
     setForm((prev) => ({ ...prev, [field]: { ...prev[field], vi: value } }))
-    void Promise.all([autoTranslateFromVietnamese(value, 'en-US'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => {
-      setForm((prev) => ({ ...prev, [field]: { ...prev[field], 'en-US': en, de } }))
+    void Promise.all([autoTranslateFromVietnamese(value, 'en'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => {
+      setForm((prev) => ({ ...prev, [field]: { ...prev[field], 'en': en, de } }))
     })
   }
 
@@ -229,7 +240,7 @@ export function CoursesTab({ courses, topics, text, onCreateCourse, onUpdateCour
   const addModule = () => {
     setLessonDraft((prev) => ({
       ...prev,
-      modules: [...prev.modules, { title: '', description: '', titleI18n: { vi: '', 'en-US': '', de: '' }, descriptionI18n: { vi: '', 'en-US': '', de: '' }, order: prev.modules.length + 1, published: true, videos: [] }],
+      modules: [...prev.modules, { title: '', description: '', titleI18n: { vi: '', 'en': '', de: '' }, descriptionI18n: { vi: '', 'en': '', de: '' }, order: prev.modules.length + 1, published: true, videos: [] }],
     }))
   }
 
@@ -248,7 +259,7 @@ export function CoursesTab({ courses, topics, text, onCreateCourse, onUpdateCour
     setLessonDraft((prev) => ({
       ...prev,
       modules: prev.modules.map((m, i) => i === moduleIdx
-        ? { ...m, videos: [...m.videos, { title: '', description: '', titleI18n: { vi: '', 'en-US': '', de: '' }, descriptionI18n: { vi: '', 'en-US': '', de: '' }, sourceUrl: '', durationSec: 0, order: m.videos.length + 1, published: true }] }
+        ? { ...m, videos: [...m.videos, { title: '', description: '', titleI18n: { vi: '', 'en': '', de: '' }, descriptionI18n: { vi: '', 'en': '', de: '' }, sourceUrl: '', durationSec: 0, order: m.videos.length + 1, published: true }] }
         : m),
     }))
   }
@@ -272,15 +283,15 @@ export function CoursesTab({ courses, topics, text, onCreateCourse, onUpdateCour
   const autoTranslateLesson = (kind: 'lessonTitle' | 'lessonDesc' | 'moduleTitle' | 'moduleDesc' | 'videoTitle' | 'videoDesc', value: string, moduleIdx?: number, videoIdx?: number) => {
     const apply = (en: string, de: string) => {
       setLessonDraft((prev) => {
-        if (kind === 'lessonTitle') return { ...prev, titleI18n: { ...prev.titleI18n, vi: value, 'en-US': en, de } }
-        if (kind === 'lessonDesc') return { ...prev, descriptionI18n: { ...prev.descriptionI18n, vi: value, 'en-US': en, de } }
+        if (kind === 'lessonTitle') return { ...prev, titleI18n: { ...prev.titleI18n, vi: value, 'en': en, de } }
+        if (kind === 'lessonDesc') return { ...prev, descriptionI18n: { ...prev.descriptionI18n, vi: value, 'en': en, de } }
         if (moduleIdx === undefined) return prev
         if (kind === 'moduleTitle') {
-          const modules = prev.modules.map((m, i) => i === moduleIdx ? { ...m, titleI18n: { ...m.titleI18n, vi: value, 'en-US': en, de } } : m)
+          const modules = prev.modules.map((m, i) => i === moduleIdx ? { ...m, titleI18n: { ...m.titleI18n, vi: value, 'en': en, de } } : m)
           return { ...prev, modules }
         }
         if (kind === 'moduleDesc') {
-          const modules = prev.modules.map((m, i) => i === moduleIdx ? { ...m, descriptionI18n: { ...m.descriptionI18n, vi: value, 'en-US': en, de } } : m)
+          const modules = prev.modules.map((m, i) => i === moduleIdx ? { ...m, descriptionI18n: { ...m.descriptionI18n, vi: value, 'en': en, de } } : m)
           return { ...prev, modules }
         }
         if (videoIdx === undefined) return prev
@@ -288,15 +299,15 @@ export function CoursesTab({ courses, topics, text, onCreateCourse, onUpdateCour
           ...m,
           videos: m.videos.map((v, vi) => {
             if (vi !== videoIdx) return v
-            if (kind === 'videoTitle') return { ...v, titleI18n: { ...v.titleI18n, vi: value, 'en-US': en, de } }
-            return { ...v, descriptionI18n: { ...v.descriptionI18n, vi: value, 'en-US': en, de } }
+            if (kind === 'videoTitle') return { ...v, titleI18n: { ...v.titleI18n, vi: value, 'en': en, de } }
+            return { ...v, descriptionI18n: { ...v.descriptionI18n, vi: value, 'en': en, de } }
           }),
         })
         return { ...prev, modules }
       })
     }
 
-    void Promise.all([autoTranslateFromVietnamese(value, 'en-US'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => apply(en, de))
+    void Promise.all([autoTranslateFromVietnamese(value, 'en'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => apply(en, de))
   }
 
   const saveLesson = async () => {
@@ -397,44 +408,71 @@ export function CoursesTab({ courses, topics, text, onCreateCourse, onUpdateCour
     <section className='admin-card admin-card-glow admin-course-management-card'>
       <div className='admin-row' style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 className='admin-card-title'><i className='fa-solid fa-book' /> {text.coursesTab} ({courses.length})</h3>
-        <button
-            className="admin-btn admin-btn-save"
-            type="button"
-            style={{ marginBottom: '10px' }}
-            onClick={openCreate}
-        >
-          <i className="fa-solid fa-circle-plus" /> Tạo khoá học
-        </button>
+      </div>
+
+      <div className='admin-row' style={{ marginBottom: 12, gap: 12, alignItems: 'flex-end' }}>
+        <label className='admin-field' style={{ marginBottom: 0 }}>
+          <span className='admin-label'>{text.filterByTopic}</span>
+          <select
+            className='admin-input'
+            value={selectedTopicId}
+            onChange={(e) => {
+              onChangeFilters({ selectedTopicId: e.target.value === 'all' ? 'all' : Number(e.target.value) })
+            }}
+          >
+            <option value='all'>{text.allTopics}</option>
+            {topics.map((topic) => (
+              <option key={topic.id} value={topic.id}>{displayTopicName(topic)}</option>
+            ))}
+          </select>
+        </label>
+
+        <label className='admin-field' style={{ marginBottom: 0, minWidth: 280 }}>
+          <span className='admin-label'>{text.searchByCourseName}</span>
+          <input
+            className='admin-input'
+            value={searchTerm}
+            placeholder={text.searchPlaceholder}
+            onChange={(e) => {
+              onChangeFilters({ searchTerm: e.target.value })
+            }}
+          />
+        </label>
       </div>
 
       <div className='admin-table-wrap'>
         <table className='admin-table admin-table-courses-full no-scroll-table'>
           <thead>
             <tr>
-              <th>ID</th><th>Tiêu đề</th><th>Chủ đề</th><th>Giá</th><th>Rating</th><th>Đăng ký</th><th>Bài học</th><th>Trạng thái</th><th>Hành động</th>
+              <th>ID</th><th>{text.titleCol}</th><th>{text.topicCol}</th><th>{text.priceCol}</th><th>{text.ratingCol}</th><th>{text.enrollmentCol}</th><th>{text.lessonCol}</th><th>{text.videoCountCol}</th><th>{text.createdAtCol}</th><th>{text.updatedAtCol}</th><th>{text.statusCol}</th>
             </tr>
           </thead>
           <tbody>
-            {sortedCourses.map((c) => (
+            {courses.map((c) => (
               <tr key={c.id}>
                 <td>{c.id}</td>
                 <td className='td-strong'>{c.title}</td>
-                <td>{c.topic?.name || 'Chưa gán'}</td>
+                <td>{c.topic?.name || text.unassigned}</td>
                 <td>{(c.price || 0).toLocaleString('vi-VN')}đ</td>
                 <td>{c.ratingAvg ?? 0} ({c.ratingCount ?? 0})</td>
                 <td>{c.enrollmentCount ?? 0}</td>
                 <td>{c._count?.lessons ?? 0}</td>
-                <td><span className={`status-pill ${c.published ? 'is-published' : 'is-draft'}`}>{c.published ? 'Published' : 'Draft'}</span></td>
-                <td>
-                  <div className='admin-row'>
-                    <button className='admin-btn admin-btn-primary' type='button' onClick={() => void openEdit(c)}><i className='fa-solid fa-pen' /></button>
-                    <button className='admin-btn admin-btn-danger' type='button' onClick={() => void onDeleteCourse(c)}><i className='fa-solid fa-trash' /></button>
-                  </div>
-                </td>
+                <td>{c.videoCount ?? 0}</td>
+                <td>{c.createdAt ? new Date(c.createdAt).toLocaleString('vi-VN') : '--'}</td>
+                <td>{c.updatedAt ? new Date(c.updatedAt).toLocaleString('vi-VN') : '--'}</td>
+                <td><span className={`status-pill ${c.published ? 'is-published' : 'is-draft'}`}>{c.published ? text.publishedStatus : text.draftStatus}</span></td>
               </tr>
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className='admin-row' style={{ justifyContent: 'space-between', marginTop: 12 }}>
+        <span>{text.pageLabel} {Math.min(page, totalPages)} / {totalPages} • {text.totalCoursesLabel} {totalItems}</span>
+        <div className='admin-row'>
+          <button className='admin-btn admin-btn-ghost' type='button' disabled={page <= 1} onClick={() => onChangePage(Math.max(1, page - 1))}>{text.prevPage}</button>
+          <button className='admin-btn admin-btn-ghost' type='button' disabled={page >= totalPages} onClick={() => onChangePage(Math.min(totalPages, page + 1))}>{text.nextPage}</button>
+        </div>
       </div>
 
       {modalOpen && (
@@ -443,8 +481,8 @@ export function CoursesTab({ courses, topics, text, onCreateCourse, onUpdateCour
             <div className='admin-modal-header'>
               <h4><i className='fa-solid fa-pen-ruler' /> {editing ? 'Chỉnh sửa khoá học' : 'Tạo khoá học mới'}</h4>
               <div className='admin-row'>
-                {(['vi', 'en-US', 'de'] as Lang[]).map((l) => (
-                  <button key={l} type='button' className={`admin-btn ${langMode === l ? 'admin-btn-primary' : 'admin-btn-ghost'}`} onClick={() => setLangMode(l)}>{l === 'en-US' ? 'EN' : l.toUpperCase()}</button>
+                {(['vi', 'en', 'de'] as Lang[]).map((l) => (
+                  <button key={l} type='button' className={`admin-btn ${langMode === l ? 'admin-btn-primary' : 'admin-btn-ghost'}`} onClick={() => setLangMode(l)}>{l === 'en' ? 'EN' : l.toUpperCase()}</button>
                 ))}
                 <button type='button' className='admin-btn admin-btn-ghost' onClick={closeModal}>Đóng</button>
               </div>

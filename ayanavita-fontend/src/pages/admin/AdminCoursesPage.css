@@ -92,7 +92,7 @@
 }
 
 .admin-lang-option {
-  width: 42px;
+  min-width: 42px;
   height: 32px;
   border: none;
   background: transparent;
@@ -121,6 +121,16 @@
 
 .admin-lang-option.active img {
   opacity: 1;
+}
+
+.admin-input option {
+  color: #000;
+  background: #fff;
+}
+
+.admin-courses-theme-dark .admin-input option {
+  color: #000;
+  background: #fff;
 }
 
 

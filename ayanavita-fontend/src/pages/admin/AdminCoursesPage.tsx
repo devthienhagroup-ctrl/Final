@@ -8,7 +8,7 @@ import './AdminCoursesPage.css'
 
 type TabKey = 'topics' | 'courses'
 type ThemeMode = 'light' | 'dark'
-type AdminLang = 'vi' | 'en-US' | 'de'
+type AdminLang = 'vi' | 'en' | 'de'
 type TopicI18nForm = Record<AdminLang, { name: string; description: string }>
 
 const THEME_STORAGE_KEY = 'admin-courses-theme-mode'
@@ -16,7 +16,7 @@ const LANG_STORAGE_KEY = 'admin-courses-lang'
 
 const emptyTopicForm = (): TopicI18nForm => ({
   vi: { name: '', description: '' },
-  'en-US': { name: '', description: '' },
+  'en': { name: '', description: '' },
   de: { name: '', description: '' },
 })
 
@@ -59,8 +59,29 @@ const uiText: Record<AdminLang, Record<string, string>> = {
     saveFailed: 'Lưu chủ đề thất bại',
     deleteFailed: 'Không thể xóa chủ đề',
     displayMode: 'Chế độ hiển thị',
+    filterByTopic: 'Lọc theo chủ đề',
+    allTopics: 'Tất cả chủ đề',
+    searchByCourseName: 'Tìm theo tên khóa học',
+    searchPlaceholder: 'Nhập tên khóa học...',
+    titleCol: 'Tiêu đề',
+    topicCol: 'Chủ đề',
+    priceCol: 'Giá',
+    ratingCol: 'Rating',
+    enrollmentCol: 'Đăng ký',
+    lessonCol: 'Bài học',
+    videoCountCol: 'Số video',
+    createdAtCol: 'Tạo lúc',
+    updatedAtCol: 'Sửa lúc',
+    statusCol: 'Trạng thái',
+    unassigned: 'Chưa gán',
+    publishedStatus: 'Published',
+    draftStatus: 'Draft',
+    pageLabel: 'Trang',
+    totalCoursesLabel: 'Tổng khóa học',
+    prevPage: 'Trước',
+    nextPage: 'Sau',
   },
-  'en-US': {
+  'en': {
     kicker: 'COURSE ADMIN CENTER',
     title: 'Manage course topics & categories',
     subtitle: 'Service-admin style interface with multilingual input and language-based display for operators.',
@@ -98,6 +119,27 @@ const uiText: Record<AdminLang, Record<string, string>> = {
     saveFailed: 'Failed to save topic',
     deleteFailed: 'Unable to delete topic',
     displayMode: 'Display mode',
+    filterByTopic: 'Filter by topic',
+    allTopics: 'All topics',
+    searchByCourseName: 'Search by course name',
+    searchPlaceholder: 'Enter course name...',
+    titleCol: 'Title',
+    topicCol: 'Topic',
+    priceCol: 'Price',
+    ratingCol: 'Rating',
+    enrollmentCol: 'Enrollments',
+    lessonCol: 'Lessons',
+    videoCountCol: 'Videos',
+    createdAtCol: 'Created at',
+    updatedAtCol: 'Updated at',
+    statusCol: 'Status',
+    unassigned: 'Unassigned',
+    publishedStatus: 'Published',
+    draftStatus: 'Draft',
+    pageLabel: 'Page',
+    totalCoursesLabel: 'Total courses',
+    prevPage: 'Prev',
+    nextPage: 'Next',
   },
   de: {
     kicker: 'KURS-ADMIN-ZENTRUM',
@@ -137,13 +179,34 @@ const uiText: Record<AdminLang, Record<string, string>> = {
     saveFailed: 'Thema konnte nicht gespeichert werden',
     deleteFailed: 'Thema konnte nicht gelöscht werden',
     displayMode: 'Anzeigemodus',
+    filterByTopic: 'Nach Thema filtern',
+    allTopics: 'Alle Themen',
+    searchByCourseName: 'Nach Kursname suchen',
+    searchPlaceholder: 'Kursname eingeben...',
+    titleCol: 'Titel',
+    topicCol: 'Thema',
+    priceCol: 'Preis',
+    ratingCol: 'Bewertung',
+    enrollmentCol: 'Anmeldungen',
+    lessonCol: 'Lektionen',
+    videoCountCol: 'Videos',
+    createdAtCol: 'Erstellt am',
+    updatedAtCol: 'Aktualisiert am',
+    statusCol: 'Status',
+    unassigned: 'Nicht zugeordnet',
+    publishedStatus: 'Published',
+    draftStatus: 'Draft',
+    pageLabel: 'Seite',
+    totalCoursesLabel: 'Gesamtkurse',
+    prevPage: 'Zurück',
+    nextPage: 'Weiter',
   },
 }
 
-const languageMeta: Record<AdminLang, { label: string; flagUrl: string; alt: string }> = {
-  'en-US': { label: 'English (US)', flagUrl: 'https://flagcdn.com/w40/us.png', alt: 'USA flag' },
-  de: { label: 'Deutsch', flagUrl: 'https://flagcdn.com/w40/de.png', alt: 'Germany flag' },
-  vi: { label: 'Tiếng Việt', flagUrl: 'https://flagcdn.com/w40/vn.png', alt: 'Vietnam flag' },
+const languageMeta: Record<AdminLang, { label: string; code: string; flagUrl: string }> = {
+  'en': { label: 'English (US)', code: 'en', flagUrl: 'https://flagcdn.com/w40/gb.png' },
+  de: { label: 'Deutsch', code: 'de', flagUrl: 'https://flagcdn.com/w40/de.png' },
+  vi: { label: 'Tiếng Việt', code: 'vi', flagUrl: 'https://flagcdn.com/w40/vn.png' },
 }
 
 const toTopicForm = (topic?: CourseTopic | null): TopicI18nForm => ({
@@ -151,9 +214,9 @@ const toTopicForm = (topic?: CourseTopic | null): TopicI18nForm => ({
     name: topic?.translations?.vi?.name || topic?.name || '',
     description: topic?.translations?.vi?.description || topic?.description || '',
   },
-  'en-US': {
-    name: topic?.translations?.['en-US']?.name || topic?.name || '',
-    description: topic?.translations?.['en-US']?.description || topic?.description || '',
+  'en': {
+    name: topic?.translations?.['en']?.name || topic?.name || '',
+    description: topic?.translations?.['en']?.description || topic?.description || '',
   },
   de: {
     name: topic?.translations?.de?.name || topic?.name || '',
@@ -165,6 +228,11 @@ export default function AdminCoursesPage() {
   const [tab, setTab] = useState<TabKey>('topics')
   const [topics, setTopics] = useState<CourseTopic[]>([])
   const [courses, setCourses] = useState<CourseAdmin[]>([])
+  const [coursesTotal, setCoursesTotal] = useState(0)
+  const [coursePage, setCoursePage] = useState(1)
+  const [coursePageSize] = useState(8)
+  const [selectedTopicId, setSelectedTopicId] = useState<number | 'all'>('all')
+  const [searchTerm, setSearchTerm] = useState('')
   const [topicForm, setTopicForm] = useState<TopicI18nForm>(() => emptyTopicForm())
   const [editingId, setEditingId] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
@@ -174,17 +242,16 @@ export default function AdminCoursesPage() {
   })
   const [lang, setLang] = useState<AdminLang>(() => {
     const saved = window.localStorage.getItem(LANG_STORAGE_KEY)
-    return saved === 'en-US' || saved === 'de' ? saved : 'vi'
+    return saved === 'en' || saved === 'de' ? saved : 'vi'
   })
 
   const t = uiText[lang]
 
-  const loadAll = async () => {
+  const loadTopics = async () => {
     setLoading(true)
     try {
-      const [topicItems, courseItems] = await Promise.all([adminCoursesApi.listTopics(), adminCoursesApi.listCourses()])
+      const topicItems = await adminCoursesApi.listTopics()
       setTopics(topicItems)
-      setCourses(courseItems)
     } catch (e: any) {
       AlertJs.error(e?.message || t.loadFailed)
     } finally {
@@ -192,10 +259,31 @@ export default function AdminCoursesPage() {
     }
   }
 
+  const loadCourses = async () => {
+    try {
+      const courseResp = await adminCoursesApi.listCourses({
+        topicId: selectedTopicId === 'all' ? undefined : selectedTopicId,
+        search: searchTerm,
+        page: coursePage,
+        pageSize: coursePageSize,
+        lang,
+      })
+      setCourses(courseResp.items)
+      setCoursesTotal(courseResp.total)
+    } catch (e: any) {
+      AlertJs.error(e?.message || t.loadFailed)
+    }
+  }
+
   useEffect(() => {
-    void loadAll()
+    void loadTopics()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    void loadCourses()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang, selectedTopicId, searchTerm, coursePage, coursePageSize])
 
   useEffect(() => {
     window.localStorage.setItem(THEME_STORAGE_KEY, theme)
@@ -229,7 +317,7 @@ export default function AdminCoursesPage() {
   }
 
   const saveTopic = async () => {
-    const fallbackName = topicForm.vi.name || topicForm['en-US'].name || topicForm.de.name
+    const fallbackName = topicForm.vi.name || topicForm['en'].name || topicForm.de.name
     if (!fallbackName.trim()) {
       AlertJs.error(t.validateName)
       return
@@ -237,10 +325,10 @@ export default function AdminCoursesPage() {
 
     const payload = {
       name: fallbackName.trim(),
-      description: (topicForm.vi.description || topicForm['en-US'].description || topicForm.de.description || '').trim() || undefined,
+      description: (topicForm.vi.description || topicForm['en'].description || topicForm.de.description || '').trim() || undefined,
       translations: {
         vi: { name: topicForm.vi.name.trim(), description: topicForm.vi.description.trim() },
-        'en-US': { name: topicForm['en-US'].name.trim(), description: topicForm['en-US'].description.trim() },
+        'en': { name: topicForm['en'].name.trim(), description: topicForm['en'].description.trim() },
         de: { name: topicForm.de.name.trim(), description: topicForm.de.description.trim() },
       },
     }
@@ -254,7 +342,7 @@ export default function AdminCoursesPage() {
         AlertJs.success(t.createSuccess)
       }
       resetForm()
-      await loadAll()
+      await loadTopics()
     } catch (e: any) {
       AlertJs.error(e?.message || t.saveFailed)
     }
@@ -264,7 +352,7 @@ export default function AdminCoursesPage() {
     try {
       await adminCoursesApi.deleteTopic(topic.id)
       AlertJs.success(t.deleteSuccess)
-      await loadAll()
+      await loadTopics()
     } catch (e: any) {
       AlertJs.error(e?.message || t.deleteFailed)
     }
@@ -280,7 +368,7 @@ export default function AdminCoursesPage() {
     try {
       await adminCoursesApi.createCourse(payload)
       AlertJs.success('Đã tạo khoá học')
-      await loadAll()
+      await loadCourses()
     } catch (e: any) {
       AlertJs.error(e?.message || 'Tạo khoá học thất bại')
       throw e
@@ -291,7 +379,7 @@ export default function AdminCoursesPage() {
     try {
       await adminCoursesApi.updateCourse(id, payload)
       AlertJs.success('Đã cập nhật khoá học')
-      await loadAll()
+      await loadCourses()
     } catch (e: any) {
       AlertJs.error(e?.message || 'Cập nhật khoá học thất bại')
       throw e
@@ -305,7 +393,7 @@ export default function AdminCoursesPage() {
     try {
       await adminCoursesApi.deleteCourse(course.id)
       AlertJs.success('Đã xoá khoá học')
-      await loadAll()
+      await loadCourses()
     } catch (e: any) {
       AlertJs.error(e?.message || 'Xoá khoá học thất bại')
       throw e
@@ -334,7 +422,7 @@ export default function AdminCoursesPage() {
           </button>
 
           <div className='admin-lang-switch' role='group' aria-label={t.displayMode}>
-            {(['en-US', 'de', 'vi'] as AdminLang[]).map((code) => {
+            {(['en', 'de', 'vi'] as AdminLang[]).map((code) => {
               const item = languageMeta[code]
               const active = lang === code
               return (
@@ -347,7 +435,8 @@ export default function AdminCoursesPage() {
                   title={item.label}
                   aria-label={item.label}
                 >
-                  <img src={item.flagUrl} alt={item.alt} loading='lazy' />
+                  <img src={item.flagUrl} alt={item.label} loading='lazy' />
+                  <span>{item.code}</span>
                 </button>
               )
             })}
@@ -363,7 +452,7 @@ export default function AdminCoursesPage() {
         </article>
         <article className='overview-card'>
           <span><i className='fa-solid fa-book-open-reader' /> {t.courseCount}</span>
-          <strong>{courses.length}</strong>
+          <strong>{coursesTotal}</strong>
           <small>{t.courseCountDesc}</small>
         </article>
         <article className='overview-card'>
@@ -412,6 +501,18 @@ export default function AdminCoursesPage() {
           courses={courses}
           topics={topics}
           text={t}
+          lang={lang}
+          selectedTopicId={selectedTopicId}
+          searchTerm={searchTerm}
+          page={coursePage}
+          totalPages={Math.max(1, Math.ceil(coursesTotal / coursePageSize))}
+          totalItems={coursesTotal}
+          onChangeFilters={(patch) => {
+            if (patch.selectedTopicId !== undefined) setSelectedTopicId(patch.selectedTopicId)
+            if (patch.searchTerm !== undefined) setSearchTerm(patch.searchTerm)
+            setCoursePage(1)
+          }}
+          onChangePage={(nextPage) => setCoursePage(nextPage)}
           onCreateCourse={createCourse}
           onUpdateCourse={updateCourse}
           onDeleteCourse={deleteCourse}

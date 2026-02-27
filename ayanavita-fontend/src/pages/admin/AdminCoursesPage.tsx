@@ -478,6 +478,7 @@ export default function AdminCoursesPage() {
             setCoursePage(1)
           }}
           onChangePage={(nextPage) => setCoursePage(nextPage)}
+          onCourseCreated={loadCourses}
         />
       )}
     </main>

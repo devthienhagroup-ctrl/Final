@@ -1,343 +1,17 @@
-diff --git a/ayanavita-fontend/src/api/adminCourses.api.ts b/ayanavita-fontend/src/api/adminCourses.api.ts
-index 656341f67a0d3bed109059c2fac5cbe7450fc5d4..285c543d45da23f7b3291a1e90c637adcbda1b3f 100644
---- a/ayanavita-fontend/src/api/adminCourses.api.ts
-+++ b/ayanavita-fontend/src/api/adminCourses.api.ts
-@@ -116,42 +116,43 @@ export type CoursePayload = {
-   enrollmentCount?: number
- }
-
- export type CourseListResponse = {
-   items: CourseAdmin[]
-   total: number
-   page: number
-   pageSize: number
- }
-
- export const adminCoursesApi = {
-   listTopics: () => get<CourseTopic[]>('/admin/course-topics', { auth: true }),
-   createTopic: (body: TopicPayload) => post<CourseTopic>('/admin/course-topics', body, { auth: true }),
-   updateTopic: (id: number, body: TopicPayload) => patch<CourseTopic>(`/admin/course-topics/${id}`, body, { auth: true }),
-   deleteTopic: (id: number) => del<{ id: number }>(`/admin/course-topics/${id}`, { auth: true }),
-   listCourses: (params?: { topicId?: number; search?: string; page?: number; pageSize?: number; lang?: string }) => {
-     const qs = new URLSearchParams()
-     if (params?.topicId) qs.set('topicId', String(params.topicId))
-     if (params?.search?.trim()) qs.set('search', params.search.trim())
-     if (params?.page) qs.set('page', String(params.page))
-     if (params?.pageSize) qs.set('pageSize', String(params.pageSize))
-     if (params?.lang) qs.set('lang', params.lang)
-     const suffix = qs.toString() ? `?${qs.toString()}` : ''
-     return get<CourseListResponse>(`/courses${suffix}`, { auth: true })
-   },
--  createCourse: (body: CoursePayload) => post<CourseAdmin>('/courses', body, { auth: true }),
-+  createCourse: (body: CoursePayload | FormData) => post<CourseAdmin>('/courses', body, { auth: true }),
-   updateCourse: (id: number, body: Partial<CoursePayload>) => patch<CourseAdmin>(`/courses/${id}`, body, { auth: true }),
-   deleteCourse: (id: number) => del<{ id: number }>(`/courses/${id}`, { auth: true }),
-
-   listCourseLessons: (courseId: number) => get<LessonAdmin[]>(`/courses/${courseId}/lessons-outline`, { auth: true }),
-   getLessonDetail: (lessonId: number) => get<LessonDetailAdmin>(`/lessons/${lessonId}`, { auth: true }),
-   createLesson: (courseId: number, body: LessonPayload) => post<LessonAdmin>(`/courses/${courseId}/lessons`, body, { auth: true }),
-   updateLesson: (lessonId: number, body: Partial<LessonPayload>) => patch<LessonAdmin>(`/lessons/${lessonId}`, body, { auth: true }),
-   deleteLesson: (lessonId: number) => del<{ id: number }>(`/lessons/${lessonId}`, { auth: true }),
-
--  uploadModuleMedia: (lessonId: number, moduleId: string | number, file: File, type: 'video' | 'image') => {
-+  uploadModuleMedia: (lessonId: number, moduleId: string | number, file: File, type: 'video' | 'image', order?: number) => {
-     const body = new FormData()
-     body.append('file', file)
-     body.append('type', type)
--    return post<{ moduleId?: string; lessonId?: number; hlsPlaylistKey?: string; segmentCount?: number; imageKey?: string; sourceUrl?: string; storage: string }>(`/lessons/${lessonId}/modules/${moduleId}/media/upload`, body, { auth: true })
-+    if (order !== undefined) body.append('order', String(order))
-+    return post<{ moduleId?: string; lessonId?: number; hlsPlaylistKey?: string; segmentCount?: number; imageKey?: string; sourceUrl?: string; storage: string; videoId?: number }>(`/lessons/${lessonId}/modules/${moduleId}/media/upload`, body, { auth: true })
-   },
- }
 diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/CreateCourseModal.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/CreateCourseModal.tsx
-index 840936ee11fb2e0eb6728a35425989e4b9ef2e4f..6b8b32e415d09139b7dbbeb6b8b61e74a7175f51 100644
+index 6b8b32e415d09139b7dbbeb6b8b61e74a7175f51..efd43d014eb86ba714a0c056e3243a1baa237522 100644
 --- a/ayanavita-fontend/src/pages/admin/courseTabs/CreateCourseModal.tsx
 +++ b/ayanavita-fontend/src/pages/admin/courseTabs/CreateCourseModal.tsx
-@@ -1,183 +1,145 @@
- import { useMemo, useState } from 'react'
- import { autoTranslateFromVietnamese } from '../tabs/i18nForm'
- import { adminCoursesApi } from '../../../api/adminCourses.api'
- import './CreateCourseModal.css'
-
- type AdminLang = 'vi' | 'en' | 'de'
--type MediaType = 'video' | 'image'
-
- type TopicItem = { id: number; name: string; translations?: { vi?: { name?: string }; en?: { name?: string }; de?: { name?: string } } }
-
- type Props = {
-   open: boolean
-   lang: AdminLang
-   topics: TopicItem[]
-   onClose: () => void
- }
-
- type I18nText = Record<AdminLang, string>
- type I18nStringArray = Record<AdminLang, string[]>
-
--type MediaForm = { type: MediaType; file?: File | null; orderIndex: number }
--type ModuleForm = { title: I18nText; description: I18nText; orderIndex: number; medias: MediaForm[] }
--type LessonForm = { title: I18nText; description: I18nText; orderIndex: number; modules: ModuleForm[] }
--
- type CourseForm = {
-   title: I18nText
-   shortDescription: I18nText
-   description: I18nText
-   thumbnailFile?: File | null
-   price: string
-   published: boolean
-   topicId?: number
-   objectives: I18nStringArray
-   targetAudience: I18nStringArray
-   benefits: I18nStringArray
--  lessons: LessonForm[]
- }
-
- const emptyI18n = (): I18nText => ({ vi: '', en: '', de: '' })
- const emptyI18nArray = (): I18nStringArray => ({ vi: [''], en: [''], de: [''] })
-
--const createMedia = (orderIndex = 1): MediaForm => ({ type: 'video', file: null, orderIndex })
--const createModule = (orderIndex = 1): ModuleForm => ({ title: emptyI18n(), description: emptyI18n(), orderIndex, medias: [createMedia()] })
--const createLesson = (orderIndex = 1): LessonForm => ({ title: emptyI18n(), description: emptyI18n(), orderIndex, modules: [createModule()] })
--
- const initialForm = (): CourseForm => ({
-   title: emptyI18n(),
-   shortDescription: emptyI18n(),
-   description: emptyI18n(),
-   thumbnailFile: null,
-   price: '',
-   published: false,
-   topicId: undefined,
-   objectives: emptyI18nArray(),
-   targetAudience: emptyI18nArray(),
-   benefits: emptyI18nArray(),
--  lessons: [createLesson()],
- })
-
- const slugify = (input: string) =>
-   input
-     .toLowerCase()
-     .normalize('NFD')
-     .replace(/[\u0300-\u036f]/g, '')
-     .replace(/[^a-z0-9\s-]/g, '')
-     .trim()
-     .replace(/\s+/g, '-')
-
- const textMap: Record<AdminLang, Record<string, string>> = {
-   vi: {
-     title: 'Thêm khóa học mới',
-     close: 'Đóng',
--    submit: 'Submit 1 lần',
-+    submit: 'Lưu khóa học',
-     required: 'Vui lòng nhập đủ các trường bắt buộc.',
-     invalidPrice: 'Giá phải là số hợp lệ và lớn hơn hoặc bằng 0.',
-     langInput: 'Ngôn ngữ nhập liệu',
-     courseInfo: 'I. Thông tin khóa học',
--    lessons: 'II. Lesson',
--    modules: 'III. Module',
--    medias: 'IV. Media',
-     topic: 'Chủ đề *',
-     titleLabel: 'Tiêu đề *',
-     shortDescription: 'Mô tả ngắn',
-     description: 'Mô tả chi tiết',
-     thumbnailUpload: 'Thumbnail (upload ảnh)',
-     price: 'Giá',
-     published: 'Xuất bản',
--    addLesson: 'Thêm Lesson',
--    addModule: 'Thêm Module',
--    addMedia: 'Thêm Media',
-     addItem: 'Thêm dòng',
-     remove: 'Xóa',
-     objective: 'Mục tiêu',
-     audience: 'Đối tượng',
-     benefits: 'Lợi ích',
--    mediaType: 'Loại media',
--    upload: 'Upload file',
--    orderIndex: 'Thứ tự',
-   },
-   en: {
-     title: 'Add new course',
-     close: 'Close',
--    submit: 'Submit once',
-+    submit: 'Save course',
-     required: 'Please fill required fields.',
-     invalidPrice: 'Price must be a valid number and greater than or equal to 0.',
-     langInput: 'Input language',
-     courseInfo: 'I. Course information',
--    lessons: 'II. Lesson',
--    modules: 'III. Module',
--    medias: 'IV. Media',
-     topic: 'Topic *',
-     titleLabel: 'Title *',
-     shortDescription: 'Short description',
-     description: 'Description',
-     thumbnailUpload: 'Thumbnail (upload image)',
-     price: 'Price',
-     published: 'Published',
--    addLesson: 'Add lesson',
--    addModule: 'Add module',
--    addMedia: 'Add media',
-     addItem: 'Add row',
-     remove: 'Remove',
-     objective: 'Objectives',
-     audience: 'Target audience',
-     benefits: 'Benefits',
--    mediaType: 'Media type',
--    upload: 'Upload file',
--    orderIndex: 'Order index',
-   },
-   de: {
-     title: 'Neuen Kurs hinzufügen',
-     close: 'Schließen',
--    submit: 'Einmal senden',
-+    submit: 'Kurs speichern',
-     required: 'Bitte Pflichtfelder ausfüllen.',
-     invalidPrice: 'Preis muss eine gültige Zahl und größer oder gleich 0 sein.',
-     langInput: 'Eingabesprache',
-     courseInfo: 'I. Kursinformationen',
--    lessons: 'II. Lektion',
--    modules: 'III. Modul',
--    medias: 'IV. Medien',
-     topic: 'Thema *',
-     titleLabel: 'Titel *',
-     shortDescription: 'Kurzbeschreibung',
-     description: 'Beschreibung',
-     thumbnailUpload: 'Thumbnail (Bild hochladen)',
-     price: 'Preis',
-     published: 'Veröffentlicht',
--    addLesson: 'Lektion hinzufügen',
--    addModule: 'Modul hinzufügen',
--    addMedia: 'Medien hinzufügen',
-     addItem: 'Zeile hinzufügen',
-     remove: 'Löschen',
-     objective: 'Ziele',
-     audience: 'Zielgruppe',
-     benefits: 'Vorteile',
--    mediaType: 'Medientyp',
--    upload: 'Datei hochladen',
--    orderIndex: 'Reihenfolge',
-   },
- }
-
- export function CreateCourseModal({ open, lang, topics, onClose }: Props) {
-   const [form, setForm] = useState<CourseForm>(() => initialForm())
-   const [inputLang, setInputLang] = useState<AdminLang>('vi')
-   const [submitting, setSubmitting] = useState(false)
-   const t = textMap[lang]
-
-   const displayTopicName = (topic: TopicItem) => {
-     if (lang === 'en') return topic.translations?.en?.name || topic.name
-     if (lang === 'de') return topic.translations?.de?.name || topic.name
-     return topic.translations?.vi?.name || topic.name
-   }
-
-   const slug = useMemo(() => slugify(form.title.vi || ''), [form.title.vi])
-
-   const translateVietnameseToOthers = async (value: string, updater: (en: string, de: string) => void) => {
-     const [en, de] = await Promise.all([autoTranslateFromVietnamese(value, 'en-US'), autoTranslateFromVietnamese(value, 'de')])
-     updater(en, de)
-   }
-
-   const updateI18nField = (field: 'title' | 'shortDescription' | 'description', value: string) => {
-     setForm((prev) => ({ ...prev, [field]: { ...prev[field], [inputLang]: value } }))
-     if (inputLang !== 'vi') return
-@@ -196,181 +158,93 @@ export function CreateCourseModal({ open, lang, topics, onClose }: Props) {
-       setForm((prev) => {
-         const nextEn = [...prev[field].en]
-         const nextDe = [...prev[field].de]
-         nextEn[index] = en
-         nextDe[index] = de
-         return { ...prev, [field]: { ...prev[field], en: nextEn, de: nextDe } }
-       })
-     })
-   }
-
-   const addI18nListItem = (field: 'objectives' | 'targetAudience' | 'benefits') => {
-     setForm((prev) => ({ ...prev, [field]: { vi: [...prev[field].vi, ''], en: [...prev[field].en, ''], de: [...prev[field].de, ''] } }))
-   }
-
-   const removeI18nListItem = (field: 'objectives' | 'targetAudience' | 'benefits', index: number) => {
-     setForm((prev) => ({
-       ...prev,
-       [field]: {
-         vi: prev[field].vi.filter((_, i) => i !== index),
-         en: prev[field].en.filter((_, i) => i !== index),
-         de: prev[field].de.filter((_, i) => i !== index),
-       },
-     }))
-   }
-
--  const updateLesson = (lessonIdx: number, updater: (lesson: LessonForm) => LessonForm) => {
--    setForm((prev) => ({ ...prev, lessons: prev.lessons.map((lesson, idx) => (idx === lessonIdx ? updater(lesson) : lesson)) }))
--  }
--
--  const updateModule = (lessonIdx: number, moduleIdx: number, updater: (module: ModuleForm) => ModuleForm) => {
--    updateLesson(lessonIdx, (lesson) => ({ ...lesson, modules: lesson.modules.map((module, idx) => (idx === moduleIdx ? updater(module) : module)) }))
--  }
--
--  const updateMedia = (lessonIdx: number, moduleIdx: number, mediaIdx: number, updater: (media: MediaForm) => MediaForm) => {
--    updateModule(lessonIdx, moduleIdx, (module) => ({ ...module, medias: module.medias.map((media, idx) => (idx === mediaIdx ? updater(media) : media)) }))
--  }
--
--  const addLesson = () => setForm((prev) => ({ ...prev, lessons: [...prev.lessons, createLesson(prev.lessons.length + 1)] }))
--  const removeLesson = (lessonIdx: number) => setForm((prev) => ({ ...prev, lessons: prev.lessons.filter((_, idx) => idx !== lessonIdx) }))
--  const addModule = (lessonIdx: number) => updateLesson(lessonIdx, (lesson) => ({ ...lesson, modules: [...lesson.modules, createModule(lesson.modules.length + 1)] }))
--  const removeModule = (lessonIdx: number, moduleIdx: number) => updateLesson(lessonIdx, (lesson) => ({ ...lesson, modules: lesson.modules.filter((_, idx) => idx !== moduleIdx) }))
--  const addMedia = (lessonIdx: number, moduleIdx: number) => updateModule(lessonIdx, moduleIdx, (module) => ({ ...module, medias: [...module.medias, createMedia(module.medias.length + 1)] }))
--  const removeMedia = (lessonIdx: number, moduleIdx: number, mediaIdx: number) => updateModule(lessonIdx, moduleIdx, (module) => ({ ...module, medias: module.medias.filter((_, idx) => idx !== mediaIdx) }))
--
--  const updateLessonText = (lessonIdx: number, field: 'title' | 'description', value: string) => {
--    updateLesson(lessonIdx, (lesson) => ({ ...lesson, [field]: { ...lesson[field], [inputLang]: value } }))
--    if (inputLang !== 'vi') return
--    void translateVietnameseToOthers(value, (en, de) => updateLesson(lessonIdx, (lesson) => ({ ...lesson, [field]: { ...lesson[field], en, de } })))
--  }
--
--  const updateModuleText = (lessonIdx: number, moduleIdx: number, field: 'title' | 'description', value: string) => {
--    updateModule(lessonIdx, moduleIdx, (module) => ({ ...module, [field]: { ...module[field], [inputLang]: value } }))
--    if (inputLang !== 'vi') return
--    void translateVietnameseToOthers(value, (en, de) => updateModule(lessonIdx, moduleIdx, (module) => ({ ...module, [field]: { ...module[field], en, de } })))
--  }
--
-   const getPrice = () => Number(form.price)
-
+@@ -185,53 +185,65 @@ export function CreateCourseModal({ open, lang, topics, onClose }: Props) {
    const validate = () => {
      if (!form.topicId || !form.title.vi.trim()) return false
      if (!Number.isFinite(getPrice()) || getPrice() < 0) {
        window.alert(t.invalidPrice)
        return false
      }
--    for (const lesson of form.lessons) {
--      if (!lesson.title.vi.trim()) return false
--      for (const module of lesson.modules) {
--        if (!module.title.vi.trim()) return false
--      }
--    }
      return true
    }
 
--  const toLanguageVersion = (locale: AdminLang) => ({
--    title: form.title[locale],
--    shortDescription: form.shortDescription[locale],
--    description: form.description[locale],
--    objectives: form.objectives[locale].filter((v) => v.trim()),
--    targetAudience: form.targetAudience[locale].filter((v) => v.trim()),
--    benefits: form.benefits[locale].filter((v) => v.trim()),
--    lessons: form.lessons.map((lesson) => ({
--      title: lesson.title[locale],
--      description: lesson.description[locale],
--      orderIndex: lesson.orderIndex,
--      modules: lesson.modules.map((module) => ({
--        title: module.title[locale],
--        description: module.description[locale],
--        orderIndex: module.orderIndex,
--        medias: module.medias.map((media) => ({
--          type: media.type,
--          uploadFileName: media.file?.name,
--          orderIndex: media.orderIndex,
--        })),
--      })),
--    })),
--  })
--
    const submit = async () => {
      if (!validate()) {
        if (Number.isFinite(getPrice()) && getPrice() >= 0) window.alert(t.required)
@@ -346,81 +20,45 @@ index 840936ee11fb2e0eb6728a35425989e4b9ef2e4f..6b8b32e415d09139b7dbbeb6b8b61e74
 
      setSubmitting(true)
      try {
--      const course = await adminCoursesApi.createCourse({
--        title: form.title.vi,
--        shortDescription: form.shortDescription.vi,
--        description: form.description.vi,
--        price: getPrice(),
--        published: form.published,
--        topicId: form.topicId,
--        objectives: form.objectives.vi.filter((v) => v.trim()),
--        targetAudience: form.targetAudience.vi.filter((v) => v.trim()),
--        benefits: form.benefits.vi.filter((v) => v.trim()),
--        slug,
--        translations: {
--          vi: { title: form.title.vi, shortDescription: form.shortDescription.vi, description: form.description.vi },
--          en: { title: form.title.en, shortDescription: form.shortDescription.en, description: form.description.en },
--          de: { title: form.title.de, shortDescription: form.shortDescription.de, description: form.description.de },
--        },
--        contentTranslations: {
--          vi: { objectives: form.objectives.vi.filter((v) => v.trim()), targetAudience: form.targetAudience.vi.filter((v) => v.trim()), benefits: form.benefits.vi.filter((v) => v.trim()) },
--          en: { objectives: form.objectives.en.filter((v) => v.trim()), targetAudience: form.targetAudience.en.filter((v) => v.trim()), benefits: form.benefits.en.filter((v) => v.trim()) },
--          de: { objectives: form.objectives.de.filter((v) => v.trim()), targetAudience: form.targetAudience.de.filter((v) => v.trim()), benefits: form.benefits.de.filter((v) => v.trim()) },
--        },
--      })
--
--      for (const lesson of form.lessons) {
--        const createdLesson = await adminCoursesApi.createLesson(course.id, {
--          title: lesson.title.vi,
--          slug: slugify(lesson.title.vi || `lesson-${lesson.orderIndex}`),
--          description: lesson.description.vi,
--          order: lesson.orderIndex,
--          published: form.published,
--          translations: { vi: { title: lesson.title.vi, description: lesson.description.vi }, en: { title: lesson.title.en, description: lesson.description.en }, de: { title: lesson.title.de, description: lesson.description.de } },
--          modules: lesson.modules.map((module) => ({
--            title: module.title.vi,
--            description: module.description.vi,
--            order: module.orderIndex,
--            published: true,
--            translations: { vi: { title: module.title.vi, description: module.description.vi }, en: { title: module.title.en, description: module.description.en }, de: { title: module.title.de, description: module.description.de } },
--            videos: module.medias.map((media) => ({ title: media.file?.name || media.type, description: '', order: media.orderIndex, mediaType: media.type === 'image' ? 'IMAGE' : 'VIDEO', published: true })),
--          })),
--        })
--
--        const detail = await adminCoursesApi.getLessonDetail(createdLesson.id)
--        for (const module of lesson.modules) {
--          const apiModule = detail.modules.find((m) => m.order === module.orderIndex)
--          if (!apiModule) continue
--          for (const media of module.medias) {
--            if (!media.file) continue
--            await adminCoursesApi.uploadModuleMedia(createdLesson.id, apiModule.id, media.file, media.type)
--          }
--        }
--      }
-+      const payload = new FormData()
-+      payload.append('title', form.title.vi)
-+      payload.append('shortDescription', form.shortDescription.vi)
-+      payload.append('description', form.description.vi)
-+      payload.append('price', String(getPrice()))
-+      payload.append('published', String(form.published))
-+      if (form.topicId) payload.append('topicId', String(form.topicId))
-+      payload.append('slug', slug)
-+      payload.append('objectives', JSON.stringify(form.objectives.vi.filter((v) => v.trim())))
-+      payload.append('targetAudience', JSON.stringify(form.targetAudience.vi.filter((v) => v.trim())))
-+      payload.append('benefits', JSON.stringify(form.benefits.vi.filter((v) => v.trim())))
-+      payload.append('translations', JSON.stringify({
-+        vi: { title: form.title.vi, shortDescription: form.shortDescription.vi, description: form.description.vi },
-+        en: { title: form.title.en, shortDescription: form.shortDescription.en, description: form.description.en },
-+        de: { title: form.title.de, shortDescription: form.shortDescription.de, description: form.description.de },
+       const payload = new FormData()
+       payload.append('title', form.title.vi)
+       payload.append('shortDescription', form.shortDescription.vi)
+       payload.append('description', form.description.vi)
+       payload.append('price', String(getPrice()))
+       payload.append('published', String(form.published))
+       if (form.topicId) payload.append('topicId', String(form.topicId))
+       payload.append('slug', slug)
+-      payload.append('objectives', JSON.stringify(form.objectives.vi.filter((v) => v.trim())))
+-      payload.append('targetAudience', JSON.stringify(form.targetAudience.vi.filter((v) => v.trim())))
+-      payload.append('benefits', JSON.stringify(form.benefits.vi.filter((v) => v.trim())))
++      payload.append('objectives', JSON.stringify({
++        vi: form.objectives.vi.filter((v) => v.trim()),
++        en: form.objectives.en.filter((v) => v.trim()),
++        de: form.objectives.de.filter((v) => v.trim()),
 +      }))
-+      payload.append('contentTranslations', JSON.stringify({
-+        vi: { objectives: form.objectives.vi.filter((v) => v.trim()), targetAudience: form.targetAudience.vi.filter((v) => v.trim()), benefits: form.benefits.vi.filter((v) => v.trim()) },
-+        en: { objectives: form.objectives.en.filter((v) => v.trim()), targetAudience: form.targetAudience.en.filter((v) => v.trim()), benefits: form.benefits.en.filter((v) => v.trim()) },
-+        de: { objectives: form.objectives.de.filter((v) => v.trim()), targetAudience: form.targetAudience.de.filter((v) => v.trim()), benefits: form.benefits.de.filter((v) => v.trim()) },
++      payload.append('targetAudience', JSON.stringify({
++        vi: form.targetAudience.vi.filter((v) => v.trim()),
++        en: form.targetAudience.en.filter((v) => v.trim()),
++        de: form.targetAudience.de.filter((v) => v.trim()),
 +      }))
-+      if (form.thumbnailFile) payload.append('thumbnail', form.thumbnailFile)
-+
-+      await adminCoursesApi.createCourse(payload)
++      payload.append('benefits', JSON.stringify({
++        vi: form.benefits.vi.filter((v) => v.trim()),
++        en: form.benefits.en.filter((v) => v.trim()),
++        de: form.benefits.de.filter((v) => v.trim()),
++      }))
+       payload.append('translations', JSON.stringify({
+         vi: { title: form.title.vi, shortDescription: form.shortDescription.vi, description: form.description.vi },
+         en: { title: form.title.en, shortDescription: form.shortDescription.en, description: form.description.en },
+         de: { title: form.title.de, shortDescription: form.shortDescription.de, description: form.description.de },
+       }))
+       payload.append('contentTranslations', JSON.stringify({
+         vi: { objectives: form.objectives.vi.filter((v) => v.trim()), targetAudience: form.targetAudience.vi.filter((v) => v.trim()), benefits: form.benefits.vi.filter((v) => v.trim()) },
+         en: { objectives: form.objectives.en.filter((v) => v.trim()), targetAudience: form.targetAudience.en.filter((v) => v.trim()), benefits: form.benefits.en.filter((v) => v.trim()) },
+         de: { objectives: form.objectives.de.filter((v) => v.trim()), targetAudience: form.targetAudience.de.filter((v) => v.trim()), benefits: form.benefits.de.filter((v) => v.trim()) },
+       }))
+       if (form.thumbnailFile) payload.append('thumbnail', form.thumbnailFile)
+
+       await adminCoursesApi.createCourse(payload)
 
        onClose()
        setForm(initialForm())
@@ -433,405 +71,11 @@ index 840936ee11fb2e0eb6728a35425989e4b9ef2e4f..6b8b32e415d09139b7dbbeb6b8b61e74
    if (!open) return null
 
    return (
-     <div className='admin-modal-backdrop' role='dialog' aria-modal='true'>
-       <div className='admin-modal create-course-modal'>
-         <div className='admin-modal-header'>
-           <h4><i className='fa-solid fa-circle-plus create-course-icon-orange' /> {t.title}</h4>
-           <div className='admin-row'>
-             <span className='create-course-muted'>{t.langInput}:</span>
-             {(['vi', 'en', 'de'] as AdminLang[]).map((code) => (
-               <button key={code} type='button' className={`admin-btn ${inputLang === code ? 'admin-btn-primary' : 'admin-btn-ghost'}`} onClick={() => setInputLang(code)}>{code.toUpperCase()}</button>
-             ))}
-             <button type='button' className='admin-btn admin-btn-ghost' onClick={onClose}>{t.close}</button>
-           </div>
-         </div>
-
-@@ -384,79 +258,32 @@ export function CreateCourseModal({ open, lang, topics, onClose }: Props) {
-             <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-align-left create-course-icon-orange' /> {t.description}</span><textarea className='admin-input' rows={2} value={form.description[inputLang]} onChange={(e) => updateI18nField('description', e.target.value)} /></label>
-             <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-image create-course-icon-orange' /> {t.thumbnailUpload}</span><input type='file' accept='image/*' onChange={(e) => setForm((prev) => ({ ...prev, thumbnailFile: e.target.files?.[0] || null }))} /></label>
-             <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-money-bill-wave create-course-icon-green' /> {t.price}</span><input type='number' min={0} className='admin-input' value={form.price} onChange={(e) => setForm((prev) => ({ ...prev, price: e.target.value }))} /></label>
-             <label className='create-course-switch'>
-               <span className='admin-label'><i className='fa-solid fa-circle-check create-course-icon-green' /> {t.published}</span>
-               <button type='button' className={`create-course-toggle ${form.published ? 'is-on' : ''}`} onClick={() => setForm((prev) => ({ ...prev, published: !prev.published }))} aria-pressed={form.published}>
-                 <span className='create-course-toggle-thumb' />
-               </button>
-             </label>
-           </div>
-
-           {(['objectives', 'targetAudience', 'benefits'] as const).map((field) => (
-             <div key={field} className='admin-field admin-field-full create-course-list-wrap'>
-               <span className='admin-label'><i className='fa-solid fa-list-check create-course-icon-green' /> {field === 'objectives' ? t.objective : field === 'targetAudience' ? t.audience : t.benefits}</span>
-               {form[field][inputLang].map((item, index) => (
-                 <div className='admin-row create-course-list-item' key={`${field}-${index}`}>
-                   <input className='admin-input' value={item} onChange={(e) => updateI18nListItem(field, index, e.target.value)} />
-                   <button type='button' className='admin-btn admin-btn-danger' onClick={() => removeI18nListItem(field, index)}><i className='fa-solid fa-trash' /> {t.remove}</button>
-                 </div>
-               ))}
-               <button type='button' className='admin-btn create-course-btn-add create-course-btn-inline' onClick={() => addI18nListItem(field)}><i className='fa-solid fa-plus' /> {t.addItem}</button>
-             </div>
-           ))}
-         </section>
-
--        {form.lessons.map((lesson, lessonIdx) => (
--          <section className='admin-card create-course-section' key={`lesson-${lessonIdx}`}>
--            <div className='admin-row create-course-title-row'>
--              <h5><i className='fa-solid fa-book-open create-course-icon-green' /> {t.lessons} #{lessonIdx + 1}</h5>
--              <button type='button' className='admin-btn admin-btn-danger' onClick={() => removeLesson(lessonIdx)}><i className='fa-solid fa-trash' /> {t.remove}</button>
--            </div>
--            <div className='admin-form-grid admin-form-grid-2col'>
--              <label className='admin-field'><span className='admin-label'>{t.titleLabel}</span><input className='admin-input' value={lesson.title[inputLang]} onChange={(e) => updateLessonText(lessonIdx, 'title', e.target.value)} /></label>
--              <label className='admin-field'><span className='admin-label'>{t.orderIndex}</span><input type='number' className='admin-input' value={lesson.orderIndex} onChange={(e) => updateLesson(lessonIdx, (old) => ({ ...old, orderIndex: Number(e.target.value) }))} /></label>
--              <label className='admin-field admin-field-full'><span className='admin-label'>{t.description}</span><textarea className='admin-input' rows={2} value={lesson.description[inputLang]} onChange={(e) => updateLessonText(lessonIdx, 'description', e.target.value)} /></label>
--            </div>
--
--            {lesson.modules.map((module, moduleIdx) => (
--              <div className='admin-card create-course-inner-card' key={`module-${moduleIdx}`}>
--                <div className='admin-row create-course-title-row'>
--                  <h6><i className='fa-solid fa-layer-group create-course-icon-orange' /> {t.modules} #{moduleIdx + 1}</h6>
--                  <button type='button' className='admin-btn admin-btn-danger' onClick={() => removeModule(lessonIdx, moduleIdx)}><i className='fa-solid fa-trash' /> {t.remove}</button>
--                </div>
--                <div className='admin-form-grid admin-form-grid-2col'>
--                  <label className='admin-field'><span className='admin-label'>{t.titleLabel}</span><input className='admin-input' value={module.title[inputLang]} onChange={(e) => updateModuleText(lessonIdx, moduleIdx, 'title', e.target.value)} /></label>
--                  <label className='admin-field'><span className='admin-label'>{t.orderIndex}</span><input type='number' className='admin-input' value={module.orderIndex} onChange={(e) => updateModule(lessonIdx, moduleIdx, (old) => ({ ...old, orderIndex: Number(e.target.value) }))} /></label>
--                  <label className='admin-field admin-field-full'><span className='admin-label'>{t.description}</span><textarea className='admin-input' rows={2} value={module.description[inputLang]} onChange={(e) => updateModuleText(lessonIdx, moduleIdx, 'description', e.target.value)} /></label>
--                </div>
--
--                {module.medias.map((media, mediaIdx) => (
--                  <div key={`media-${mediaIdx}`} className='admin-card create-course-inner-card'>
--                    <div className='admin-row create-course-title-row'>
--                      <strong><i className='fa-solid fa-photo-film create-course-icon-green' /> {t.medias} #{mediaIdx + 1}</strong>
--                      <button type='button' className='admin-btn admin-btn-danger' onClick={() => removeMedia(lessonIdx, moduleIdx, mediaIdx)}><i className='fa-solid fa-trash' /> {t.remove}</button>
--                    </div>
--                    <div className='admin-form-grid admin-form-grid-2col'>
--                      <label className='admin-field'><span className='admin-label'>{t.mediaType}</span><select className='admin-input' value={media.type} onChange={(e) => updateMedia(lessonIdx, moduleIdx, mediaIdx, (old) => ({ ...old, type: e.target.value as MediaType }))}><option value='video'>video</option><option value='image'>image</option></select></label>
--                      <label className='admin-field'><span className='admin-label'>{t.orderIndex}</span><input type='number' className='admin-input' value={media.orderIndex} onChange={(e) => updateMedia(lessonIdx, moduleIdx, mediaIdx, (old) => ({ ...old, orderIndex: Number(e.target.value) }))} /></label>
--                      <label className='admin-field admin-field-full'><span className='admin-label'>{t.upload}</span><input type='file' accept={media.type === 'image' ? 'image/*' : 'video/*'} onChange={(e) => updateMedia(lessonIdx, moduleIdx, mediaIdx, (old) => ({ ...old, file: e.target.files?.[0] || null }))} /></label>
--                    </div>
--                  </div>
--                ))}
--
--                <button type='button' className='admin-btn create-course-btn-add' onClick={() => addMedia(lessonIdx, moduleIdx)}><i className='fa-solid fa-plus' /> {t.addMedia}</button>
--              </div>
--            ))}
--
--            <button type='button' className='admin-btn create-course-btn-add' onClick={() => addModule(lessonIdx)}><i className='fa-solid fa-plus' /> {t.addModule}</button>
--          </section>
--        ))}
--
-         <div className='admin-row create-course-footer'>
--          <button type='button' className='admin-btn create-course-btn-add' onClick={addLesson}><i className='fa-solid fa-plus' /> {t.addLesson}</button>
-           <button type='button' className='admin-btn admin-btn-save' onClick={() => void submit()} disabled={submitting}><i className='fa-solid fa-paper-plane' /> {t.submit}</button>
-         </div>
-       </div>
-     </div>
-   )
- }
-diff --git a/backend/ayanavitabackend/app/api/src/courses/courses-media.service.ts b/backend/ayanavitabackend/app/api/src/courses/courses-media.service.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..e381393a3fe0bc6f43f5697bdc7b1dd0785daaa0
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/courses/courses-media.service.ts
-@@ -0,0 +1,105 @@
-+import { BadRequestException, Injectable } from '@nestjs/common'
-+import { createHash, createHmac } from 'crypto'
-+import { extname } from 'path'
-+
-+@Injectable()
-+export class CoursesMediaService {
-+  private readonly s3Bucket = process.env.CLOUDFLY_BUCKET || 'ayanavita-dev'
-+  private readonly s3Region = process.env.CLOUDFLY_REGION || 'auto'
-+  private readonly s3Endpoint = process.env.CLOUDFLY_ENDPOINT || 'https://s3.cloudfly.vn'
-+  private readonly s3PublicBaseUrl = process.env.CLOUDFLY_PUBLIC_BASE_URL
-+  private readonly s3AccessKey = process.env.CLOUDFLY_ACCESS_KEY || '67NZA2R2X53AYJU5I036'
-+  private readonly s3SecretKey = process.env.CLOUDFLY_SECRET_KEY || '56f8Erg7KoBiIedMrvbe0cBNjy3OIPKHdX0vAW4N'
-+
-+  private hmac(key: Buffer | string, value: string) {
-+    return createHmac('sha256', key).update(value, 'utf8').digest()
-+  }
-+
-+  private publicCloudUrl(key: string) {
-+    const baseUrl = this.s3PublicBaseUrl?.trim().replace(/\/$/, '') || this.s3Endpoint.replace(/\/$/, '')
-+    return `${baseUrl}/${this.s3Bucket}/${key}`
-+  }
-+
-+  private async signedS3Put(key: string, file: { buffer: Buffer; mimetype?: string }) {
-+    const endpointHost = new URL(this.s3Endpoint).host
-+    const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '')
-+    const dateStamp = amzDate.slice(0, 8)
-+
-+    const payloadHash = createHash('sha256').update(file.buffer).digest('hex')
-+    const contentType = file.mimetype || 'image/jpeg'
-+    const acl = 'public-read'
-+
-+    const signingHeaders: Record<string, string> = {
-+      host: endpointHost,
-+      'x-amz-content-sha256': payloadHash,
-+      'x-amz-date': amzDate,
-+      'content-type': contentType,
-+      'x-amz-acl': acl,
-+    }
-+
-+    const sortedHeaderKeys = Object.keys(signingHeaders).sort()
-+    const canonicalHeaders = sortedHeaderKeys.map((k) => `${k}:${signingHeaders[k]}`).join('\n') + '\n'
-+    const signedHeaders = sortedHeaderKeys.join(';')
-+
-+    const canonicalRequest = [
-+      'PUT',
-+      `/${this.s3Bucket}/${key}`,
-+      '',
-+      canonicalHeaders,
-+      signedHeaders,
-+      payloadHash,
-+    ].join('\n')
-+
-+    const credentialScope = `${dateStamp}/${this.s3Region}/s3/aws4_request`
-+    const stringToSign = [
-+      'AWS4-HMAC-SHA256',
-+      amzDate,
-+      credentialScope,
-+      createHash('sha256').update(canonicalRequest).digest('hex'),
-+    ].join('\n')
-+
-+    const kDate = this.hmac(`AWS4${this.s3SecretKey}`, dateStamp)
-+    const kRegion = this.hmac(kDate, this.s3Region)
-+    const kService = this.hmac(kRegion, 's3')
-+    const kSigning = this.hmac(kService, 'aws4_request')
-+    const signature = createHmac('sha256', kSigning).update(stringToSign, 'utf8').digest('hex')
-+
-+    const authorization = `AWS4-HMAC-SHA256 Credential=${this.s3AccessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`
-+    const url = `${this.s3Endpoint.replace(/\/$/, '')}/${this.s3Bucket}/${key}`
-+
-+    const headers: Record<string, string> = {
-+      Authorization: authorization,
-+      'x-amz-date': amzDate,
-+      'x-amz-content-sha256': payloadHash,
-+      'content-type': contentType,
-+      'x-amz-acl': acl,
-+    }
-+
-+    const res = await fetch(url, {
-+      method: 'PUT',
-+      headers,
-+      body: new Uint8Array(file.buffer),
-+    })
-+
-+    if (!res.ok) {
-+      const text = await res.text()
-+      throw new BadRequestException(`Upload thumbnail failed: ${res.status} ${text}`)
-+    }
-+  }
-+
-+  async uploadThumbnail(file: { buffer: Buffer; mimetype?: string; originalname?: string; size?: number }) {
-+    if (!file?.buffer) throw new BadRequestException('File is required')
-+
-+    const safeExt = extname(file.originalname || '').slice(0, 10) || '.jpg'
-+    const key = `sourse/courses/thumbnails/${Date.now()}-${Math.random().toString(36).slice(2)}${safeExt}`
-+
-+    await this.signedS3Put(key, file)
-+
-+    return {
-+      key,
-+      url: this.publicCloudUrl(key),
-+      mimeType: file.mimetype || 'image/jpeg',
-+      size: file.size ?? 0,
-+    }
-+  }
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-index 0e5ecde7ab5a012bb0f0262b7884125d536bd334..2a0b90a44b5b9102d0eb59524ed838c84ea0dec9 100644
---- a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-+++ b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-@@ -1,93 +1,125 @@
- import {
-   Body,
-   Controller,
-   Delete,
-   Get,
-   Param,
-   ParseIntPipe,
-   Patch,
-   Post,
-   Query,
-+  UploadedFile,
-   UseGuards,
--} from "@nestjs/common";
--import { CreateCourseDto } from "./dto/create-course.dto";
--import { UpdateCourseDto } from "./dto/update-course.dto";
--import { CurrentUser } from "../auth/decorators/current-user.decorator";
--import { AccessTokenGuard } from "../auth/guards/access-token.guard";
--import { OptionalAccessTokenGuard } from "../auth/guards/optional-access-token.guard";
--import { RolesGuard } from "../auth/guards/roles.guard";
--import { Roles } from "../auth/decorators/roles.decorator";
--import { CoursesService } from "./courses.service";
--import { CourseQueryDto } from "./dto/course-query.dto";
-+  UseInterceptors,
-+} from '@nestjs/common'
-+import { FileInterceptor } from '@nestjs/platform-express'
-+import { memoryStorage } from 'multer'
-+import { CreateCourseDto } from './dto/create-course.dto'
-+import { UpdateCourseDto } from './dto/update-course.dto'
-+import { CurrentUser } from '../auth/decorators/current-user.decorator'
-+import { AccessTokenGuard } from '../auth/guards/access-token.guard'
-+import { OptionalAccessTokenGuard } from '../auth/guards/optional-access-token.guard'
-+import { RolesGuard } from '../auth/guards/roles.guard'
-+import { Roles } from '../auth/decorators/roles.decorator'
-+import { CoursesService } from './courses.service'
-+import { CourseQueryDto } from './dto/course-query.dto'
-
- type JwtUser = { sub: number; role: string }
-
--@Controller("courses")
--export class CoursesController {
--  constructor(private readonly courses: CoursesService) {}
-
-+const parseMultipartData = (input: Record<string, any>) => {
-+  const data = { ...input }
-+  for (const [key, value] of Object.entries(data)) {
-+    if (typeof value !== 'string') continue
-+    const trimmed = value.trim()
-+    if (trimmed === 'true' || trimmed === 'false') {
-+      data[key] = trimmed === 'true'
-+      continue
-+    }
-+    if (/^-?\d+(\.\d+)?$/.test(trimmed) && key !== 'slug') {
-+      data[key] = Number(trimmed)
-+      continue
-+    }
-+    if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
-+      try {
-+        data[key] = JSON.parse(trimmed)
-+      } catch {
-+        data[key] = value
-+      }
-+    }
-+  }
-+  return data
-+}
-
--   // ... các route khác của bạn
-+@Controller('courses')
-+export class CoursesController {
-+  constructor(private readonly courses: CoursesService) {}
-
--  // Outline lessons (ai login cũng xem được)
--  // GET /courses/:id/lessons-outline
-   @UseGuards(AccessTokenGuard)
-   @Get('courses/:id/lessons-outline')
-   lessonsOutline(
-     @CurrentUser() user: JwtUser,
-     @Param('id', ParseIntPipe) id: number,
-   ) {
-     return this.courses.lessonsOutline(user, id)
-   }
-
-   @Get()
-   @UseGuards(OptionalAccessTokenGuard)
-   findAll(@CurrentUser() user: JwtUser | null, @Query() query: CourseQueryDto) {
--    return this.courses.findAll(query, user);
-+    return this.courses.findAll(query, user)
-   }
-
-   @UseGuards(AccessTokenGuard)
--  @Get(":id")
--  findOne(@Param("id", ParseIntPipe) id: number) {
--    return this.courses.findOne(id);
-+  @Get(':id')
-+  findOne(@Param('id', ParseIntPipe) id: number) {
-+    return this.courses.findOne(id)
-   }
-
-   @UseGuards(AccessTokenGuard)
--  @Get(":id/lessons")
--  listLessons(@CurrentUser() user: any, @Param("id", ParseIntPipe) id: number) {
--    return this.courses.listLessons(user, id);
-+  @Get(':id/lessons')
-+  listLessons(@CurrentUser() user: any, @Param('id', ParseIntPipe) id: number) {
-+    return this.courses.listLessons(user, id)
-   }
-
--  // ✅ NEW: Lesson detail (theo lessonId)
-   @UseGuards(AccessTokenGuard)
--  @Get(":id/lessons/:lessonId")
-+  @Get(':id/lessons/:lessonId')
-   getLesson(
-     @CurrentUser() user: any,
--    @Param("id", ParseIntPipe) courseId: number,
--    @Param("lessonId", ParseIntPipe) lessonId: number
-+    @Param('id', ParseIntPipe) courseId: number,
-+    @Param('lessonId', ParseIntPipe) lessonId: number,
-   ) {
--    return this.courses.getLessonDetail(user, courseId, lessonId);
-+    return this.courses.getLessonDetail(user, courseId, lessonId)
-+  }
-+
-+  @UseGuards(AccessTokenGuard, RolesGuard)
-+  @Roles('ADMIN')
-+  @Post('thumbnail/upload')
-+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
-+  uploadThumbnail(@UploadedFile() file?: any) {
-+    if (!file) return { message: 'Missing thumbnail file' }
-+    return this.courses.uploadThumbnail(file)
-   }
-
--  // ===== ADMIN ONLY =====
-   @UseGuards(AccessTokenGuard, RolesGuard)
--  @Roles("ADMIN")
-+  @Roles('ADMIN')
-   @Post()
--  create(@Body() dto: CreateCourseDto) {
--    return this.courses.create(dto);
-+  @UseInterceptors(FileInterceptor('thumbnail', { storage: memoryStorage() }))
-+  create(@Body() rawData: any, @UploadedFile() thumbnail?: any) {
-+    return this.courses.create(parseMultipartData(rawData) as CreateCourseDto, thumbnail)
-   }
-
-   @UseGuards(AccessTokenGuard, RolesGuard)
--  @Roles("ADMIN")
--  @Patch(":id")
--  update(@Param("id", ParseIntPipe) id: number, @Body() dto: UpdateCourseDto) {
--    return this.courses.update(id, dto);
-+  @Roles('ADMIN')
-+  @Patch(':id')
-+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCourseDto) {
-+    return this.courses.update(id, dto)
-   }
-
-   @UseGuards(AccessTokenGuard, RolesGuard)
--  @Roles("ADMIN")
--  @Delete(":id")
--  remove(@Param("id", ParseIntPipe) id: number) {
--    return this.courses.remove(id);
-+  @Roles('ADMIN')
-+  @Delete(':id')
-+  remove(@Param('id', ParseIntPipe) id: number) {
-+    return this.courses.remove(id)
-   }
- }
-diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.module.ts b/backend/ayanavitabackend/app/api/src/courses/courses.module.ts
-index d8d05338469ebea2609371ade14c7edb4f0aae55..70ac6f1511efee5024b3f3bf1120aed2f6e75729 100644
---- a/backend/ayanavitabackend/app/api/src/courses/courses.module.ts
-+++ b/backend/ayanavitabackend/app/api/src/courses/courses.module.ts
-@@ -1,13 +1,14 @@
- import { Module } from '@nestjs/common'
- import { CoursesController } from './courses.controller'
- import { CoursesService } from './courses.service'
- import { PrismaModule } from '../prisma/prisma.module'
- import { EnrollmentsModule } from '../enrollments/enrollments.module'
-+import { CoursesMediaService } from './courses-media.service'
-
- @Module({
-   imports: [PrismaModule, EnrollmentsModule], // ✅ BẮT BUỘC
-   controllers: [CoursesController],
--  providers: [CoursesService],
-+  providers: [CoursesService, CoursesMediaService],
-   exports: [CoursesService],
- })
- export class CoursesModule {}
 diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-index ff702a4ee792b3a061e76b793874239b5f59bebe..c1e3d17f767686a7212d69f59a634073c79f7c5a 100644
+index c1e3d17f767686a7212d69f59a634073c79f7c5a..762e05a2e75c98d3eca193d571018c1e880f85cd 100644
 --- a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
 +++ b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-@@ -1,40 +1,42 @@
+@@ -1,65 +1,79 @@
  import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
  import { PrismaService } from '../prisma/prisma.service'
  import { EnrollmentsService } from '../enrollments/enrollments.service'
@@ -839,16 +83,18 @@ index ff702a4ee792b3a061e76b793874239b5f59bebe..c1e3d17f767686a7212d69f59a634073
  import { UpdateCourseDto } from './dto/update-course.dto'
  import { Prisma, ProgressStatus } from '@prisma/client'
  import { CourseQueryDto } from './dto/course-query.dto'
-+import { CoursesMediaService } from './courses-media.service'
+ import { CoursesMediaService } from './courses-media.service'
 
  type JwtUser = { sub: number; role: string }
++type Locale = 'vi' | 'en' | 'de'
++type MultiLingualStringList = Record<Locale, string[]>
 
  @Injectable()
  export class CoursesService {
    constructor(
      private readonly prisma: PrismaService,
      private readonly enrollments: EnrollmentsService,
-+    private readonly courseMedia: CoursesMediaService,
+     private readonly courseMedia: CoursesMediaService,
    ) {}
 
    private readonly baseCourseSelect = {
@@ -872,65 +118,44 @@ index ff702a4ee792b3a061e76b793874239b5f59bebe..c1e3d17f767686a7212d69f59a634073
      _count: { select: { lessons: true } },
    } as const
 
++  private normalizeLocalizedList(value: unknown): MultiLingualStringList {
++    const empty: MultiLingualStringList = { vi: [], en: [], de: [] }
++    if (Array.isArray(value)) return { ...empty, vi: value.filter((item): item is string => typeof item === 'string') }
++    if (!value || typeof value !== 'object') return empty
++    const input = value as Record<string, unknown>
++    return {
++      vi: Array.isArray(input.vi) ? input.vi.filter((item): item is string => typeof item === 'string') : [],
++      en: Array.isArray(input.en) ? input.en.filter((item): item is string => typeof item === 'string') : [],
++      de: Array.isArray(input.de) ? input.de.filter((item): item is string => typeof item === 'string') : [],
++    }
++  }
++
    private buildCreateCoursePayload(dto: CreateCourseDto & { title: string }): Prisma.CourseUncheckedCreateInput {
      return {
-@@ -95,56 +97,61 @@ export class CoursesService {
-       this.prisma.course.findMany({
-         where,
-         select: {
-           ...this.baseCourseSelect,
-           translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, title: true, shortDescription: true, description: true } },
-           contentTranslations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, objectives: true, targetAudience: true, benefits: true } },
-           topic: { select: { id: true, name: true, translations: { where: { locale: { in: [topicLocale, 'vi'] } }, select: { locale: true, name: true } } } },
-         },
-         skip: (page - 1) * pageSize, take: pageSize, orderBy: { id: 'desc' },
-       }),
-       this.prisma.course.count({ where }),
-     ])
-     const courseIds = rows.map((r) => r.id)
-     if (!courseIds.length) return { items: [], total, page, pageSize }
-     const videoRows = await this.prisma.$queryRaw<Array<{ courseId: number; videoCount: bigint | number }>>`SELECT l.courseId as courseId, COUNT(v.id) as videoCount FROM LessonVideo v INNER JOIN LessonModule m ON m.id = v.moduleId INNER JOIN Lesson l ON l.id = m.lessonId WHERE l.courseId IN (${Prisma.join(courseIds)}) GROUP BY l.courseId`
-     const videoCountMap = new Map(videoRows.map((r) => [Number(r.courseId), Number(r.videoCount)]))
-     const items = rows.map((row: any) => {
-       const tr = row.translations?.find((x: any) => x.locale === courseLocale) || row.translations?.find((x: any) => x.locale === 'vi')
-       const ct = row.contentTranslations?.find((x: any) => x.locale === courseLocale) || row.contentTranslations?.find((x: any) => x.locale === 'vi')
-       const tt = row.topic?.translations?.find((x: any) => x.locale === topicLocale) || row.topic?.translations?.find((x: any) => x.locale === 'vi')
-       return { ...row, title: tr?.title || row.title, shortDescription: tr?.shortDescription || row.shortDescription, description: tr?.description || row.description, objectives: ct?.objectives || row.objectives, targetAudience: ct?.targetAudience || row.targetAudience, benefits: ct?.benefits || row.benefits, topic: row.topic ? { id: row.topic.id, name: tt?.name || row.topic.name } : null, videoCount: videoCountMap.get(row.id) || 0 }
-     })
-     return { items, total, page, pageSize }
-   }
-
-+
-+  async uploadThumbnail(file: { buffer: Buffer }) {
-+    return this.courseMedia.uploadThumbnail(file)
-+  }
-   async findOne(id: number) { const c = await this.prisma.course.findUnique({ where: { id }, select: this.baseCourseSelect }); if (!c) throw new NotFoundException('Course not found'); return c }
-
--  async create(dto: CreateCourseDto) {
-+  async create(dto: CreateCourseDto, thumbnailFile?: { buffer: Buffer; mimetype?: string }) {
-     if (!dto.title?.trim()) throw new BadRequestException('Title is required')
-     try {
--      const created = await this.prisma.course.create({ data: this.buildCreateCoursePayload({ ...dto, title: dto.title.trim() }), select: this.baseCourseSelect })
-+      const thumbnailUrl = thumbnailFile ? (await this.courseMedia.uploadThumbnail(thumbnailFile)).url : dto.thumbnail
-+      const created = await this.prisma.course.create({ data: this.buildCreateCoursePayload({ ...dto, title: dto.title.trim(), thumbnail: thumbnailUrl }), select: this.baseCourseSelect })
-       await this.syncCourseTranslations(created.id, dto)
-       return created
-     } catch (e) {
-       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException('Slug already exists')
-       throw e
+       title: dto.title,
+       slug: dto.slug,
+       ...(dto.description !== undefined ? { description: dto.description } : {}),
+       ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
+       ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
+       ...(dto.price !== undefined ? { price: dto.price } : {}),
+       ...(dto.published !== undefined ? { published: dto.published } : {}),
+       ...(dto.topicId !== undefined ? { topicId: dto.topicId } : {}),
+       ...(dto.objectives !== undefined ? { objectives: dto.objectives as any } : {}),
+       ...(dto.targetAudience !== undefined ? { targetAudience: dto.targetAudience as any } : {}),
+       ...(dto.benefits !== undefined ? { benefits: dto.benefits as any } : {}),
+       ...(dto.ratingAvg !== undefined ? { ratingAvg: dto.ratingAvg } : {}),
+       ...(dto.ratingCount !== undefined ? { ratingCount: dto.ratingCount } : {}),
+       ...(dto.enrollmentCount !== undefined ? { enrollmentCount: dto.enrollmentCount } : {}),
      }
    }
 
-   async update(id: number, dto: UpdateCourseDto) { await this.ensureCourseExists(id); const updated = await this.prisma.course.update({ where: { id }, data: this.buildUpdateCoursePayload(dto), select: this.baseCourseSelect }); await this.syncCourseTranslations(id, dto); return updated }
-   async remove(id: number) { await this.ensureCourseExists(id); return this.prisma.course.delete({ where: { id }, select: { id: true } }) }
-
-   async listLessons(user: { sub: number; role: string }, courseId: number) { /* kept */
-     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } }); if (!course) throw new NotFoundException('Course not found'); await this.enrollments.assertEnrolledOrAdmin(user, courseId); if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
-     const lessons = await this.prisma.lesson.findMany({ where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) }, select: { id: true, courseId: true, title: true, slug: true, order: true, published: true, createdAt: true, updatedAt: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] })
-     if (user.role === 'ADMIN') return lessons.map((l) => ({ ...l, locked: false, lockReason: null, progress: null }))
-     const progressRows = await this.prisma.lessonProgress.findMany({ where: { userId: user.sub, lessonId: { in: lessons.map((l) => l.id) } }, select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true } })
-     const progressMap = new Map(progressRows.map((p) => [p.lessonId, p])); let prevCompleted = true
-     return lessons.map((lesson, idx) => { const progress = progressMap.get(lesson.id) ?? null; const locked = idx === 0 ? false : prevCompleted === false; const lockReason = locked ? 'PREV_NOT_COMPLETED' : null; prevCompleted = progress?.status === ProgressStatus.COMPLETED; return { ...lesson, locked, lockReason, progress } })
+   private buildUpdateCoursePayload(dto: UpdateCourseDto): Prisma.CourseUncheckedUpdateInput {
+     return {
+       ...(dto.title !== undefined ? { title: dto.title } : {}),
+       ...(dto.slug !== undefined ? { slug: dto.slug } : {}),
+       ...(dto.description !== undefined ? { description: dto.description } : {}),
+       ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
+@@ -151,35 +165,48 @@ export class CoursesService {
    }
 
    async getLessonDetail(user: { sub: number; role: string }, courseId: number, lessonId: number) { /* kept */
@@ -938,148 +163,46 @@ index ff702a4ee792b3a061e76b793874239b5f59bebe..c1e3d17f767686a7212d69f59a634073
      const lesson = await this.prisma.lesson.findFirst({ where: { id: lessonId, courseId }, select: { id: true, courseId: true, title: true, slug: true, content: true, videoUrl: true, order: true, published: true, createdAt: true, updatedAt: true } }); if (!lesson) throw new NotFoundException('Lesson not found')
      if (user.role !== 'ADMIN' && !lesson.published) throw new NotFoundException('Lesson not found')
      if (user.role !== 'ADMIN') { const orderedLessons = await this.prisma.lesson.findMany({ where: { courseId, published: true }, select: { id: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] }); const idx = orderedLessons.findIndex((l) => l.id === lessonId); if (idx < 0) throw new NotFoundException('Lesson not found'); if (idx > 0) { const prevLessonId = orderedLessons[idx - 1].id; const prevProgress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId: prevLessonId } }, select: { status: true } }); if (prevProgress?.status !== ProgressStatus.COMPLETED) throw new ForbiddenException('Lesson locked') } }
-diff --git a/backend/ayanavitabackend/app/api/src/lessons/lessons.controller.ts b/backend/ayanavitabackend/app/api/src/lessons/lessons.controller.ts
-index 0bd6bd2fb641d67e8291472adcdf467fef130d97..5ab066914d300d8278d352c03fd5f21f502ef4d8 100644
---- a/backend/ayanavitabackend/app/api/src/lessons/lessons.controller.ts
-+++ b/backend/ayanavitabackend/app/api/src/lessons/lessons.controller.ts
-@@ -35,49 +35,57 @@ export class LessonsController {
-   ) {
-     return this.lessons.findOne(user, id)
+     const progress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId } }, select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true } })
+     return { ...lesson, progress: progress ?? null }
    }
 
-   // ADMIN: tạo lesson trong course
-   @UseGuards(RolesGuard)
-   @Roles('ADMIN')
-   @Post('courses/:courseId/lessons')
-   create(
-     @Param('courseId', ParseIntPipe) courseId: number,
-     @Body() dto: CreateLessonDto,
-   ) {
-     return this.lessons.create(courseId, dto)
-   }
+   private async ensureCourseExists(id: number) { if (!(await this.prisma.course.findUnique({ where: { id }, select: { id: true } }))) throw new NotFoundException('Course not found') }
 
-
-   @UseGuards(RolesGuard)
-   @Roles('ADMIN')
-   @Post('lessons/:id/modules/:moduleId/media/upload')
-   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
-   uploadModuleMedia(
-     @Param('id', ParseIntPipe) lessonId: number,
-     @Param('moduleId') moduleId: string,
-     @UploadedFile() file?: any,
-     @Body('type') type?: string,
-+    @Body('order') order?: string,
-   ) {
-     if (!file) return { message: 'Missing media file' }
--    return this.lessons.uploadModuleMedia(lessonId, moduleId, type === 'image' ? 'image' : 'video', file)
-+    const parsedOrder = Number(order)
-+    return this.lessons.uploadModuleMedia(
-+      lessonId,
-+      moduleId,
-+      type === 'image' ? 'image' : 'video',
-+      file,
-+      Number.isFinite(parsedOrder) ? parsedOrder : undefined,
-+    )
-   }
-
-   // ADMIN: update lesson
-   @UseGuards(RolesGuard)
-   @Roles('ADMIN')
-   @Patch('lessons/:id')
-   update(
-     @Param('id', ParseIntPipe) id: number,
-     @Body() dto: UpdateLessonDto,
-   ) {
-     return this.lessons.update(id, dto)
-   }
-
-   // ADMIN: delete lesson
-   @UseGuards(RolesGuard)
-   @Roles('ADMIN')
-   @Delete('lessons/:id')
-   remove(@Param('id', ParseIntPipe) id: number) {
-     return this.lessons.remove(id)
+   private async syncCourseTranslations(courseId: number, dto: Partial<CreateCourseDto>) {
+     const locales: Array<'vi' | 'en' | 'de'> = ['vi', 'en', 'de']
+     await Promise.all(locales.map(async (locale) => {
+       const tr = dto.translations?.[locale]
+       const title = tr?.title || (locale === 'vi' ? dto.title : undefined)
+       if (!title?.trim()) return
+       await this.prisma.courseTranslation.upsert({
+         where: { courseId_locale: { courseId, locale } },
+         update: { title: title.trim(), shortDescription: tr?.shortDescription?.trim() || (locale === 'vi' ? dto.shortDescription?.trim() || null : null), description: tr?.description?.trim() || (locale === 'vi' ? dto.description?.trim() || null : null) },
+         create: { courseId, locale, title: title.trim(), shortDescription: tr?.shortDescription?.trim() || (locale === 'vi' ? dto.shortDescription?.trim() || null : null), description: tr?.description?.trim() || (locale === 'vi' ? dto.description?.trim() || null : null) },
+       })
+       const ct = dto.contentTranslations?.[locale]
++      const objectivesByLocale = this.normalizeLocalizedList(dto.objectives)
++      const targetAudienceByLocale = this.normalizeLocalizedList(dto.targetAudience)
++      const benefitsByLocale = this.normalizeLocalizedList(dto.benefits)
+       if (ct || locale === 'vi') {
+         await this.prisma.courseContentTranslation.upsert({
+           where: { courseId_locale: { courseId, locale } },
+-          update: { objectives: (ct?.objectives || (locale === 'vi' ? dto.objectives : undefined) || []) as any, targetAudience: (ct?.targetAudience || (locale === 'vi' ? dto.targetAudience : undefined) || []) as any, benefits: (ct?.benefits || (locale === 'vi' ? dto.benefits : undefined) || []) as any },
+-          create: { courseId, locale, objectives: (ct?.objectives || (locale === 'vi' ? dto.objectives : undefined) || []) as any, targetAudience: (ct?.targetAudience || (locale === 'vi' ? dto.targetAudience : undefined) || []) as any, benefits: (ct?.benefits || (locale === 'vi' ? dto.benefits : undefined) || []) as any },
++          update: {
++            objectives: (ct?.objectives || objectivesByLocale[locale] || []) as any,
++            targetAudience: (ct?.targetAudience || targetAudienceByLocale[locale] || []) as any,
++            benefits: (ct?.benefits || benefitsByLocale[locale] || []) as any,
++          },
++          create: {
++            courseId,
++            locale,
++            objectives: (ct?.objectives || objectivesByLocale[locale] || []) as any,
++            targetAudience: (ct?.targetAudience || targetAudienceByLocale[locale] || []) as any,
++            benefits: (ct?.benefits || benefitsByLocale[locale] || []) as any,
++          },
+         })
+       }
+     }))
    }
  }
-diff --git a/backend/ayanavitabackend/app/api/src/lessons/lessons.service.ts b/backend/ayanavitabackend/app/api/src/lessons/lessons.service.ts
-index d0ce85be7af9a7dda4bc49b497ce7463dc548042..9657412a7ab4d63997d7139c24477b87be66e8b9 100644
---- a/backend/ayanavitabackend/app/api/src/lessons/lessons.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/lessons/lessons.service.ts
-@@ -35,55 +35,74 @@ export class LessonsService {
-       }
-     }
-     return lesson
-   }
-
-   async create(courseId: number, dto: CreateLessonDto) {
-     return this.prisma.$transaction(async (tx) => {
-       const lesson = await tx.lesson.create({ data: { courseId, title: dto.title, slug: dto.slug, description: dto.description, content: dto.content, videoUrl: dto.videoUrl, order: dto.order, published: dto.published } as any })
-       await this.upsertLessonTranslations(tx, lesson.id, dto)
-       if (dto.modules?.length) {
-         for (const m of dto.modules) {
-           const mod = await tx.lessonModule.create({ data: { lessonId: lesson.id, title: m.title, description: m.description, order: m.order, published: m.published } as any })
-           await this.upsertModuleTranslations(tx, mod.id, m)
-           if (m.videos?.length) {
-             for (const [idx, v] of m.videos.entries()) {
-               const video = await tx.lessonVideo.create({ data: { moduleId: mod.id, title: v.title, description: v.description, sourceUrl: v.sourceUrl, mediaType: v.mediaType === 'IMAGE' ? LessonMediaType.IMAGE : LessonMediaType.VIDEO, durationSec: v.durationSec ?? 0, order: v.order ?? idx, published: v.published ?? true } as any })
-               await this.upsertVideoTranslations(tx, video.id, v)
-             }
-           }
-         }
-       }
-       return lesson
-     })
-   }
-
--  async uploadModuleMedia(lessonId: number, moduleId: string, type: 'video' | 'image', file: { buffer: Buffer; originalname?: string }) {
-+  async uploadModuleMedia(lessonId: number, moduleId: string, type: 'video' | 'image', file: { buffer: Buffer; originalname?: string }, order?: number) {
-     const lesson = await this.prisma.lesson.findUnique({ where: { id: lessonId }, select: { id: true } })
-     if (!lesson) throw new NotFoundException('Lesson not found')
--    if (type === 'image') return this.media.convertImageToWebpAndUpload(file, lessonId, moduleId)
--    return this.media.transcodeToHlsAndUpload(file, lessonId, moduleId)
-+
-+    const module = await this.prisma.lessonModule.findFirst({ where: { id: Number(moduleId), lessonId }, select: { id: true } })
-+    if (!module) throw new NotFoundException('Module not found')
-+
-+    const resolvedOrder = Number.isFinite(order) ? Number(order) : 0
-+
-+    if (type === 'image') {
-+      const uploaded = await this.media.convertImageToWebpAndUpload(file, lessonId, moduleId)
-+      const existing = await this.prisma.lessonVideo.findFirst({ where: { moduleId: module.id, order: resolvedOrder }, orderBy: { id: 'asc' }, select: { id: true } })
-+      const video = existing
-+        ? await this.prisma.lessonVideo.update({ where: { id: existing.id }, data: { mediaType: LessonMediaType.IMAGE, sourceUrl: uploaded.sourceUrl, hlsPlaylistKey: null, published: true } })
-+        : await this.prisma.lessonVideo.create({ data: { moduleId: module.id, title: `image-${resolvedOrder}`, description: null, mediaType: LessonMediaType.IMAGE, sourceUrl: uploaded.sourceUrl, durationSec: 0, order: resolvedOrder, published: true } })
-+      return { ...uploaded, videoId: video.id }
-+    }
-+
-+    const uploaded = await this.media.transcodeToHlsAndUpload(file, lessonId, moduleId)
-+    const existing = await this.prisma.lessonVideo.findFirst({ where: { moduleId: module.id, order: resolvedOrder }, orderBy: { id: 'asc' }, select: { id: true } })
-+    const video = existing
-+      ? await this.prisma.lessonVideo.update({ where: { id: existing.id }, data: { mediaType: LessonMediaType.VIDEO, sourceUrl: uploaded.playlistKey, hlsPlaylistKey: uploaded.playlistKey, published: true } })
-+      : await this.prisma.lessonVideo.create({ data: { moduleId: module.id, title: `video-${resolvedOrder}`, description: null, mediaType: LessonMediaType.VIDEO, sourceUrl: uploaded.playlistKey, hlsPlaylistKey: uploaded.playlistKey, durationSec: 0, order: resolvedOrder, published: true } })
-+    return { ...uploaded, videoId: video.id }
-   }
-
-   async update(id: number, dto: UpdateLessonDto) {
-     return this.prisma.$transaction(async (tx) => {
-       const lesson = await tx.lesson.update({ where: { id }, data: { title: dto.title, slug: dto.slug, description: dto.description, content: dto.content, videoUrl: dto.videoUrl, order: dto.order, published: dto.published } as any })
-       await this.upsertLessonTranslations(tx, id, dto)
-       if (dto.modules) {
-         await tx.lessonVideoTranslation.deleteMany({ where: { video: { module: { lessonId: id } } } as any })
-         await tx.lessonModuleTranslation.deleteMany({ where: { module: { lessonId: id } } as any })
-         await tx.lessonVideo.deleteMany({ where: { module: { lessonId: id } } as any })
-         await tx.lessonModule.deleteMany({ where: { lessonId: id } })
-         for (const m of dto.modules) {
-           const mod = await tx.lessonModule.create({ data: { lessonId: id, title: m.title, description: m.description, order: m.order, published: m.published } as any })
-           await this.upsertModuleTranslations(tx, mod.id, m)
-           for (const [idx, v] of (m.videos || []).entries()) {
-             const video = await tx.lessonVideo.create({ data: { moduleId: mod.id, title: v.title, description: v.description, sourceUrl: v.sourceUrl, mediaType: v.mediaType === 'IMAGE' ? LessonMediaType.IMAGE : LessonMediaType.VIDEO, durationSec: v.durationSec ?? 0, order: v.order ?? idx, published: v.published ?? true } as any })
-             await this.upsertVideoTranslations(tx, video.id, v)
-           }
-         }
-       }
-       return lesson
-     })
-   }
-
-   remove(id: number) { return this.prisma.lesson.delete({ where: { id } }) }

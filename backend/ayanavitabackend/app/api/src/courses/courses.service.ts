@@ -8,6 +8,8 @@ import { CourseQueryDto } from './dto/course-query.dto'
 import { CoursesMediaService } from './courses-media.service'
 
 type JwtUser = { sub: number; role: string }
+type Locale = 'vi' | 'en' | 'de'
+type MultiLingualStringList = Record<Locale, string[]>
 
 @Injectable()
 export class CoursesService {
@@ -37,6 +39,18 @@ export class CoursesService {
     updatedAt: true,
     _count: { select: { lessons: true } },
   } as const
+
+  private normalizeLocalizedList(value: unknown): MultiLingualStringList {
+    const empty: MultiLingualStringList = { vi: [], en: [], de: [] }
+    if (Array.isArray(value)) return { ...empty, vi: value.filter((item): item is string => typeof item === 'string') }
+    if (!value || typeof value !== 'object') return empty
+    const input = value as Record<string, unknown>
+    return {
+      vi: Array.isArray(input.vi) ? input.vi.filter((item): item is string => typeof item === 'string') : [],
+      en: Array.isArray(input.en) ? input.en.filter((item): item is string => typeof item === 'string') : [],
+      de: Array.isArray(input.de) ? input.de.filter((item): item is string => typeof item === 'string') : [],
+    }
+  }
 
   private buildCreateCoursePayload(dto: CreateCourseDto & { title: string }): Prisma.CourseUncheckedCreateInput {
     return {
@@ -173,11 +187,24 @@ export class CoursesService {
         create: { courseId, locale, title: title.trim(), shortDescription: tr?.shortDescription?.trim() || (locale === 'vi' ? dto.shortDescription?.trim() || null : null), description: tr?.description?.trim() || (locale === 'vi' ? dto.description?.trim() || null : null) },
       })
       const ct = dto.contentTranslations?.[locale]
+      const objectivesByLocale = this.normalizeLocalizedList(dto.objectives)
+      const targetAudienceByLocale = this.normalizeLocalizedList(dto.targetAudience)
+      const benefitsByLocale = this.normalizeLocalizedList(dto.benefits)
       if (ct || locale === 'vi') {
         await this.prisma.courseContentTranslation.upsert({
           where: { courseId_locale: { courseId, locale } },
-          update: { objectives: (ct?.objectives || (locale === 'vi' ? dto.objectives : undefined) || []) as any, targetAudience: (ct?.targetAudience || (locale === 'vi' ? dto.targetAudience : undefined) || []) as any, benefits: (ct?.benefits || (locale === 'vi' ? dto.benefits : undefined) || []) as any },
-          create: { courseId, locale, objectives: (ct?.objectives || (locale === 'vi' ? dto.objectives : undefined) || []) as any, targetAudience: (ct?.targetAudience || (locale === 'vi' ? dto.targetAudience : undefined) || []) as any, benefits: (ct?.benefits || (locale === 'vi' ? dto.benefits : undefined) || []) as any },
+          update: {
+            objectives: (ct?.objectives || objectivesByLocale[locale] || []) as any,
+            targetAudience: (ct?.targetAudience || targetAudienceByLocale[locale] || []) as any,
+            benefits: (ct?.benefits || benefitsByLocale[locale] || []) as any,
+          },
+          create: {
+            courseId,
+            locale,
+            objectives: (ct?.objectives || objectivesByLocale[locale] || []) as any,
+            targetAudience: (ct?.targetAudience || targetAudienceByLocale[locale] || []) as any,
+            benefits: (ct?.benefits || benefitsByLocale[locale] || []) as any,
+          },
         })
       }
     }))

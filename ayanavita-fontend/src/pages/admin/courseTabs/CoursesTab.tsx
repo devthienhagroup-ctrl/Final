@@ -14,9 +14,10 @@ type Props = {
   totalItems: number
   onChangeFilters: (patch: { selectedTopicId?: number | 'all'; searchTerm?: string }) => void
   onChangePage: (page: number) => void
+  onCourseCreated: () => Promise<void> | void
 }
 
-export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searchTerm, page, totalPages, totalItems, onChangeFilters, onChangePage }: Props) {
+export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searchTerm, page, totalPages, totalItems, onChangeFilters, onChangePage, onCourseCreated }: Props) {
   const [openCreateModal, setOpenCreateModal] = useState(false)
 
   const displayTopicName = (topic: CourseTopic) => {
@@ -99,7 +100,7 @@ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searc
         </div>
       </div>
 
-      <CreateCourseModal open={openCreateModal} lang={lang} topics={topics} onClose={() => setOpenCreateModal(false)} />
+      <CreateCourseModal open={openCreateModal} lang={lang} topics={topics} onClose={() => setOpenCreateModal(false)} onCreated={onCourseCreated} />
     </section>
   )
 }

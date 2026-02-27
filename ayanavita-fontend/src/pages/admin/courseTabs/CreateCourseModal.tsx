@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { autoTranslateFromVietnamese } from '../tabs/i18nForm'
 import { adminCoursesApi } from '../../../api/adminCourses.api'
+import { AlertJs } from '../../../utils/alertJs'
 import './CreateCourseModal.css'
 
 type AdminLang = 'vi' | 'en' | 'de'
@@ -12,10 +13,12 @@ type Props = {
   lang: AdminLang
   topics: TopicItem[]
   onClose: () => void
+  onCreated: () => Promise<void> | void
 }
 
 type I18nText = Record<AdminLang, string>
 type I18nStringArray = Record<AdminLang, string[]>
+type FormErrors = Partial<Record<'topicId' | 'title' | 'price', string>>
 
 type CourseForm = {
   title: I18nText
@@ -76,6 +79,11 @@ const textMap: Record<AdminLang, Record<string, string>> = {
     objective: 'Mục tiêu',
     audience: 'Đối tượng',
     benefits: 'Lợi ích',
+    successTitle: 'Tạo khóa học thành công',
+    successBody: 'Khóa học đã được tạo ở trạng thái bản nháp. Vui lòng tạo đầy đủ bài học trước khi xuất bản.',
+    draftLockedNote: 'Sau khi tạo khóa học, bạn cần tạo đầy đủ các bài học thì mới có thể xuất bản.',
+    topicRequired: 'Vui lòng chọn chủ đề cho khóa học.',
+    titleRequired: 'Vui lòng nhập tiêu đề tiếng Việt cho khóa học.',
   },
   en: {
     title: 'Add new course',
@@ -97,6 +105,11 @@ const textMap: Record<AdminLang, Record<string, string>> = {
     objective: 'Objectives',
     audience: 'Target audience',
     benefits: 'Benefits',
+    successTitle: 'Course created successfully',
+    successBody: 'The course was created in draft mode. Please add all lessons before publishing.',
+    draftLockedNote: 'After creating the course, you need to add all lessons before it can be published.',
+    topicRequired: 'Please select a topic for this course.',
+    titleRequired: 'Please enter the Vietnamese title for this course.',
   },
   de: {
     title: 'Neuen Kurs hinzufügen',
@@ -118,11 +131,17 @@ const textMap: Record<AdminLang, Record<string, string>> = {
     objective: 'Ziele',
     audience: 'Zielgruppe',
     benefits: 'Vorteile',
+    successTitle: 'Kurs erfolgreich erstellt',
+    successBody: 'Der Kurs wurde als Entwurf erstellt. Bitte legen Sie alle Lektionen an, bevor Sie veröffentlichen.',
+    draftLockedNote: 'Nach dem Erstellen des Kurses müssen zuerst alle Lektionen angelegt werden, bevor veröffentlicht werden kann.',
+    topicRequired: 'Bitte wählen Sie ein Thema für diesen Kurs aus.',
+    titleRequired: 'Bitte geben Sie den vietnamesischen Kurstitel ein.',
   },
 }
 
-export function CreateCourseModal({ open, lang, topics, onClose }: Props) {
+export function CreateCourseModal({ open, lang, topics, onClose, onCreated }: Props) {
   const [form, setForm] = useState<CourseForm>(() => initialForm())
+  const [errors, setErrors] = useState<FormErrors>({})
   const [inputLang, setInputLang] = useState<AdminLang>('vi')
   const [submitting, setSubmitting] = useState(false)
   const t = textMap[lang]
@@ -183,19 +202,18 @@ export function CreateCourseModal({ open, lang, topics, onClose }: Props) {
   const getPrice = () => Number(form.price)
 
   const validate = () => {
-    if (!form.topicId || !form.title.vi.trim()) return false
-    if (!Number.isFinite(getPrice()) || getPrice() < 0) {
-      window.alert(t.invalidPrice)
-      return false
-    }
-    return true
+    const nextErrors: FormErrors = {}
+
+    if (!form.topicId) nextErrors.topicId = t.topicRequired
+    if (!form.title.vi.trim()) nextErrors.title = t.titleRequired
+    if (!Number.isFinite(getPrice()) || getPrice() < 0) nextErrors.price = t.invalidPrice
+
+    setErrors(nextErrors)
+    return Object.keys(nextErrors).length === 0
   }
 
   const submit = async () => {
-    if (!validate()) {
-      if (Number.isFinite(getPrice()) && getPrice() >= 0) window.alert(t.required)
-      return
-    }
+    if (!validate()) return
 
     setSubmitting(true)
     try {
@@ -204,12 +222,24 @@ export function CreateCourseModal({ open, lang, topics, onClose }: Props) {
       payload.append('shortDescription', form.shortDescription.vi)
       payload.append('description', form.description.vi)
       payload.append('price', String(getPrice()))
-      payload.append('published', String(form.published))
+      payload.append('published', 'false')
       if (form.topicId) payload.append('topicId', String(form.topicId))
       payload.append('slug', slug)
-      payload.append('objectives', JSON.stringify(form.objectives.vi.filter((v) => v.trim())))
-      payload.append('targetAudience', JSON.stringify(form.targetAudience.vi.filter((v) => v.trim())))
-      payload.append('benefits', JSON.stringify(form.benefits.vi.filter((v) => v.trim())))
+      payload.append('objectives', JSON.stringify({
+        vi: form.objectives.vi.filter((v) => v.trim()),
+        en: form.objectives.en.filter((v) => v.trim()),
+        de: form.objectives.de.filter((v) => v.trim()),
+      }))
+      payload.append('targetAudience', JSON.stringify({
+        vi: form.targetAudience.vi.filter((v) => v.trim()),
+        en: form.targetAudience.en.filter((v) => v.trim()),
+        de: form.targetAudience.de.filter((v) => v.trim()),
+      }))
+      payload.append('benefits', JSON.stringify({
+        vi: form.benefits.vi.filter((v) => v.trim()),
+        en: form.benefits.en.filter((v) => v.trim()),
+        de: form.benefits.de.filter((v) => v.trim()),
+      }))
       payload.append('translations', JSON.stringify({
         vi: { title: form.title.vi, shortDescription: form.shortDescription.vi, description: form.description.vi },
         en: { title: form.title.en, shortDescription: form.shortDescription.en, description: form.description.en },
@@ -223,9 +253,12 @@ export function CreateCourseModal({ open, lang, topics, onClose }: Props) {
       if (form.thumbnailFile) payload.append('thumbnail', form.thumbnailFile)
 
       await adminCoursesApi.createCourse(payload)
+      await onCreated()
+      await AlertJs.success(t.successTitle, t.successBody)
 
       onClose()
       setForm(initialForm())
+      setErrors({})
       setInputLang('vi')
     } finally {
       setSubmitting(false)
@@ -251,18 +284,28 @@ export function CreateCourseModal({ open, lang, topics, onClose }: Props) {
         <section className='admin-card create-course-section'>
           <h5><i className='fa-solid fa-book create-course-icon-orange' /> {t.courseInfo}</h5>
           <div className='admin-form-grid admin-form-grid-2col'>
-            <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-tags create-course-icon-orange' /> {t.topic}</span><select className='admin-input' value={form.topicId || ''} onChange={(e) => setForm((prev) => ({ ...prev, topicId: Number(e.target.value) || undefined }))}><option value=''>--</option>{topics.map((topic) => <option key={topic.id} value={topic.id}>{displayTopicName(topic)}</option>)}</select></label>
+            <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-tags create-course-icon-orange' /> {t.topic}</span><select className='admin-input' value={form.topicId || ''} onChange={(e) => {
+              setForm((prev) => ({ ...prev, topicId: Number(e.target.value) || undefined }))
+              setErrors((prev) => ({ ...prev, topicId: undefined }))
+            }}><option value=''>--</option>{topics.map((topic) => <option key={topic.id} value={topic.id}>{displayTopicName(topic)}</option>)}</select>{errors.topicId ? <span className='create-course-error'>{errors.topicId}</span> : null}</label>
             <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-link create-course-icon-orange' /> Slug</span><input className='admin-input' value={slug} disabled /></label>
-            <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-heading create-course-icon-orange' /> {t.titleLabel}</span><input className='admin-input' value={form.title[inputLang]} onChange={(e) => updateI18nField('title', e.target.value)} /></label>
+            <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-heading create-course-icon-orange' /> {t.titleLabel}</span><input className='admin-input' value={form.title[inputLang]} onChange={(e) => {
+              updateI18nField('title', e.target.value)
+              if (inputLang === 'vi') setErrors((prev) => ({ ...prev, title: undefined }))
+            }} />{errors.title ? <span className='create-course-error'>{errors.title}</span> : null}</label>
             <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-note-sticky create-course-icon-orange' /> {t.shortDescription}</span><input className='admin-input' value={form.shortDescription[inputLang]} onChange={(e) => updateI18nField('shortDescription', e.target.value)} /></label>
             <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-align-left create-course-icon-orange' /> {t.description}</span><textarea className='admin-input' rows={2} value={form.description[inputLang]} onChange={(e) => updateI18nField('description', e.target.value)} /></label>
             <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-image create-course-icon-orange' /> {t.thumbnailUpload}</span><input type='file' accept='image/*' onChange={(e) => setForm((prev) => ({ ...prev, thumbnailFile: e.target.files?.[0] || null }))} /></label>
-            <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-money-bill-wave create-course-icon-green' /> {t.price}</span><input type='number' min={0} className='admin-input' value={form.price} onChange={(e) => setForm((prev) => ({ ...prev, price: e.target.value }))} /></label>
+            <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-money-bill-wave create-course-icon-green' /> {t.price}</span><input type='number' min={0} className='admin-input' value={form.price} onChange={(e) => {
+              setForm((prev) => ({ ...prev, price: e.target.value }))
+              setErrors((prev) => ({ ...prev, price: undefined }))
+            }} />{errors.price ? <span className='create-course-error'>{errors.price}</span> : null}</label>
             <label className='create-course-switch'>
               <span className='admin-label'><i className='fa-solid fa-circle-check create-course-icon-green' /> {t.published}</span>
-              <button type='button' className={`create-course-toggle ${form.published ? 'is-on' : ''}`} onClick={() => setForm((prev) => ({ ...prev, published: !prev.published }))} aria-pressed={form.published}>
+              <button type='button' className='create-course-toggle' aria-pressed={false} disabled>
                 <span className='create-course-toggle-thumb' />
               </button>
+              <span className='create-course-note'>{t.draftLockedNote}</span>
             </label>
           </div>
 

@@ -57,11 +57,30 @@ export class LessonsService {
     })
   }
 
-  async uploadModuleMedia(lessonId: number, moduleId: string, type: 'video' | 'image', file: { buffer: Buffer; originalname?: string }) {
+  async uploadModuleMedia(lessonId: number, moduleId: string, type: 'video' | 'image', file: { buffer: Buffer; originalname?: string }, order?: number) {
     const lesson = await this.prisma.lesson.findUnique({ where: { id: lessonId }, select: { id: true } })
     if (!lesson) throw new NotFoundException('Lesson not found')
-    if (type === 'image') return this.media.convertImageToWebpAndUpload(file, lessonId, moduleId)
-    return this.media.transcodeToHlsAndUpload(file, lessonId, moduleId)
+
+    const module = await this.prisma.lessonModule.findFirst({ where: { id: Number(moduleId), lessonId }, select: { id: true } })
+    if (!module) throw new NotFoundException('Module not found')
+
+    const resolvedOrder = Number.isFinite(order) ? Number(order) : 0
+
+    if (type === 'image') {
+      const uploaded = await this.media.convertImageToWebpAndUpload(file, lessonId, moduleId)
+      const existing = await this.prisma.lessonVideo.findFirst({ where: { moduleId: module.id, order: resolvedOrder }, orderBy: { id: 'asc' }, select: { id: true } })
+      const video = existing
+        ? await this.prisma.lessonVideo.update({ where: { id: existing.id }, data: { mediaType: LessonMediaType.IMAGE, sourceUrl: uploaded.sourceUrl, hlsPlaylistKey: null, published: true } })
+        : await this.prisma.lessonVideo.create({ data: { moduleId: module.id, title: `image-${resolvedOrder}`, description: null, mediaType: LessonMediaType.IMAGE, sourceUrl: uploaded.sourceUrl, durationSec: 0, order: resolvedOrder, published: true } })
+      return { ...uploaded, videoId: video.id }
+    }
+
+    const uploaded = await this.media.transcodeToHlsAndUpload(file, lessonId, moduleId)
+    const existing = await this.prisma.lessonVideo.findFirst({ where: { moduleId: module.id, order: resolvedOrder }, orderBy: { id: 'asc' }, select: { id: true } })
+    const video = existing
+      ? await this.prisma.lessonVideo.update({ where: { id: existing.id }, data: { mediaType: LessonMediaType.VIDEO, sourceUrl: uploaded.playlistKey, hlsPlaylistKey: uploaded.playlistKey, published: true } })
+      : await this.prisma.lessonVideo.create({ data: { moduleId: module.id, title: `video-${resolvedOrder}`, description: null, mediaType: LessonMediaType.VIDEO, sourceUrl: uploaded.playlistKey, hlsPlaylistKey: uploaded.playlistKey, durationSec: 0, order: resolvedOrder, published: true } })
+    return { ...uploaded, videoId: video.id }
   }
 
   async update(id: number, dto: UpdateLessonDto) {

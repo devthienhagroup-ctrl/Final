@@ -138,7 +138,7 @@ export const adminCoursesApi = {
     const suffix = qs.toString() ? `?${qs.toString()}` : ''
     return get<CourseListResponse>(`/courses${suffix}`, { auth: true })
   },
-  createCourse: (body: CoursePayload) => post<CourseAdmin>('/courses', body, { auth: true }),
+  createCourse: (body: CoursePayload | FormData) => post<CourseAdmin>('/courses', body, { auth: true }),
   updateCourse: (id: number, body: Partial<CoursePayload>) => patch<CourseAdmin>(`/courses/${id}`, body, { auth: true }),
   deleteCourse: (id: number) => del<{ id: number }>(`/courses/${id}`, { auth: true }),
 
@@ -148,10 +148,11 @@ export const adminCoursesApi = {
   updateLesson: (lessonId: number, body: Partial<LessonPayload>) => patch<LessonAdmin>(`/lessons/${lessonId}`, body, { auth: true }),
   deleteLesson: (lessonId: number) => del<{ id: number }>(`/lessons/${lessonId}`, { auth: true }),
 
-  uploadModuleMedia: (lessonId: number, moduleId: string | number, file: File, type: 'video' | 'image') => {
+  uploadModuleMedia: (lessonId: number, moduleId: string | number, file: File, type: 'video' | 'image', order?: number) => {
     const body = new FormData()
     body.append('file', file)
     body.append('type', type)
-    return post<{ moduleId?: string; lessonId?: number; hlsPlaylistKey?: string; segmentCount?: number; imageKey?: string; sourceUrl?: string; storage: string }>(`/lessons/${lessonId}/modules/${moduleId}/media/upload`, body, { auth: true })
+    if (order !== undefined) body.append('order', String(order))
+    return post<{ moduleId?: string; lessonId?: number; hlsPlaylistKey?: string; segmentCount?: number; imageKey?: string; sourceUrl?: string; storage: string; videoId?: number }>(`/lessons/${lessonId}/modules/${moduleId}/media/upload`, body, { auth: true })
   },
 }

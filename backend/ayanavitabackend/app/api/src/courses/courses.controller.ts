@@ -8,29 +8,53 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
-} from "@nestjs/common";
-import { CreateCourseDto } from "./dto/create-course.dto";
-import { UpdateCourseDto } from "./dto/update-course.dto";
-import { CurrentUser } from "../auth/decorators/current-user.decorator";
-import { AccessTokenGuard } from "../auth/guards/access-token.guard";
-import { OptionalAccessTokenGuard } from "../auth/guards/optional-access-token.guard";
-import { RolesGuard } from "../auth/guards/roles.guard";
-import { Roles } from "../auth/decorators/roles.decorator";
-import { CoursesService } from "./courses.service";
-import { CourseQueryDto } from "./dto/course-query.dto";
+  UseInterceptors,
+} from '@nestjs/common'
+import { FileInterceptor } from '@nestjs/platform-express'
+import { memoryStorage } from 'multer'
+import { CreateCourseDto } from './dto/create-course.dto'
+import { UpdateCourseDto } from './dto/update-course.dto'
+import { CurrentUser } from '../auth/decorators/current-user.decorator'
+import { AccessTokenGuard } from '../auth/guards/access-token.guard'
+import { OptionalAccessTokenGuard } from '../auth/guards/optional-access-token.guard'
+import { RolesGuard } from '../auth/guards/roles.guard'
+import { Roles } from '../auth/decorators/roles.decorator'
+import { CoursesService } from './courses.service'
+import { CourseQueryDto } from './dto/course-query.dto'
 
 type JwtUser = { sub: number; role: string }
 
-@Controller("courses")
+
+const parseMultipartData = (input: Record<string, any>) => {
+  const data = { ...input }
+  for (const [key, value] of Object.entries(data)) {
+    if (typeof value !== 'string') continue
+    const trimmed = value.trim()
+    if (trimmed === 'true' || trimmed === 'false') {
+      data[key] = trimmed === 'true'
+      continue
+    }
+    if (/^-?\d+(\.\d+)?$/.test(trimmed) && key !== 'slug') {
+      data[key] = Number(trimmed)
+      continue
+    }
+    if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+      try {
+        data[key] = JSON.parse(trimmed)
+      } catch {
+        data[key] = value
+      }
+    }
+  }
+  return data
+}
+
+@Controller('courses')
 export class CoursesController {
   constructor(private readonly courses: CoursesService) {}
 
-
-   // ... các route khác của bạn
-
-  // Outline lessons (ai login cũng xem được)
-  // GET /courses/:id/lessons-outline
   @UseGuards(AccessTokenGuard)
   @Get('courses/:id/lessons-outline')
   lessonsOutline(
@@ -43,51 +67,59 @@ export class CoursesController {
   @Get()
   @UseGuards(OptionalAccessTokenGuard)
   findAll(@CurrentUser() user: JwtUser | null, @Query() query: CourseQueryDto) {
-    return this.courses.findAll(query, user);
+    return this.courses.findAll(query, user)
   }
 
   @UseGuards(AccessTokenGuard)
-  @Get(":id")
-  findOne(@Param("id", ParseIntPipe) id: number) {
-    return this.courses.findOne(id);
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.courses.findOne(id)
   }
 
   @UseGuards(AccessTokenGuard)
-  @Get(":id/lessons")
-  listLessons(@CurrentUser() user: any, @Param("id", ParseIntPipe) id: number) {
-    return this.courses.listLessons(user, id);
+  @Get(':id/lessons')
+  listLessons(@CurrentUser() user: any, @Param('id', ParseIntPipe) id: number) {
+    return this.courses.listLessons(user, id)
   }
 
-  // ✅ NEW: Lesson detail (theo lessonId)
   @UseGuards(AccessTokenGuard)
-  @Get(":id/lessons/:lessonId")
+  @Get(':id/lessons/:lessonId')
   getLesson(
     @CurrentUser() user: any,
-    @Param("id", ParseIntPipe) courseId: number,
-    @Param("lessonId", ParseIntPipe) lessonId: number
+    @Param('id', ParseIntPipe) courseId: number,
+    @Param('lessonId', ParseIntPipe) lessonId: number,
   ) {
-    return this.courses.getLessonDetail(user, courseId, lessonId);
+    return this.courses.getLessonDetail(user, courseId, lessonId)
   }
 
-  // ===== ADMIN ONLY =====
   @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles("ADMIN")
+  @Roles('ADMIN')
+  @Post('thumbnail/upload')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  uploadThumbnail(@UploadedFile() file?: any) {
+    if (!file) return { message: 'Missing thumbnail file' }
+    return this.courses.uploadThumbnail(file)
+  }
+
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('ADMIN')
   @Post()
-  create(@Body() dto: CreateCourseDto) {
-    return this.courses.create(dto);
+  @UseInterceptors(FileInterceptor('thumbnail', { storage: memoryStorage() }))
+  create(@Body() rawData: any, @UploadedFile() thumbnail?: any) {
+    return this.courses.create(parseMultipartData(rawData) as CreateCourseDto, thumbnail)
   }
 
   @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles("ADMIN")
-  @Patch(":id")
-  update(@Param("id", ParseIntPipe) id: number, @Body() dto: UpdateCourseDto) {
-    return this.courses.update(id, dto);
+  @Roles('ADMIN')
+  @Patch(':id')
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCourseDto) {
+    return this.courses.update(id, dto)
   }
 
   @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles("ADMIN")
-  @Delete(":id")
-  remove(@Param("id", ParseIntPipe) id: number) {
-    return this.courses.remove(id);
+  @Roles('ADMIN')
+  @Delete(':id')
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.courses.remove(id)
   }
 }

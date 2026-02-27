@@ -4,7 +4,6 @@ import { adminCoursesApi } from '../../../api/adminCourses.api'
 import './CreateCourseModal.css'
 
 type AdminLang = 'vi' | 'en' | 'de'
-type MediaType = 'video' | 'image'
 
 type TopicItem = { id: number; name: string; translations?: { vi?: { name?: string }; en?: { name?: string }; de?: { name?: string } } }
 
@@ -18,10 +17,6 @@ type Props = {
 type I18nText = Record<AdminLang, string>
 type I18nStringArray = Record<AdminLang, string[]>
 
-type MediaForm = { type: MediaType; file?: File | null; orderIndex: number }
-type ModuleForm = { title: I18nText; description: I18nText; orderIndex: number; medias: MediaForm[] }
-type LessonForm = { title: I18nText; description: I18nText; orderIndex: number; modules: ModuleForm[] }
-
 type CourseForm = {
   title: I18nText
   shortDescription: I18nText
@@ -33,15 +28,10 @@ type CourseForm = {
   objectives: I18nStringArray
   targetAudience: I18nStringArray
   benefits: I18nStringArray
-  lessons: LessonForm[]
 }
 
 const emptyI18n = (): I18nText => ({ vi: '', en: '', de: '' })
 const emptyI18nArray = (): I18nStringArray => ({ vi: [''], en: [''], de: [''] })
-
-const createMedia = (orderIndex = 1): MediaForm => ({ type: 'video', file: null, orderIndex })
-const createModule = (orderIndex = 1): ModuleForm => ({ title: emptyI18n(), description: emptyI18n(), orderIndex, medias: [createMedia()] })
-const createLesson = (orderIndex = 1): LessonForm => ({ title: emptyI18n(), description: emptyI18n(), orderIndex, modules: [createModule()] })
 
 const initialForm = (): CourseForm => ({
   title: emptyI18n(),
@@ -54,7 +44,6 @@ const initialForm = (): CourseForm => ({
   objectives: emptyI18nArray(),
   targetAudience: emptyI18nArray(),
   benefits: emptyI18nArray(),
-  lessons: [createLesson()],
 })
 
 const slugify = (input: string) =>
@@ -70,14 +59,11 @@ const textMap: Record<AdminLang, Record<string, string>> = {
   vi: {
     title: 'Thêm khóa học mới',
     close: 'Đóng',
-    submit: 'Submit 1 lần',
+    submit: 'Lưu khóa học',
     required: 'Vui lòng nhập đủ các trường bắt buộc.',
     invalidPrice: 'Giá phải là số hợp lệ và lớn hơn hoặc bằng 0.',
     langInput: 'Ngôn ngữ nhập liệu',
     courseInfo: 'I. Thông tin khóa học',
-    lessons: 'II. Lesson',
-    modules: 'III. Module',
-    medias: 'IV. Media',
     topic: 'Chủ đề *',
     titleLabel: 'Tiêu đề *',
     shortDescription: 'Mô tả ngắn',
@@ -85,29 +71,20 @@ const textMap: Record<AdminLang, Record<string, string>> = {
     thumbnailUpload: 'Thumbnail (upload ảnh)',
     price: 'Giá',
     published: 'Xuất bản',
-    addLesson: 'Thêm Lesson',
-    addModule: 'Thêm Module',
-    addMedia: 'Thêm Media',
     addItem: 'Thêm dòng',
     remove: 'Xóa',
     objective: 'Mục tiêu',
     audience: 'Đối tượng',
     benefits: 'Lợi ích',
-    mediaType: 'Loại media',
-    upload: 'Upload file',
-    orderIndex: 'Thứ tự',
   },
   en: {
     title: 'Add new course',
     close: 'Close',
-    submit: 'Submit once',
+    submit: 'Save course',
     required: 'Please fill required fields.',
     invalidPrice: 'Price must be a valid number and greater than or equal to 0.',
     langInput: 'Input language',
     courseInfo: 'I. Course information',
-    lessons: 'II. Lesson',
-    modules: 'III. Module',
-    medias: 'IV. Media',
     topic: 'Topic *',
     titleLabel: 'Title *',
     shortDescription: 'Short description',
@@ -115,29 +92,20 @@ const textMap: Record<AdminLang, Record<string, string>> = {
     thumbnailUpload: 'Thumbnail (upload image)',
     price: 'Price',
     published: 'Published',
-    addLesson: 'Add lesson',
-    addModule: 'Add module',
-    addMedia: 'Add media',
     addItem: 'Add row',
     remove: 'Remove',
     objective: 'Objectives',
     audience: 'Target audience',
     benefits: 'Benefits',
-    mediaType: 'Media type',
-    upload: 'Upload file',
-    orderIndex: 'Order index',
   },
   de: {
     title: 'Neuen Kurs hinzufügen',
     close: 'Schließen',
-    submit: 'Einmal senden',
+    submit: 'Kurs speichern',
     required: 'Bitte Pflichtfelder ausfüllen.',
     invalidPrice: 'Preis muss eine gültige Zahl und größer oder gleich 0 sein.',
     langInput: 'Eingabesprache',
     courseInfo: 'I. Kursinformationen',
-    lessons: 'II. Lektion',
-    modules: 'III. Modul',
-    medias: 'IV. Medien',
     topic: 'Thema *',
     titleLabel: 'Titel *',
     shortDescription: 'Kurzbeschreibung',
@@ -145,17 +113,11 @@ const textMap: Record<AdminLang, Record<string, string>> = {
     thumbnailUpload: 'Thumbnail (Bild hochladen)',
     price: 'Preis',
     published: 'Veröffentlicht',
-    addLesson: 'Lektion hinzufügen',
-    addModule: 'Modul hinzufügen',
-    addMedia: 'Medien hinzufügen',
     addItem: 'Zeile hinzufügen',
     remove: 'Löschen',
     objective: 'Ziele',
     audience: 'Zielgruppe',
     benefits: 'Vorteile',
-    mediaType: 'Medientyp',
-    upload: 'Datei hochladen',
-    orderIndex: 'Reihenfolge',
   },
 }
 
@@ -218,37 +180,6 @@ export function CreateCourseModal({ open, lang, topics, onClose }: Props) {
     }))
   }
 
-  const updateLesson = (lessonIdx: number, updater: (lesson: LessonForm) => LessonForm) => {
-    setForm((prev) => ({ ...prev, lessons: prev.lessons.map((lesson, idx) => (idx === lessonIdx ? updater(lesson) : lesson)) }))
-  }
-
-  const updateModule = (lessonIdx: number, moduleIdx: number, updater: (module: ModuleForm) => ModuleForm) => {
-    updateLesson(lessonIdx, (lesson) => ({ ...lesson, modules: lesson.modules.map((module, idx) => (idx === moduleIdx ? updater(module) : module)) }))
-  }
-
-  const updateMedia = (lessonIdx: number, moduleIdx: number, mediaIdx: number, updater: (media: MediaForm) => MediaForm) => {
-    updateModule(lessonIdx, moduleIdx, (module) => ({ ...module, medias: module.medias.map((media, idx) => (idx === mediaIdx ? updater(media) : media)) }))
-  }
-
-  const addLesson = () => setForm((prev) => ({ ...prev, lessons: [...prev.lessons, createLesson(prev.lessons.length + 1)] }))
-  const removeLesson = (lessonIdx: number) => setForm((prev) => ({ ...prev, lessons: prev.lessons.filter((_, idx) => idx !== lessonIdx) }))
-  const addModule = (lessonIdx: number) => updateLesson(lessonIdx, (lesson) => ({ ...lesson, modules: [...lesson.modules, createModule(lesson.modules.length + 1)] }))
-  const removeModule = (lessonIdx: number, moduleIdx: number) => updateLesson(lessonIdx, (lesson) => ({ ...lesson, modules: lesson.modules.filter((_, idx) => idx !== moduleIdx) }))
-  const addMedia = (lessonIdx: number, moduleIdx: number) => updateModule(lessonIdx, moduleIdx, (module) => ({ ...module, medias: [...module.medias, createMedia(module.medias.length + 1)] }))
-  const removeMedia = (lessonIdx: number, moduleIdx: number, mediaIdx: number) => updateModule(lessonIdx, moduleIdx, (module) => ({ ...module, medias: module.medias.filter((_, idx) => idx !== mediaIdx) }))
-
-  const updateLessonText = (lessonIdx: number, field: 'title' | 'description', value: string) => {
-    updateLesson(lessonIdx, (lesson) => ({ ...lesson, [field]: { ...lesson[field], [inputLang]: value } }))
-    if (inputLang !== 'vi') return
-    void translateVietnameseToOthers(value, (en, de) => updateLesson(lessonIdx, (lesson) => ({ ...lesson, [field]: { ...lesson[field], en, de } })))
-  }
-
-  const updateModuleText = (lessonIdx: number, moduleIdx: number, field: 'title' | 'description', value: string) => {
-    updateModule(lessonIdx, moduleIdx, (module) => ({ ...module, [field]: { ...module[field], [inputLang]: value } }))
-    if (inputLang !== 'vi') return
-    void translateVietnameseToOthers(value, (en, de) => updateModule(lessonIdx, moduleIdx, (module) => ({ ...module, [field]: { ...module[field], en, de } })))
-  }
-
   const getPrice = () => Number(form.price)
 
   const validate = () => {
@@ -257,38 +188,8 @@ export function CreateCourseModal({ open, lang, topics, onClose }: Props) {
       window.alert(t.invalidPrice)
       return false
     }
-    for (const lesson of form.lessons) {
-      if (!lesson.title.vi.trim()) return false
-      for (const module of lesson.modules) {
-        if (!module.title.vi.trim()) return false
-      }
-    }
     return true
   }
-
-  const toLanguageVersion = (locale: AdminLang) => ({
-    title: form.title[locale],
-    shortDescription: form.shortDescription[locale],
-    description: form.description[locale],
-    objectives: form.objectives[locale].filter((v) => v.trim()),
-    targetAudience: form.targetAudience[locale].filter((v) => v.trim()),
-    benefits: form.benefits[locale].filter((v) => v.trim()),
-    lessons: form.lessons.map((lesson) => ({
-      title: lesson.title[locale],
-      description: lesson.description[locale],
-      orderIndex: lesson.orderIndex,
-      modules: lesson.modules.map((module) => ({
-        title: module.title[locale],
-        description: module.description[locale],
-        orderIndex: module.orderIndex,
-        medias: module.medias.map((media) => ({
-          type: media.type,
-          uploadFileName: media.file?.name,
-          orderIndex: media.orderIndex,
-        })),
-      })),
-    })),
-  })
 
   const submit = async () => {
     if (!validate()) {
@@ -298,57 +199,30 @@ export function CreateCourseModal({ open, lang, topics, onClose }: Props) {
 
     setSubmitting(true)
     try {
-      const course = await adminCoursesApi.createCourse({
-        title: form.title.vi,
-        shortDescription: form.shortDescription.vi,
-        description: form.description.vi,
-        price: getPrice(),
-        published: form.published,
-        topicId: form.topicId,
-        objectives: form.objectives.vi.filter((v) => v.trim()),
-        targetAudience: form.targetAudience.vi.filter((v) => v.trim()),
-        benefits: form.benefits.vi.filter((v) => v.trim()),
-        slug,
-        translations: {
-          vi: { title: form.title.vi, shortDescription: form.shortDescription.vi, description: form.description.vi },
-          en: { title: form.title.en, shortDescription: form.shortDescription.en, description: form.description.en },
-          de: { title: form.title.de, shortDescription: form.shortDescription.de, description: form.description.de },
-        },
-        contentTranslations: {
-          vi: { objectives: form.objectives.vi.filter((v) => v.trim()), targetAudience: form.targetAudience.vi.filter((v) => v.trim()), benefits: form.benefits.vi.filter((v) => v.trim()) },
-          en: { objectives: form.objectives.en.filter((v) => v.trim()), targetAudience: form.targetAudience.en.filter((v) => v.trim()), benefits: form.benefits.en.filter((v) => v.trim()) },
-          de: { objectives: form.objectives.de.filter((v) => v.trim()), targetAudience: form.targetAudience.de.filter((v) => v.trim()), benefits: form.benefits.de.filter((v) => v.trim()) },
-        },
-      })
+      const payload = new FormData()
+      payload.append('title', form.title.vi)
+      payload.append('shortDescription', form.shortDescription.vi)
+      payload.append('description', form.description.vi)
+      payload.append('price', String(getPrice()))
+      payload.append('published', String(form.published))
+      if (form.topicId) payload.append('topicId', String(form.topicId))
+      payload.append('slug', slug)
+      payload.append('objectives', JSON.stringify(form.objectives.vi.filter((v) => v.trim())))
+      payload.append('targetAudience', JSON.stringify(form.targetAudience.vi.filter((v) => v.trim())))
+      payload.append('benefits', JSON.stringify(form.benefits.vi.filter((v) => v.trim())))
+      payload.append('translations', JSON.stringify({
+        vi: { title: form.title.vi, shortDescription: form.shortDescription.vi, description: form.description.vi },
+        en: { title: form.title.en, shortDescription: form.shortDescription.en, description: form.description.en },
+        de: { title: form.title.de, shortDescription: form.shortDescription.de, description: form.description.de },
+      }))
+      payload.append('contentTranslations', JSON.stringify({
+        vi: { objectives: form.objectives.vi.filter((v) => v.trim()), targetAudience: form.targetAudience.vi.filter((v) => v.trim()), benefits: form.benefits.vi.filter((v) => v.trim()) },
+        en: { objectives: form.objectives.en.filter((v) => v.trim()), targetAudience: form.targetAudience.en.filter((v) => v.trim()), benefits: form.benefits.en.filter((v) => v.trim()) },
+        de: { objectives: form.objectives.de.filter((v) => v.trim()), targetAudience: form.targetAudience.de.filter((v) => v.trim()), benefits: form.benefits.de.filter((v) => v.trim()) },
+      }))
+      if (form.thumbnailFile) payload.append('thumbnail', form.thumbnailFile)
 
-      for (const lesson of form.lessons) {
-        const createdLesson = await adminCoursesApi.createLesson(course.id, {
-          title: lesson.title.vi,
-          slug: slugify(lesson.title.vi || `lesson-${lesson.orderIndex}`),
-          description: lesson.description.vi,
-          order: lesson.orderIndex,
-          published: form.published,
-          translations: { vi: { title: lesson.title.vi, description: lesson.description.vi }, en: { title: lesson.title.en, description: lesson.description.en }, de: { title: lesson.title.de, description: lesson.description.de } },
-          modules: lesson.modules.map((module) => ({
-            title: module.title.vi,
-            description: module.description.vi,
-            order: module.orderIndex,
-            published: true,
-            translations: { vi: { title: module.title.vi, description: module.description.vi }, en: { title: module.title.en, description: module.description.en }, de: { title: module.title.de, description: module.description.de } },
-            videos: module.medias.map((media) => ({ title: media.file?.name || media.type, description: '', order: media.orderIndex, mediaType: media.type === 'image' ? 'IMAGE' : 'VIDEO', published: true })),
-          })),
-        })
-
-        const detail = await adminCoursesApi.getLessonDetail(createdLesson.id)
-        for (const module of lesson.modules) {
-          const apiModule = detail.modules.find((m) => m.order === module.orderIndex)
-          if (!apiModule) continue
-          for (const media of module.medias) {
-            if (!media.file) continue
-            await adminCoursesApi.uploadModuleMedia(createdLesson.id, apiModule.id, media.file, media.type)
-          }
-        }
-      }
+      await adminCoursesApi.createCourse(payload)
 
       onClose()
       setForm(initialForm())
@@ -406,54 +280,7 @@ export function CreateCourseModal({ open, lang, topics, onClose }: Props) {
           ))}
         </section>
 
-        {form.lessons.map((lesson, lessonIdx) => (
-          <section className='admin-card create-course-section' key={`lesson-${lessonIdx}`}>
-            <div className='admin-row create-course-title-row'>
-              <h5><i className='fa-solid fa-book-open create-course-icon-green' /> {t.lessons} #{lessonIdx + 1}</h5>
-              <button type='button' className='admin-btn admin-btn-danger' onClick={() => removeLesson(lessonIdx)}><i className='fa-solid fa-trash' /> {t.remove}</button>
-            </div>
-            <div className='admin-form-grid admin-form-grid-2col'>
-              <label className='admin-field'><span className='admin-label'>{t.titleLabel}</span><input className='admin-input' value={lesson.title[inputLang]} onChange={(e) => updateLessonText(lessonIdx, 'title', e.target.value)} /></label>
-              <label className='admin-field'><span className='admin-label'>{t.orderIndex}</span><input type='number' className='admin-input' value={lesson.orderIndex} onChange={(e) => updateLesson(lessonIdx, (old) => ({ ...old, orderIndex: Number(e.target.value) }))} /></label>
-              <label className='admin-field admin-field-full'><span className='admin-label'>{t.description}</span><textarea className='admin-input' rows={2} value={lesson.description[inputLang]} onChange={(e) => updateLessonText(lessonIdx, 'description', e.target.value)} /></label>
-            </div>
-
-            {lesson.modules.map((module, moduleIdx) => (
-              <div className='admin-card create-course-inner-card' key={`module-${moduleIdx}`}>
-                <div className='admin-row create-course-title-row'>
-                  <h6><i className='fa-solid fa-layer-group create-course-icon-orange' /> {t.modules} #{moduleIdx + 1}</h6>
-                  <button type='button' className='admin-btn admin-btn-danger' onClick={() => removeModule(lessonIdx, moduleIdx)}><i className='fa-solid fa-trash' /> {t.remove}</button>
-                </div>
-                <div className='admin-form-grid admin-form-grid-2col'>
-                  <label className='admin-field'><span className='admin-label'>{t.titleLabel}</span><input className='admin-input' value={module.title[inputLang]} onChange={(e) => updateModuleText(lessonIdx, moduleIdx, 'title', e.target.value)} /></label>
-                  <label className='admin-field'><span className='admin-label'>{t.orderIndex}</span><input type='number' className='admin-input' value={module.orderIndex} onChange={(e) => updateModule(lessonIdx, moduleIdx, (old) => ({ ...old, orderIndex: Number(e.target.value) }))} /></label>
-                  <label className='admin-field admin-field-full'><span className='admin-label'>{t.description}</span><textarea className='admin-input' rows={2} value={module.description[inputLang]} onChange={(e) => updateModuleText(lessonIdx, moduleIdx, 'description', e.target.value)} /></label>
-                </div>
-
-                {module.medias.map((media, mediaIdx) => (
-                  <div key={`media-${mediaIdx}`} className='admin-card create-course-inner-card'>
-                    <div className='admin-row create-course-title-row'>
-                      <strong><i className='fa-solid fa-photo-film create-course-icon-green' /> {t.medias} #{mediaIdx + 1}</strong>
-                      <button type='button' className='admin-btn admin-btn-danger' onClick={() => removeMedia(lessonIdx, moduleIdx, mediaIdx)}><i className='fa-solid fa-trash' /> {t.remove}</button>
-                    </div>
-                    <div className='admin-form-grid admin-form-grid-2col'>
-                      <label className='admin-field'><span className='admin-label'>{t.mediaType}</span><select className='admin-input' value={media.type} onChange={(e) => updateMedia(lessonIdx, moduleIdx, mediaIdx, (old) => ({ ...old, type: e.target.value as MediaType }))}><option value='video'>video</option><option value='image'>image</option></select></label>
-                      <label className='admin-field'><span className='admin-label'>{t.orderIndex}</span><input type='number' className='admin-input' value={media.orderIndex} onChange={(e) => updateMedia(lessonIdx, moduleIdx, mediaIdx, (old) => ({ ...old, orderIndex: Number(e.target.value) }))} /></label>
-                      <label className='admin-field admin-field-full'><span className='admin-label'>{t.upload}</span><input type='file' accept={media.type === 'image' ? 'image/*' : 'video/*'} onChange={(e) => updateMedia(lessonIdx, moduleIdx, mediaIdx, (old) => ({ ...old, file: e.target.files?.[0] || null }))} /></label>
-                    </div>
-                  </div>
-                ))}
-
-                <button type='button' className='admin-btn create-course-btn-add' onClick={() => addMedia(lessonIdx, moduleIdx)}><i className='fa-solid fa-plus' /> {t.addMedia}</button>
-              </div>
-            ))}
-
-            <button type='button' className='admin-btn create-course-btn-add' onClick={() => addModule(lessonIdx)}><i className='fa-solid fa-plus' /> {t.addModule}</button>
-          </section>
-        ))}
-
         <div className='admin-row create-course-footer'>
-          <button type='button' className='admin-btn create-course-btn-add' onClick={addLesson}><i className='fa-solid fa-plus' /> {t.addLesson}</button>
           <button type='button' className='admin-btn admin-btn-save' onClick={() => void submit()} disabled={submitting}><i className='fa-solid fa-paper-plane' /> {t.submit}</button>
         </div>
       </div>

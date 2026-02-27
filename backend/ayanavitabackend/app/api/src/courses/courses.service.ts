@@ -5,6 +5,7 @@ import { CreateCourseDto } from './dto/create-course.dto'
 import { UpdateCourseDto } from './dto/update-course.dto'
 import { Prisma, ProgressStatus } from '@prisma/client'
 import { CourseQueryDto } from './dto/course-query.dto'
+import { CoursesMediaService } from './courses-media.service'
 
 type JwtUser = { sub: number; role: string }
 
@@ -13,6 +14,7 @@ export class CoursesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly enrollments: EnrollmentsService,
+    private readonly courseMedia: CoursesMediaService,
   ) {}
 
   private readonly baseCourseSelect = {
@@ -117,12 +119,17 @@ export class CoursesService {
     return { items, total, page, pageSize }
   }
 
+
+  async uploadThumbnail(file: { buffer: Buffer }) {
+    return this.courseMedia.uploadThumbnail(file)
+  }
   async findOne(id: number) { const c = await this.prisma.course.findUnique({ where: { id }, select: this.baseCourseSelect }); if (!c) throw new NotFoundException('Course not found'); return c }
 
-  async create(dto: CreateCourseDto) {
+  async create(dto: CreateCourseDto, thumbnailFile?: { buffer: Buffer; mimetype?: string }) {
     if (!dto.title?.trim()) throw new BadRequestException('Title is required')
     try {
-      const created = await this.prisma.course.create({ data: this.buildCreateCoursePayload({ ...dto, title: dto.title.trim() }), select: this.baseCourseSelect })
+      const thumbnailUrl = thumbnailFile ? (await this.courseMedia.uploadThumbnail(thumbnailFile)).url : dto.thumbnail
+      const created = await this.prisma.course.create({ data: this.buildCreateCoursePayload({ ...dto, title: dto.title.trim(), thumbnail: thumbnailUrl }), select: this.baseCourseSelect })
       await this.syncCourseTranslations(created.id, dto)
       return created
     } catch (e) {

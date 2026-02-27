@@ -367,7 +367,7 @@ export function Header({
               </button>
 
               {langOpen && (
-                <div className="absolute right-0 top-full z-[60] min-w-[160px] animate-in fade-in slide-in-from-top-2 duration-200 rounded-2xl border border-slate-200/70 bg-white p-2 shadow-[0_18px_40px_rgba(2,6,23,.10)]">
+                <div className="absolute right-0 top-[calc(100%+10px)] z-[60] min-w-[160px] animate-in fade-in slide-in-from-top-2 duration-200 rounded-2xl border border-slate-200/70 bg-white p-2 shadow-[0_18px_40px_rgba(2,6,23,.10)]">
                   {languageOptions.map((opt) => (
                     <button
                       key={opt.code}
@@ -397,26 +397,26 @@ export function Header({
               >
                 <button
                   type="button"
-                  className="inline-flex gap-2 items-center rounded-full border border-slate-200 bg-white px-4 py-2 font-black text-slate-900 transition-all duration-200 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md"
+                  className="inline-flex rounded-full border border-slate-200 bg-white px-4 py-2 font-black text-slate-900 transition-all duration-200 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md"
                 >
-                  <i className="fa-solid fa-circle-user text-xl"></i> Tài khoản
+                  Tài khoản
                 </button>
 
                 {userMenuOpen === "desktop" && (
-                  <div className="absolute right-0 top-full z-[60] min-w-[220px] animate-in fade-in slide-in-from-top-2 duration-200 rounded-2xl border border-slate-200/70 bg-white p-2 shadow-[0_18px_40px_rgba(2,6,23,.10)]">
+                  <div className="absolute right-0 top-[calc(100%+10px)] z-[60] min-w-[220px] animate-in fade-in slide-in-from-top-2 duration-200 rounded-2xl border border-slate-200/70 bg-white p-2 shadow-[0_18px_40px_rgba(2,6,23,.10)]">
                     <Link
                       to="/account-center"
                       className="block rounded-xl px-3 py-2 font-extrabold text-slate-900 transition-all duration-200 hover:bg-indigo-50 hover:text-indigo-700"
                       onClick={() => setUserMenuOpen(null)}
                     >
-                      <i className="fa-solid fa-address-book"></i> Quản lý tài khoản
+                      Quản lý tài khoản
                     </Link>
                     <button
                       type="button"
                       className="mt-1 block w-full rounded-xl px-3 py-2 text-left font-extrabold text-slate-900 transition-all duration-200 hover:bg-rose-50 hover:text-rose-700"
                       onClick={handleLogout}
                     >
-                     <i className="fa-solid fa-person-walking-dashed-line-arrow-right"></i> Đăng xuất
+                      Đăng xuất
                     </button>
                   </div>
                 )}

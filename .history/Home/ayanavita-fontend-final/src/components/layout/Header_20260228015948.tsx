@@ -397,9 +397,9 @@ export function Header({
               >
                 <button
                   type="button"
-                  className="inline-flex gap-2 items-center rounded-full border border-slate-200 bg-white px-4 py-2 font-black text-slate-900 transition-all duration-200 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md"
+                  className="inline-flex rounded-full border border-slate-200 bg-white px-4 py-2 font-black text-slate-900 transition-all duration-200 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md"
                 >
-                  <i className="fa-solid fa-circle-user text-xl"></i> Tài khoản
+                  <i className="fa-solid fa-circle-user"></i> Tài khoản
                 </button>
 
                 {userMenuOpen === "desktop" && (

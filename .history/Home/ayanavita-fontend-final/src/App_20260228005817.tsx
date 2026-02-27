@@ -21,7 +21,6 @@ import CoursePlayerPage from "./pages/CoursePlayerPage";
 import BlogPage from "./pages/BlogPage";
 import LessonDetailPage from "./pages/LessonDetailPage";
 import ReviewsCenterPage from "./pages/ReviewsCenterPage";
-import AccountCenter from "./pages/AccountCenter";
 // ví dụ
 
 
@@ -62,7 +61,7 @@ export default function App() {
                 <Route path="/products" element={<div className="p-6">Products (todo)</div>}/>
                 <Route path="/checkout" element={<div className="p-6">Checkout (todo)</div>}/>
                 <Route path="/franchise" element={<div className="p-6">Franchise (todo)</div>}/>
-                <Route path="/account" element={<AccountCenter/>}/>
+                <Route path="/account" element={<Acco}/>
                 <Route path="/compare" element={<div className="p-6">Compare (todo)</div>}/>
                 <Route path="/track-order" element={<div className="p-6">Track order (todo)</div>}/>
                         <Route path="/contact" element={<ContactPage />} />

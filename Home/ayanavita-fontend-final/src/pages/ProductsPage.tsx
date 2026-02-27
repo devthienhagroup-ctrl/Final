@@ -314,7 +314,7 @@ export default function ProductsPage() {
   return (
       <div className="text-slate-900">
         <main className="px-4 pb-10">
-          <div className="max-w-6xl mx-auto card overflow-hidden">
+          <div className="max-w-7xl mx-auto card overflow-hidden">
             <div className="relative">
               <img className="h-44 w-full object-cover" alt={cmsData?.banner?.imageAlt} src={cmsData?.banner?.imageSrc} />
               <div className="absolute inset-0 bg-gradient-to-r from-slate-900/55 to-indigo-700/20" />

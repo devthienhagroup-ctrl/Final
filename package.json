@@ -1,5 +1,5 @@
 {
-  "name": "host",
+  "name": "ayanavita",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -12,6 +12,9 @@
   },
   "private": true,
   "dependencies": {
+    "@prisma/client": "^7.4.1",
+    "flag-icons": "^7.5.0",
+    "prisma": "^7.4.1",
     "vite": "^7.3.1"
   },
   "devDependencies": {

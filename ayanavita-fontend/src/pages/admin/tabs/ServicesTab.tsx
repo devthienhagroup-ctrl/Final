@@ -15,7 +15,7 @@ const renderJsonPreview = (items: string[], badgeClass: string, extraBadgeClass:
 }
 
 const pageSizeOptions = [5, 10, 20, 50]
-const locales: LocaleMode[] = ['vi', 'en-US', 'de']
+const locales: LocaleMode[] = ['vi', 'en', 'de']
 const emptyServiceLocale = { name: '', description: '', goals: '', suitableFor: '', process: '', tag: '' }
 const textMap = {
   vi: {
@@ -27,7 +27,7 @@ const textMap = {
     goals: 'Mục tiêu', suitableFor: 'Phù hợp với', process: 'Quy trình', description: 'Mô tả', uploadImage: 'Upload ảnh',
     selectedImage: 'Đã chọn', save: 'Lưu thay đổi', addService: 'Thêm dịch vụ', cancel: 'Hủy',
   },
-  'en-US': {
+  'en': {
     title: 'Service management', add: 'Add service', searchLabel: 'Search service name', searchPlaceholder: 'Enter service name...', perPage: 'Items/page', perPageSuffix: '/ page',
     noData: 'No data', create: 'Create new service', edit: 'Edit service', close: 'Close', requiredHint: 'is required.',
     localeHint: 'Default input is Vietnamese; the system auto-translates to English/German. Please review translations before saving.',
@@ -102,13 +102,13 @@ export function ServicesTab({
       const reqId = translateReqRef.current
       onServiceFormChange({ ...nextForm, [field]: value })
 
-      void Promise.all([autoTranslateFromVietnamese(value, 'en-US'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => {
+      void Promise.all([autoTranslateFromVietnamese(value, 'en'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => {
         if (reqId !== translateReqRef.current) return
         onServiceFormChange({
           ...nextForm,
           translations: {
             ...nextTranslations,
-            'en-US': { ...(nextTranslations['en-US'] || emptyServiceLocale), [field]: en },
+            'en': { ...(nextTranslations['en'] || emptyServiceLocale), [field]: en },
             de: { ...(nextTranslations.de || emptyServiceLocale), [field]: de },
           },
         })

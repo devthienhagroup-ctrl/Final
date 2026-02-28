@@ -40,6 +40,13 @@ export class CoursesService {
     _count: { select: { lessons: true } },
   } as const
 
+  private resolveCourseLocale(lang?: string): Locale {
+    const activeLang = (lang || 'vi').toLowerCase()
+    if (activeLang === 'en-us' || activeLang === 'en') return 'en'
+    if (activeLang === 'de') return 'de'
+    return 'vi'
+  }
+
   private normalizeLocalizedList(value: unknown): MultiLingualStringList {
     const empty: MultiLingualStringList = { vi: [], en: [], de: [] }
     if (Array.isArray(value)) return { ...empty, vi: value.filter((item): item is string => typeof item === 'string') }
@@ -98,8 +105,7 @@ export class CoursesService {
   }
 
   async findAll(query: CourseQueryDto, user?: { sub: number; role: string } | null) {
-    const activeLang = (query.lang || 'vi').toLowerCase()
-    const courseLocale = activeLang === 'en-us' || activeLang === 'en' ? 'en' : activeLang === 'de' ? 'de' : 'vi'
+    const courseLocale = this.resolveCourseLocale(query.lang)
     const topicLocale = courseLocale
     const where: Prisma.CourseWhereInput = {
       ...(user?.role === 'ADMIN' ? {} : { published: true }),
@@ -137,7 +143,42 @@ export class CoursesService {
   async uploadThumbnail(file: { buffer: Buffer }) {
     return this.courseMedia.uploadThumbnail(file)
   }
-  async findOne(id: number) { const c = await this.prisma.course.findUnique({ where: { id }, select: this.baseCourseSelect }); if (!c) throw new NotFoundException('Course not found'); return c }
+  async findOne(id: number, lang?: string) {
+    const courseLocale = this.resolveCourseLocale(lang)
+    const c = await this.prisma.course.findUnique({
+      where: { id },
+      select: {
+        ...this.baseCourseSelect,
+        translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, title: true, shortDescription: true, description: true } },
+        contentTranslations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, objectives: true, targetAudience: true, benefits: true } },
+        topic: { select: { id: true, name: true, translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, name: true } } } },
+      },
+    })
+    if (!c) throw new NotFoundException('Course not found')
+    const tr = (c as any).translations?.find((x: any) => x.locale === courseLocale) || (c as any).translations?.find((x: any) => x.locale === 'vi')
+    const ct = (c as any).contentTranslations?.find((x: any) => x.locale === courseLocale) || (c as any).contentTranslations?.find((x: any) => x.locale === 'vi')
+    const tt = (c as any).topic?.translations?.find((x: any) => x.locale === courseLocale) || (c as any).topic?.translations?.find((x: any) => x.locale === 'vi')
+
+    const videoRows = await this.prisma.$queryRaw<Array<{ videoCount: bigint | number }>>`
+      SELECT COUNT(v.id) as videoCount
+      FROM LessonVideo v
+      INNER JOIN LessonModule m ON m.id = v.moduleId
+      INNER JOIN Lesson l ON l.id = m.lessonId
+      WHERE l.courseId = ${id}
+    `
+
+    return {
+      ...c,
+      title: tr?.title || c.title,
+      shortDescription: tr?.shortDescription || c.shortDescription,
+      description: tr?.description || c.description,
+      objectives: ct?.objectives || c.objectives,
+      targetAudience: ct?.targetAudience || c.targetAudience,
+      benefits: ct?.benefits || c.benefits,
+      topic: (c as any).topic ? { id: (c as any).topic.id, name: tt?.name || (c as any).topic.name } : null,
+      videoCount: Number(videoRows[0]?.videoCount || 0),
+    }
+  }
 
   async create(dto: CreateCourseDto, thumbnailFile?: { buffer: Buffer; mimetype?: string }) {
     if (!dto.title?.trim()) throw new BadRequestException('Title is required')

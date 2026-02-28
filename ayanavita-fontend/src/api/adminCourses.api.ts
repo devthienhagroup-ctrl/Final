@@ -123,6 +123,8 @@ export type CourseListResponse = {
   pageSize: number
 }
 
+export type CourseDetailAdmin = CourseAdmin
+
 export const adminCoursesApi = {
   listTopics: () => get<CourseTopic[]>('/admin/course-topics', { auth: true }),
   createTopic: (body: TopicPayload) => post<CourseTopic>('/admin/course-topics', body, { auth: true }),
@@ -141,6 +143,12 @@ export const adminCoursesApi = {
   createCourse: (body: CoursePayload | FormData) => post<CourseAdmin>('/courses', body, { auth: true }),
   updateCourse: (id: number, body: Partial<CoursePayload>) => patch<CourseAdmin>(`/courses/${id}`, body, { auth: true }),
   deleteCourse: (id: number) => del<{ id: number }>(`/courses/${id}`, { auth: true }),
+  getCourseDetail: (id: number, lang?: string) => {
+    const qs = new URLSearchParams()
+    if (lang) qs.set('lang', lang)
+    const suffix = qs.toString() ? `?${qs.toString()}` : ''
+    return get<CourseDetailAdmin>(`/courses/${id}${suffix}`, { auth: true })
+  },
 
   listCourseLessons: (courseId: number) => get<LessonAdmin[]>(`/courses/${courseId}/lessons-outline`, { auth: true }),
   getLessonDetail: (lessonId: number) => get<LessonDetailAdmin>(`/lessons/${lessonId}`, { auth: true }),

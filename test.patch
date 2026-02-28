@@ -1,98 +1,466 @@
-diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/CreateCourseModal.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/CreateCourseModal.tsx
-index 6b8b32e415d09139b7dbbeb6b8b61e74a7175f51..efd43d014eb86ba714a0c056e3243a1baa237522 100644
---- a/ayanavita-fontend/src/pages/admin/courseTabs/CreateCourseModal.tsx
-+++ b/ayanavita-fontend/src/pages/admin/courseTabs/CreateCourseModal.tsx
-@@ -185,53 +185,65 @@ export function CreateCourseModal({ open, lang, topics, onClose }: Props) {
-   const validate = () => {
-     if (!form.topicId || !form.title.vi.trim()) return false
-     if (!Number.isFinite(getPrice()) || getPrice() < 0) {
-       window.alert(t.invalidPrice)
-       return false
-     }
-     return true
+diff --git a/ayanavita-fontend/src/api/adminCourses.api.ts b/ayanavita-fontend/src/api/adminCourses.api.ts
+index 285c543d45da23f7b3291a1e90c637adcbda1b3f..81b7a2409a9512598375ae8b8851b93e87f1ec5a 100644
+--- a/ayanavita-fontend/src/api/adminCourses.api.ts
++++ b/ayanavita-fontend/src/api/adminCourses.api.ts
+@@ -101,58 +101,66 @@ export type CoursePayload = {
+   topicId?: number
+   title: string
+   shortDescription?: string
+   slug: string
+   description?: string
+   thumbnail?: string
+   price?: number
+   published?: boolean
+   translations?: Record<string, { title: string; description?: string }>
+   objectives?: string[]
+   targetAudience?: string[]
+   benefits?: string[]
+   contentTranslations?: Record<string, { objectives?: string[]; targetAudience?: string[]; benefits?: string[] }>
+   ratingAvg?: number
+   ratingCount?: number
+   enrollmentCount?: number
+ }
+
+ export type CourseListResponse = {
+   items: CourseAdmin[]
+   total: number
+   page: number
+   pageSize: number
+ }
+
++export type CourseDetailAdmin = CourseAdmin
++
+ export const adminCoursesApi = {
+   listTopics: () => get<CourseTopic[]>('/admin/course-topics', { auth: true }),
+   createTopic: (body: TopicPayload) => post<CourseTopic>('/admin/course-topics', body, { auth: true }),
+   updateTopic: (id: number, body: TopicPayload) => patch<CourseTopic>(`/admin/course-topics/${id}`, body, { auth: true }),
+   deleteTopic: (id: number) => del<{ id: number }>(`/admin/course-topics/${id}`, { auth: true }),
+   listCourses: (params?: { topicId?: number; search?: string; page?: number; pageSize?: number; lang?: string }) => {
+     const qs = new URLSearchParams()
+     if (params?.topicId) qs.set('topicId', String(params.topicId))
+     if (params?.search?.trim()) qs.set('search', params.search.trim())
+     if (params?.page) qs.set('page', String(params.page))
+     if (params?.pageSize) qs.set('pageSize', String(params.pageSize))
+     if (params?.lang) qs.set('lang', params.lang)
+     const suffix = qs.toString() ? `?${qs.toString()}` : ''
+     return get<CourseListResponse>(`/courses${suffix}`, { auth: true })
+   },
+   createCourse: (body: CoursePayload | FormData) => post<CourseAdmin>('/courses', body, { auth: true }),
+   updateCourse: (id: number, body: Partial<CoursePayload>) => patch<CourseAdmin>(`/courses/${id}`, body, { auth: true }),
+   deleteCourse: (id: number) => del<{ id: number }>(`/courses/${id}`, { auth: true }),
++  getCourseDetail: (id: number, lang?: string) => {
++    const qs = new URLSearchParams()
++    if (lang) qs.set('lang', lang)
++    const suffix = qs.toString() ? `?${qs.toString()}` : ''
++    return get<CourseDetailAdmin>(`/courses/${id}${suffix}`, { auth: true })
++  },
+
+   listCourseLessons: (courseId: number) => get<LessonAdmin[]>(`/courses/${courseId}/lessons-outline`, { auth: true }),
+   getLessonDetail: (lessonId: number) => get<LessonDetailAdmin>(`/lessons/${lessonId}`, { auth: true }),
+   createLesson: (courseId: number, body: LessonPayload) => post<LessonAdmin>(`/courses/${courseId}/lessons`, body, { auth: true }),
+   updateLesson: (lessonId: number, body: Partial<LessonPayload>) => patch<LessonAdmin>(`/lessons/${lessonId}`, body, { auth: true }),
+   deleteLesson: (lessonId: number) => del<{ id: number }>(`/lessons/${lessonId}`, { auth: true }),
+
+   uploadModuleMedia: (lessonId: number, moduleId: string | number, file: File, type: 'video' | 'image', order?: number) => {
+     const body = new FormData()
+     body.append('file', file)
+     body.append('type', type)
+     if (order !== undefined) body.append('order', String(order))
+     return post<{ moduleId?: string; lessonId?: number; hlsPlaylistKey?: string; segmentCount?: number; imageKey?: string; sourceUrl?: string; storage: string; videoId?: number }>(`/lessons/${lessonId}/modules/${moduleId}/media/upload`, body, { auth: true })
+   },
+ }
+diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx
+index 3820ff2b0abcf53a179060e17e159b1bd6d56b7b..ed8477519aebf020dd339142d88be6da05596a4a 100644
+--- a/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx
++++ b/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx
+@@ -1,106 +1,154 @@
+-import { useState } from 'react'
+-import { type CourseAdmin, type CourseTopic } from '../../../api/adminCourses.api'
++import { useEffect, useState } from 'react'
++import { adminCoursesApi, type CourseAdmin, type CourseDetailAdmin, type CourseTopic } from '../../../api/adminCourses.api'
+ import { CreateCourseModal } from './CreateCourseModal'
++import { CourseDetailTabs } from './courseDetail/CourseDetailTabs'
+
+ type Props = {
+   courses: CourseAdmin[]
+   topics: CourseTopic[]
+   text: Record<string, string>
+   lang: 'vi' | 'en' | 'de'
+   selectedTopicId: number | 'all'
+   searchTerm: string
+   page: number
+   totalPages: number
+   totalItems: number
+   onChangeFilters: (patch: { selectedTopicId?: number | 'all'; searchTerm?: string }) => void
+   onChangePage: (page: number) => void
+   onCourseCreated: () => Promise<void> | void
+ }
+
++type CourseInnerTab = 'list' | 'detail'
++
+ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searchTerm, page, totalPages, totalItems, onChangeFilters, onChangePage, onCourseCreated }: Props) {
+   const [openCreateModal, setOpenCreateModal] = useState(false)
++  const [activeTab, setActiveTab] = useState<CourseInnerTab>('list')
++  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
++  const [selectedCourse, setSelectedCourse] = useState<CourseDetailAdmin | null>(null)
++  const [loadingDetail, setLoadingDetail] = useState(false)
+
+   const displayTopicName = (topic: CourseTopic) => {
+     if (lang === 'de') return topic.translations?.de?.name || topic.name
+     if (lang === 'en') return topic.translations?.['en']?.name || topic.name
+     return topic.translations?.vi?.name || topic.name
    }
 
-   const submit = async () => {
-     if (!validate()) {
-       if (Number.isFinite(getPrice()) && getPrice() >= 0) window.alert(t.required)
-       return
-     }
-
-     setSubmitting(true)
-     try {
-       const payload = new FormData()
-       payload.append('title', form.title.vi)
-       payload.append('shortDescription', form.shortDescription.vi)
-       payload.append('description', form.description.vi)
-       payload.append('price', String(getPrice()))
-       payload.append('published', String(form.published))
-       if (form.topicId) payload.append('topicId', String(form.topicId))
-       payload.append('slug', slug)
--      payload.append('objectives', JSON.stringify(form.objectives.vi.filter((v) => v.trim())))
--      payload.append('targetAudience', JSON.stringify(form.targetAudience.vi.filter((v) => v.trim())))
--      payload.append('benefits', JSON.stringify(form.benefits.vi.filter((v) => v.trim())))
-+      payload.append('objectives', JSON.stringify({
-+        vi: form.objectives.vi.filter((v) => v.trim()),
-+        en: form.objectives.en.filter((v) => v.trim()),
-+        de: form.objectives.de.filter((v) => v.trim()),
-+      }))
-+      payload.append('targetAudience', JSON.stringify({
-+        vi: form.targetAudience.vi.filter((v) => v.trim()),
-+        en: form.targetAudience.en.filter((v) => v.trim()),
-+        de: form.targetAudience.de.filter((v) => v.trim()),
-+      }))
-+      payload.append('benefits', JSON.stringify({
-+        vi: form.benefits.vi.filter((v) => v.trim()),
-+        en: form.benefits.en.filter((v) => v.trim()),
-+        de: form.benefits.de.filter((v) => v.trim()),
-+      }))
-       payload.append('translations', JSON.stringify({
-         vi: { title: form.title.vi, shortDescription: form.shortDescription.vi, description: form.description.vi },
-         en: { title: form.title.en, shortDescription: form.shortDescription.en, description: form.description.en },
-         de: { title: form.title.de, shortDescription: form.shortDescription.de, description: form.description.de },
-       }))
-       payload.append('contentTranslations', JSON.stringify({
-         vi: { objectives: form.objectives.vi.filter((v) => v.trim()), targetAudience: form.targetAudience.vi.filter((v) => v.trim()), benefits: form.benefits.vi.filter((v) => v.trim()) },
-         en: { objectives: form.objectives.en.filter((v) => v.trim()), targetAudience: form.targetAudience.en.filter((v) => v.trim()), benefits: form.benefits.en.filter((v) => v.trim()) },
-         de: { objectives: form.objectives.de.filter((v) => v.trim()), targetAudience: form.targetAudience.de.filter((v) => v.trim()), benefits: form.benefits.de.filter((v) => v.trim()) },
-       }))
-       if (form.thumbnailFile) payload.append('thumbnail', form.thumbnailFile)
-
-       await adminCoursesApi.createCourse(payload)
-
-       onClose()
-       setForm(initialForm())
-       setInputLang('vi')
-     } finally {
-       setSubmitting(false)
-     }
-   }
-
-   if (!open) return null
-
++  useEffect(() => {
++    if (activeTab !== 'detail' || !selectedCourseId) return
++    setLoadingDetail(true)
++    adminCoursesApi.getCourseDetail(selectedCourseId, lang)
++      .then((detail) => setSelectedCourse(detail))
++      .finally(() => setLoadingDetail(false))
++  }, [activeTab, selectedCourseId, lang])
++
    return (
+     <section className='admin-card admin-card-glow admin-course-management-card'>
+       <div className='admin-row' style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+         <h3 className='admin-card-title'><i className='fa-solid fa-graduation-cap' /> {text.coursesTab}</h3>
+         <button className='admin-btn admin-btn-save' type='button' onClick={() => setOpenCreateModal(true)}>
+           <i className='fa-solid fa-circle-plus' /> {lang === 'vi' ? 'Thêm khóa học mới' : lang === 'en' ? 'Add new course' : 'Neuen Kurs hinzufügen'}
+         </button>
+       </div>
+
+-      <div className='admin-row' style={{ gap: 16, marginBottom: 12, flexWrap: 'wrap' }}>
+-        <label className='admin-field' style={{ marginBottom: 0, minWidth: 220 }}>
+-          <span className='admin-label'>{text.filterByTopic}</span>
+-          <select
+-            className='admin-input'
+-            value={selectedTopicId === 'all' ? 'all' : String(selectedTopicId)}
+-            onChange={(e) => {
+-              onChangeFilters({ selectedTopicId: e.target.value === 'all' ? 'all' : Number(e.target.value) })
+-            }}
+-          >
+-            <option value='all'>{text.allTopics}</option>
+-            {topics.map((topic) => (
+-              <option key={topic.id} value={topic.id}>{displayTopicName(topic)}</option>
+-            ))}
+-          </select>
+-        </label>
+-
+-        <label className='admin-field' style={{ marginBottom: 0, minWidth: 280 }}>
+-          <span className='admin-label'>{text.searchByCourseName}</span>
+-          <input
+-            className='admin-input'
+-            value={searchTerm}
+-            placeholder={text.searchPlaceholder}
+-            onChange={(e) => {
+-              onChangeFilters({ searchTerm: e.target.value })
+-            }}
+-          />
+-        </label>
++      <div className='admin-tabs' style={{ marginBottom: 10 }}>
++        <button className={`admin-tab ${activeTab === 'list' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('list')}>
++          <i className='fa-solid fa-table-list' /> {lang === 'vi' ? 'Danh sách' : lang === 'en' ? 'List' : 'Liste'}
++        </button>
++        <button className={`admin-tab ${activeTab === 'detail' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('detail')} disabled={!selectedCourseId}>
++          <i className='fa-solid fa-eye' /> {lang === 'vi' ? 'Chi tiết' : lang === 'en' ? 'Details' : 'Details'}
++        </button>
+       </div>
+
+-      <div className='admin-table-wrap'>
+-        <table className='admin-table admin-table-courses-full no-scroll-table'>
+-          <thead>
+-            <tr>
+-              <th>ID</th><th>{text.titleCol}</th><th>{text.topicCol}</th><th>{text.priceCol}</th><th>{text.ratingCol}</th><th>{text.enrollmentCol}</th><th>{text.lessonCol}</th><th>{text.videoCountCol}</th><th>{text.createdAtCol}</th><th>{text.updatedAtCol}</th><th>{text.statusCol}</th>
+-            </tr>
+-          </thead>
+-          <tbody>
+-            {courses.map((c) => (
+-              <tr key={c.id}>
+-                <td>{c.id}</td>
+-                <td className='td-strong'>{c.title}</td>
+-                <td>{c.topic ? displayTopicName(c.topic as CourseTopic) : text.unassigned}</td>
+-                <td>{(c.price || 0).toLocaleString('vi-VN')}đ</td>
+-                <td>{c.ratingAvg ?? 0} ({c.ratingCount ?? 0})</td>
+-                <td>{c.enrollmentCount ?? 0}</td>
+-                <td>{c._count?.lessons ?? 0}</td>
+-                <td>{c.videoCount ?? 0}</td>
+-                <td>{c.createdAt ? new Date(c.createdAt).toLocaleString('vi-VN') : '--'}</td>
+-                <td>{c.updatedAt ? new Date(c.updatedAt).toLocaleString('vi-VN') : '--'}</td>
+-                <td><span className={`status-pill ${c.published ? 'is-published' : 'is-draft'}`}>{c.published ? text.publishedStatus : text.draftStatus}</span></td>
+-              </tr>
+-            ))}
+-          </tbody>
+-        </table>
+-      </div>
++      {activeTab === 'list' && (
++        <>
++          <div className='admin-row' style={{ gap: 16, marginBottom: 12, flexWrap: 'wrap' }}>
++            <label className='admin-field' style={{ marginBottom: 0, minWidth: 220 }}>
++              <span className='admin-label'>{text.filterByTopic}</span>
++              <select
++                className='admin-input'
++                value={selectedTopicId === 'all' ? 'all' : String(selectedTopicId)}
++                onChange={(e) => {
++                  onChangeFilters({ selectedTopicId: e.target.value === 'all' ? 'all' : Number(e.target.value) })
++                }}
++              >
++                <option value='all'>{text.allTopics}</option>
++                {topics.map((topic) => (
++                  <option key={topic.id} value={topic.id}>{displayTopicName(topic)}</option>
++                ))}
++              </select>
++            </label>
+
+-      <div className='admin-row' style={{ justifyContent: 'space-between', marginTop: 12 }}>
+-        <span>{text.pageLabel} {Math.min(page, totalPages)} / {totalPages} • {text.totalCoursesLabel} {totalItems}</span>
+-        <div className='admin-row'>
+-          <button className='admin-btn admin-btn-ghost' type='button' disabled={page <= 1} onClick={() => onChangePage(Math.max(1, page - 1))}>{text.prevPage}</button>
+-          <button className='admin-btn admin-btn-ghost' type='button' disabled={page >= totalPages} onClick={() => onChangePage(Math.min(totalPages, page + 1))}>{text.nextPage}</button>
+-        </div>
+-      </div>
++            <label className='admin-field' style={{ marginBottom: 0, minWidth: 280 }}>
++              <span className='admin-label'>{text.searchByCourseName}</span>
++              <input
++                className='admin-input'
++                value={searchTerm}
++                placeholder={text.searchPlaceholder}
++                onChange={(e) => {
++                  onChangeFilters({ searchTerm: e.target.value })
++                }}
++              />
++            </label>
++          </div>
++
++          <div className='admin-table-wrap'>
++            <table className='admin-table admin-table-courses-full no-scroll-table'>
++              <thead>
++                <tr>
++                  <th>ID</th><th>{text.titleCol}</th><th>{text.topicCol}</th><th>{text.priceCol}</th><th>{text.ratingCol}</th><th>{text.enrollmentCol}</th><th>{text.lessonCol}</th><th>{text.videoCountCol}</th><th>{text.createdAtCol}</th><th>{text.updatedAtCol}</th><th>{text.statusCol}</th><th>{text.actions}</th>
++                </tr>
++              </thead>
++              <tbody>
++                {courses.map((c) => (
++                  <tr key={c.id}>
++                    <td>{c.id}</td>
++                    <td className='td-strong'>{c.title}</td>
++                    <td>{c.topic ? displayTopicName(c.topic as CourseTopic) : text.unassigned}</td>
++                    <td>{(c.price || 0).toLocaleString('vi-VN')}đ</td>
++                    <td>{c.ratingAvg ?? 0} ({c.ratingCount ?? 0})</td>
++                    <td>{c.enrollmentCount ?? 0}</td>
++                    <td>{c._count?.lessons ?? 0}</td>
++                    <td>{c.videoCount ?? 0}</td>
++                    <td>{c.createdAt ? new Date(c.createdAt).toLocaleString('vi-VN') : '--'}</td>
++                    <td>{c.updatedAt ? new Date(c.updatedAt).toLocaleString('vi-VN') : '--'}</td>
++                    <td><span className={`status-pill ${c.published ? 'is-published' : 'is-draft'}`}>{c.published ? text.publishedStatus : text.draftStatus}</span></td>
++                    <td>
++                      <button
++                        type='button'
++                        className='admin-btn admin-btn-ghost'
++                        onClick={() => {
++                          setSelectedCourseId(c.id)
++                          setActiveTab('detail')
++                        }}
++                      >
++                        <i className='fa-solid fa-eye' />
++                      </button>
++                    </td>
++                  </tr>
++                ))}
++              </tbody>
++            </table>
++          </div>
++
++          <div className='admin-row' style={{ justifyContent: 'space-between', marginTop: 12 }}>
++            <span>{text.pageLabel} {Math.min(page, totalPages)} / {totalPages} • {text.totalCoursesLabel} {totalItems}</span>
++            <div className='admin-row'>
++              <button className='admin-btn admin-btn-ghost' type='button' disabled={page <= 1} onClick={() => onChangePage(Math.max(1, page - 1))}>{text.prevPage}</button>
++              <button className='admin-btn admin-btn-ghost' type='button' disabled={page >= totalPages} onClick={() => onChangePage(Math.min(totalPages, page + 1))}>{text.nextPage}</button>
++            </div>
++          </div>
++        </>
++      )}
++
++      {activeTab === 'detail' && (
++        <>
++          {!selectedCourseId && <p className='admin-helper'>{lang === 'vi' ? 'Vui lòng chọn khóa học ở tab danh sách.' : lang === 'en' ? 'Please select a course from list tab.' : 'Bitte wählen Sie einen Kurs aus der Liste.'}</p>}
++          {loadingDetail && <p className='admin-helper'>{text.loading}</p>}
++          {!loadingDetail && selectedCourse && <CourseDetailTabs course={selectedCourse} lang={lang} text={text} topics={topics} />}
++        </>
++      )}
+
+       <CreateCourseModal open={openCreateModal} lang={lang} topics={topics} onClose={() => setOpenCreateModal(false)} onCreated={onCourseCreated} />
+     </section>
+   )
+ }
+diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..a7d40e483b8c06329115b743e704c9d56efe45c6
+--- /dev/null
++++ b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx
+@@ -0,0 +1,34 @@
++import { type CourseDetailAdmin, type CourseTopic } from '../../../../api/adminCourses.api'
++
++type Props = {
++  course: CourseDetailAdmin
++  lang: 'vi' | 'en' | 'de'
++  text: Record<string, string>
++  topics: CourseTopic[]
++}
++
++export function CourseDetailInfoTab({ course, lang, text, topics }: Props) {
++  const displayTopicName = (topic: CourseTopic) => {
++    if (lang === 'de') return topic.translations?.de?.name || topic.name
++    if (lang === 'en') return topic.translations?.en?.name || topic.name
++    return topic.translations?.vi?.name || topic.name
++  }
++
++  const topic = topics.find((item) => item.id === course.topicId)
++
++  return (
++    <div className='admin-row' style={{ flexDirection: 'column', gap: 10 }}>
++      <div><b>ID:</b> {course.id}</div>
++      <div><b>{text.titleCol}:</b> {course.title}</div>
++      <div><b>{text.topicCol}:</b> {topic ? displayTopicName(topic) : text.unassigned}</div>
++      <div><b>{text.priceCol}:</b> {(course.price || 0).toLocaleString('vi-VN')}đ</div>
++      <div><b>{text.ratingCol}:</b> {course.ratingAvg ?? 0} ({course.ratingCount ?? 0})</div>
++      <div><b>{text.enrollmentCol}:</b> {course.enrollmentCount ?? 0}</div>
++      <div><b>{text.lessonCol}:</b> {course._count?.lessons ?? 0}</div>
++      <div><b>{text.videoCountCol}:</b> {course.videoCount ?? 0}</div>
++      <div><b>{text.statusCol}:</b> {course.published ? text.publishedStatus : text.draftStatus}</div>
++      <div><b>{text.createdAtCol}:</b> {course.createdAt ? new Date(course.createdAt).toLocaleString('vi-VN') : '--'}</div>
++      <div><b>{text.updatedAtCol}:</b> {course.updatedAt ? new Date(course.updatedAt).toLocaleString('vi-VN') : '--'}</div>
++    </div>
++  )
++}
+diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..57eda094670cb536721494af406a97f00ee4025c
+--- /dev/null
++++ b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx
+@@ -0,0 +1,60 @@
++import { useMemo, useState } from 'react'
++import { type CourseDetailAdmin, type CourseTopic } from '../../../../api/adminCourses.api'
++import { CourseDetailInfoTab } from './CourseDetailInfoTab'
++
++type Props = {
++  course: CourseDetailAdmin
++  lang: 'vi' | 'en' | 'de'
++  text: Record<string, string>
++  topics: CourseTopic[]
++}
++
++type DetailTabKey = 'info' | 'content'
++
++export function CourseDetailTabs({ course, lang, text, topics }: Props) {
++  const [activeTab, setActiveTab] = useState<DetailTabKey>('info')
++
++  const localizedContent = useMemo(() => ({
++    objectives: course.objectives || [],
++    targetAudience: course.targetAudience || [],
++    benefits: course.benefits || [],
++  }), [course])
++
++  return (
++    <section>
++      <div className='admin-tabs' style={{ marginBottom: 10 }}>
++        <button className={`admin-tab ${activeTab === 'info' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('info')}>
++          <i className='fa-solid fa-circle-info' /> {lang === 'vi' ? 'Chi tiết khóa học' : lang === 'en' ? 'Course details' : 'Kursdetails'}
++        </button>
++        <button className={`admin-tab ${activeTab === 'content' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('content')}>
++          <i className='fa-solid fa-list-check' /> {lang === 'vi' ? 'Nội dung mở rộng' : lang === 'en' ? 'Extended content' : 'Erweiterte Inhalte'}
++        </button>
++      </div>
++
++      {activeTab === 'info' && <CourseDetailInfoTab course={course} text={text} lang={lang} topics={topics} />}
++
++      {activeTab === 'content' && (
++        <div className='admin-row' style={{ alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
++          <div className='admin-card' style={{ flex: 1, minWidth: 240 }}>
++            <h4>Objectives</h4>
++            <ul>
++              {localizedContent.objectives.length ? localizedContent.objectives.map((item, idx) => <li key={`${item}-${idx}`}>{item}</li>) : <li>--</li>}
++            </ul>
++          </div>
++          <div className='admin-card' style={{ flex: 1, minWidth: 240 }}>
++            <h4>Target audience</h4>
++            <ul>
++              {localizedContent.targetAudience.length ? localizedContent.targetAudience.map((item, idx) => <li key={`${item}-${idx}`}>{item}</li>) : <li>--</li>}
++            </ul>
++          </div>
++          <div className='admin-card' style={{ flex: 1, minWidth: 240 }}>
++            <h4>Benefits</h4>
++            <ul>
++              {localizedContent.benefits.length ? localizedContent.benefits.map((item, idx) => <li key={`${item}-${idx}`}>{item}</li>) : <li>--</li>}
++            </ul>
++          </div>
++        </div>
++      )}
++    </section>
++  )
++}
+diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
+index 2a0b90a44b5b9102d0eb59524ed838c84ea0dec9..b1764380443c430d2496233ee04465aa9e294415 100644
+--- a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
+@@ -50,52 +50,52 @@ const parseMultipartData = (input: Record<string, any>) => {
+   }
+   return data
+ }
+
+ @Controller('courses')
+ export class CoursesController {
+   constructor(private readonly courses: CoursesService) {}
+
+   @UseGuards(AccessTokenGuard)
+   @Get('courses/:id/lessons-outline')
+   lessonsOutline(
+     @CurrentUser() user: JwtUser,
+     @Param('id', ParseIntPipe) id: number,
+   ) {
+     return this.courses.lessonsOutline(user, id)
+   }
+
+   @Get()
+   @UseGuards(OptionalAccessTokenGuard)
+   findAll(@CurrentUser() user: JwtUser | null, @Query() query: CourseQueryDto) {
+     return this.courses.findAll(query, user)
+   }
+
+   @UseGuards(AccessTokenGuard)
+   @Get(':id')
+-  findOne(@Param('id', ParseIntPipe) id: number) {
+-    return this.courses.findOne(id)
++  findOne(@Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
++    return this.courses.findOne(id, lang)
+   }
+
+   @UseGuards(AccessTokenGuard)
+   @Get(':id/lessons')
+   listLessons(@CurrentUser() user: any, @Param('id', ParseIntPipe) id: number) {
+     return this.courses.listLessons(user, id)
+   }
+
+   @UseGuards(AccessTokenGuard)
+   @Get(':id/lessons/:lessonId')
+   getLesson(
+     @CurrentUser() user: any,
+     @Param('id', ParseIntPipe) courseId: number,
+     @Param('lessonId', ParseIntPipe) lessonId: number,
+   ) {
+     return this.courses.getLessonDetail(user, courseId, lessonId)
+   }
+
+   @UseGuards(AccessTokenGuard, RolesGuard)
+   @Roles('ADMIN')
+   @Post('thumbnail/upload')
+   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+   uploadThumbnail(@UploadedFile() file?: any) {
+     if (!file) return { message: 'Missing thumbnail file' }
+     return this.courses.uploadThumbnail(file)
 diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-index c1e3d17f767686a7212d69f59a634073c79f7c5a..762e05a2e75c98d3eca193d571018c1e880f85cd 100644
+index 762e05a2e75c98d3eca193d571018c1e880f85cd..72a90fcfd5ec8b856ddf0a830b8d8ab39f70ca11 100644
 --- a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
 +++ b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-@@ -1,65 +1,79 @@
- import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
- import { PrismaService } from '../prisma/prisma.service'
- import { EnrollmentsService } from '../enrollments/enrollments.service'
- import { CreateCourseDto } from './dto/create-course.dto'
- import { UpdateCourseDto } from './dto/update-course.dto'
- import { Prisma, ProgressStatus } from '@prisma/client'
- import { CourseQueryDto } from './dto/course-query.dto'
- import { CoursesMediaService } from './courses-media.service'
-
- type JwtUser = { sub: number; role: string }
-+type Locale = 'vi' | 'en' | 'de'
-+type MultiLingualStringList = Record<Locale, string[]>
-
- @Injectable()
- export class CoursesService {
-   constructor(
-     private readonly prisma: PrismaService,
+@@ -18,50 +18,57 @@ export class CoursesService {
      private readonly enrollments: EnrollmentsService,
      private readonly courseMedia: CoursesMediaService,
    ) {}
@@ -118,22 +486,41 @@ index c1e3d17f767686a7212d69f59a634073c79f7c5a..762e05a2e75c98d3eca193d571018c1e
      _count: { select: { lessons: true } },
    } as const
 
-+  private normalizeLocalizedList(value: unknown): MultiLingualStringList {
-+    const empty: MultiLingualStringList = { vi: [], en: [], de: [] }
-+    if (Array.isArray(value)) return { ...empty, vi: value.filter((item): item is string => typeof item === 'string') }
-+    if (!value || typeof value !== 'object') return empty
-+    const input = value as Record<string, unknown>
-+    return {
-+      vi: Array.isArray(input.vi) ? input.vi.filter((item): item is string => typeof item === 'string') : [],
-+      en: Array.isArray(input.en) ? input.en.filter((item): item is string => typeof item === 'string') : [],
-+      de: Array.isArray(input.de) ? input.de.filter((item): item is string => typeof item === 'string') : [],
-+    }
++  private resolveCourseLocale(lang?: string): Locale {
++    const activeLang = (lang || 'vi').toLowerCase()
++    if (activeLang === 'en-us' || activeLang === 'en') return 'en'
++    if (activeLang === 'de') return 'de'
++    return 'vi'
 +  }
 +
+   private normalizeLocalizedList(value: unknown): MultiLingualStringList {
+     const empty: MultiLingualStringList = { vi: [], en: [], de: [] }
+     if (Array.isArray(value)) return { ...empty, vi: value.filter((item): item is string => typeof item === 'string') }
+     if (!value || typeof value !== 'object') return empty
+     const input = value as Record<string, unknown>
+     return {
+       vi: Array.isArray(input.vi) ? input.vi.filter((item): item is string => typeof item === 'string') : [],
+       en: Array.isArray(input.en) ? input.en.filter((item): item is string => typeof item === 'string') : [],
+       de: Array.isArray(input.de) ? input.de.filter((item): item is string => typeof item === 'string') : [],
+     }
+   }
+
    private buildCreateCoursePayload(dto: CreateCourseDto & { title: string }): Prisma.CourseUncheckedCreateInput {
      return {
        title: dto.title,
        slug: dto.slug,
+       ...(dto.description !== undefined ? { description: dto.description } : {}),
+       ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
+       ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
+       ...(dto.price !== undefined ? { price: dto.price } : {}),
+       ...(dto.published !== undefined ? { published: dto.published } : {}),
+       ...(dto.topicId !== undefined ? { topicId: dto.topicId } : {}),
+       ...(dto.objectives !== undefined ? { objectives: dto.objectives as any } : {}),
+       ...(dto.targetAudience !== undefined ? { targetAudience: dto.targetAudience as any } : {}),
+       ...(dto.benefits !== undefined ? { benefits: dto.benefits as any } : {}),
+@@ -76,90 +83,124 @@ export class CoursesService {
+       ...(dto.title !== undefined ? { title: dto.title } : {}),
+       ...(dto.slug !== undefined ? { slug: dto.slug } : {}),
        ...(dto.description !== undefined ? { description: dto.description } : {}),
        ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
        ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
@@ -149,60 +536,113 @@ index c1e3d17f767686a7212d69f59a634073c79f7c5a..762e05a2e75c98d3eca193d571018c1e
      }
    }
 
-   private buildUpdateCoursePayload(dto: UpdateCourseDto): Prisma.CourseUncheckedUpdateInput {
-     return {
-       ...(dto.title !== undefined ? { title: dto.title } : {}),
-       ...(dto.slug !== undefined ? { slug: dto.slug } : {}),
-       ...(dto.description !== undefined ? { description: dto.description } : {}),
-       ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
-@@ -151,35 +165,48 @@ export class CoursesService {
+   async lessonsOutline(user: JwtUser, courseId: number) { /* unchanged */
+     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } })
+     if (!course) throw new NotFoundException('Course not found')
+     if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
+     return this.prisma.lesson.findMany({ where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) }, select: { id: true, courseId: true, title: true, slug: true, order: true, published: true, createdAt: true, updatedAt: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] })
    }
 
-   async getLessonDetail(user: { sub: number; role: string }, courseId: number, lessonId: number) { /* kept */
+   async findAll(query: CourseQueryDto, user?: { sub: number; role: string } | null) {
+-    const activeLang = (query.lang || 'vi').toLowerCase()
+-    const courseLocale = activeLang === 'en-us' || activeLang === 'en' ? 'en' : activeLang === 'de' ? 'de' : 'vi'
++    const courseLocale = this.resolveCourseLocale(query.lang)
+     const topicLocale = courseLocale
+     const where: Prisma.CourseWhereInput = {
+       ...(user?.role === 'ADMIN' ? {} : { published: true }),
+       ...(query.topicId ? { topicId: query.topicId } : {}),
+       ...(query.search?.trim() ? { OR: [{ title: { contains: query.search.trim() } }, { slug: { contains: query.search.trim() } }] } : {}),
+     }
+     const page = Math.max(1, Number(query.page || 1)); const pageSize = Math.min(100, Math.max(1, Number(query.pageSize || 10)))
+     const [rows, total] = await Promise.all([
+       this.prisma.course.findMany({
+         where,
+         select: {
+           ...this.baseCourseSelect,
+           translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, title: true, shortDescription: true, description: true } },
+           contentTranslations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, objectives: true, targetAudience: true, benefits: true } },
+           topic: { select: { id: true, name: true, translations: { where: { locale: { in: [topicLocale, 'vi'] } }, select: { locale: true, name: true } } } },
+         },
+         skip: (page - 1) * pageSize, take: pageSize, orderBy: { id: 'desc' },
+       }),
+       this.prisma.course.count({ where }),
+     ])
+     const courseIds = rows.map((r) => r.id)
+     if (!courseIds.length) return { items: [], total, page, pageSize }
+     const videoRows = await this.prisma.$queryRaw<Array<{ courseId: number; videoCount: bigint | number }>>`SELECT l.courseId as courseId, COUNT(v.id) as videoCount FROM LessonVideo v INNER JOIN LessonModule m ON m.id = v.moduleId INNER JOIN Lesson l ON l.id = m.lessonId WHERE l.courseId IN (${Prisma.join(courseIds)}) GROUP BY l.courseId`
+     const videoCountMap = new Map(videoRows.map((r) => [Number(r.courseId), Number(r.videoCount)]))
+     const items = rows.map((row: any) => {
+       const tr = row.translations?.find((x: any) => x.locale === courseLocale) || row.translations?.find((x: any) => x.locale === 'vi')
+       const ct = row.contentTranslations?.find((x: any) => x.locale === courseLocale) || row.contentTranslations?.find((x: any) => x.locale === 'vi')
+       const tt = row.topic?.translations?.find((x: any) => x.locale === topicLocale) || row.topic?.translations?.find((x: any) => x.locale === 'vi')
+       return { ...row, title: tr?.title || row.title, shortDescription: tr?.shortDescription || row.shortDescription, description: tr?.description || row.description, objectives: ct?.objectives || row.objectives, targetAudience: ct?.targetAudience || row.targetAudience, benefits: ct?.benefits || row.benefits, topic: row.topic ? { id: row.topic.id, name: tt?.name || row.topic.name } : null, videoCount: videoCountMap.get(row.id) || 0 }
+     })
+     return { items, total, page, pageSize }
+   }
+
+
+   async uploadThumbnail(file: { buffer: Buffer }) {
+     return this.courseMedia.uploadThumbnail(file)
+   }
+-  async findOne(id: number) { const c = await this.prisma.course.findUnique({ where: { id }, select: this.baseCourseSelect }); if (!c) throw new NotFoundException('Course not found'); return c }
++  async findOne(id: number, lang?: string) {
++    const courseLocale = this.resolveCourseLocale(lang)
++    const c = await this.prisma.course.findUnique({
++      where: { id },
++      select: {
++        ...this.baseCourseSelect,
++        translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, title: true, shortDescription: true, description: true } },
++        contentTranslations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, objectives: true, targetAudience: true, benefits: true } },
++        topic: { select: { id: true, name: true, translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, name: true } } } },
++      },
++    })
++    if (!c) throw new NotFoundException('Course not found')
++    const tr = (c as any).translations?.find((x: any) => x.locale === courseLocale) || (c as any).translations?.find((x: any) => x.locale === 'vi')
++    const ct = (c as any).contentTranslations?.find((x: any) => x.locale === courseLocale) || (c as any).contentTranslations?.find((x: any) => x.locale === 'vi')
++    const tt = (c as any).topic?.translations?.find((x: any) => x.locale === courseLocale) || (c as any).topic?.translations?.find((x: any) => x.locale === 'vi')
++
++    const videoRows = await this.prisma.$queryRaw<Array<{ videoCount: bigint | number }>>`
++      SELECT COUNT(v.id) as videoCount
++      FROM LessonVideo v
++      INNER JOIN LessonModule m ON m.id = v.moduleId
++      INNER JOIN Lesson l ON l.id = m.lessonId
++      WHERE l.courseId = ${id}
++    `
++
++    return {
++      ...c,
++      title: tr?.title || c.title,
++      shortDescription: tr?.shortDescription || c.shortDescription,
++      description: tr?.description || c.description,
++      objectives: ct?.objectives || c.objectives,
++      targetAudience: ct?.targetAudience || c.targetAudience,
++      benefits: ct?.benefits || c.benefits,
++      topic: (c as any).topic ? { id: (c as any).topic.id, name: tt?.name || (c as any).topic.name } : null,
++      videoCount: Number(videoRows[0]?.videoCount || 0),
++    }
++  }
+
+   async create(dto: CreateCourseDto, thumbnailFile?: { buffer: Buffer; mimetype?: string }) {
+     if (!dto.title?.trim()) throw new BadRequestException('Title is required')
+     try {
+       const thumbnailUrl = thumbnailFile ? (await this.courseMedia.uploadThumbnail(thumbnailFile)).url : dto.thumbnail
+       const created = await this.prisma.course.create({ data: this.buildCreateCoursePayload({ ...dto, title: dto.title.trim(), thumbnail: thumbnailUrl }), select: this.baseCourseSelect })
+       await this.syncCourseTranslations(created.id, dto)
+       return created
+     } catch (e) {
+       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException('Slug already exists')
+       throw e
+     }
+   }
+
+   async update(id: number, dto: UpdateCourseDto) { await this.ensureCourseExists(id); const updated = await this.prisma.course.update({ where: { id }, data: this.buildUpdateCoursePayload(dto), select: this.baseCourseSelect }); await this.syncCourseTranslations(id, dto); return updated }
+   async remove(id: number) { await this.ensureCourseExists(id); return this.prisma.course.delete({ where: { id }, select: { id: true } }) }
+
+   async listLessons(user: { sub: number; role: string }, courseId: number) { /* kept */
      const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } }); if (!course) throw new NotFoundException('Course not found'); await this.enrollments.assertEnrolledOrAdmin(user, courseId); if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
-     const lesson = await this.prisma.lesson.findFirst({ where: { id: lessonId, courseId }, select: { id: true, courseId: true, title: true, slug: true, content: true, videoUrl: true, order: true, published: true, createdAt: true, updatedAt: true } }); if (!lesson) throw new NotFoundException('Lesson not found')
-     if (user.role !== 'ADMIN' && !lesson.published) throw new NotFoundException('Lesson not found')
-     if (user.role !== 'ADMIN') { const orderedLessons = await this.prisma.lesson.findMany({ where: { courseId, published: true }, select: { id: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] }); const idx = orderedLessons.findIndex((l) => l.id === lessonId); if (idx < 0) throw new NotFoundException('Lesson not found'); if (idx > 0) { const prevLessonId = orderedLessons[idx - 1].id; const prevProgress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId: prevLessonId } }, select: { status: true } }); if (prevProgress?.status !== ProgressStatus.COMPLETED) throw new ForbiddenException('Lesson locked') } }
-     const progress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId } }, select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true } })
-     return { ...lesson, progress: progress ?? null }
+     const lessons = await this.prisma.lesson.findMany({ where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) }, select: { id: true, courseId: true, title: true, slug: true, order: true, published: true, createdAt: true, updatedAt: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] })
+     if (user.role === 'ADMIN') return lessons.map((l) => ({ ...l, locked: false, lockReason: null, progress: null }))
+     const progressRows = await this.prisma.lessonProgress.findMany({ where: { userId: user.sub, lessonId: { in: lessons.map((l) => l.id) } }, select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true } })
+     const progressMap = new Map(progressRows.map((p) => [p.lessonId, p])); let prevCompleted = true
+     return lessons.map((lesson, idx) => { const progress = progressMap.get(lesson.id) ?? null; const locked = idx === 0 ? false : prevCompleted === false; const lockReason = locked ? 'PREV_NOT_COMPLETED' : null; prevCompleted = progress?.status === ProgressStatus.COMPLETED; return { ...lesson, locked, lockReason, progress } })
    }
-
-   private async ensureCourseExists(id: number) { if (!(await this.prisma.course.findUnique({ where: { id }, select: { id: true } }))) throw new NotFoundException('Course not found') }
-
-   private async syncCourseTranslations(courseId: number, dto: Partial<CreateCourseDto>) {
-     const locales: Array<'vi' | 'en' | 'de'> = ['vi', 'en', 'de']
-     await Promise.all(locales.map(async (locale) => {
-       const tr = dto.translations?.[locale]
-       const title = tr?.title || (locale === 'vi' ? dto.title : undefined)
-       if (!title?.trim()) return
-       await this.prisma.courseTranslation.upsert({
-         where: { courseId_locale: { courseId, locale } },
-         update: { title: title.trim(), shortDescription: tr?.shortDescription?.trim() || (locale === 'vi' ? dto.shortDescription?.trim() || null : null), description: tr?.description?.trim() || (locale === 'vi' ? dto.description?.trim() || null : null) },
-         create: { courseId, locale, title: title.trim(), shortDescription: tr?.shortDescription?.trim() || (locale === 'vi' ? dto.shortDescription?.trim() || null : null), description: tr?.description?.trim() || (locale === 'vi' ? dto.description?.trim() || null : null) },
-       })
-       const ct = dto.contentTranslations?.[locale]
-+      const objectivesByLocale = this.normalizeLocalizedList(dto.objectives)
-+      const targetAudienceByLocale = this.normalizeLocalizedList(dto.targetAudience)
-+      const benefitsByLocale = this.normalizeLocalizedList(dto.benefits)
-       if (ct || locale === 'vi') {
-         await this.prisma.courseContentTranslation.upsert({
-           where: { courseId_locale: { courseId, locale } },
--          update: { objectives: (ct?.objectives || (locale === 'vi' ? dto.objectives : undefined) || []) as any, targetAudience: (ct?.targetAudience || (locale === 'vi' ? dto.targetAudience : undefined) || []) as any, benefits: (ct?.benefits || (locale === 'vi' ? dto.benefits : undefined) || []) as any },
--          create: { courseId, locale, objectives: (ct?.objectives || (locale === 'vi' ? dto.objectives : undefined) || []) as any, targetAudience: (ct?.targetAudience || (locale === 'vi' ? dto.targetAudience : undefined) || []) as any, benefits: (ct?.benefits || (locale === 'vi' ? dto.benefits : undefined) || []) as any },
-+          update: {
-+            objectives: (ct?.objectives || objectivesByLocale[locale] || []) as any,
-+            targetAudience: (ct?.targetAudience || targetAudienceByLocale[locale] || []) as any,
-+            benefits: (ct?.benefits || benefitsByLocale[locale] || []) as any,
-+          },
-+          create: {
-+            courseId,
-+            locale,
-+            objectives: (ct?.objectives || objectivesByLocale[locale] || []) as any,
-+            targetAudience: (ct?.targetAudience || targetAudienceByLocale[locale] || []) as any,
-+            benefits: (ct?.benefits || benefitsByLocale[locale] || []) as any,
-+          },
-         })
-       }
-     }))
-   }
- }

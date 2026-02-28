@@ -72,8 +72,8 @@ export class CoursesController {
 
   @UseGuards(AccessTokenGuard)
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.courses.findOne(id)
+  findOne(@Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
+    return this.courses.findOne(id, lang)
   }
 
   @UseGuards(AccessTokenGuard)

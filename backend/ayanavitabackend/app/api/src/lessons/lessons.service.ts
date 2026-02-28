@@ -89,11 +89,11 @@ export class LessonsService {
 
   async create(courseId: number, dto: CreateLessonDto) {
     return this.prisma.$transaction(async (tx) => {
-      const lesson = await tx.lesson.create({ data: { courseId, title: dto.title, slug: dto.slug, description: dto.description, content: dto.content, videoUrl: dto.videoUrl, order: dto.order, published: dto.published } as any })
+      const lesson = await tx.lesson.create({ data: { courseId, title: dto.title, slug: dto.slug, description: dto.description, content: dto.content, videoUrl: dto.videoUrl, order: dto.order, published: true } as any })
       await this.upsertLessonTranslations(tx, lesson.id, dto)
       if (dto.modules?.length) {
         for (const m of dto.modules) {
-          const mod = await tx.lessonModule.create({ data: { lessonId: lesson.id, title: m.title, description: m.description, order: m.order, published: m.published } as any })
+          const mod = await tx.lessonModule.create({ data: { lessonId: lesson.id, title: m.title, description: m.description, order: m.order, published: true } as any })
           await this.upsertModuleTranslations(tx, mod.id, m)
           if (m.videos?.length) {
             for (const [idx, v] of m.videos.entries()) {
@@ -148,7 +148,7 @@ export class LessonsService {
 
   async update(id: number, dto: UpdateLessonDto) {
     return this.prisma.$transaction(async (tx) => {
-      const lesson = await tx.lesson.update({ where: { id }, data: { title: dto.title, slug: dto.slug, description: dto.description, content: dto.content, videoUrl: dto.videoUrl, order: dto.order, published: dto.published } as any })
+      const lesson = await tx.lesson.update({ where: { id }, data: { title: dto.title, slug: dto.slug, description: dto.description, content: dto.content, videoUrl: dto.videoUrl, order: dto.order, published: true } as any })
       await this.upsertLessonTranslations(tx, id, dto)
       if (dto.modules) {
         await tx.lessonVideoTranslation.deleteMany({ where: { video: { module: { lessonId: id } } } as any })
@@ -156,7 +156,7 @@ export class LessonsService {
         await tx.lessonVideo.deleteMany({ where: { module: { lessonId: id } } as any })
         await tx.lessonModule.deleteMany({ where: { lessonId: id } })
         for (const m of dto.modules) {
-          const mod = await tx.lessonModule.create({ data: { lessonId: id, title: m.title, description: m.description, order: m.order, published: m.published } as any })
+          const mod = await tx.lessonModule.create({ data: { lessonId: id, title: m.title, description: m.description, order: m.order, published: true } as any })
           await this.upsertModuleTranslations(tx, mod.id, m)
           for (const [idx, v] of (m.videos || []).entries()) {
             if (!v.sourceUrl?.trim()) throw new BadRequestException('Video/Image sourceUrl is required')

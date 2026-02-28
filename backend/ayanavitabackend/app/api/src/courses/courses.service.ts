@@ -6,6 +6,7 @@ import { UpdateCourseDto } from './dto/update-course.dto'
 import { Prisma, ProgressStatus } from '@prisma/client'
 import { CourseQueryDto } from './dto/course-query.dto'
 import { CoursesMediaService } from './courses-media.service'
+import { UpsertCourseReviewDto } from './dto/upsert-course-review.dto'
 
 type JwtUser = { sub: number; role: string }
 type Locale = 'vi' | 'en' | 'de'
@@ -325,6 +326,82 @@ export class CoursesService {
     if (user.role !== 'ADMIN') { const orderedLessons = await this.prisma.lesson.findMany({ where: { courseId, published: true }, select: { id: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] }); const idx = orderedLessons.findIndex((l) => l.id === lessonId); if (idx < 0) throw new NotFoundException('Lesson not found'); if (idx > 0) { const prevLessonId = orderedLessons[idx - 1].id; const prevProgress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId: prevLessonId } }, select: { status: true } }); if (prevProgress?.status !== ProgressStatus.COMPLETED) throw new ForbiddenException('Lesson locked') } }
     const progress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId } }, select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true } })
     return { ...lesson, progress: progress ?? null }
+  }
+
+  async listReviews(courseId: number) {
+    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } })
+    if (!course) throw new NotFoundException('Course not found')
+
+    const rows = await this.prisma.courseReview.findMany({
+      where: { courseId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      select: {
+        id: true,
+        stars: true,
+        comment: true,
+        customerName: true,
+        createdAt: true,
+        updatedAt: true,
+        user: { select: { name: true, email: true } },
+      },
+    })
+
+    return rows.map((row) => ({
+      id: row.id,
+      stars: row.stars,
+      comment: row.comment,
+      customerName: row.customerName || row.user?.name || row.user?.email || 'Học viên',
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    }))
+  }
+
+  async upsertReview(user: JwtUser, courseId: number, dto: UpsertCourseReviewDto) {
+    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } })
+    if (!course) throw new NotFoundException('Course not found')
+    await this.enrollments.assertEnrolledOrAdmin(user, courseId)
+
+    const profile = await this.prisma.user.findUnique({
+      where: { id: user.sub },
+      select: { name: true, email: true },
+    })
+
+    const customerName = dto.customerName?.trim() || profile?.name || profile?.email || 'Học viên'
+    const comment = dto.comment?.trim() || null
+
+    const existing = await this.prisma.courseReview.findFirst({
+      where: { courseId, userId: user.sub },
+      select: { id: true },
+    })
+
+    const review = existing
+      ? await this.prisma.courseReview.update({
+          where: { id: existing.id },
+          data: { stars: dto.stars, comment, customerName },
+          select: { id: true, stars: true, comment: true, customerName: true, createdAt: true, updatedAt: true },
+        })
+      : await this.prisma.courseReview.create({
+          data: { courseId, userId: user.sub, stars: dto.stars, comment, customerName },
+          select: { id: true, stars: true, comment: true, customerName: true, createdAt: true, updatedAt: true },
+        })
+
+    const aggregate = await this.prisma.courseReview.aggregate({
+      where: { courseId },
+      _avg: { stars: true },
+      _count: { id: true },
+    })
+
+    const ratingAvg = Number((aggregate._avg.stars || 0).toFixed(1))
+    const ratingCount = aggregate._count.id
+
+    await this.prisma.course.update({
+      where: { id: courseId },
+      data: { ratingAvg, ratingCount },
+      select: { id: true },
+    })
+
+    return { ...review, ratingAvg, ratingCount }
   }
 
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { coursesApi, type Course, type Lesson } from "../api/courses.api";
+import { coursesApi, type Course, type CourseReview, type Lesson } from "../api/courses.api";
 import { enrollmentsApi } from "../api/enrollments.api";
 import { progressApi, type CourseProgressRes } from "../api/progress.api";
 
@@ -112,6 +112,10 @@ export function CourseDetailPage() {
   const [course, setCourse] = useState<Course | null>(null);
   const [lessons, setLessons] = useState<LessonView[]>([]);
   const [progress, setProgress] = useState<CourseProgressRes | null>(null);
+  const [reviews, setReviews] = useState<CourseReview[]>([]);
+  const [reviewStars, setReviewStars] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -124,9 +128,11 @@ export function CourseDetailPage() {
     setInfo(null);
 
     try {
-      const c = await coursesApi.detail(courseId);
+      const [c, rs] = await Promise.all([coursesApi.detail(courseId), coursesApi.reviews(courseId)]);
       setCourse(c);
+      setReviews(rs);
     } catch (e: any) {
+      setReviews([]);
       setCourse(null);
       setLessons([]);
       setProgress(null);
@@ -194,6 +200,28 @@ export function CourseDetailPage() {
       await load();
     } catch (e: any) {
       setErr(e?.message || "Cancel failed");
+    }
+  }
+
+  async function onSubmitReview() {
+    if (!Number.isFinite(courseId) || courseId <= 0) return;
+    setErr(null);
+    setInfo(null);
+    setSubmittingReview(true);
+    try {
+      const saved = await coursesApi.submitReview(courseId, {
+        stars: reviewStars,
+        comment: reviewComment,
+      });
+      setInfo("Đã gửi đánh giá khóa học thành công.");
+      setReviewComment("");
+      setCourse((prev) => (prev ? { ...prev, ratingAvg: saved.ratingAvg, ratingCount: saved.ratingCount } : prev));
+      const rs = await coursesApi.reviews(courseId);
+      setReviews(rs);
+    } catch (e: any) {
+      setErr(e?.message || "Gửi đánh giá thất bại");
+    } finally {
+      setSubmittingReview(false);
     }
   }
 
@@ -304,6 +332,58 @@ export function CourseDetailPage() {
               </div>
             </Card>
           )}
+
+          <Card style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+              <Title>Đánh giá khóa học</Title>
+              <Badge tone="info">{course?.ratingAvg?.toFixed?.(1) || "0.0"} ⭐ ({course?.ratingCount || 0})</Badge>
+            </div>
+            <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
+              <label style={{ display: "grid", gap: 6 }}>
+                <span style={{ fontSize: 13, color: theme.colors.muted }}>Số sao (1-5)</span>
+                <input
+                  min={1}
+                  max={5}
+                  type="number"
+                  value={reviewStars}
+                  onChange={(e) => setReviewStars(Math.max(1, Math.min(5, Number(e.target.value) || 1)))}
+                  style={{ background: "transparent", color: theme.colors.text, border: `1px solid ${theme.colors.border}`, borderRadius: 10, padding: "10px 12px" }}
+                />
+              </label>
+              <label style={{ display: "grid", gap: 6 }}>
+                <span style={{ fontSize: 13, color: theme.colors.muted }}>Nhận xét</span>
+                <textarea
+                  rows={3}
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="Chia sẻ trải nghiệm của bạn..."
+                  style={{ background: "transparent", color: theme.colors.text, border: `1px solid ${theme.colors.border}`, borderRadius: 10, padding: "10px 12px", resize: "vertical" }}
+                />
+              </label>
+              <div>
+                <Button tone="primary" onClick={onSubmitReview} disabled={submittingReview || loading}>
+                  {submittingReview ? "Đang gửi..." : "Gửi đánh giá"}
+                </Button>
+              </div>
+            </div>
+            <Hr />
+            <div style={{ display: "grid", gap: 10 }}>
+              {reviews.length === 0 ? (
+                <Muted>Chưa có đánh giá nào cho khóa học này.</Muted>
+              ) : (
+                reviews.map((rv) => (
+                  <div key={rv.id} style={{ border: `1px solid ${theme.colors.border}`, borderRadius: 10, padding: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                      <b>{rv.customerName}</b>
+                      <Muted>{new Date(rv.createdAt).toLocaleDateString("vi-VN")}</Muted>
+                    </div>
+                    <div style={{ marginTop: 4, color: theme.colors.warn }}>{"★".repeat(rv.stars)}{"☆".repeat(5 - rv.stars)}</div>
+                    {rv.comment ? <div style={{ marginTop: 6 }}>{rv.comment}</div> : null}
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
 
           <Card style={{ marginBottom: 12 }}>
             <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>

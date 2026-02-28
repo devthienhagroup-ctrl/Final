@@ -1,5 +1,5 @@
 // src/api/courses.api.ts
-import { get } from "./http";
+import { get, post } from "./http";
 
 export type Course = {
   id: number;
@@ -9,6 +9,8 @@ export type Course = {
   thumbnail: string | null;
   price: number;
   published: boolean;
+  ratingAvg?: number;
+  ratingCount?: number;
   _count?: { lessons: number };
 };
 
@@ -18,20 +20,23 @@ export type Lesson = {
   content: string | null; // thường outline sẽ null
   videoUrl: string | null;
   order: number;
-  // nếu BE có courseId/slug/published... có thể bổ sung sau
+};
+
+export type CourseReview = {
+  id: number;
+  stars: number;
+  comment: string | null;
+  customerName: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export const coursesApi = {
-  // GET /courses
   list: () => get<Course[]>("/courses", { auth: true }),
-
-  // GET /courses/:id
   detail: (id: number) => get<Course>(`/courses/${id}`, { auth: true }),
-
-  // GET /courses/:courseId/lessons  (gated theo Enrollment ACTIVE)
   lessons: (courseId: number) => get<Lesson[]>(`/courses/${courseId}/lessons`, { auth: true }),
-
-  // GET /courses/:courseId/lessons-outline (fallback khi bị gate)
-  lessonsOutline: (courseId: number) =>
-    get<Lesson[]>(`/courses/${courseId}/lessons-outline`, { auth: true }),
+  lessonsOutline: (courseId: number) => get<Lesson[]>(`/courses/${courseId}/lessons-outline`, { auth: true }),
+  reviews: (courseId: number) => get<CourseReview[]>(`/courses/${courseId}/reviews`, { auth: true }),
+  submitReview: (courseId: number, body: { stars: number; comment?: string; customerName?: string }) =>
+    post<CourseReview & { ratingAvg: number; ratingCount: number }>(`/courses/${courseId}/reviews`, body, { auth: true }),
 };

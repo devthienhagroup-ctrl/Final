@@ -23,6 +23,7 @@ import { RolesGuard } from '../auth/guards/roles.guard'
 import { Roles } from '../auth/decorators/roles.decorator'
 import { CoursesService } from './courses.service'
 import { CourseQueryDto } from './dto/course-query.dto'
+import { UpsertCourseReviewDto } from './dto/upsert-course-review.dto'
 
 type JwtUser = { sub: number; role: string }
 
@@ -87,6 +88,22 @@ export class CoursesController {
   @Get(':id/lessons')
   listLessons(@CurrentUser() user: any, @Param('id', ParseIntPipe) id: number) {
     return this.courses.listLessons(user, id)
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @Get(':id/reviews')
+  listReviews(@Param('id', ParseIntPipe) id: number) {
+    return this.courses.listReviews(id)
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @Post(':id/reviews')
+  upsertReview(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpsertCourseReviewDto,
+  ) {
+    return this.courses.upsertReview(user, id, dto)
   }
 
   @UseGuards(AccessTokenGuard)

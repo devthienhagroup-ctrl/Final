@@ -36,11 +36,19 @@ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searc
 
   useEffect(() => {
     if (activeTab !== 'detail' || !selectedCourseId) return
-    setLoadingDetail(true)
-    adminCoursesApi.getCourseDetail(selectedCourseId, lang)
-      .then((detail) => setSelectedCourse(detail))
-      .finally(() => setLoadingDetail(false))
+    void refreshSelectedCourse()
   }, [activeTab, selectedCourseId, lang])
+
+  const refreshSelectedCourse = async () => {
+    if (!selectedCourseId) return
+    setLoadingDetail(true)
+    try {
+      const detail = await adminCoursesApi.getCourseDetail(selectedCourseId, lang)
+      setSelectedCourse(detail)
+    } finally {
+      setLoadingDetail(false)
+    }
+  }
 
   return (
     <section className='admin-card admin-card-glow admin-course-management-card'>
@@ -154,7 +162,16 @@ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searc
         <>
           {!selectedCourseId && <p className='admin-helper'>{lang === 'vi' ? 'Vui lòng chọn khóa học ở tab danh sách.' : lang === 'en' ? 'Please select a course from list tab.' : 'Bitte wählen Sie einen Kurs aus der Liste.'}</p>}
           {loadingDetail && <p className='admin-helper'>{text.loading}</p>}
-          {!loadingDetail && selectedCourse && <CourseDetailTabs course={selectedCourse} lang={lang} text={text} topics={topics} />}
+          {!loadingDetail && selectedCourse && <CourseDetailTabs
+            course={selectedCourse}
+            lang={lang}
+            text={text}
+            topics={topics}
+            onCourseUpdated={async () => {
+              await onCourseCreated()
+              await refreshSelectedCourse()
+            }}
+          />}
         </>
       )}
 

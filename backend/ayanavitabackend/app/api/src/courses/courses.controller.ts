@@ -112,8 +112,9 @@ export class CoursesController {
   @UseGuards(AccessTokenGuard, RolesGuard)
   @Roles('ADMIN')
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCourseDto) {
-    return this.courses.update(id, dto)
+  @UseInterceptors(FileInterceptor('thumbnail', { storage: memoryStorage() }))
+  update(@Param('id', ParseIntPipe) id: number, @Body() rawData: any, @UploadedFile() thumbnail?: any) {
+    return this.courses.update(id, parseMultipartData(rawData) as UpdateCourseDto, thumbnail)
   }
 
   @UseGuards(AccessTokenGuard, RolesGuard)

@@ -7,11 +7,12 @@ type Props = {
   lang: 'vi' | 'en' | 'de'
   text: Record<string, string>
   topics: CourseTopic[]
+  onCourseUpdated: () => Promise<void> | void
 }
 
 type DetailTabKey = 'info' | 'content'
 
-export function CourseDetailTabs({ course, lang, text, topics }: Props) {
+export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated }: Props) {
   const [activeTab, setActiveTab] = useState<DetailTabKey>('info')
 
   const localizedContent = useMemo(() => ({
@@ -36,7 +37,7 @@ export function CourseDetailTabs({ course, lang, text, topics }: Props) {
         </button>
       </div>
 
-      {activeTab === 'info' && <CourseDetailInfoTab course={course} text={text} lang={lang} topics={topics} />}
+      {activeTab === 'info' && <CourseDetailInfoTab course={course} text={text} lang={lang} topics={topics} onUpdated={onCourseUpdated} />}
 
       {activeTab === 'content' && (
         <div className='admin-row' style={{ alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>

@@ -141,7 +141,7 @@ export const adminCoursesApi = {
     return get<CourseListResponse>(`/courses${suffix}`, { auth: true })
   },
   createCourse: (body: CoursePayload | FormData) => post<CourseAdmin>('/courses', body, { auth: true }),
-  updateCourse: (id: number, body: Partial<CoursePayload>) => patch<CourseAdmin>(`/courses/${id}`, body, { auth: true }),
+  updateCourse: (id: number, body: Partial<CoursePayload> | FormData) => patch<CourseAdmin>(`/courses/${id}`, body, { auth: true }),
   deleteCourse: (id: number) => del<{ id: number }>(`/courses/${id}`, { auth: true }),
   getCourseDetail: (id: number, lang?: string) => {
     const qs = new URLSearchParams()

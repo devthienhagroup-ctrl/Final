@@ -87,6 +87,86 @@ export class CoursesMediaService {
     }
   }
 
+
+  private async signedS3Delete(key: string) {
+    const endpointHost = new URL(this.s3Endpoint).host
+    const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '')
+    const dateStamp = amzDate.slice(0, 8)
+    const payloadHash = createHash('sha256').update('').digest('hex')
+
+    const signingHeaders: Record<string, string> = {
+      host: endpointHost,
+      'x-amz-content-sha256': payloadHash,
+      'x-amz-date': amzDate,
+    }
+
+    const sortedHeaderKeys = Object.keys(signingHeaders).sort()
+    const canonicalHeaders = sortedHeaderKeys.map((k) => `${k}:${signingHeaders[k]}`).join('\n') + '\n'
+    const signedHeaders = sortedHeaderKeys.join(';')
+
+    const canonicalRequest = [
+      'DELETE',
+      `/${this.s3Bucket}/${key}`,
+      '',
+      canonicalHeaders,
+      signedHeaders,
+      payloadHash,
+    ].join('\n')
+
+    const credentialScope = `${dateStamp}/${this.s3Region}/s3/aws4_request`
+    const stringToSign = [
+      'AWS4-HMAC-SHA256',
+      amzDate,
+      credentialScope,
+      createHash('sha256').update(canonicalRequest).digest('hex'),
+    ].join('\n')
+
+    const kDate = this.hmac(`AWS4${this.s3SecretKey}`, dateStamp)
+    const kRegion = this.hmac(kDate, this.s3Region)
+    const kService = this.hmac(kRegion, 's3')
+    const kSigning = this.hmac(kService, 'aws4_request')
+    const signature = createHmac('sha256', kSigning).update(stringToSign, 'utf8').digest('hex')
+
+    const authorization = `AWS4-HMAC-SHA256 Credential=${this.s3AccessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`
+    const url = `${this.s3Endpoint.replace(/\/$/, '')}/${this.s3Bucket}/${key}`
+
+    const res = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        Authorization: authorization,
+        'x-amz-date': amzDate,
+        'x-amz-content-sha256': payloadHash,
+      },
+    })
+
+    if (!res.ok && res.status !== 404) {
+      const text = await res.text()
+      throw new BadRequestException(`Delete thumbnail failed: ${res.status} ${text}`)
+    }
+  }
+
+  private resolveObjectKeyFromUrl(urlOrKey: string) {
+    const value = (urlOrKey || '').trim()
+    if (!value) return ''
+    if (!value.startsWith('http://') && !value.startsWith('https://')) return value.replace(/^\/+/, '')
+
+    try {
+      const parsed = new URL(value)
+      const path = parsed.pathname.replace(/^\/+/, '')
+      const bucketPrefix = `${this.s3Bucket}/`
+      if (path.startsWith(bucketPrefix)) return path.slice(bucketPrefix.length)
+      return ''
+    } catch {
+      return ''
+    }
+  }
+
+  async deleteThumbnailByUrl(urlOrKey: string) {
+    const key = this.resolveObjectKeyFromUrl(urlOrKey)
+    if (!key) return
+    await this.signedS3Delete(key)
+  }
+
   async uploadThumbnail(file: { buffer: Buffer; mimetype?: string; originalname?: string; size?: number }) {
     if (!file?.buffer) throw new BadRequestException('File is required')
 

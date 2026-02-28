@@ -59,6 +59,22 @@ export class CoursesService {
     }
   }
 
+
+  private hydratePrimaryContent(dto: Partial<CreateCourseDto>): Partial<CreateCourseDto> {
+    const objectivesByLocale = this.normalizeLocalizedList(dto.objectives)
+    const targetAudienceByLocale = this.normalizeLocalizedList(dto.targetAudience)
+    const benefitsByLocale = this.normalizeLocalizedList(dto.benefits)
+
+    const viContent = dto.contentTranslations?.vi
+
+    return {
+      ...dto,
+      objectives: (dto.objectives !== undefined ? objectivesByLocale.vi : (viContent?.objectives || objectivesByLocale.vi)) as any,
+      targetAudience: (dto.targetAudience !== undefined ? targetAudienceByLocale.vi : (viContent?.targetAudience || targetAudienceByLocale.vi)) as any,
+      benefits: (dto.benefits !== undefined ? benefitsByLocale.vi : (viContent?.benefits || benefitsByLocale.vi)) as any,
+    }
+  }
+
   private buildCreateCoursePayload(dto: CreateCourseDto & { title: string }): Prisma.CourseUncheckedCreateInput {
     return {
       title: dto.title,
@@ -182,10 +198,11 @@ export class CoursesService {
 
   async create(dto: CreateCourseDto, thumbnailFile?: { buffer: Buffer; mimetype?: string }) {
     if (!dto.title?.trim()) throw new BadRequestException('Title is required')
+    const normalizedDto = this.hydratePrimaryContent(dto) as CreateCourseDto
     try {
-      const thumbnailUrl = thumbnailFile ? (await this.courseMedia.uploadThumbnail(thumbnailFile)).url : dto.thumbnail
-      const created = await this.prisma.course.create({ data: this.buildCreateCoursePayload({ ...dto, title: dto.title.trim(), thumbnail: thumbnailUrl }), select: this.baseCourseSelect })
-      await this.syncCourseTranslations(created.id, dto)
+      const thumbnailUrl = thumbnailFile ? (await this.courseMedia.uploadThumbnail(thumbnailFile)).url : normalizedDto.thumbnail
+      const created = await this.prisma.course.create({ data: this.buildCreateCoursePayload({ ...normalizedDto, title: normalizedDto.title!.trim(), thumbnail: thumbnailUrl }), select: this.baseCourseSelect })
+      await this.syncCourseTranslations(created.id, normalizedDto)
       return created
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException('Slug already exists')
@@ -193,8 +210,39 @@ export class CoursesService {
     }
   }
 
-  async update(id: number, dto: UpdateCourseDto) { await this.ensureCourseExists(id); const updated = await this.prisma.course.update({ where: { id }, data: this.buildUpdateCoursePayload(dto), select: this.baseCourseSelect }); await this.syncCourseTranslations(id, dto); return updated }
-  async remove(id: number) { await this.ensureCourseExists(id); return this.prisma.course.delete({ where: { id }, select: { id: true } }) }
+  async update(id: number, dto: UpdateCourseDto, thumbnailFile?: { buffer: Buffer; mimetype?: string; originalname?: string }) {
+    const normalizedDto = this.hydratePrimaryContent(dto) as UpdateCourseDto
+    const existing = await this.prisma.course.findUnique({ where: { id }, select: { id: true, thumbnail: true } })
+    if (!existing) throw new NotFoundException('Course not found')
+
+    let nextThumbnail = normalizedDto.thumbnail
+    if (thumbnailFile) {
+      const uploaded = await this.courseMedia.uploadThumbnail(thumbnailFile)
+      nextThumbnail = uploaded.url
+      if (existing.thumbnail) {
+        await this.courseMedia.deleteThumbnailByUrl(existing.thumbnail)
+      }
+    }
+
+    const updated = await this.prisma.course.update({
+      where: { id },
+      data: this.buildUpdateCoursePayload({ ...normalizedDto, ...(nextThumbnail !== undefined ? { thumbnail: nextThumbnail } : {}) }),
+      select: this.baseCourseSelect,
+    })
+    await this.syncCourseTranslations(id, normalizedDto)
+    return updated
+  }
+
+  async remove(id: number) {
+    const existing = await this.prisma.course.findUnique({ where: { id }, select: { id: true, thumbnail: true } })
+    if (!existing) throw new NotFoundException('Course not found')
+
+    if (existing.thumbnail) {
+      await this.courseMedia.deleteThumbnailByUrl(existing.thumbnail)
+    }
+
+    return this.prisma.course.delete({ where: { id }, select: { id: true } })
+  }
 
   async listLessons(user: { sub: number; role: string }, courseId: number) { /* kept */
     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } }); if (!course) throw new NotFoundException('Course not found'); await this.enrollments.assertEnrolledOrAdmin(user, courseId); if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
@@ -214,23 +262,36 @@ export class CoursesService {
     return { ...lesson, progress: progress ?? null }
   }
 
-  private async ensureCourseExists(id: number) { if (!(await this.prisma.course.findUnique({ where: { id }, select: { id: true } }))) throw new NotFoundException('Course not found') }
 
   private async syncCourseTranslations(courseId: number, dto: Partial<CreateCourseDto>) {
     const locales: Array<'vi' | 'en' | 'de'> = ['vi', 'en', 'de']
+    const objectivesByLocale = this.normalizeLocalizedList(dto.objectives)
+    const targetAudienceByLocale = this.normalizeLocalizedList(dto.targetAudience)
+    const benefitsByLocale = this.normalizeLocalizedList(dto.benefits)
+
     await Promise.all(locales.map(async (locale) => {
       const tr = dto.translations?.[locale]
       const title = tr?.title || (locale === 'vi' ? dto.title : undefined)
-      if (!title?.trim()) return
-      await this.prisma.courseTranslation.upsert({
-        where: { courseId_locale: { courseId, locale } },
-        update: { title: title.trim(), shortDescription: tr?.shortDescription?.trim() || (locale === 'vi' ? dto.shortDescription?.trim() || null : null), description: tr?.description?.trim() || (locale === 'vi' ? dto.description?.trim() || null : null) },
-        create: { courseId, locale, title: title.trim(), shortDescription: tr?.shortDescription?.trim() || (locale === 'vi' ? dto.shortDescription?.trim() || null : null), description: tr?.description?.trim() || (locale === 'vi' ? dto.description?.trim() || null : null) },
-      })
+
+      if (title?.trim()) {
+        await this.prisma.courseTranslation.upsert({
+          where: { courseId_locale: { courseId, locale } },
+          update: {
+            title: title.trim(),
+            shortDescription: tr?.shortDescription?.trim() || (locale === 'vi' ? dto.shortDescription?.trim() || null : null),
+            description: tr?.description?.trim() || (locale === 'vi' ? dto.description?.trim() || null : null),
+          },
+          create: {
+            courseId,
+            locale,
+            title: title.trim(),
+            shortDescription: tr?.shortDescription?.trim() || (locale === 'vi' ? dto.shortDescription?.trim() || null : null),
+            description: tr?.description?.trim() || (locale === 'vi' ? dto.description?.trim() || null : null),
+          },
+        })
+      }
+
       const ct = dto.contentTranslations?.[locale]
-      const objectivesByLocale = this.normalizeLocalizedList(dto.objectives)
-      const targetAudienceByLocale = this.normalizeLocalizedList(dto.targetAudience)
-      const benefitsByLocale = this.normalizeLocalizedList(dto.benefits)
       if (ct || locale === 'vi') {
         await this.prisma.courseContentTranslation.upsert({
           where: { courseId_locale: { courseId, locale } },
@@ -250,4 +311,5 @@ export class CoursesService {
       }
     }))
   }
+
 }

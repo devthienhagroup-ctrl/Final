@@ -49,7 +49,7 @@ export default function App() {
                 <Route path="/track-order" element={<TrackOrderPage/>}/>
                 <Route path="/products" element={<ProductCategoryPage/>}/>
                 <Route path="/products/:slug" element={<ProductDetailPage/>}/>
-                <Route path="/courses/:courseId" element={<CourseDetailPage/>}/>
+                <Route path="/courses/:slug" element={<CourseDetailPage/>}/>
                 <Route path="/courses/player" element={<CoursePlayerPage/>}/>
                 // truy cập: /courses/detail?courseId=CR-1001
                 <Route path="/courses/:courseId/lesson" element={<LessonDetailPage/>}/>

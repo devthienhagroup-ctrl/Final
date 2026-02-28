@@ -28,6 +28,25 @@ declare global {
 
 const defaultStats: AppointmentStatsResponse = { total: 0, byStatus: {}, byService: [], bySpecialist: [], byMonth: [] }
 
+
+const textMap = {
+  vi: {
+    title: 'Lịch hẹn', list: 'Danh sách', stats: 'Thống kê', allBranches: 'Tất cả chi nhánh', allServices: 'Tất cả dịch vụ', allSpecialists: 'Tất cả chuyên viên',
+    code: 'Mã', customer: 'Khách hàng', phone: 'SĐT', branch: 'Chi nhánh', service: 'Dịch vụ', specialist: 'Chuyên viên', status: 'Trạng thái', action: 'Thao tác',
+    unassigned: 'Chưa phân công', details: 'Xem chi tiết', delete: 'Xóa lịch', showing: 'Hiển thị', appointments: 'lịch hẹn', prev: 'Trước', next: 'Sau', page: 'Trang',
+  },
+  en: {
+    title: 'Appointments', list: 'List', stats: 'Statistics', allBranches: 'All branches', allServices: 'All services', allSpecialists: 'All specialists',
+    code: 'Code', customer: 'Customer', phone: 'Phone', branch: 'Branch', service: 'Service', specialist: 'Specialist', status: 'Status', action: 'Actions',
+    unassigned: 'Unassigned', details: 'View details', delete: 'Delete', showing: 'Showing', appointments: 'appointments', prev: 'Prev', next: 'Next', page: 'Page',
+  },
+  de: {
+    title: 'Termine', list: 'Liste', stats: 'Statistik', allBranches: 'Alle Filialen', allServices: 'Alle Leistungen', allSpecialists: 'Alle Spezialisten',
+    code: 'Code', customer: 'Kunde', phone: 'Telefon', branch: 'Filiale', service: 'Leistung', specialist: 'Spezialist', status: 'Status', action: 'Aktionen',
+    unassigned: 'Nicht zugewiesen', details: 'Details', delete: 'Löschen', showing: 'Anzeige', appointments: 'Termine', prev: 'Zurück', next: 'Weiter', page: 'Seite',
+  },
+} as const
+
 const loadChartJs = () => {
   if (typeof window === 'undefined') return Promise.resolve(null)
   if (window.Chart) return Promise.resolve(window.Chart)
@@ -200,7 +219,8 @@ function statusActionItems(isStaff: boolean) {
   return adminItems.filter((item) => item.value === 'DONE' || item.value === 'CANCELED')
 }
 
-export function AppointmentsTab({ appointments, specialists, branches, services, isStaff, loading, onAssignSpecialist, onUpdateStatus, onDeleteAppointment }: AppointmentsTabProps) {
+export function AppointmentsTab({ lang = 'vi', appointments, specialists, branches, services, isStaff, loading, onAssignSpecialist, onUpdateStatus, onDeleteAppointment }: AppointmentsTabProps) {
+  const t = textMap[lang]
   const [view, setView] = useState<'list' | 'stats'>('list')
 
   const [listSearchName, setListSearchName] = useState('')
@@ -274,10 +294,10 @@ export function AppointmentsTab({ appointments, specialists, branches, services,
   return (
     <section className='admin-card admin-card-glow'>
       <div className='admin-row admin-row-between'>
-        <h3 className='admin-card-title'><i className='fa-solid fa-calendar-days' /> Lịch hẹn ({filteredAppointments.length})</h3>
+        <h3 className='admin-card-title'><i className='fa-solid fa-calendar-days' /> {t.title} ({filteredAppointments.length})</h3>
         <div className='admin-row'>
-          <button className={`admin-btn admin-btn-ghost ${view === 'list' ? 'admin-btn-active' : ''}`} onClick={() => setView('list')}>Danh sách</button>
-          <button className={`admin-btn admin-btn-ghost ${view === 'stats' ? 'admin-btn-active' : ''}`} onClick={() => setView('stats')}>Thống kê</button>
+          <button className={`admin-btn admin-btn-ghost ${view === 'list' ? 'admin-btn-active' : ''}`} onClick={() => setView('list')}>{t.list}</button>
+          <button className={`admin-btn admin-btn-ghost ${view === 'stats' ? 'admin-btn-active' : ''}`} onClick={() => setView('stats')}>{t.stats}</button>
         </div>
       </div>
 
@@ -286,15 +306,15 @@ export function AppointmentsTab({ appointments, specialists, branches, services,
           <div className='admin-filters-grid'>
             <input className='admin-input' placeholder='Số điện thoại' value={statsPhone} onChange={(e) => setStatsPhone(e.target.value)} />
             <select className='admin-input' value={statsBranchId} onChange={(e) => setStatsBranchId(Number(e.target.value))}>
-              <option value={0}>Tất cả chi nhánh</option>
+              <option value={0}>{t.allBranches}</option>
               {branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
             <select className='admin-input' value={statsServiceId} onChange={(e) => setStatsServiceId(Number(e.target.value))}>
-              <option value={0}>Tất cả dịch vụ</option>
+              <option value={0}>{t.allServices}</option>
               {services.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
             <select className='admin-input' value={statsSpecialistId} onChange={(e) => setStatsSpecialistId(Number(e.target.value))}>
-              <option value={0}>Tất cả chuyên viên</option>
+              <option value={0}>{t.allSpecialists}</option>
               {specialists.map((item: Specialist) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
           </div>
@@ -355,15 +375,15 @@ export function AppointmentsTab({ appointments, specialists, branches, services,
             <input className='admin-input' placeholder='Tên khách' value={listSearchName} onChange={(e) => { setListSearchName(e.target.value); setListPage(1) }} />
             <input className='admin-input' placeholder='Số điện thoại' value={listSearchPhone} onChange={(e) => { setListSearchPhone(e.target.value); setListPage(1) }} />
             <select className='admin-input' value={listBranchId} onChange={(e) => { setListBranchId(Number(e.target.value)); setListPage(1) }}>
-              <option value={0}>Tất cả chi nhánh</option>
+              <option value={0}>{t.allBranches}</option>
               {branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
             <select className='admin-input' value={listServiceId} onChange={(e) => { setListServiceId(Number(e.target.value)); setListPage(1) }}>
-              <option value={0}>Tất cả dịch vụ</option>
+              <option value={0}>{t.allServices}</option>
               {services.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
             <select className='admin-input' value={listSpecialistId} onChange={(e) => { setListSpecialistId(Number(e.target.value)); setListPage(1) }}>
-              <option value={0}>Tất cả chuyên viên</option>
+              <option value={0}>{t.allSpecialists}</option>
               {specialists.map((item: Specialist) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
             <input className='admin-input' type='month' value={listFilterMonth} onChange={(e) => { setListFilterMonth(e.target.value); setListPage(1) }} />
@@ -379,14 +399,14 @@ export function AppointmentsTab({ appointments, specialists, branches, services,
             <table className='admin-table'>
               <thead>
                 <tr>
-                  <th>Mã</th>
-                  <th>Khách hàng</th>
-                  <th>SĐT</th>
-                  <th>Chi nhánh</th>
-                  <th>Dịch vụ</th>
-                  <th>Chuyên viên</th>
-                  <th>Trạng thái</th>
-                  <th>Thao tác</th>
+                  <th>{t.code}</th>
+                  <th>{t.customer}</th>
+                  <th>{t.phone}</th>
+                  <th>{t.branch}</th>
+                  <th>{t.service}</th>
+                  <th>{t.specialist}</th>
+                  <th>{t.status}</th>
+                  <th>{t.action}</th>
                 </tr>
               </thead>
               <tbody>
@@ -402,7 +422,7 @@ export function AppointmentsTab({ appointments, specialists, branches, services,
                         appointment.specialist?.name || '-'
                       ) : (
                         <select className='admin-input' value={appointment.specialist?.id ?? ''} onChange={(e) => onAssignSpecialist(appointment, e.target.value ? Number(e.target.value) : null)}>
-                          <option value=''>Chưa phân công</option>
+                          <option value=''>{t.unassigned}</option>
                           {specialists
                             .filter((item) => item.branchId === appointment.branch?.id && item.serviceIds.includes(appointment.service?.id || 0))
                             .map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
@@ -420,8 +440,8 @@ export function AppointmentsTab({ appointments, specialists, branches, services,
                                 {item.label}
                               </button>
                             ))}
-                            <button className='admin-btn admin-btn-ghost' onClick={() => { setDetailAppointment(appointment); setActionMenuId(null) }}>Xem chi tiết</button>
-                            {!isStaff && <button className='admin-btn admin-btn-danger' onClick={() => { setActionMenuId(null); void onDeleteAppointment(appointment) }}>Xóa lịch</button>}
+                            <button className='admin-btn admin-btn-ghost' onClick={() => { setDetailAppointment(appointment); setActionMenuId(null) }}>{t.details}</button>
+                            {!isStaff && <button className='admin-btn admin-btn-danger' onClick={() => { setActionMenuId(null); void onDeleteAppointment(appointment) }}>{t.delete}</button>}
                           </div>
                         )}
                       </div>
@@ -433,11 +453,11 @@ export function AppointmentsTab({ appointments, specialists, branches, services,
           </div>
 
           <div className='admin-row admin-row-between'>
-            <span className='admin-helper'>Hiển thị {pagedAppointments.length}/{filteredAppointments.length} lịch hẹn</span>
+            <span className='admin-helper'>{t.showing} {pagedAppointments.length}/{filteredAppointments.length} {t.appointments}</span>
             <div className='admin-row'>
-              <button className='admin-btn admin-btn-ghost' disabled={safePage <= 1} onClick={() => setListPage((prev) => Math.max(1, prev - 1))}>Trước</button>
-              <span className='admin-helper'>Trang {safePage}/{totalPages}</span>
-              <button className='admin-btn admin-btn-ghost' disabled={safePage >= totalPages} onClick={() => setListPage((prev) => Math.min(totalPages, prev + 1))}>Sau</button>
+              <button className='admin-btn admin-btn-ghost' disabled={safePage <= 1} onClick={() => setListPage((prev) => Math.max(1, prev - 1))}>{t.prev}</button>
+              <span className='admin-helper'>{t.page} {safePage}/{totalPages}</span>
+              <button className='admin-btn admin-btn-ghost' disabled={safePage >= totalPages} onClick={() => setListPage((prev) => Math.min(totalPages, prev + 1))}>{t.next}</button>
             </div>
           </div>
         </>

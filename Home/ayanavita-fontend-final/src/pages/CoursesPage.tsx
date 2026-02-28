@@ -1,5 +1,6 @@
 // src/pages/CoursesPage.tsx
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 // NOTE: chỉnh lại path nếu project của bạn đặt http client ở chỗ khác.
 // Mục tiêu: dùng được mẫu `await http.get(...)` như yêu cầu.
@@ -209,7 +210,7 @@ function CourseDetailModal({
             </span>
               <span className="chip">
               <i className="fa-solid fa-clock text-amber-600" />
-                {course.time || `${course.hours} giờ`}
+                {`${course.time || course.hours || "-"} Hour`}
             </span>
               <span className="chip">
               <i className="fa-solid fa-users text-emerald-600" />
@@ -395,6 +396,7 @@ export default function CoursesPage({
   }, [currentLanguage]);
 
   const cms = useMemo(() => ({ ...defaultCmsData, ...(cmsDataState || {}) }), [cmsDataState]);
+  const navigate = useNavigate();
   const [q, setQ] = useState("");
   const [topic, setTopic] = useState<"all" | number>("all");
   const [page, setPage] = useState(1);
@@ -440,6 +442,7 @@ export default function CoursesPage({
 
           return {
             id: String(item.id),
+            slug: item.slug || String(item.id),
             title: item.title || "",
             topic: "ops" as CourseTopic,
             img: item.thumbnail || cms.heroImageSrc,
@@ -636,7 +639,7 @@ export default function CoursesPage({
                         <div className="p-4">
                           <div className="flex items-center justify-between gap-2">
                             <span className="chip">{c.topicName || "-"}</span>
-                            <span className="text-sm font-bold text-slate-600">{c.time || "-"}</span>
+                            <span className="text-sm font-bold text-slate-600">{`${c.time || c.hours || "-"} Hour`}</span>
                           </div>
 
                           <h3 className="mt-3 text-lg font-extrabold line-clamp-2">{c.title}</h3>
@@ -650,7 +653,7 @@ export default function CoursesPage({
                           </div>
 
                           <div className="mt-4 grid grid-cols-2 gap-2">
-                            <button className="btn text-sm" type="button" onClick={() => setDetailId(c.id)}>
+                            <button className="btn text-sm" type="button" onClick={() => navigate(`/courses/${encodeURIComponent((c as any).slug || c.id)}`)}>
                               <i className="fa-solid fa-eye" /> {cms.viewDetailBtn}
                             </button>
                             <button className="btn btn-primary text-sm hover:text-purple-800" type="button" onClick={() => addToCart(c.id)}>
@@ -686,13 +689,6 @@ export default function CoursesPage({
 
         {/*<Footer />*/}
 
-        <CourseDetailModal
-            open={!!detailId}
-            course={selectedCourse}
-            onClose={() => setDetailId(null)}
-            onAdd={(id) => addToCart(id)}
-            cms={cms}
-        />
 
         <CourseCartModal
             open={cartOpen}

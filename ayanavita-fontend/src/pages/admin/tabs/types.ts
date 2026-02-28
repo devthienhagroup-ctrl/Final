@@ -1,6 +1,6 @@
 import type { Appointment, Branch, ServiceCategory, ServiceReview, SpaService, Specialist } from '../../../api/spaAdmin.api'
 
-export type BranchForm = Partial<Branch> & { translations?: Partial<Record<'en-US'|'vi'|'de', { name: string; address: string }>> }
+export type BranchForm = Partial<Branch> & { translations?: Partial<Record<'en'|'vi'|'de', { name: string; address: string }>> }
 export type ServiceForm = {
   name: string
   description: string
@@ -13,17 +13,17 @@ export type ServiceForm = {
   tag: string
   branchIds: number[]
   isActive: boolean
-  translations?: Partial<Record<'en-US'|'vi'|'de', { name: string; description: string; goals: string; suitableFor: string; process: string; tag: string }>>
+  translations?: Partial<Record<'en'|'vi'|'de', { name: string; description: string; goals: string; suitableFor: string; process: string; tag: string }>>
 }
 export type CategoryForm = {
   name: string
-  translations?: Partial<Record<'en-US'|'vi'|'de', { name: string }>>
+  translations?: Partial<Record<'en'|'vi'|'de', { name: string }>>
 }
 
-export type SpecialistForm = { name: string; email: string; level: string; bio: string; branchId: number; serviceIds: number[]; translations?: Partial<Record<'en-US'|'vi'|'de', { name: string; bio: string }>> }
+export type SpecialistForm = { name: string; email: string; level: string; bio: string; branchId: number; serviceIds: number[]; translations?: Partial<Record<'en'|'vi'|'de', { name: string; bio: string }>> }
 export type ReviewForm = { serviceId: number; stars: number; comment: string; customerName: string }
 
-export type AdminLang = 'vi' | 'en-US' | 'de'
+export type AdminLang = 'vi' | 'en' | 'de'
 
 export type CommonTabProps = {
   loading: boolean

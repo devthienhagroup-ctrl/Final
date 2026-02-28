@@ -12,8 +12,10 @@ import { useAuth } from '../../state/auth.store'
 
 type TabKey = 'branches' | 'categories' | 'services' | 'specialists' | 'appointments'
 type AdminLang = 'vi' | 'en' | 'de'
+type AdminTheme = 'light' | 'dark'
 
 const LANG_STORAGE_KEY = 'lang-admin'
+const THEME_STORAGE_KEY = 'theme-admin'
 
 const uiText: Record<AdminLang, Record<string, string>> = {
   'vi': {
@@ -34,6 +36,9 @@ const uiText: Record<AdminLang, Record<string, string>> = {
     assignedAppointments: 'Lịch hẹn phụ trách',
     loading: 'Đang tải dữ liệu...',
     specialistRole: 'Chuyên viên',
+    themeLight: 'Sáng',
+    themeDark: 'Tối',
+    themeSwitch: 'Chuyển giao diện',
   },
   'en': {
     kicker: 'SERVIE OPERATIONS HUB',
@@ -53,6 +58,9 @@ const uiText: Record<AdminLang, Record<string, string>> = {
     assignedAppointments: 'Assigned appointments',
     loading: 'Loading data...',
     specialistRole: 'Specialist',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    themeSwitch: 'Theme switch',
   },
   'de': {
     kicker: 'SERVIE BETRIEBSZENTRUM',
@@ -72,6 +80,9 @@ const uiText: Record<AdminLang, Record<string, string>> = {
     assignedAppointments: 'Zugewiesene Termine',
     loading: 'Daten werden geladen...',
     specialistRole: 'Spezialist',
+    themeLight: 'Hell',
+    themeDark: 'Dunkel',
+    themeSwitch: 'Design umschalten',
   },
 }
 
@@ -190,6 +201,11 @@ export default function AdminSpaPage() {
     return saved === 'vi' || saved === 'en' || saved === 'de' ? saved : 'vi'
   })
 
+
+  const [theme, setTheme] = useState<AdminTheme>(() => {
+    const saved = window.localStorage.getItem(THEME_STORAGE_KEY)
+    return saved === 'dark' ? 'dark' : 'light'
+  })
   const [branchForm, setBranchForm] = useState<BranchForm>(defaultBranchForm)
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
   const [serviceForm, setServiceForm] = useState<ServiceForm>(defaultServiceForm)
@@ -212,6 +228,10 @@ export default function AdminSpaPage() {
   useEffect(() => {
     window.localStorage.setItem(LANG_STORAGE_KEY, lang)
   }, [lang])
+
+  useEffect(() => {
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme)
+  }, [theme])
 
   const loadServices = async (params?: { page?: number; q?: string; pageSize?: number }) => {
     const response = await spaAdminApi.services({ q: params?.q ?? serviceSearchKeyword, page: params?.page ?? servicePage, pageSize: params?.pageSize ?? servicePageSize, includeInactive: true, lang })
@@ -280,7 +300,7 @@ export default function AdminSpaPage() {
   }
 
   return (
-    <main className='admin-page'>
+    <main className='admin-page' data-theme={theme}>
       <header className='admin-header'>
         <div>
           <p className='admin-header-kicker'>{t.kicker}</p>
@@ -299,6 +319,15 @@ export default function AdminSpaPage() {
               <img src='https://flagcdn.com/w40/vn.png' alt='Vietnam flag' loading='lazy' />
             </button>
           </div>
+          <label className='admin-theme-toggle' aria-label={t.themeSwitch}>
+            <input
+              type='checkbox'
+              checked={theme === 'dark'}
+              onChange={(e) => setTheme(e.target.checked ? 'dark' : 'light')}
+            />
+            <span className='admin-theme-slider' />
+            <span className='admin-theme-label'>{theme === 'dark' ? t.themeDark : t.themeLight}</span>
+          </label>
           <div className='admin-user-badge' aria-label='Thông tin tài khoản đăng nhập'>
           <div className='admin-user-avatar'>{avatarLetter}</div>
           <div className='admin-user-meta'><strong>{displayName}</strong><span>{roleLabel}</span></div>

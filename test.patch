@@ -1,1527 +1,1289 @@
-diff --git a/Home/ayanavita-fontend-final/src/App.tsx b/Home/ayanavita-fontend-final/src/App.tsx
-index a6fdfa43de485f149cdeeb7d0a3002c1ec7388fc..c1e049739bc7020a91df9e934c2decbc976601e2 100644
---- a/Home/ayanavita-fontend-final/src/App.tsx
-+++ b/Home/ayanavita-fontend-final/src/App.tsx
-@@ -27,48 +27,48 @@ import AccountCenter from "./pages/AccountCenter";
-
- export default function App() {
-     return (
-         <Routes>
-             <Route element={<Layout/>}>
-
-                 <Route path="/" element={<HomePage/>}/>
-
-                 {/* Spa services */}
-                 <Route path="/services" element={<ServicesPage/>}/>
-                 <Route path="/services/:serviceId" element={<ServiceDetailPage/>}/>
-                 <Route path="/booking" element={<BookingPage/>}/>
-
-                 {/* Courses (prototype) */}
-                 <Route path="/courses" element={<CoursesPage/>}/>
-
-                 {/* Product cart (prototype) */}
-                 <Route path="/cart" element={<CartPage/>}/>
-                 <Route path="/product-checkout" element={<ProductCheckoutPage/>}/>
-                 {/* <Route path="/checkout" element={<CheckoutPage/>}/> */}
-                 <Route path="/products" element={<ProductsPage/>}/>
-                 <Route path="/compare" element={<ComparePage/>}/>
-                 <Route path="/track-order" element={<TrackOrderPage/>}/>
-                 <Route path="/products" element={<ProductCategoryPage/>}/>
-                 <Route path="/products/:slug" element={<ProductDetailPage/>}/>
--                <Route path="/courses/:courseId" element={<CourseDetailPage/>}/>
-+                <Route path="/courses/:slug" element={<CourseDetailPage/>}/>
-                 <Route path="/courses/player" element={<CoursePlayerPage/>}/>
-                 // truy cập: /courses/detail?courseId=CR-1001
-                 <Route path="/courses/:courseId/lesson" element={<LessonDetailPage/>}/>
-                 <Route path="/reviews" element={<ReviewsCenterPage/>}/>
-
-                 <Route path="/blog" element={<BlogPage/>}/>
-
-
-                 {/* placeholder các page khác để không vỡ Link */}
-                 <Route path="/products" element={<div className="p-6">Products (todo)</div>}/>
-                 <Route path="/checkout" element={<div className="p-6">Checkout (todo)</div>}/>
-                 <Route path="/franchise" element={<div className="p-6">Franchise (todo)</div>}/>
-                 <Route path="/account" element={<AccountCenter/>}/>
-                 <Route path="/account-center" element={<AccountCenter/>}/>
-                 <Route path="/compare" element={<div className="p-6">Compare (todo)</div>}/>
-                 <Route path="/track-order" element={<div className="p-6">Track order (todo)</div>}/>
-                         <Route path="/contact" element={<ContactPage />} />
-                 <Route path="*" element={<div className="p-6">Not found</div>}/>
-             </Route>
-         </Routes>
-     );
- }
-diff --git a/Home/ayanavita-fontend-final/src/data/courses.data.ts b/Home/ayanavita-fontend-final/src/data/courses.data.ts
-index 15172d25a916cf999102bd7b7ac4788c2ca26939..851da129f1a5e6e40f3b4395d4307981a23dd974 100644
---- a/Home/ayanavita-fontend-final/src/data/courses.data.ts
-+++ b/Home/ayanavita-fontend-final/src/data/courses.data.ts
-@@ -1,31 +1,32 @@
- // src/data/courses.data.ts
- export type CourseTopic = "technique" | "consult" | "ops" | "product";
- export type CourseSort = "best" | "new" | "high" | "low";
-
- export type Course = {
-   id: string;
-+  slug?: string;
-   title: string;
-   topic: CourseTopic;
-   topicName?: string;
-   topicId?: number | null;
-   img: string;
-   desc: string;
-   time?: string;
-   price: number;
-   hours: number;
-   rating: number;
-   students: number;
-   popular: number; // điểm phổ biến demo
-   date: string; // YYYY-MM-DD
- };
-
- export const TOPIC_LABEL: Record<CourseTopic, string> = {
-   technique: "Kỹ thuật",
-   consult: "Tư vấn",
-   ops: "Vận hành",
-   product: "Sản phẩm",
- };
-
- export function topicLabel(t: string) {
-   return (TOPIC_LABEL as any)[t] || "Khác";
- }
-diff --git a/Home/ayanavita-fontend-final/src/pages/CourseDetailPage.tsx b/Home/ayanavita-fontend-final/src/pages/CourseDetailPage.tsx
-index 4fecc3e6facc039f24ae9c968748029d082817a5..a64420b4cb2202f4f44f3a27b53dfc8589383b7d 100644
---- a/Home/ayanavita-fontend-final/src/pages/CourseDetailPage.tsx
-+++ b/Home/ayanavita-fontend-final/src/pages/CourseDetailPage.tsx
-@@ -1,634 +1,213 @@
--// src/pages/CourseDetailPage.tsx
--import React, { useEffect, useMemo, useRef, useState } from "react";
--import { useNavigate, useParams } from "react-router-dom";
-+import React, { useEffect, useMemo, useState } from "react";
-+import { Link, useParams } from "react-router-dom";
-
-+import { http } from "../api/http";
- import { SiteHeader } from "../components/layout/SiteHeader";
- import { Footer } from "../components/layout/Footer";
-
--import { LMS_COURSES, LMS_VOUCHERS, categoryLabel, type LmsCourse, type LmsLesson } from "../data/lmsCourses.data";
--import { computeFinalPrice, findVoucher, moneyVND } from "../services/lmsPricing.utils";
--import { courseSeed, imgSeed, personSeed } from "../services/lmsImage.utils";
--
--
--import { PreviewSidebar } from "../components/course-detail/PreviewSidebar";
--
--import { useOutsideClick, useEscapeKey, useScrollLock } from "../hooks/useUiGuards";
--import { CourseDetailTab, CourseDetailTabs } from "../components/course-detail/CourseDetailTabs";
--import { CurriculumSection } from "../components/course-detail/CurriculumSection";
--
--type OrderStatus = "NONE" | "PENDING" | "PAID" | "FAILED" | "REFUNDED";
--type Order = { id: string; status: OrderStatus; createdAt: string };
--
--function uid(prefix = "ID") {
--  return prefix + "-" + Math.random().toString(16).slice(2, 8).toUpperCase();
-+type CourseModule = {
-+  id: number;
-+  title: string;
-+  order: number;
-+};
-+
-+type CourseLesson = {
-+  id: number;
-+  title: string;
-+  slug: string;
-+  order: number;
-+  modules: CourseModule[];
-+};
-+
-+type CourseReview = {
-+  id: number;
-+  stars: number;
-+  comment: string | null;
-+  customerName: string | null;
-+  createdAt: string;
-+};
-+
-+type CourseDetailPayload = {
-+  id: number;
-+  slug: string;
-+  title: string;
-+  shortDescription: string | null;
-+  description: string | null;
-+  time: string | null;
-+  price: number;
-+  thumbnail: string | null;
-+  topic: { id: number; name: string } | null;
-+  enrollmentCount: number;
-+  ratingAvg: number;
-+  lessons: CourseLesson[];
-+  reviews: CourseReview[];
-+  reviewSummary: { ratingAvg: number; ratingCount: number };
-+};
-+
-+function currentLang() {
-+  return localStorage.getItem("preferred-language") || "vi";
+diff --git a/ayanavita-fontend/src/pages/admin/AdminSpaPage.css b/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
+index 44ef8f088d7d7758b9c4eb3e688d62ea050d1169..554ad973e7826585ce24dad513952009c916390b 100644
+--- a/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
++++ b/ayanavita-fontend/src/pages/admin/AdminSpaPage.css
+@@ -1924,25 +1924,185 @@
+   border-radius: 16px;
+   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+   box-shadow: 0 12px 26px rgba(15, 23, 42, 0.05);
+   padding: 14px 14px 12px;
  }
 
- export default function CourseDetailPage() {
--  const { courseId } = useParams<{ courseId: string }>();
--  const nav = useNavigate();
--
--  const [tab, setTab] = useState<CourseDetailTab>("overview");
--
--  const course: LmsCourse = useMemo(() => {
--    const hit = LMS_COURSES.find((c) => c.id === courseId);
--    return hit || LMS_COURSES[0];
--  }, [courseId]);
--
--  // ----- computed aggregates
--  const lessons = useMemo(() => (course.modules || []).flatMap((m) => m.lessons || []), [course]);
--  const totalMinutes = useMemo(() => lessons.reduce((s, x) => s + Number(x.duration || 0), 0), [lessons]);
--
--  // ----- hero images
--  const seed = courseSeed(course);
--  const heroImg = useMemo(() => imgSeed("hero-" + seed, 1600, 720), [seed]);
--  const thumbImg = useMemo(() => imgSeed("thumb-" + seed, 800, 420), [seed]);
--
--  const instructorAvatar = useMemo(
--    () => imgSeed(personSeed(course.instructor?.name || "instructor"), 200, 200),
--    [course.instructor?.name]
--  );
--
--  // ----- pricing
--  const basePrice = Number(course.sales?.basePrice ?? course.price ?? 0);
--  const defaultDiscount = Number(course.sales?.defaultDiscount ?? 0);
--  const priceNoVoucher = useMemo(() => computeFinalPrice(basePrice, defaultDiscount, null), [basePrice, defaultDiscount]);
--
--  // ----- preview modal (simple)
--  const [previewLesson, setPreviewLesson] = useState<LmsLesson | null>(null);
--
--  // ----- checkout state
--  const [ckName, setCkName] = useState("");
--  const [ckEmail, setCkEmail] = useState("");
--  const [ckPhone, setCkPhone] = useState("");
--  const [ckVoucher, setCkVoucher] = useState("");
--  const [ckAgree, setCkAgree] = useState(false);
--
--  const voucher = useMemo(() => findVoucher(LMS_VOUCHERS, ckVoucher, course.id), [ckVoucher, course.id]);
--  const finalPricing = useMemo(
--    () => computeFinalPrice(basePrice, defaultDiscount, voucher),
--    [basePrice, defaultDiscount, voucher]
--  );
-+  const { slug } = useParams<{ slug: string }>();
-
--  const [order, setOrder] = useState<Order>({ id: "—", status: "NONE", createdAt: "" });
-+  const [lang, setLang] = useState(currentLang);
-+  const [loading, setLoading] = useState(true);
-+  const [error, setError] = useState<string | null>(null);
-+  const [course, setCourse] = useState<CourseDetailPayload | null>(null);
-
--  function setOrderStatus(next: OrderStatus) {
--    setOrder((o) => {
--      if (!o || o.status === "NONE") return o;
--      return { ...o, status: next, createdAt: new Date().toISOString() };
--    });
--  }
--
--  function createOrder() {
--    if (!ckName.trim() || !ckEmail.trim()) {
--      window.alert("Vui lòng nhập Họ tên và Email để tạo đơn.");
--      return;
--    }
--    setOrder({ id: uid("OD"), status: "PENDING", createdAt: new Date().toISOString() });
--    window.alert("Đã tạo đơn hàng (prototype).");
--  }
--
--  function payNow() {
--    if (!order || order.status === "NONE") {
--      window.alert("Chưa có đơn hàng. Bấm “Tạo đơn hàng” trước.");
--      return;
--    }
--    if (!ckAgree) {
--      window.alert("Vui lòng tick đồng ý điều khoản (demo).");
--      return;
--    }
--    setOrderStatus("PAID");
--    window.alert("Thanh toán thành công (demo).");
--  }
--
--  // ----- course switch dropdown
--  function onChangeCourse(nextId: string) {
--    // reset page state
--    setTab("overview");
--    setPreviewLesson(null);
--    setOrder({ id: "—", status: "NONE", createdAt: "" });
--    // navigate
--    nav(`/courses/${nextId}`); // ✅ đổi path nếu router bạn khác
--  }
--
--  // allow hash open checkout
-   useEffect(() => {
--    if (location.hash === "#checkout") {
--      // giữ tab overview, chỉ scroll
--      const el = document.getElementById("checkout");
--      el?.scrollIntoView({ behavior: "smooth" });
--    }
--  }, [course.id]);
-+    const handleLanguageChange = (event: Event) => {
-+      const customEvent = event as CustomEvent<{ language: string }>;
-+      setLang(customEvent.detail?.language || currentLang());
-+    };
-
--  // ===== Preview modal UX
--  const previewOpen = !!previewLesson;
--  useScrollLock(previewOpen);
--  useEscapeKey(() => setPreviewLesson(null), previewOpen);
-+    window.addEventListener("languageChange", handleLanguageChange);
-+    return () => window.removeEventListener("languageChange", handleLanguageChange);
-+  }, []);
-
--  const previewRef = useRef<HTMLDivElement | null>(null);
--  useOutsideClick(previewRef, () => setPreviewLesson(null), previewOpen);
--
--  // ===== order chip style
--  const orderChip = useMemo(() => {
--    const st = order.status;
--    const icon =
--      st === "PENDING" ? "text-amber-500" : st === "PAID" ? "text-emerald-500" : st === "FAILED" ? "text-rose-500" : st === "REFUNDED" ? "text-slate-500" : "text-slate-400";
--    const text = st === "NONE" ? "None" : st;
--    return { icon, text };
--  }, [order.status]);
-+  useEffect(() => {
-+    if (!slug) return;
-+
-+    let cancelled = false;
-+    setLoading(true);
-+    setError(null);
-+
-+    (async () => {
-+      try {
-+        const res = await http.get(`/courses/public/slug/${slug}`, {
-+          params: { lang },
-+        });
-+
-+        if (!cancelled) {
-+          setCourse(res.data);
-+        }
-+      } catch (e) {
-+        if (!cancelled) {
-+          setError("Không tải được thông tin khoá học.");
-+        }
-+      } finally {
-+        if (!cancelled) {
-+          setLoading(false);
-+        }
-+      }
-+    })();
-+
-+    return () => {
-+      cancelled = true;
-+    };
-+  }, [slug, lang]);
-+
-+  const totalModules = useMemo(
-+    () => (course?.lessons || []).reduce((sum, lesson) => sum + lesson.modules.length, 0),
-+    [course?.lessons]
-+  );
-
-   return (
-     <div className="text-slate-900">
-       <SiteHeader />
--
--      <main className="px-4 pb-10">
-+      <main className="px-4 pb-12 pt-6">
-         <div className="max-w-6xl mx-auto grid gap-4">
--          {/* Header tools (sticky-ish like prototype) */}
--          <div className="card p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
--            <div className="flex items-center gap-3">
--              <div className="h-10 w-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-extrabold">
--                A
--              </div>
--              <div>
--                <div className="font-extrabold">AYANAVITA</div>
--                <div className="text-xs font-extrabold text-slate-500">Course Detail</div>
--              </div>
--            </div>
-+          <Link to="/courses" className="btn w-fit">
-+            <i className="fa-solid fa-arrow-left" /> Danh sách khoá học
-+          </Link>
-
--            <div className="flex flex-wrap items-center gap-2">
--              <select
--                className="btn"
--                value={course.id}
--                onChange={(e) => onChangeCourse(e.target.value)}
--                aria-label="select course"
--              >
--                {LMS_COURSES.map((c) => (
--                  <option key={c.id} value={c.id}>
--                    {c.title} ({c.id})
--                  </option>
--                ))}
--              </select>
-+          {loading ? (
-+            <div className="card p-8 text-center">Đang tải chi tiết khoá học...</div>
-+          ) : null}
-
--              <a href="#checkout" className="btn btn-primary">
--                <i className="fa-solid fa-credit-card mr-2" />
--                Checkout
--              </a>
--            </div>
--          </div>
-+          {error ? <div className="card p-8 text-center text-rose-600">{error}</div> : null}
-
--          {/* HERO */}
--          <section className="card overflow-hidden relative">
--            <div
--              className="absolute inset-0 bg-cover bg-center"
--              style={{ backgroundImage: `url("${heroImg}")` }}
--            />
--            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/55 to-transparent" />
--
--            <div className="relative p-6 md:p-8 grid gap-6 lg:grid-cols-12 items-center text-white">
--              <div className="lg:col-span-8">
--                <div className="text-xs font-extrabold opacity-90">{categoryLabel(course.category)}</div>
--                <h1 className="mt-2 text-3xl md:text-4xl font-extrabold leading-tight">{course.title}</h1>
--                <div className="mt-3 text-white/90 font-bold">{course.sales?.landing?.hero?.subtitle || course.desc}</div>
--
--                <div className="mt-4 flex flex-wrap gap-2">
--                  <span className="chip">
--                    <i className="fa-solid fa-star text-amber-400" /> {course.rating}
--                  </span>
--                  <span className="chip">
--                    <i className="fa-solid fa-users text-white" />{" "}
--                    {new Intl.NumberFormat("vi-VN").format(course.students)} học viên
--                  </span>
--                  <span className="chip">
--                    <i className="fa-solid fa-clock text-white" /> {totalMinutes} phút
--                  </span>
--                  <span className="chip">
--                    <i className="fa-solid fa-layer-group text-white" /> {course.modules.length} modules
--                  </span>
--                </div>
--
--                <div className="mt-5 flex flex-wrap gap-2">
--                  <button type="button" className="btn btn-accent" onClick={() => (location.hash = "#checkout")}>
--                    <i className="fa-solid fa-bolt mr-2" />
--                    Mua ngay
--                  </button>
--                  <button type="button" className="btn" onClick={() => setTab("curriculum")}>
--                    <i className="fa-solid fa-eye mr-2" />
--                    Xem preview
--                  </button>
--                  <button
--                    type="button"
--                    className="btn"
--                    onClick={async () => {
--                      const url = `${location.origin}${location.pathname}#course=${encodeURIComponent(course.id)}`;
--                      try {
--                        await navigator.clipboard.writeText(url);
--                        window.alert("Đã copy link: " + url);
--                      } catch {
--                        window.alert("Không copy được (trình duyệt chặn).");
--                      }
--                    }}
--                  >
--                    <i className="fa-solid fa-link mr-2" />
--                    Copy link
--                  </button>
--                </div>
--
--                <div className="mt-6 flex items-center gap-3">
--                  <img className="h-11 w-11 rounded-full object-cover border-2 border-white/90" src={instructorAvatar} alt="Instructor avatar" />
--                  <div>
--                    <div className="font-extrabold leading-5">{course.instructor?.name}</div>
--                    <div className="text-xs text-white/80 font-bold">{course.instructor?.bio}</div>
--                  </div>
--                </div>
--              </div>
--
--              {/* Pricing card */}
--              <div className="lg:col-span-4">
--                <div className="card p-5 text-slate-900">
--                  <img className="w-full h-40 object-cover rounded-2xl ring-1 ring-slate-200" src={thumbImg} alt="Course thumbnail" />
--                  <div className="mt-4 text-xs font-extrabold text-slate-500">Giá hôm nay</div>
--                  <div className="mt-1 text-3xl font-extrabold">{moneyVND(priceNoVoucher.price)}</div>
--                  <div className="mt-2 text-sm text-slate-600">{priceNoVoucher.note}</div>
--
--                  <div className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 text-sm text-slate-700">
--                    <div className="font-extrabold">Bao gồm</div>
--                    <ul className="mt-2 space-y-1">
--                      <li>• Truy cập trọn đời (demo)</li>
--                      <li>• Cập nhật nội dung</li>
--                      <li>• Chứng nhận hoàn thành</li>
--                      <li>• Hỗ trợ Q&A</li>
--                    </ul>
--                  </div>
--
--                  <a href="#checkout" className="btn btn-primary w-full text-center mt-3">
--                    <i className="fa-solid fa-cart-shopping mr-2" />
--                    Đăng ký học
--                  </a>
-+          {!loading && !error && course ? (
-+            <>
-+              <section className="card overflow-hidden">
-+                {course.thumbnail ? (
-+                  <img className="w-full h-72 object-cover" src={course.thumbnail} alt={course.title} />
-+                ) : null}
-
--                  <div className="text-xs text-slate-500 text-center mt-2">
--                    Giá/giảm lấy từ Sales config (default discount).
-+                <div className="p-6 grid gap-4">
-+                  <div className="text-xs font-extrabold text-slate-500">COURSE DETAIL</div>
-+                  <h1 className="text-3xl font-extrabold">{course.title}</h1>
-+                  <p className="text-slate-700">{course.shortDescription || course.description || "—"}</p>
-+
-+                  <div className="flex flex-wrap gap-2">
-+                    {course.topic ? <span className="chip">{course.topic.name}</span> : null}
-+                    <span className="chip">
-+                      <i className="fa-solid fa-clock text-amber-600" /> {course.time || "0"} Hour
-+                    </span>
-+                    <span className="chip">
-+                      <i className="fa-solid fa-users text-emerald-600" /> {course.enrollmentCount} học viên
-+                    </span>
-+                    <span className="chip">
-+                      <i className="fa-solid fa-star text-amber-500" /> {Number(course.reviewSummary.ratingAvg || 0).toFixed(1)}
-+                    </span>
-                   </div>
--                </div>
--              </div>
--            </div>
--          </section>
--
--          {/* CONTENT GRID */}
--          <section className="grid gap-4 lg:grid-cols-12">
--            {/* Left */}
--            <div className="lg:col-span-8 grid gap-4">
--              <div className="card p-5">
--                <CourseDetailTabs tab={tab} onChange={setTab} />
--
--                <div className="mt-4">
--                  {tab === "overview" ? (
--                    <div>
--                      <div className="text-lg font-extrabold">Bạn sẽ học được gì</div>
--                      <div className="mt-2 text-sm text-slate-700">{course.desc}</div>
--
--                      <div className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
--                        <div className="font-extrabold">Highlights</div>
--                        <div className="mt-2 text-sm text-slate-700">{course.sales?.landing?.hero?.highlight || "—"}</div>
--                      </div>
--
--                      <div className="mt-4 grid gap-3 md:grid-cols-3">
--                        <img className="w-full h-40 object-cover rounded-2xl ring-1 ring-slate-200" alt="Gallery 1" src={imgSeed("gallery1-" + seed, 700, 420)} />
--                        <img className="w-full h-40 object-cover rounded-2xl ring-1 ring-slate-200" alt="Gallery 2" src={imgSeed("gallery2-" + seed, 700, 420)} />
--                        <img className="w-full h-40 object-cover rounded-2xl ring-1 ring-slate-200" alt="Gallery 3" src={imgSeed("gallery3-" + seed, 700, 420)} />
--                      </div>
--
--                      <div className="mt-4 grid gap-3 md:grid-cols-2">
--                        <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
--                          <div className="text-xs font-extrabold text-slate-500">Đối tượng phù hợp</div>
--                          <ul className="mt-2 text-sm text-slate-700 space-y-1">
--                            <li>• Người mới bắt đầu muốn có lộ trình</li>
--                            <li>• Dev cần build LMS thực tế</li>
--                            <li>• Chủ khóa học muốn tối ưu bán hàng</li>
--                          </ul>
--                        </div>
--                        <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
--                          <div className="text-xs font-extrabold text-slate-500">Yêu cầu</div>
--                          <ul className="mt-2 text-sm text-slate-700 space-y-1">
--                            <li>• Laptop + internet</li>
--                            <li>• Kiến thức cơ bản (tùy khóa)</li>
--                            <li>• Thực hành theo bài</li>
--                          </ul>
--                        </div>
--                      </div>
--                    </div>
--                  ) : null}
-
--                  {tab === "curriculum" ? (
-+                  <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 flex flex-wrap gap-4 justify-between items-center">
-                     <div>
--                      <div className="text-lg font-extrabold">Curriculum</div>
--                      <div className="mt-2 text-sm text-slate-600">Danh sách module/bài học (có thumbnail + preview).</div>
--
--                      <div className="mt-4">
--                        <CurriculumSection course={course} onPreview={(l) => setPreviewLesson(l)} />
-+                      <div className="text-xs text-slate-500 font-extrabold">Học phí</div>
-+                      <div className="text-2xl font-extrabold text-indigo-700">
-+                        {new Intl.NumberFormat("vi-VN").format(course.price)} đ
-                       </div>
-                     </div>
--                  ) : null}
--
--                  {tab === "reviews" ? (
--                    <div>
--                      <div className="text-lg font-extrabold">Reviews (demo)</div>
--                      <div className="mt-2 text-sm text-slate-600">Lấy từ landing proof + mô phỏng vài review.</div>
--
--                      <div className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
--                        <div className="font-extrabold">{course.sales?.landing?.proof?.text || "—"}</div>
--                        <ul className="mt-2 text-sm text-slate-700 list-disc pl-5">
--                          {(course.sales?.landing?.proof?.bullets || []).map((x, i) => (
--                            <li key={i}>{x}</li>
--                          ))}
--                        </ul>
--                      </div>
--
--                      <div className="mt-4 grid gap-3 md:grid-cols-2">
--                        <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
--                          <div className="flex items-center gap-3">
--                            <img className="h-11 w-11 rounded-full object-cover border-2 border-white" src={imgSeed("reviewer-minh-" + seed, 200, 200)} alt="Reviewer 1" />
--                            <div>
--                              <div className="font-extrabold">Minh (Dev)</div>
--                              <div className="text-xs text-slate-500 font-bold">5.0 ★</div>
--                            </div>
--                          </div>
--                          <div className="text-sm text-slate-600 mt-3">“Rõ ràng, có checklist, làm được ngay.”</div>
--                        </div>
--
--                        <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
--                          <div className="flex items-center gap-3">
--                            <img className="h-11 w-11 rounded-full object-cover border-2 border-white" src={imgSeed("reviewer-lan-" + seed, 200, 200)} alt="Reviewer 2" />
--                            <div>
--                              <div className="font-extrabold">Lan (Creator)</div>
--                              <div className="text-xs text-slate-500 font-bold">4.8 ★</div>
--                            </div>
--                          </div>
--                          <div className="text-sm text-slate-600 mt-3">“Phần sales/checkout rất thực chiến.”</div>
--                        </div>
--                      </div>
--
--                      <div className="mt-4 grid gap-3 md:grid-cols-3">
--                        <img className="w-full h-32 object-cover rounded-2xl ring-1 ring-slate-200" alt="Review image 1" src={imgSeed("reviewimg1-" + seed, 700, 360)} />
--                        <img className="w-full h-32 object-cover rounded-2xl ring-1 ring-slate-200" alt="Review image 2" src={imgSeed("reviewimg2-" + seed, 700, 360)} />
--                        <img className="w-full h-32 object-cover rounded-2xl ring-1 ring-slate-200" alt="Review image 3" src={imgSeed("reviewimg3-" + seed, 700, 360)} />
--                      </div>
--                    </div>
--                  ) : null}
--
--                  {tab === "faq" ? (
--                    <div>
--                      <div className="text-lg font-extrabold">FAQ</div>
--                      <div className="mt-2 text-sm text-slate-600">Câu hỏi thường gặp (từ landing faq).</div>
--
--                      <div className="mt-4 grid gap-2">
--                        <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
--                          <div className="font-extrabold">{course.sales?.landing?.faq?.q1 || "—"}</div>
--                          <div className="text-sm text-slate-700 mt-1">{course.sales?.landing?.faq?.a1 || "—"}</div>
--                        </div>
--                        <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
--                          <div className="font-extrabold">{course.sales?.landing?.faq?.q2 || "—"}</div>
--                          <div className="text-sm text-slate-700 mt-1">{course.sales?.landing?.faq?.a2 || "—"}</div>
--                        </div>
--                      </div>
--                    </div>
--                  ) : null}
--                </div>
--              </div>
--
--              {/* Checkout */}
--              <div id="checkout" className="card p-6">
--                <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
--                  <div>
--                    <div className="text-xs font-extrabold text-slate-500">Checkout</div>
--                    <div className="text-2xl font-extrabold">Thanh toán (Prototype)</div>
--                    <div className="mt-1 text-sm text-slate-600">
--                      Mô phỏng: tạo đơn + đổi trạng thái thanh toán.
--                    </div>
--                  </div>
--                  <div className="flex gap-2">
--                    <button className="btn btn-primary" type="button" onClick={createOrder}>
--                      <i className="fa-solid fa-receipt mr-2" />
--                      Tạo đơn hàng
--                    </button>
--                    <button className="btn btn-accent" type="button" onClick={payNow}>
--                      <i className="fa-solid fa-credit-card mr-2" />
--                      Thanh toán (demo)
-+                    <button className="btn btn-primary hover:text-purple-800" type="button" onClick={() => window.alert("Đăng ký thành công (demo).") }>
-+                      <i className="fa-solid fa-user-plus" /> Đăng ký khoá học
-                     </button>
-                   </div>
-                 </div>
-+              </section>
-
--                <div className="mt-5 grid gap-4 md:grid-cols-2">
--                  <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
--                    <div className="font-extrabold">Thông tin học viên</div>
-+              <section className="card p-6">
-+                <div className="text-xl font-extrabold">Nội dung khoá học</div>
-+                <div className="text-slate-600 text-sm mt-1">
-+                  {course.lessons.length} bài học • {totalModules} module
-+                </div>
-
--                    <div className="mt-3 grid gap-3">
--                      <div>
--                        <div className="text-xs font-extrabold text-slate-500">Họ và tên</div>
--                        <input className="field mt-2" value={ckName} onChange={(e) => setCkName(e.target.value)} placeholder="Nguyễn Văn A" />
--                      </div>
--                      <div>
--                        <div className="text-xs font-extrabold text-slate-500">Email</div>
--                        <input className="field mt-2" value={ckEmail} onChange={(e) => setCkEmail(e.target.value)} placeholder="email@example.com" />
--                      </div>
--                      <div>
--                        <div className="text-xs font-extrabold text-slate-500">Số điện thoại (tuỳ chọn)</div>
--                        <input className="field mt-2" value={ckPhone} onChange={(e) => setCkPhone(e.target.value)} placeholder="090..." />
-+                <div className="mt-4 grid gap-3">
-+                  {course.lessons.map((lesson) => (
-+                    <div key={lesson.id} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
-+                      <div className="font-extrabold">
-+                        Bài {lesson.order}: {lesson.title}
-                       </div>
--                      <div>
--                        <div className="text-xs font-extrabold text-slate-500">Voucher (demo)</div>
--                        <input className="field mt-2" value={ckVoucher} onChange={(e) => setCkVoucher(e.target.value)} placeholder="AYA20" />
--                        <div className="text-xs text-slate-500 mt-2">Prototype: validate voucher theo rules ở `LMS_VOUCHERS`.</div>
--                      </div>
--                    </div>
--                  </div>
--
--                  <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
--                    <div className="font-extrabold">Tóm tắt đơn</div>
--
--                    <div className="mt-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200">
--                      <div className="flex items-start justify-between gap-3">
--                        <div className="flex items-center gap-3">
--                          <img className="w-16 h-11 rounded-xl object-cover border border-slate-200 bg-slate-200" src={thumbImg} alt="Course thumb" />
--                          <div>
--                            <div className="font-extrabold">{course.title}</div>
--                            <div className="text-xs text-slate-500 mt-1">
--                              {categoryLabel(course.category)} • {course.id} • Rating {course.rating}
--                            </div>
-+                      <div className="mt-2 grid gap-2">
-+                        {lesson.modules.map((module) => (
-+                          <div key={module.id} className="rounded-xl bg-white px-3 py-2 ring-1 ring-slate-200 text-sm">
-+                            Module {module.order}: {module.title}
-                           </div>
--                        </div>
--                        <span className="chip">
--                          <i className="fa-solid fa-tag text-emerald-600" />
--                          {moneyVND(finalPricing.price)}
--                        </span>
--                      </div>
--
--                      <div className="mt-3 text-sm text-slate-700">
--                        <div className="flex items-center justify-between">
--                          <span>Giá niêm yết</span>
--                          <b>{moneyVND(basePrice)}</b>
--                        </div>
--                        <div className="flex items-center justify-between mt-2">
--                          <span>Giảm mặc định</span>
--                          <b>{Math.max(0, Math.min(100, defaultDiscount))}%</b>
--                        </div>
--                        <div className="flex items-center justify-between mt-2">
--                          <span>Voucher</span>
--                          <b>
--                            {voucher
--                              ? voucher.type === "percent"
--                                ? `-${voucher.value}% (${voucher.code})`
--                                : `-${moneyVND(voucher.value)} (${voucher.code})`
--                              : "—"}
--                          </b>
--                        </div>
--                        <div className="my-3 border-t border-slate-200" />
--                        <div className="flex items-center justify-between">
--                          <span className="font-extrabold">Tổng thanh toán</span>
--                          <b className="text-lg">{moneyVND(finalPricing.price)}</b>
--                        </div>
--                        <div className="text-xs text-slate-500 mt-2">{finalPricing.note}</div>
--                      </div>
--
--                      <label className="mt-4 flex items-center gap-2 text-sm font-extrabold">
--                        <input type="checkbox" className="h-4 w-4 rounded border-slate-300" checked={ckAgree} onChange={(e) => setCkAgree(e.target.checked)} />
--                        Tôi đồng ý điều khoản (demo)
--                      </label>
--
--                      <div className="mt-4 grid gap-2">
--                        <button type="button" className="btn" onClick={() => window.alert("Đã tính lại giá (demo).")}>
--                          <i className="fa-solid fa-calculator mr-2" />
--                          Tính lại giá
--                        </button>
--                        <button type="button" className="btn btn-primary" onClick={payNow}>
--                          <i className="fa-solid fa-lock mr-2" />
--                          Thanh toán an toàn (demo)
--                        </button>
-+                        ))}
-                       </div>
-                     </div>
--
--                    <div className="mt-4 rounded-2xl bg-white p-4 ring-1 ring-slate-200">
--                      <div className="font-extrabold">Đơn hàng</div>
--
--                      <div className="mt-2 text-sm text-slate-700">
--                        <div className="flex items-center justify-between">
--                          <span>Mã đơn</span>
--                          <b>{order.id}</b>
--                        </div>
--                        <div className="flex items-center justify-between mt-2">
--                          <span>Trạng thái</span>
--                          <span className="chip">
--                            <i className={`fa-solid fa-circle ${orderChip.icon}`} />
--                            {orderChip.text}
--                          </span>
--                        </div>
--                        <div className="flex items-center justify-between mt-2">
--                          <span>Thời gian</span>
--                          <span className="text-slate-500">
--                            {order.createdAt ? new Date(order.createdAt).toLocaleString("vi-VN") : "—"}
--                          </span>
--                        </div>
--                      </div>
--
--                      <div className="mt-4 flex flex-wrap gap-2">
--                        <button type="button" className="btn" onClick={() => setOrderStatus("PENDING")}>
--                          Pending
--                        </button>
--                        <button type="button" className="btn btn-accent" onClick={() => setOrderStatus("PAID")}>
--                          Paid
--                        </button>
--                        <button type="button" className="btn" onClick={() => setOrderStatus("FAILED")}>
--                          Failed
--                        </button>
--                        <button type="button" className="btn" onClick={() => setOrderStatus("REFUNDED")}>
--                          Refunded
--                        </button>
--                      </div>
--
--                      <div className="mt-3 text-xs text-slate-500">Prototype: trạng thái đơn chỉ lưu trong state.</div>
--                    </div>
--                  </div>
-+                  ))}
-                 </div>
--              </div>
--            </div>
-+              </section>
-
--            {/* Right */}
--            <aside className="lg:col-span-4 grid gap-4">
--              <PreviewSidebar course={course} onPreview={(l) => setPreviewLesson(l)} />
--
--              <div className="card p-5">
--                <div className="font-extrabold">CTA nhanh</div>
--                <div className="mt-3 grid gap-2">
--                  <a href="#checkout" className="btn btn-primary w-full text-center">
--                    <i className="fa-solid fa-cart-shopping mr-2" />
--                    Đăng ký ngay
--                  </a>
--                  <button type="button" className="btn w-full" onClick={() => window.alert("Demo: mở chat/tư vấn (sau nối Zalo/FB).")}>
--                    <i className="fa-solid fa-message mr-2" />
--                    Nhắn tư vấn (demo)
--                  </button>
-+              <section className="card p-6">
-+                <div className="text-xl font-extrabold">Đánh giá khoá học</div>
-+                <div className="text-sm text-slate-600 mt-1">
-+                  {course.reviewSummary.ratingCount} đánh giá • Điểm trung bình {Number(course.reviewSummary.ratingAvg || 0).toFixed(1)}
-                 </div>
--                <div className="mt-3 text-xs text-slate-500">Prototype: CTA nối xuống checkout.</div>
--              </div>
-
--              <div className="card p-5">
--                <div className="font-extrabold">Gợi ý thao tác</div>
--                <div className="mt-2 text-sm text-slate-700">
--                  • Chọn course ở dropdown.<br />
--                  • Xem curriculum & preview.<br />
--                  • Cuộn xuống Checkout để tạo đơn và đổi trạng thái thanh toán.
-+                <div className="mt-4 grid gap-3">
-+                  {course.reviews.length ? (
-+                    course.reviews.map((review) => (
-+                      <div key={review.id} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
-+                        <div className="flex items-center justify-between gap-2">
-+                          <div className="font-extrabold">{review.customerName || "Học viên"}</div>
-+                          <div className="text-sm text-slate-600">{review.stars.toFixed(1)} ★</div>
-+                        </div>
-+                        {review.comment ? <div className="text-sm text-slate-700 mt-2">{review.comment}</div> : null}
-+                      </div>
-+                    ))
-+                  ) : (
-+                    <div className="text-slate-600 text-sm">Chưa có đánh giá.</div>
-+                  )}
-                 </div>
--              </div>
--            </aside>
--          </section>
--
--          <div className="text-center text-sm text-slate-500">© 2025 AYANAVITA • Course Detail Prototype</div>
-+              </section>
-+            </>
-+          ) : null}
-         </div>
-       </main>
--
-       <Footer />
--
--      {/* Preview Modal */}
--      {previewOpen ? (
--        <div className="fixed inset-0 z-[90] bg-black/55 flex items-center justify-center p-4">
--          <div ref={previewRef} className="card w-full max-w-2xl overflow-hidden">
--            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between gap-3">
--              <div>
--                <div className="text-xs font-extrabold text-slate-500">Preview</div>
--                <div className="text-lg font-extrabold">{previewLesson?.title}</div>
--              </div>
--              <button className="btn h-10 w-10 p-0" type="button" onClick={() => setPreviewLesson(null)} aria-label="close">
--                <i className="fa-solid fa-xmark" />
--              </button>
--            </div>
--
--            <div className="p-6 grid gap-3">
--              <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 text-sm text-slate-700">
--                <div>
--                  <b>Course:</b> {course.title}
--                </div>
--                <div className="mt-1">
--                  <b>Type:</b> {String(previewLesson?.type || "").toUpperCase()}
--                </div>
--                <div className="mt-1">
--                  <b>Duration:</b> {previewLesson?.duration ?? 0} phút
--                </div>
--                <div className="mt-1">
--                  <b>Source:</b> {previewLesson?.source || "—"}
--                </div>
--                {previewLesson?.note ? (
--                  <div className="mt-2 text-slate-600">
--                    <b>Note:</b> {previewLesson.note}
--                  </div>
--                ) : null}
--              </div>
--
--              <button type="button" className="btn btn-primary" onClick={() => window.alert("Prototype: mở player/reader thật ở bước sau.")}>
--                <i className="fa-solid fa-play mr-2" />
--                Mở bài học (demo)
--              </button>
--            </div>
--          </div>
--        </div>
--      ) : null}
-     </div>
-   );
- }
-diff --git a/Home/ayanavita-fontend-final/src/pages/CoursesPage.tsx b/Home/ayanavita-fontend-final/src/pages/CoursesPage.tsx
-index 67bfd42434b02dcfef268d95b919df675663eaac..f27a58337629cd199e701bcedd1d38cab9ce4156 100644
---- a/Home/ayanavita-fontend-final/src/pages/CoursesPage.tsx
-+++ b/Home/ayanavita-fontend-final/src/pages/CoursesPage.tsx
-@@ -388,113 +388,108 @@ export default function CoursesPage({
-         // Hỗ trợ cả kiểu axios ({ data }) lẫn client trả thẳng JSON
-         const remoteCms = res.data.sections[0].data;
-         if (!cancelled && remoteCms && typeof remoteCms === "object") {
-           setCmsDataState((prev) => ({ ...prev, ...remoteCms }));
-         }
-       } catch (err) {
-         // Không phá UI nếu API fail
-         console.error("Fetch courses CMS failed:", err);
-       }
-     })();
-
-     return () => {
-       cancelled = true;
-     };
-   }, [currentLanguage]);
-
-   const cms = useMemo(() => ({ ...defaultCmsData, ...(cmsDataState || {}) }), [cmsDataState]);
-   const [q, setQ] = useState("");
-   const [topic, setTopic] = useState<"all" | number>("all");
-   const [page, setPage] = useState(1);
-   const [pageSize, setPageSize] = useState(8);
-   const [totalCourses, setTotalCourses] = useState(0);
-   const [courses, setCourses] = useState<Course[]>(COURSES);
-   const [topicOptions, setTopicOptions] = useState<ApiTopicOption[]>([]);
-
--  const [detailId, setDetailId] = useState<string | null>(null);
-   const [cartOpen, setCartOpen] = useState(false);
-
-   const [cartIds, setCartIds] = useState<string[]>(() => readCourseCart());
-
-   useEffect(() => {
-     let cancelled = false;
-
-     (async () => {
-       try {
-         const [coursesRes, topicsRes] = await Promise.all([
-           http.get("/courses", {
-             params: {
-               lang: currentLanguage,
-               page,
-               pageSize,
-               search: q.trim() || undefined,
-               topicId: topic === "all" ? undefined : topic,
-             },
-           }),
-           http.get("/courses/topics", { params: { lang: currentLanguage } }),
-         ]);
-
-         if (cancelled) return;
-
-         const items = Array.isArray(coursesRes.data?.items) ? coursesRes.data.items : [];
-         const mapped: Course[] = items.map((item: any) => ({
-           id: String(item.id),
-+          slug: item.slug || String(item.id),
-           title: item.title || "",
-           topic: "ops" as CourseTopic,
-           img: item.thumbnail || cms.heroImageSrc,
-           desc: item.shortDescription || item.description || "",
-           price: Number(item.price || 0),
-           hours: Number(item.time || 0),
-           rating: Number(item.ratingAvg || 0),
-           students: Number(item.enrollmentCount || 0),
-           popular: 0,
-           date: item.createdAt || "",
-           time: item.time || "",
-           topicName: item.topic?.name || topicLabel("ops"),
-           topicId: item.topic?.id || null,
-         } as Course));
-
-         setCourses(mapped);
-         setTotalCourses(Number(coursesRes.data?.total || 0));
-         setTopicOptions(Array.isArray(topicsRes.data) ? topicsRes.data : []);
-       } catch (err) {
-         console.error("Fetch courses failed:", err);
-       }
-     })();
-
-     return () => {
-       cancelled = true;
-     };
-   }, [cms.heroImageSrc, currentLanguage, page, pageSize, q, topic]);
-
-   const totalPages = Math.max(1, Math.ceil(totalCourses / pageSize));
-
--  const selectedCourse = useMemo(() => {
--    if (!detailId) return null;
--    return courses.find((c) => c.id === detailId) || null;
--  }, [courses, detailId]);
--
-   const cartItems = useMemo(() => {
-     const set = new Set(cartIds.map((x) => x.toUpperCase()));
-     return courses.filter((c) => set.has(c.id.toUpperCase()));
-   }, [cartIds, courses]);
-
-   function addToCart(id: string) {
-     const next = addCourseToCart(id);
-     setCartIds(next);
-     window.alert(tpl(cms.alertAddedToCart, { id }));
-   }
-
-   function removeFromCart(id: string) {
-     const next = removeCourseFromCart(id);
-     setCartIds(next);
-   }
-
-   function clearCart() {
-     if (!window.confirm(cms.confirmClearCart)) return;
-     const next = clearCourseCart();
-     setCartIds(next);
-   }
-
-   function reset() {
-     setQ("");
-     setTopic("all");
-@@ -643,90 +638,81 @@ export default function CoursesPage({
-               </div>
-
-               <div className="mt-5 card overflow-x-auto p-4">
-                 {courses.length ? (
-                   <table className="w-full min-w-[900px] text-sm">
-                     <thead>
-                       <tr className="border-b border-slate-200 text-left">
-                         <th className="py-3 pr-3">Khóa học</th>
-                         <th className="py-3 pr-3">Chủ đề</th>
-                         <th className="py-3 pr-3">Time</th>
-                         <th className="py-3 pr-3">Đánh giá</th>
-                         <th className="py-3 pr-3">Giá</th>
-                         <th className="py-3 text-right">Thao tác</th>
-                       </tr>
-                     </thead>
-                     <tbody>
-                       {courses.map((c) => (
-                         <tr key={c.id} className="border-b border-slate-100 align-top">
-                           <td className="py-3 pr-3">
-                             <div className="font-extrabold">{c.title}</div>
-                             <div className="text-slate-600 mt-1 line-clamp-2">{c.desc}</div>
-                           </td>
-                           <td className="py-3 pr-3">
-                             <span className="chip">{c.topicName || topicLabel(c.topic)}</span>
-                           </td>
--                          <td className="py-3 pr-3">{c.time || "-"}</td>
-+                          <td className="py-3 pr-3">{c.time ? `${c.time} Hour` : "-"}</td>
-                           <td className="py-3 pr-3">
-                             <div className="flex items-center gap-2 text-slate-600">
-                               <Stars rating={c.rating} /> <b>{c.rating.toFixed(1)}</b>
-                             </div>
-                           </td>
-                           <td className="py-3 pr-3 font-extrabold text-indigo-700">{money(c.price)}</td>
-                           <td className="py-3 text-right">
-                             <div className="flex gap-2 justify-end">
--                              <button className="btn text-sm" type="button" onClick={() => setDetailId(c.id)}>
-+                              <Link className="btn text-sm" to={`/courses/${c.slug || c.id}`}>
-                                 <i className="fa-solid fa-eye" /> {cms.viewDetailBtn}
--                              </button>
-+                              </Link>
-                               <button className="btn btn-primary text-sm hover:text-purple-800" type="button" onClick={() => addToCart(c.id)}>
-                                 <i className="fa-solid fa-cart-plus" /> {cms.addBtn}
-                               </button>
-                             </div>
-                           </td>
-                         </tr>
-                       ))}
-                     </tbody>
-                   </table>
-                 ) : (
-                     <div className="card p-8 text-center text-slate-600">
-                       <div className="text-4xl">
-                         <i className="fa-solid fa-box-open text-slate-400" />
-                       </div>
-                       <div className="mt-2 text-xl font-extrabold">{cms.emptyTitle}</div>
-                       <div className="mt-2">{cms.emptyDesc}</div>
-                       <button className="btn btn-primary hover:text-purple-800 mt-4" type="button" onClick={reset}>
-                         <i className="fa-solid fa-rotate" /> {cms.emptyResetBtn}
-                       </button>
-                     </div>
-                 )}
-
-                 <div className="mt-4 flex items-center justify-end gap-2">
-                   <button className="btn" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Trước</button>
-                   <span className="text-sm text-slate-600">Trang {page}/{totalPages}</span>
-                   <button className="btn" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Sau</button>
-                 </div>
-               </div>
-             </div>
-           </section>
-         </main>
-
-         {/*<Footer />*/}
--
--        <CourseDetailModal
--            open={!!detailId}
--            course={selectedCourse}
--            onClose={() => setDetailId(null)}
--            onAdd={(id) => addToCart(id)}
--            cms={cms}
--        />
--
-         <CourseCartModal
-             open={cartOpen}
-             onClose={() => setCartOpen(false)}
-             items={cartItems}
-             onRemove={removeFromCart}
-             onClear={clearCart}
-             cms={cms}
-         />
-       </div>
-   );
- }
-diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202603210001_add_course_reviews/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202603210001_add_course_reviews/migration.sql
-new file mode 100644
-index 0000000000000000000000000000000000000000..159c6096047628c56e3877b2ae97c8298c974304
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/prisma/migrations/202603210001_add_course_reviews/migration.sql
-@@ -0,0 +1,23 @@
-+CREATE TABLE `CourseReview` (
-+  `id` INTEGER NOT NULL AUTO_INCREMENT,
-+  `courseId` INTEGER NOT NULL,
-+  `userId` INTEGER NULL,
-+  `stars` INTEGER NOT NULL,
-+  `comment` TEXT NULL,
-+  `customerName` VARCHAR(255) NULL,
-+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-+  `updatedAt` DATETIME(3) NOT NULL,
-+
-+  INDEX `CourseReview_courseId_idx`(`courseId`),
-+  PRIMARY KEY (`id`)
-+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-+
-+ALTER TABLE `CourseReview`
-+  ADD CONSTRAINT `CourseReview_courseId_fkey`
-+  FOREIGN KEY (`courseId`) REFERENCES `Course`(`id`)
-+  ON DELETE CASCADE ON UPDATE CASCADE;
-+
-+ALTER TABLE `CourseReview`
-+  ADD CONSTRAINT `CourseReview_userId_fkey`
-+  FOREIGN KEY (`userId`) REFERENCES `User`(`id`)
-+  ON DELETE SET NULL ON UPDATE CASCADE;
-diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-index 32ad02bc7a77df1c3200943500cc57961f9dd89d..82abe5ee1db56758c3aaa2446e41c91ea5ca9120 100644
---- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
-+++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-@@ -9,50 +9,51 @@ datasource db {
+ .admin-stat-card h4 {
+   font-size: 14px;
+   color: #1e293b;
+   font-weight: 700;
+   letter-spacing: 0.01em;
+   margin-bottom: 10px;
  }
 
- model User {
-   id                 Int      @id @default(autoincrement())
-   email              String   @unique
-   password           String
-   name               String?
-   phone              String?
-   role               Role     @default(USER)
-   isActive           Boolean  @default(true)
-   hashedRefreshToken String?  @db.Text
-   createdAt          DateTime @default(now())
-   updatedAt          DateTime @updatedAt
-
-   // ✅ ADD
-   enrollments    Enrollment[]
-   courseAccesses CourseAccess[]
-   lessonProgress LessonProgress[]
-   lessonVideoProgress LessonVideoProgress[]
-   orders         Order[] // <— opposite for Order.user
-
-   // ✅ CMS (optional relations)
-   cmsSectionVersions CmsSectionVersion[]
-   mediaAssets        MediaAsset[]
-   serviceReviews     ServiceReview[]
-+  courseReviews      CourseReview[]
-   specialistProfile  Specialist?
+ .admin-chart-host-small {
+   min-height: 250px;
  }
 
- model Branch {
-   id          Int                @id @default(autoincrement())
-   code        String             @unique @db.VarChar(32)
-   name        String             @db.VarChar(255)
-   address     String             @db.VarChar(255)
-   phone       String?            @db.VarChar(30)
-   isActive    Boolean            @default(true)
-   createdAt   DateTime           @default(now())
-   updatedAt   DateTime           @updatedAt
-   services    BranchService[]
-   specialists Specialist[]
-   appointments Appointment[]
-   translations BranchTranslation[]
+ .admin-chart-host-line {
+   min-height: 320px;
  }
 
- model ServiceCategory {
-   id        Int      @id @default(autoincrement())
-   name      String   @unique @db.VarChar(255)
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
-   services  Service[]
-   translations ServiceCategoryTranslation[]
-@@ -212,86 +213,104 @@ model Appointment {
-   service    Service     @relation(fields: [serviceId], references: [id], onDelete: Restrict)
-   specialist Specialist? @relation(fields: [specialistId], references: [id], onDelete: SetNull)
-
-   @@index([branchId, appointmentAt])
-   @@index([serviceId])
-   @@index([specialistId])
+ .admin-chart-canvas {
+   filter: drop-shadow(0 12px 20px rgba(14, 116, 144, 0.08));
  }
-
- model ServiceReview {
-   id         Int      @id @default(autoincrement())
-   serviceId  Int
-   userId     Int?
-   stars      Int
-   comment    String?  @db.Text
-   customerName String? @db.VarChar(255)
-   createdAt  DateTime @default(now())
-   updatedAt  DateTime @updatedAt
-
-   service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-   user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-   @@index([serviceId])
- }
-
-
 +
-+model CourseReview {
-+  id           Int      @id @default(autoincrement())
-+  courseId      Int
-+  userId        Int?
-+  stars         Int
-+  comment       String?  @db.Text
-+  customerName  String?  @db.VarChar(255)
-+  createdAt     DateTime @default(now())
-+  updatedAt     DateTime @updatedAt
-+
-+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
-+
-+  @@index([courseId])
++.admin-theme-toggle {
++  display: inline-flex;
++  align-items: center;
++  gap: 8px;
++  padding: 6px 10px;
++  border-radius: 999px;
++  background: rgba(15, 23, 42, 0.24);
++  border: 1px solid rgba(255, 255, 255, 0.38);
++  color: #fff;
++  font-weight: 700;
 +}
 +
- model RegistrationOtp {
-   id        Int      @id @default(autoincrement())
-   email     String   @unique
-   code      String   @db.VarChar(6)
-   expiresAt DateTime
-   usedAt    DateTime?
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
++.admin-theme-toggle input {
++  position: absolute;
++  opacity: 0;
++  width: 0;
++  height: 0;
++}
++
++.admin-theme-slider {
++  width: 38px;
++  height: 22px;
++  border-radius: 999px;
++  background: rgba(255, 255, 255, 0.4);
++  position: relative;
++  transition: all .2s ease;
++}
++
++.admin-theme-slider::after {
++  content: '';
++  position: absolute;
++  top: 3px;
++  left: 3px;
++  width: 16px;
++  height: 16px;
++  border-radius: 50%;
++  background: #fff;
++  transition: transform .2s ease;
++}
++
++.admin-theme-toggle input:checked + .admin-theme-slider {
++  background: #1d4ed8;
++}
++
++.admin-theme-toggle input:checked + .admin-theme-slider::after {
++  transform: translateX(16px);
++}
++
++.admin-page[data-theme='dark'] {
++  --ad-bg:
++    radial-gradient(1200px 700px at 0% 0%, rgba(129, 140, 248, 0.13), transparent 55%),
++    radial-gradient(900px 600px at 100% 10%, rgba(14, 165, 233, 0.12), transparent 55%),
++    linear-gradient(180deg, #0f172a 0%, #111827 100%);
++  --ad-card: rgba(15, 23, 42, 0.88);
++  --ad-text: #e2e8f0;
++  --ad-muted: #94a3b8;
++  --ad-border: rgba(71, 85, 105, 0.8);
++}
++
++.admin-page[data-theme='dark'] .admin-tab,
++.admin-page[data-theme='dark'] .admin-btn-ghost,
++.admin-page[data-theme='dark'] .admin-input,
++.admin-page[data-theme='dark'] .admin-multi-select,
++.admin-page[data-theme='dark'] .admin-table,
++.admin-page[data-theme='dark'] .service-action-list,
++.admin-page[data-theme='dark'] .admin-modal,
++.admin-page[data-theme='dark'] .service-detail-card,
++.admin-page[data-theme='dark'] .service-branch-item {
++  background: #0f172a;
++  color: #e2e8f0;
++  border-color: #334155;
++}
++
++.admin-page[data-theme='dark'] .admin-table thead tr {
++  background: linear-gradient(135deg, #1e293b, #312e81);
++}
++
++.admin-page[data-theme='dark'] .admin-card-title,
++.admin-page[data-theme='dark'] .admin-label,
++.admin-page[data-theme='dark'] .admin-subtitle,
++.admin-page[data-theme='dark'] .td-strong,
++.admin-page[data-theme='dark'] .service-action-text,
++.admin-page[data-theme='dark'] .service-specialist-subitem {
++  color: #e2e8f0;
++}
++
++.admin-page[data-theme='dark'] .admin-helper,
++.admin-page[data-theme='dark'] .admin-table th,
++.admin-page[data-theme='dark'] .admin-table td,
++.admin-page[data-theme='dark'] .service-detail-empty,
++.admin-page[data-theme='dark'] .service-detail-eyebrow,
++.admin-page[data-theme='dark'] .service-detail-card p {
++  color: #94a3b8;
++}
++
++.admin-page[data-theme='dark'] .admin-table td {
++  border-top-color: #1e293b;
++}
++
++.admin-page[data-theme='dark'] .overview-card,
++.admin-page[data-theme='dark'] .admin-table-wrap,
++.admin-page[data-theme='dark'] .admin-card,
++.admin-page[data-theme='dark'] .admin-card-glow,
++.admin-page[data-theme='dark'] .admin-modal {
++  background: rgba(15, 23, 42, 0.9);
++  border-color: #334155;
++}
++
++.admin-page[data-theme='dark'] .overview-card strong,
++.admin-page[data-theme='dark'] .overview-card small,
++.admin-page[data-theme='dark'] .admin-checkbox-label,
++.admin-page[data-theme='dark'] .admin-user-meta strong,
++.admin-page[data-theme='dark'] .admin-theme-label,
++.admin-page[data-theme='dark'] .services-empty-state,
++.admin-page[data-theme='dark'] .service-detail-card h4,
++.admin-page[data-theme='dark'] .service-branch-line,
++.admin-page[data-theme='dark'] .service-detail-lines,
++.admin-page[data-theme='dark'] .admin-kpi-card span,
++.admin-page[data-theme='dark'] .admin-kpi-card strong,
++.admin-page[data-theme='dark'] .admin-stat-card h4,
++.admin-page[data-theme='dark'] .service-detail-image-empty {
++  color: #e2e8f0;
++}
++
++.admin-page[data-theme='dark'] .overview-card small,
++.admin-page[data-theme='dark'] .service-detail-image-empty,
++.admin-page[data-theme='dark'] .admin-kpi-card span {
++  color: #cbd5e1;
++}
++
++.admin-page[data-theme='dark'] .admin-table tbody tr:hover {
++  background: #1e293b;
++}
++
++.admin-page[data-theme='dark'] .services-branch-option {
++  background: #1e293b;
++  border-color: #334155;
++  color: #e2e8f0;
++}
++
++.admin-page[data-theme='dark'] .services-branch-option.is-disabled {
++  background: #0f172a;
++  color: #94a3b8;
++  border-style: dashed;
++}
++
++.admin-page[data-theme='dark'] .admin-checkbox-slider {
++  background: #475569;
++}
++
++.admin-page[data-theme='dark'] .admin-input::placeholder,
++.admin-page[data-theme='dark'] textarea::placeholder {
++  color: #94a3b8;
++}
++
++.admin-page[data-theme='dark'] .admin-btn-ghost:hover,
++.admin-page[data-theme='dark'] .admin-tab:hover {
++  box-shadow: 0 8px 18px rgba(30, 41, 59, 0.6);
++}
+diff --git a/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx b/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
+index 2bf9371ed6f41c56fefdd74a792b5d60d47a1acc..48d462ebea25fe6493d059e0abbf142503559e0a 100644
+--- a/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
++++ b/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
+@@ -1,99 +1,110 @@
+ import { useEffect, useMemo, useState } from 'react'
+ import { spaAdminApi, type Appointment, type Branch, type ServiceCategory, type SpaService, type Specialist } from '../../api/spaAdmin.api'
+ import { AlertJs } from '../../utils/alertJs'
+ import './AdminSpaPage.css'
+ import { BranchesTab } from './tabs/BranchesTab'
+ import { CategoriesTab } from './tabs/CategoriesTab'
+ import { ServicesTab } from './tabs/ServicesTab'
+ import { SpecialistsTab } from './tabs/SpecialistsTab'
+ import { AppointmentsTab } from './tabs/AppointmentsTab'
+ import type { BranchForm, CategoryForm, ServiceForm, SpecialistForm } from './tabs/types'
+ import { useAuth } from '../../state/auth.store'
+
+ type TabKey = 'branches' | 'categories' | 'services' | 'specialists' | 'appointments'
+ type AdminLang = 'vi' | 'en' | 'de'
++type AdminTheme = 'light' | 'dark'
+
+ const LANG_STORAGE_KEY = 'lang-admin'
++const THEME_STORAGE_KEY = 'theme-admin'
+
+ const uiText: Record<AdminLang, Record<string, string>> = {
+   'vi': {
+     kicker: 'TRUNG TÂM VẬN HÀNH DỊCH VỤ',
+     staffTitle: 'Lịch hẹn chuyên viên',
+     adminTitle: 'Bảng điều khiển quản trị dịch vụ',
+     staffDesc: 'Bạn chỉ xem các lịch hẹn được phân công và cập nhật khách có đến hay không.',
+     adminDesc: 'Bảng điều khiển chuẩn hoá vận hành theo phong cách hiện đại, rõ dữ liệu, dễ thao tác.',
+     branches: 'Chi nhánh',
+     services: 'Dịch vụ',
+     specialists: 'Chuyên viên',
+     appointments: 'Lịch hẹn',
+     active: 'Đang hoạt động',
+     serviceCatalog: 'Servie catalog',
+     specialistCapacity: 'Đủ năng lực vận hành',
+     synced: 'Đã đồng bộ hệ thống',
+     serviceCategories: 'Danh mục dịch vụ',
+     assignedAppointments: 'Lịch hẹn phụ trách',
+     loading: 'Đang tải dữ liệu...',
+     specialistRole: 'Chuyên viên',
++    themeLight: 'Sáng',
++    themeDark: 'Tối',
++    themeSwitch: 'Chuyển giao diện',
+   },
+   'en': {
+     kicker: 'SERVIE OPERATIONS HUB',
+     staffTitle: 'Specialist appointments',
+     adminTitle: 'Servie Admin Dashboard',
+     staffDesc: 'You can only view assigned appointments and update customer attendance.',
+     adminDesc: 'A modern operations dashboard with standardized data and fast workflows.',
+     branches: 'Branches',
+     services: 'Services',
+     specialists: 'Specialists',
+     appointments: 'Appointments',
+     active: 'Active',
+     serviceCatalog: 'Servie catalog',
+     specialistCapacity: 'Operational capacity ready',
+     synced: 'Synced to system',
+     serviceCategories: 'Service categories',
+     assignedAppointments: 'Assigned appointments',
+     loading: 'Loading data...',
+     specialistRole: 'Specialist',
++    themeLight: 'Light',
++    themeDark: 'Dark',
++    themeSwitch: 'Theme switch',
+   },
+   'de': {
+     kicker: 'SERVIE BETRIEBSZENTRUM',
+     staffTitle: 'Termine für Spezialisten',
+     adminTitle: 'Servie-Adminübersicht',
+     staffDesc: 'Sie sehen nur zugewiesene Termine und aktualisieren die Kundenanwesenheit.',
+     adminDesc: 'Ein modernes Betriebs-Dashboard mit standardisierten Daten und schnellen Abläufen.',
+     branches: 'Filialen',
+     services: 'Leistungen',
+     specialists: 'Spezialisten',
+     appointments: 'Termine',
+     active: 'Aktiv',
+     serviceCatalog: 'Servie-Katalog',
+     specialistCapacity: 'Betriebsbereit',
+     synced: 'Mit System synchronisiert',
+     serviceCategories: 'Leistungskategorien',
+     assignedAppointments: 'Zugewiesene Termine',
+     loading: 'Daten werden geladen...',
+     specialistRole: 'Spezialist',
++    themeLight: 'Hell',
++    themeDark: 'Dunkel',
++    themeSwitch: 'Design umschalten',
+   },
  }
 
- model Course {
-   id                  Int      @id @default(autoincrement())
-   topicId             Int?
-   title               String
-   time                String?  @db.VarChar(120)
-   shortDescription    String?  @db.VarChar(500)
-   slug                String   @unique
-   description         String?
-   thumbnail           String?
-   price               Int      @default(0)
-   published           Boolean  @default(false)
-   objectives          Json?
-   targetAudience      Json?
-   benefits            Json?
-   ratingAvg           Float    @default(0)
-   ratingCount         Int      @default(0)
-   enrollmentCount     Int      @default(0)
-   createdAt           DateTime @default(now())
-   updatedAt           DateTime @updatedAt
+ const defaultServiceForm: ServiceForm = { name: '', description: '', categoryId: 0, goals: '', suitableFor: '', process: '', durationMin: 60, price: 0, tag: 'Spa', branchIds: [], isActive: true, translations: { 'en': { name: '', description: '', goals: '', suitableFor: '', process: '', tag: 'Spa' }, vi: { name: '', description: '', goals: '', suitableFor: '', process: '', tag: 'Spa' }, de: { name: '', description: '', goals: '', suitableFor: '', process: '', tag: 'Spa' } } }
+ const defaultCategoryForm: CategoryForm = { name: '', translations: { 'en': { name: '' }, vi: { name: '' }, de: { name: '' } } }
+ const defaultSpecialistForm: SpecialistForm = { name: '', email: '', level: 'SENIOR', bio: '', branchId: 0, serviceIds: [], translations: { 'en': { name: '', bio: '' }, vi: { name: '', bio: '' }, de: { name: '', bio: '' } } }
+ const defaultBranchForm: BranchForm = { code: '', name: '', address: '', phone: '', isActive: true, translations: { 'en': { name: '', address: '' }, vi: { name: '', address: '' }, de: { name: '', address: '' } } }
 
-   lessons     Lesson[]
-   enrollments Enrollment[]
-   accesses    CourseAccess[]
-   topic       CourseTopic? @relation(fields: [topicId], references: [id], onDelete: Restrict)
-   translations CourseTranslation[]
-   contentTranslations CourseContentTranslation[]
-+  reviews      CourseReview[]
+ const ensureCategoryTranslations = (category: ServiceCategory): NonNullable<CategoryForm['translations']> => ({
+   'en': { name: category.translations?.['en']?.name || category.name || '' },
+   vi: { name: category.translations?.vi?.name || category.name || '' },
+   de: { name: category.translations?.de?.name || category.name || '' },
+ })
 
-   // ✅ ADD
-   orderItems OrderItem[] // <— opposite for OrderItem.course
-
-   @@index([topicId])
+ const ensureBranchTranslations = (branch: Branch): NonNullable<BranchForm['translations']> => ({
+   'en': {
+     name: branch.translations?.['en']?.name || branch.name || '',
+     address: branch.translations?.['en']?.address || branch.address || '',
+   },
+   vi: {
+     name: branch.translations?.vi?.name || branch.name || '',
+     address: branch.translations?.vi?.address || branch.address || '',
+   },
+   de: {
+     name: branch.translations?.de?.name || branch.name || '',
+@@ -168,73 +179,82 @@ const getVietnameseError = (error: unknown, fallback: string) => {
+   return fallback
  }
 
- model CourseTranslation {
-   id               Int      @id @default(autoincrement())
-   courseId         Int
-   locale           String   @db.VarChar(10)
-   title            String   @db.VarChar(255)
-   shortDescription String?  @db.VarChar(500)
-   description      String?  @db.Text
-   objectives       Json?
-   targetAudience   Json?
-   benefits         Json?
-   createdAt        DateTime @default(now())
-   updatedAt        DateTime @updatedAt
-
-   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-   @@unique([courseId, locale])
-   @@index([locale])
- }
-diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-index db39f4b4c1d51e48ffdbcaf36e0cd397e9e9947f..12f913c772a7c1088af78631595fa90a90560acf 100644
---- a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-+++ b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-@@ -55,50 +55,56 @@ const parseMultipartData = (input: Record<string, any>) => {
- export class CoursesController {
-   constructor(private readonly courses: CoursesService) {}
-
-   @UseGuards(AccessTokenGuard)
-   @Get(':id/lessons-outline')
-   lessonsOutline(
-     @CurrentUser() user: JwtUser,
-     @Param('id', ParseIntPipe) id: number,
-     @Query('lang') lang?: string,
-   ) {
-     return this.courses.lessonsOutline(user, id, lang)
-   }
-
-   @Get()
-   @UseGuards(OptionalAccessTokenGuard)
-   findAll(@CurrentUser() user: JwtUser | null, @Query() query: CourseQueryDto) {
-     return this.courses.findAll(query, user)
-   }
-
-   @Get('topics')
-   @UseGuards(OptionalAccessTokenGuard)
-   listTopics(@CurrentUser() user: JwtUser | null, @Query('lang') lang?: string) {
-     return this.courses.listTopics(lang, user)
-   }
+ export default function AdminSpaPage() {
+   const { user } = useAuth()
+   const isStaff = user?.role === 'STAFF'
+   const [tab, setTab] = useState<TabKey>(isStaff ? 'appointments' : 'branches')
+   const [loading, setLoading] = useState(false)
+   const [branches, setBranches] = useState<Branch[]>([])
+   const [services, setServices] = useState<SpaService[]>([])
+   const [servicePageItems, setServicePageItems] = useState<SpaService[]>([])
+   const [serviceSearchKeyword, setServiceSearchKeyword] = useState('')
+   const [servicePage, setServicePage] = useState(1)
+   const [servicePageSize, setServicePageSize] = useState(10)
+   const [serviceTotal, setServiceTotal] = useState(0)
+   const [serviceTotalPages, setServiceTotalPages] = useState(1)
+   const [categories, setCategories] = useState<ServiceCategory[]>([])
+   const [specialists, setSpecialists] = useState<Specialist[]>([])
+   const [appointments, setAppointments] = useState<Appointment[]>([])
+   const [selectedImage, setSelectedImage] = useState<File | null>(null)
+   const [lang, setLang] = useState<AdminLang>(() => {
+     const saved = window.localStorage.getItem(LANG_STORAGE_KEY)
+     return saved === 'vi' || saved === 'en' || saved === 'de' ? saved : 'vi'
+   })
 
 +
-+  @Get('public/slug/:slug')
-+  publicDetailBySlug(@Param('slug') slug: string, @Query('lang') lang?: string) {
-+    return this.courses.publicDetailBySlug(slug, lang)
-+  }
++  const [theme, setTheme] = useState<AdminTheme>(() => {
++    const saved = window.localStorage.getItem(THEME_STORAGE_KEY)
++    return saved === 'dark' ? 'dark' : 'light'
++  })
+   const [branchForm, setBranchForm] = useState<BranchForm>(defaultBranchForm)
+   const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
+   const [serviceForm, setServiceForm] = useState<ServiceForm>(defaultServiceForm)
+   const [editingService, setEditingService] = useState<SpaService | null>(null)
+   const [categoryForm, setCategoryForm] = useState<CategoryForm>(defaultCategoryForm)
+   const [editingCategory, setEditingCategory] = useState<ServiceCategory | null>(null)
+   const [specialistForm, setSpecialistForm] = useState<SpecialistForm>(defaultSpecialistForm)
+   const [editingSpecialist, setEditingSpecialist] = useState<Specialist | null>(null)
+
+   const activeBranches = useMemo(() => branches.filter((item) => item.isActive), [branches])
+   const displayName = useMemo(() => {
+     if (!user?.email) return 'Admin User'
+     const baseName = user.email.split('@')[0]?.replace(/[._-]+/g, ' ').trim()
+     return baseName ? baseName.replace(/\b\w/g, (char) => char.toUpperCase()) : user.email
+   }, [user?.email])
+   const roleLabel = user?.role === 'ADMIN' ? 'Administrator' : user?.role === 'STAFF' ? uiText[lang].specialistRole : user?.role ?? 'User'
+   const avatarLetter = (displayName[0] || 'A').toUpperCase()
+   const t = uiText[lang]
+
+   useEffect(() => {
+     window.localStorage.setItem(LANG_STORAGE_KEY, lang)
+   }, [lang])
+
++  useEffect(() => {
++    window.localStorage.setItem(THEME_STORAGE_KEY, theme)
++  }, [theme])
 +
-   @UseGuards(AccessTokenGuard)
-   @Get(':id')
-   findOne(@Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
-     return this.courses.findOne(id, lang)
+   const loadServices = async (params?: { page?: number; q?: string; pageSize?: number }) => {
+     const response = await spaAdminApi.services({ q: params?.q ?? serviceSearchKeyword, page: params?.page ?? servicePage, pageSize: params?.pageSize ?? servicePageSize, includeInactive: true, lang })
+     setServicePageItems(response.items)
+     setServiceTotal(response.total)
+     setServiceTotalPages(response.totalPages)
+     setServicePage(response.page)
+     setServicePageSize(response.pageSize)
    }
 
-   @UseGuards(AccessTokenGuard)
-   @Get(':id/lessons')
-   listLessons(@CurrentUser() user: any, @Param('id', ParseIntPipe) id: number) {
-     return this.courses.listLessons(user, id)
+   const loadAll = async () => {
+     setLoading(true)
+     try {
+       const [b, c, sAll, s, sp, a] = await Promise.all([
+         spaAdminApi.branches({ includeInactive: true, lang }),
+         spaAdminApi.serviceCategories(lang),
+         spaAdminApi.services({ page: 1, pageSize: 100, includeInactive: true, lang }),
+         spaAdminApi.services({ q: serviceSearchKeyword, page: servicePage, pageSize: servicePageSize, includeInactive: true, lang }),
+         spaAdminApi.specialists({ lang }),
+         spaAdminApi.appointments(),
+       ])
+       setBranches(b)
+       setCategories(c)
+       setServices(sAll.items)
+       setServicePageItems(s.items)
+       setServiceTotal(s.total)
+@@ -258,69 +278,78 @@ export default function AdminSpaPage() {
+   }, [serviceSearchKeyword, servicePageSize, isStaff, lang])
+
+   const saveBranch = async () => {
+     const normalizedName = (branchForm.name || '').trim()
+     const normalizedAddress = (branchForm.address || '').trim()
+     const normalizedPhone = (branchForm.phone || '').trim()
+     const generatedCode = normalizeBranchCode(normalizedName)
+     if (!normalizedName || normalizedName.length < 2) return AlertJs.error('Tên chi nhánh chưa hợp lệ', 'Tên chi nhánh cần có ít nhất 2 ký tự.')
+     if (!normalizedAddress) return AlertJs.error('Thiếu địa chỉ', 'Vui lòng nhập địa chỉ chi nhánh.')
+     if (!isValidPhoneNumber(normalizedPhone)) return AlertJs.error('Số điện thoại chưa hợp lệ', 'Vui lòng nhập đúng định dạng số điện thoại quốc tế (không giới hạn quốc gia).')
+
+     const payload: BranchForm = { ...branchForm, code: generatedCode, name: normalizedName, address: normalizedAddress, phone: normalizedPhone }
+     try {
+       if (editingBranch) await spaAdminApi.updateBranch(editingBranch.id, payload)
+       else await spaAdminApi.createBranch(payload)
+       setEditingBranch(null)
+       setBranchForm(defaultBranchForm)
+       await loadAll()
+       await AlertJs.success('Đã lưu chi nhánh thành công', `Mã chi nhánh: ${generatedCode}. Dữ liệu đã được đồng bộ lên hệ thống.`)
+     } catch (error) {
+       await AlertJs.error('Lưu chi nhánh thất bại', getVietnameseError(error, 'Vui lòng kiểm tra lại thông tin chi nhánh.'))
+     }
    }
 
-   @UseGuards(AccessTokenGuard)
-   @Get(':id/lessons/:lessonId')
-   getLesson(
-     @CurrentUser() user: any,
-     @Param('id', ParseIntPipe) courseId: number,
-     @Param('lessonId', ParseIntPipe) lessonId: number,
-   ) {
-     return this.courses.getLessonDetail(user, courseId, lessonId)
-   }
+   return (
+-    <main className='admin-page'>
++    <main className='admin-page' data-theme={theme}>
+       <header className='admin-header'>
+         <div>
+           <p className='admin-header-kicker'>{t.kicker}</p>
+           <h1>{isStaff ? t.staffTitle : t.adminTitle}</h1>
+           <p>{isStaff ? t.staffDesc : t.adminDesc}</p>
+         </div>
+         <div className='admin-header-side'>
+           <div className='admin-lang-switch' role='group' aria-label='Admin language switch'>
+             <button type='button' className={`admin-lang-option ${lang === 'en' ? 'active' : ''}`} onClick={() => setLang('en')} aria-label='English (US)'>
+               <img src='https://flagcdn.com/w40/us.png' alt='USA flag' loading='lazy' />
+             </button>
+             <button type='button' className={`admin-lang-option ${lang === 'de' ? 'active' : ''}`} onClick={() => setLang('de')} aria-label='Deutsch'>
+               <img src='https://flagcdn.com/w40/de.png' alt='Germany flag' loading='lazy' />
+             </button>
+             <button type='button' className={`admin-lang-option ${lang === 'vi' ? 'active' : ''}`} onClick={() => setLang('vi')} aria-label='Tiếng Việt'>
+               <img src='https://flagcdn.com/w40/vn.png' alt='Vietnam flag' loading='lazy' />
+             </button>
+           </div>
++          <label className='admin-theme-toggle' aria-label={t.themeSwitch}>
++            <input
++              type='checkbox'
++              checked={theme === 'dark'}
++              onChange={(e) => setTheme(e.target.checked ? 'dark' : 'light')}
++            />
++            <span className='admin-theme-slider' />
++            <span className='admin-theme-label'>{theme === 'dark' ? t.themeDark : t.themeLight}</span>
++          </label>
+           <div className='admin-user-badge' aria-label='Thông tin tài khoản đăng nhập'>
+           <div className='admin-user-avatar'>{avatarLetter}</div>
+           <div className='admin-user-meta'><strong>{displayName}</strong><span>{roleLabel}</span></div>
+           </div>
+         </div>
+       </header>
 
-   @UseGuards(AccessTokenGuard, RolesGuard)
-   @Roles('ADMIN')
-   @Post('thumbnail/upload')
-diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-index f40a924e01934cfa314feded1479b860a923c830..77761fbd41d27dce52203976fc69ce78f6a269cf 100644
---- a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-@@ -165,50 +165,161 @@ export class CoursesService {
-         where,
-         select: {
-           ...this.baseCourseSelect,
-           translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, title: true, shortDescription: true, description: true, objectives: true, targetAudience: true, benefits: true } },
-           contentTranslations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, objectives: true, targetAudience: true, benefits: true } },
-           topic: { select: { id: true, name: true, translations: { where: { locale: { in: [topicLocale, 'vi'] } }, select: { locale: true, name: true } } } },
-         },
-         skip: (page - 1) * pageSize, take: pageSize, orderBy: { id: 'desc' },
-       }),
-       this.prisma.course.count({ where }),
-     ])
-     const courseIds = rows.map((r) => r.id)
-     if (!courseIds.length) return { items: [], total, page, pageSize }
-     const videoRows = await this.prisma.$queryRaw<Array<{ courseId: number; videoCount: bigint | number }>>`SELECT l.courseId as courseId, COUNT(v.id) as videoCount FROM LessonVideo v INNER JOIN LessonModule m ON m.id = v.moduleId INNER JOIN Lesson l ON l.id = m.lessonId WHERE l.courseId IN (${Prisma.join(courseIds)}) GROUP BY l.courseId`
-     const videoCountMap = new Map(videoRows.map((r) => [Number(r.courseId), Number(r.videoCount)]))
-     const items = rows.map((row: any) => {
-       const tr = row.translations?.find((x: any) => x.locale === courseLocale) || row.translations?.find((x: any) => x.locale === 'vi')
-       const ct = row.translations?.find((x: any) => x.locale === courseLocale) || row.translations?.find((x: any) => x.locale === 'vi')
-       const legacyCt = row.contentTranslations?.find((x: any) => x.locale === courseLocale) || row.contentTranslations?.find((x: any) => x.locale === 'vi')
-       const tt = row.topic?.translations?.find((x: any) => x.locale === topicLocale) || row.topic?.translations?.find((x: any) => x.locale === 'vi')
-       return { ...row, title: tr?.title || row.title, shortDescription: tr?.shortDescription || row.shortDescription, description: tr?.description || row.description, objectives: ct?.objectives || legacyCt?.objectives || row.objectives, targetAudience: ct?.targetAudience || legacyCt?.targetAudience || row.targetAudience, benefits: ct?.benefits || legacyCt?.benefits || row.benefits, topic: row.topic ? { id: row.topic.id, name: tt?.name || row.topic.name } : null, videoCount: videoCountMap.get(row.id) || 0 }
+       {!isStaff && (
+         <>
+           <section className='admin-overview'>
+             <article className='overview-card'><span>{t.branches}</span><strong>{branches.length}</strong><small>{t.active}: {activeBranches.length}</small><i className='overview-icon fa-solid fa-building' /></article>
+             <article className='overview-card'><span>{t.services}</span><strong>{services.length}</strong><small>{t.serviceCatalog}</small><i className='overview-icon fa-solid fa-spa' /></article>
+             <article className='overview-card'><span>{t.specialists}</span><strong>{specialists.length}</strong><small>{t.specialistCapacity}</small><i className='overview-icon fa-solid fa-user-nurse' /></article>
+             <article className='overview-card'><span>{t.appointments}</span><strong>{appointments.length}</strong><small>{t.synced}</small><i className='overview-icon fa-solid fa-calendar-check' /></article>
+           </section>
+
+           <nav className='admin-tabs'>
+             <button className={`admin-tab ${tab === 'branches' ? 'active' : ''}`} onClick={() => setTab('branches')}><i className='fa-solid fa-building-circle-check' />{t.branches} ({branches.length})</button>
+             <button className={`admin-tab ${tab === 'categories' ? 'active' : ''}`} onClick={() => setTab('categories')}><i className='fa-solid fa-layer-group' />{t.serviceCategories} ({categories.length})</button>
+             <button className={`admin-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => setTab('services')}><i className='fa-solid fa-leaf' />{t.services} ({serviceTotal})</button>
+             <button className={`admin-tab ${tab === 'specialists' ? 'active' : ''}`} onClick={() => setTab('specialists')}><i className='fa-solid fa-people-group' />{t.specialists}</button>
+             <button className={`admin-tab ${tab === 'appointments' ? 'active' : ''}`} onClick={() => setTab('appointments')}><i className='fa-solid fa-calendar-days' />{t.appointments}</button>
+           </nav>
+         </>
+       )}
+diff --git a/ayanavita-fontend/src/pages/admin/tabs/AppointmentsTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/AppointmentsTab.tsx
+index 5158770a4b7544f4e6215724d12c4df39e5ef0b6..1537ea7a3ecc96f990727481c4656e584e771d46 100644
+--- a/ayanavita-fontend/src/pages/admin/tabs/AppointmentsTab.tsx
++++ b/ayanavita-fontend/src/pages/admin/tabs/AppointmentsTab.tsx
+@@ -6,50 +6,69 @@ const statusLabelMap: Record<string, string> = {
+   PENDING: 'Chưa xác nhận',
+   CONFIRMED: 'Đã xác nhận',
+   DONE: 'Khách đến',
+   CANCELED: 'Khách không đến',
+ }
+
+ const statusClassMap: Record<string, string> = {
+   PENDING: 'admin-badge-orange',
+   CONFIRMED: 'admin-badge-blue',
+   DONE: 'admin-badge-green',
+   CANCELED: 'admin-badge-pastel',
+ }
+
+ type StatusValue = 'PENDING' | 'CONFIRMED' | 'DONE' | 'CANCELED'
+ type ChartType = 'line' | 'doughnut' | 'bar'
+
+ declare global {
+   interface Window {
+     Chart?: any
+     __chartJsLoading?: Promise<any>
+   }
+ }
+
+ const defaultStats: AppointmentStatsResponse = { total: 0, byStatus: {}, byService: [], bySpecialist: [], byMonth: [] }
+
++
++const textMap = {
++  vi: {
++    title: 'Lịch hẹn', list: 'Danh sách', stats: 'Thống kê', allBranches: 'Tất cả chi nhánh', allServices: 'Tất cả dịch vụ', allSpecialists: 'Tất cả chuyên viên',
++    code: 'Mã', customer: 'Khách hàng', phone: 'SĐT', branch: 'Chi nhánh', service: 'Dịch vụ', specialist: 'Chuyên viên', status: 'Trạng thái', action: 'Thao tác',
++    unassigned: 'Chưa phân công', details: 'Xem chi tiết', delete: 'Xóa lịch', showing: 'Hiển thị', appointments: 'lịch hẹn', prev: 'Trước', next: 'Sau', page: 'Trang',
++  },
++  en: {
++    title: 'Appointments', list: 'List', stats: 'Statistics', allBranches: 'All branches', allServices: 'All services', allSpecialists: 'All specialists',
++    code: 'Code', customer: 'Customer', phone: 'Phone', branch: 'Branch', service: 'Service', specialist: 'Specialist', status: 'Status', action: 'Actions',
++    unassigned: 'Unassigned', details: 'View details', delete: 'Delete', showing: 'Showing', appointments: 'appointments', prev: 'Prev', next: 'Next', page: 'Page',
++  },
++  de: {
++    title: 'Termine', list: 'Liste', stats: 'Statistik', allBranches: 'Alle Filialen', allServices: 'Alle Leistungen', allSpecialists: 'Alle Spezialisten',
++    code: 'Code', customer: 'Kunde', phone: 'Telefon', branch: 'Filiale', service: 'Leistung', specialist: 'Spezialist', status: 'Status', action: 'Aktionen',
++    unassigned: 'Nicht zugewiesen', details: 'Details', delete: 'Löschen', showing: 'Anzeige', appointments: 'Termine', prev: 'Zurück', next: 'Weiter', page: 'Seite',
++  },
++} as const
++
+ const loadChartJs = () => {
+   if (typeof window === 'undefined') return Promise.resolve(null)
+   if (window.Chart) return Promise.resolve(window.Chart)
+   if (window.__chartJsLoading) return window.__chartJsLoading
+
+   window.__chartJsLoading = new Promise((resolve, reject) => {
+     const script = document.createElement('script')
+     script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js'
+     script.async = true
+     script.onload = () => resolve(window.Chart)
+     script.onerror = () => reject(new Error('Không tải được Chart.js từ CDN'))
+     document.head.appendChild(script)
+   })
+
+   return window.__chartJsLoading
+ }
+
+ function ChartJsPanel(props: {
+   title: string
+   type: ChartType
+   labels: string[]
+   values: number[]
+   colors: string[]
+   fullWidth?: boolean
+   options?: Record<string, unknown>
+@@ -178,51 +197,52 @@ function ChartJsPanel(props: {
+     }
+   }, [colors, labels, options, title, type, values])
+
+   return (
+     <article className={`admin-stat-card ${fullWidth ? 'admin-stat-card-full' : ''}`}>
+       <h4>{title}</h4>
+       <div className={`admin-chart-host ${fullWidth ? 'admin-chart-host-line' : 'admin-chart-host-small'}`}>
+         <canvas ref={canvasRef} className='admin-chart-canvas' />
+       </div>
+       {loadError && <small className='admin-helper'>{loadError}</small>}
+     </article>
+   )
+ }
+
+ function statusActionItems(isStaff: boolean) {
+   const adminItems: Array<{ value: StatusValue; label: string }> = [
+     { value: 'PENDING', label: statusLabelMap.PENDING },
+     { value: 'CONFIRMED', label: statusLabelMap.CONFIRMED },
+     { value: 'DONE', label: statusLabelMap.DONE },
+     { value: 'CANCELED', label: statusLabelMap.CANCELED },
+   ]
+   if (!isStaff) return adminItems
+   return adminItems.filter((item) => item.value === 'DONE' || item.value === 'CANCELED')
+ }
+
+-export function AppointmentsTab({ appointments, specialists, branches, services, isStaff, loading, onAssignSpecialist, onUpdateStatus, onDeleteAppointment }: AppointmentsTabProps) {
++export function AppointmentsTab({ lang = 'vi', appointments, specialists, branches, services, isStaff, loading, onAssignSpecialist, onUpdateStatus, onDeleteAppointment }: AppointmentsTabProps) {
++  const t = textMap[lang]
+   const [view, setView] = useState<'list' | 'stats'>('list')
+
+   const [listSearchName, setListSearchName] = useState('')
+   const [listSearchPhone, setListSearchPhone] = useState('')
+   const [listBranchId, setListBranchId] = useState(0)
+   const [listServiceId, setListServiceId] = useState(0)
+   const [listSpecialistId, setListSpecialistId] = useState(0)
+   const [listFilterMonth, setListFilterMonth] = useState('')
+   const [listFilterDate, setListFilterDate] = useState('')
+   const [listPage, setListPage] = useState(1)
+   const [listPageSize, setListPageSize] = useState(10)
+
+   const [statsPhone, setStatsPhone] = useState('')
+   const [statsBranchId, setStatsBranchId] = useState(0)
+   const [statsServiceId, setStatsServiceId] = useState(0)
+   const [statsSpecialistId, setStatsSpecialistId] = useState(0)
+
+   const [actionMenuId, setActionMenuId] = useState<number | null>(null)
+   const [detailAppointment, setDetailAppointment] = useState<Appointment | null>(null)
+   const [stats, setStats] = useState<AppointmentStatsResponse>(defaultStats)
+   const [statsLoading, setStatsLoading] = useState(false)
+   const [statsError, setStatsError] = useState('')
+
+   const filteredAppointments = useMemo(() => appointments.filter((item) => {
+     const date = new Date(item.appointmentAt)
+@@ -252,71 +272,71 @@ export function AppointmentsTab({ appointments, specialists, branches, services,
+     spaAdminApi.appointmentStats({
+       customerPhone: statsPhone,
+       branchId: statsBranchId || undefined,
+       serviceId: statsServiceId || undefined,
+       specialistId: statsSpecialistId || undefined,
      })
-     return { items, total, page, pageSize }
+       .then((res) => {
+         if (!active) return
+         setStats(res)
+       })
+       .catch(() => {
+         if (!active) return
+         setStats(defaultStats)
+         setStatsError('Không tải được thống kê từ máy chủ. Vui lòng thử lại.')
+       })
+       .finally(() => {
+         if (active) setStatsLoading(false)
+       })
+
+     return () => { active = false }
+   }, [statsBranchId, statsPhone, statsServiceId, statsSpecialistId])
+
+   return (
+     <section className='admin-card admin-card-glow'>
+       <div className='admin-row admin-row-between'>
+-        <h3 className='admin-card-title'><i className='fa-solid fa-calendar-days' /> Lịch hẹn ({filteredAppointments.length})</h3>
++        <h3 className='admin-card-title'><i className='fa-solid fa-calendar-days' /> {t.title} ({filteredAppointments.length})</h3>
+         <div className='admin-row'>
+-          <button className={`admin-btn admin-btn-ghost ${view === 'list' ? 'admin-btn-active' : ''}`} onClick={() => setView('list')}>Danh sách</button>
+-          <button className={`admin-btn admin-btn-ghost ${view === 'stats' ? 'admin-btn-active' : ''}`} onClick={() => setView('stats')}>Thống kê</button>
++          <button className={`admin-btn admin-btn-ghost ${view === 'list' ? 'admin-btn-active' : ''}`} onClick={() => setView('list')}>{t.list}</button>
++          <button className={`admin-btn admin-btn-ghost ${view === 'stats' ? 'admin-btn-active' : ''}`} onClick={() => setView('stats')}>{t.stats}</button>
+         </div>
+       </div>
+
+       {view === 'stats' ? (
+         <>
+           <div className='admin-filters-grid'>
+             <input className='admin-input' placeholder='Số điện thoại' value={statsPhone} onChange={(e) => setStatsPhone(e.target.value)} />
+             <select className='admin-input' value={statsBranchId} onChange={(e) => setStatsBranchId(Number(e.target.value))}>
+-              <option value={0}>Tất cả chi nhánh</option>
++              <option value={0}>{t.allBranches}</option>
+               {branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+             </select>
+             <select className='admin-input' value={statsServiceId} onChange={(e) => setStatsServiceId(Number(e.target.value))}>
+-              <option value={0}>Tất cả dịch vụ</option>
++              <option value={0}>{t.allServices}</option>
+               {services.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+             </select>
+             <select className='admin-input' value={statsSpecialistId} onChange={(e) => setStatsSpecialistId(Number(e.target.value))}>
+-              <option value={0}>Tất cả chuyên viên</option>
++              <option value={0}>{t.allSpecialists}</option>
+               {specialists.map((item: Specialist) => <option key={item.id} value={item.id}>{item.name}</option>)}
+             </select>
+           </div>
+
+           <div className='admin-kpi-grid'>
+             <article className='admin-kpi-card'><span>Tổng lịch hẹn</span><strong>{stats.total}</strong></article>
+             <article className='admin-kpi-card'><span>Đã hoàn tất</span><strong>{stats.byStatus.DONE || 0}</strong></article>
+             <article className='admin-kpi-card'><span>Chờ xác nhận</span><strong>{stats.byStatus.PENDING || 0}</strong></article>
+             <article className='admin-kpi-card'><span>Đã hủy</span><strong>{stats.byStatus.CANCELED || 0}</strong></article>
+           </div>
+
+           <div className='admin-stats-grid'>
+             <ChartJsPanel
+               title='Theo trạng thái'
+               type='doughnut'
+               labels={Object.keys(statusLabelMap).map((key) => statusLabelMap[key])}
+               values={Object.keys(statusLabelMap).map((key) => stats.byStatus[key] || 0)}
+               colors={['#fbbf24', '#60a5fa', '#34d399', '#fb7185']}
+             />
+             {!isStaff && (
+                 <ChartJsPanel
+                     title='Theo chuyên viên'
+                     type='doughnut'
+                     labels={stats.bySpecialist.slice(0, 6).map((item) => item.label)}
+                     values={stats.bySpecialist.slice(0, 6).map((item) => item.value)}
+@@ -333,133 +353,133 @@ export function AppointmentsTab({ appointments, specialists, branches, services,
+             />
+
+             <ChartJsPanel
+               title='Lịch hẹn theo tháng (line)'
+               type='line'
+               labels={stats.byMonth.slice(-12).map((item) => item.label)}
+               values={stats.byMonth.slice(-12).map((item) => item.value)}
+               colors={['#0ea5e9']}
+               fullWidth
+               options={{ plugins: { legend: { display: false } } }}
+             />
+
+
+
+           </div>
+
+           {statsLoading && <p className='admin-helper'>Đang tải thống kê...</p>}
+           {statsError && <p className='admin-helper'>{statsError}</p>}
+         </>
+       ) : (
+         <>
+           <div className='admin-filters-grid'>
+             <input className='admin-input' placeholder='Tên khách' value={listSearchName} onChange={(e) => { setListSearchName(e.target.value); setListPage(1) }} />
+             <input className='admin-input' placeholder='Số điện thoại' value={listSearchPhone} onChange={(e) => { setListSearchPhone(e.target.value); setListPage(1) }} />
+             <select className='admin-input' value={listBranchId} onChange={(e) => { setListBranchId(Number(e.target.value)); setListPage(1) }}>
+-              <option value={0}>Tất cả chi nhánh</option>
++              <option value={0}>{t.allBranches}</option>
+               {branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+             </select>
+             <select className='admin-input' value={listServiceId} onChange={(e) => { setListServiceId(Number(e.target.value)); setListPage(1) }}>
+-              <option value={0}>Tất cả dịch vụ</option>
++              <option value={0}>{t.allServices}</option>
+               {services.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+             </select>
+             <select className='admin-input' value={listSpecialistId} onChange={(e) => { setListSpecialistId(Number(e.target.value)); setListPage(1) }}>
+-              <option value={0}>Tất cả chuyên viên</option>
++              <option value={0}>{t.allSpecialists}</option>
+               {specialists.map((item: Specialist) => <option key={item.id} value={item.id}>{item.name}</option>)}
+             </select>
+             <input className='admin-input' type='month' value={listFilterMonth} onChange={(e) => { setListFilterMonth(e.target.value); setListPage(1) }} />
+             <input className='admin-input' type='date' value={listFilterDate} onChange={(e) => { setListFilterDate(e.target.value); setListPage(1) }} />
+             <select className='admin-input' value={listPageSize} onChange={(e) => { setListPageSize(Number(e.target.value)); setListPage(1) }}>
+               <option value={10}>10 / trang</option>
+               <option value={20}>20 / trang</option>
+               <option value={50}>50 / trang</option>
+             </select>
+           </div>
+
+           <div className='admin-table-wrap'>
+             <table className='admin-table'>
+               <thead>
+                 <tr>
+-                  <th>Mã</th>
+-                  <th>Khách hàng</th>
+-                  <th>SĐT</th>
+-                  <th>Chi nhánh</th>
+-                  <th>Dịch vụ</th>
+-                  <th>Chuyên viên</th>
+-                  <th>Trạng thái</th>
+-                  <th>Thao tác</th>
++                  <th>{t.code}</th>
++                  <th>{t.customer}</th>
++                  <th>{t.phone}</th>
++                  <th>{t.branch}</th>
++                  <th>{t.service}</th>
++                  <th>{t.specialist}</th>
++                  <th>{t.status}</th>
++                  <th>{t.action}</th>
+                 </tr>
+               </thead>
+               <tbody>
+                 {pagedAppointments.map((appointment) => (
+                   <tr key={appointment.id}>
+                     <td className='td-strong'>{appointment.code || `#${appointment.id}`}</td>
+                     <td>{appointment.customerName}</td>
+                     <td>{appointment.customerPhone}</td>
+                     <td>{appointment.branch?.name || '-'}</td>
+                     <td>{appointment.service?.name || '-'}</td>
+                     <td>
+                       {isStaff ? (
+                         appointment.specialist?.name || '-'
+                       ) : (
+                         <select className='admin-input' value={appointment.specialist?.id ?? ''} onChange={(e) => onAssignSpecialist(appointment, e.target.value ? Number(e.target.value) : null)}>
+-                          <option value=''>Chưa phân công</option>
++                          <option value=''>{t.unassigned}</option>
+                           {specialists
+                             .filter((item) => item.branchId === appointment.branch?.id && item.serviceIds.includes(appointment.service?.id || 0))
+                             .map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                         </select>
+                       )}
+                     </td>
+                     <td><span className={`admin-badge ${statusClassMap[appointment.status] || 'admin-badge-orange'}`}>{statusLabelMap[appointment.status] || appointment.status}</span></td>
+                     <td>
+                       <div className='admin-action-menu-wrap'>
+                         <button className='admin-btn admin-btn-ghost' onClick={() => setActionMenuId((prev) => prev === appointment.id ? null : appointment.id)}><i className='fa-solid fa-ellipsis' /></button>
+                         {actionMenuId === appointment.id && (
+                           <div className='admin-action-menu'>
+                             {statusActionItems(isStaff).map((item) => (
+                               <button key={item.value} className='admin-btn admin-btn-ghost' disabled={appointment.status === item.value || loading} onClick={() => { setActionMenuId(null); void onUpdateStatus(appointment, item.value) }}>
+                                 {item.label}
+                               </button>
+                             ))}
+-                            <button className='admin-btn admin-btn-ghost' onClick={() => { setDetailAppointment(appointment); setActionMenuId(null) }}>Xem chi tiết</button>
+-                            {!isStaff && <button className='admin-btn admin-btn-danger' onClick={() => { setActionMenuId(null); void onDeleteAppointment(appointment) }}>Xóa lịch</button>}
++                            <button className='admin-btn admin-btn-ghost' onClick={() => { setDetailAppointment(appointment); setActionMenuId(null) }}>{t.details}</button>
++                            {!isStaff && <button className='admin-btn admin-btn-danger' onClick={() => { setActionMenuId(null); void onDeleteAppointment(appointment) }}>{t.delete}</button>}
+                           </div>
+                         )}
+                       </div>
+                     </td>
+                   </tr>
+                 ))}
+               </tbody>
+             </table>
+           </div>
+
+           <div className='admin-row admin-row-between'>
+-            <span className='admin-helper'>Hiển thị {pagedAppointments.length}/{filteredAppointments.length} lịch hẹn</span>
++            <span className='admin-helper'>{t.showing} {pagedAppointments.length}/{filteredAppointments.length} {t.appointments}</span>
+             <div className='admin-row'>
+-              <button className='admin-btn admin-btn-ghost' disabled={safePage <= 1} onClick={() => setListPage((prev) => Math.max(1, prev - 1))}>Trước</button>
+-              <span className='admin-helper'>Trang {safePage}/{totalPages}</span>
+-              <button className='admin-btn admin-btn-ghost' disabled={safePage >= totalPages} onClick={() => setListPage((prev) => Math.min(totalPages, prev + 1))}>Sau</button>
++              <button className='admin-btn admin-btn-ghost' disabled={safePage <= 1} onClick={() => setListPage((prev) => Math.max(1, prev - 1))}>{t.prev}</button>
++              <span className='admin-helper'>{t.page} {safePage}/{totalPages}</span>
++              <button className='admin-btn admin-btn-ghost' disabled={safePage >= totalPages} onClick={() => setListPage((prev) => Math.min(totalPages, prev + 1))}>{t.next}</button>
+             </div>
+           </div>
+         </>
+       )}
+
+       {detailAppointment && (
+         <div className='admin-modal-backdrop' onClick={() => setDetailAppointment(null)}>
+           <div className='admin-modal' onClick={(e) => e.stopPropagation()}>
+             <h4>Chi tiết lịch hẹn {detailAppointment.code || `#${detailAppointment.id}`}</h4>
+             <div className='admin-detail-grid'>
+               <p><strong>Khách hàng:</strong> {detailAppointment.customerName}</p>
+               <p><strong>SĐT:</strong> {detailAppointment.customerPhone}</p>
+               <p><strong>Email:</strong> {detailAppointment.customerEmail || '-'}</p>
+               <p><strong>Trạng thái:</strong> {statusLabelMap[detailAppointment.status] || detailAppointment.status}</p>
+               <p><strong>Chi nhánh:</strong> {detailAppointment.branch?.name || '-'}</p>
+               <p><strong>Dịch vụ:</strong> {detailAppointment.service?.name || '-'}</p>
+               <p><strong>Chuyên viên:</strong> {detailAppointment.specialist?.name || 'Chưa phân công'}</p>
+               <p><strong>Thời gian:</strong> {new Date(detailAppointment.appointmentAt).toLocaleString('vi-VN')}</p>
+               <p className='admin-detail-note'><strong>Ghi chú:</strong> {detailAppointment.note || 'Không có ghi chú'}</p>
+             </div>
+             <div className='admin-row'>
+               <button className='admin-btn admin-btn-ghost' onClick={() => setDetailAppointment(null)}>Đóng</button>
+             </div>
+           </div>
+         </div>
+diff --git a/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
+index 36e271219ed04e88a1532ac0bf329dda501b3d3a..ff4719cbe2c32a9df54ca4a672fdfbc9bfed6b69 100644
+--- a/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
++++ b/ayanavita-fontend/src/pages/admin/tabs/BranchesTab.tsx
+@@ -1,60 +1,82 @@
+ import { useRef, useState } from 'react'
+ import type { BranchesTabProps } from './types'
+ import { autoTranslateFromVietnamese, type LocaleMode } from './i18nForm'
+
+ const locales: LocaleMode[] = ['vi', 'en', 'de']
+
++const textMap = {
++  vi: {
++    update: 'Cập nhật chi nhánh', create: 'Tạo chi nhánh mới', localeHint: 'Mặc định nhập tiếng Việt, hệ thống tự dịch sang Anh/Đức. Khi lưu vui lòng kiểm tra lại bản dịch.',
++    code: 'Mã chi nhánh', name: 'Tên chi nhánh', address: 'Địa chỉ', phone: 'Số điện thoại', active: 'Đang hoạt động', inactive: 'Đang tắt',
++    save: 'Lưu thay đổi', add: 'Thêm chi nhánh', cancel: 'Hủy', reset: 'Làm mới', list: 'Danh sách chi nhánh', colName: 'Tên', colCode: 'Mã', colAddress: 'Địa chỉ', colPhone: 'Điện thoại', colStatus: 'Trạng thái', colAction: 'Thao tác',
++    edit: 'Sửa', del: 'Xóa', disabledDelete: 'Chi nhánh đã ngưng hoạt động, không thể xóa thêm.',
++  },
++  en: {
++    update: 'Update branch', create: 'Create new branch', localeHint: 'Default input is Vietnamese; the system auto-translates to English/German. Please review translations before saving.',
++    code: 'Branch code', name: 'Branch name', address: 'Address', phone: 'Phone number', active: 'Active', inactive: 'Inactive',
++    save: 'Save changes', add: 'Add branch', cancel: 'Cancel', reset: 'Reset', list: 'Branch list', colName: 'Name', colCode: 'Code', colAddress: 'Address', colPhone: 'Phone', colStatus: 'Status', colAction: 'Actions',
++    edit: 'Edit', del: 'Delete', disabledDelete: 'This branch is inactive and cannot be deleted.',
++  },
++  de: {
++    update: 'Filiale aktualisieren', create: 'Neue Filiale erstellen', localeHint: 'Standardmäßig auf Vietnamesisch eingeben; das System übersetzt automatisch nach Englisch/Deutsch. Bitte Übersetzungen vor dem Speichern prüfen.',
++    code: 'Filialcode', name: 'Filialname', address: 'Adresse', phone: 'Telefonnummer', active: 'Aktiv', inactive: 'Inaktiv',
++    save: 'Änderungen speichern', add: 'Filiale hinzufügen', cancel: 'Abbrechen', reset: 'Zurücksetzen', list: 'Filialliste', colName: 'Name', colCode: 'Code', colAddress: 'Adresse', colPhone: 'Telefon', colStatus: 'Status', colAction: 'Aktionen',
++    edit: 'Bearbeiten', del: 'Löschen', disabledDelete: 'Diese Filiale ist inaktiv und kann nicht gelöscht werden.',
++  },
++} as const
++
+ export function BranchesTab({ lang = 'vi', branches, branchForm, editingBranch, onBranchFormChange, onSaveBranch, onEditBranch, onDeleteBranch, onCancelEdit }: BranchesTabProps) {
++  const t = textMap[lang]
+   const [mode, setMode] = useState<LocaleMode>('vi')
+   const translateReqRef = useRef(0)
+   const trans = branchForm.translations || {}
+   const current = trans[mode] || { name: '', address: '' }
+
+   const updateLocalized = (field: 'name' | 'address', value: string) => {
+     const nextTranslations = { ...trans, [mode]: { ...current, [field]: value } }
+     const nextForm = { ...branchForm, translations: nextTranslations }
+     if (mode === 'vi') {
+       translateReqRef.current += 1
+       const reqId = translateReqRef.current
+       onBranchFormChange({ ...nextForm, [field]: value })
+       void Promise.all([autoTranslateFromVietnamese(value, 'en'), autoTranslateFromVietnamese(value, 'de')]).then(([en, de]) => {
+         if (reqId !== translateReqRef.current) return
+         onBranchFormChange({
+           ...nextForm,
+           translations: {
+             ...nextTranslations,
+             'en': { ...(nextTranslations['en'] || { name: '', address: '' }), [field]: en },
+             de: { ...(nextTranslations.de || { name: '', address: '' }), [field]: de },
+           },
+         })
+       })
+       return
+     }
+     onBranchFormChange(nextForm)
    }
 
-+
-+  async publicDetailBySlug(slug: string, lang?: string) {
-+    const courseLocale = this.resolveCourseLocale(lang)
-+    const course = await this.prisma.course.findFirst({
-+      where: { slug, published: true },
-+      select: {
-+        id: true,
-+        slug: true,
-+        title: true,
-+        time: true,
-+        shortDescription: true,
-+        description: true,
-+        thumbnail: true,
-+        price: true,
-+        enrollmentCount: true,
-+        ratingAvg: true,
-+        ratingCount: true,
-+        translations: {
-+          where: { locale: { in: [courseLocale, 'vi'] } },
-+          select: { locale: true, title: true, shortDescription: true, description: true },
-+        },
-+        topic: {
-+          select: {
-+            id: true,
-+            name: true,
-+            translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, name: true } },
-+          },
-+        },
-+        lessons: {
-+          where: { published: true },
-+          orderBy: [{ order: 'asc' }, { id: 'asc' }],
-+          select: {
-+            id: true,
-+            title: true,
-+            slug: true,
-+            order: true,
-+            translations: {
-+              where: { locale: { in: [courseLocale, 'vi'] } },
-+              select: { locale: true, title: true },
-+            },
-+            modules: {
-+              where: { published: true },
-+              orderBy: [{ order: 'asc' }, { id: 'asc' }],
-+              select: {
-+                id: true,
-+                title: true,
-+                order: true,
-+                translations: {
-+                  where: { locale: { in: [courseLocale, 'vi'] } },
-+                  select: { locale: true, title: true },
-+                },
-+              },
-+            },
-+          },
-+        },
-+        reviews: {
-+          orderBy: { createdAt: 'desc' },
-+          take: 20,
-+          select: {
-+            id: true,
-+            stars: true,
-+            comment: true,
-+            customerName: true,
-+            createdAt: true,
-+          },
-+        },
-+      },
-+    })
-+
-+    if (!course) throw new NotFoundException('Course not found')
-+
-+    const tr = course.translations?.find((x: any) => x.locale === courseLocale) || course.translations?.find((x: any) => x.locale === 'vi')
-+    const tt = course.topic?.translations?.find((x: any) => x.locale === courseLocale) || course.topic?.translations?.find((x: any) => x.locale === 'vi')
-+
-+    return {
-+      id: course.id,
-+      slug: course.slug,
-+      title: tr?.title || course.title,
-+      shortDescription: tr?.shortDescription || course.shortDescription,
-+      description: tr?.description || course.description,
-+      time: course.time,
-+      price: course.price,
-+      thumbnail: course.thumbnail,
-+      topic: course.topic ? { id: course.topic.id, name: tt?.name || course.topic.name } : null,
-+      enrollmentCount: course.enrollmentCount,
-+      ratingAvg: course.ratingAvg,
-+      lessons: (course.lessons || []).map((lesson: any) => {
-+        const lessonTr = lesson.translations?.find((x: any) => x.locale === courseLocale) || lesson.translations?.find((x: any) => x.locale === 'vi')
-+        return {
-+          id: lesson.id,
-+          title: lessonTr?.title || lesson.title,
-+          slug: lesson.slug,
-+          order: lesson.order,
-+          modules: (lesson.modules || []).map((module: any) => {
-+            const moduleTr = module.translations?.find((x: any) => x.locale === courseLocale) || module.translations?.find((x: any) => x.locale === 'vi')
-+            return {
-+              id: module.id,
-+              title: moduleTr?.title || module.title,
-+              order: module.order,
-+            }
-+          }),
-+        }
-+      }),
-+      reviews: course.reviews,
-+      reviewSummary: {
-+        ratingAvg: course.ratingAvg,
-+        ratingCount: course.ratingCount,
-+      },
-+    }
-+  }
-+
-   async listTopics(lang?: string, user?: { sub: number; role: string } | null) {
-     const locale = this.resolveCourseLocale(lang)
-     const topics = await this.prisma.courseTopic.findMany({
-       where: {
-         ...(user?.role === 'ADMIN'
-           ? {}
-           : {
-               courses: {
-                 some: { published: true },
-               },
-             }),
-       },
-       select: {
-         id: true,
-         name: true,
-         translations: {
-           where: { locale: { in: [locale, 'vi'] } },
-           select: { locale: true, name: true },
-         },
-       },
-       orderBy: { name: 'asc' },
-     })
+   const handleReset = () => {
+     translateReqRef.current += 1
+     onCancelEdit()
+   }
 
-     return topics.map((topic: any) => {
-       const translation = topic.translations?.find((item: any) => item.locale === locale) || topic.translations?.find((item: any) => item.locale === 'vi')
+   return <div className='admin-grid'><section className='admin-card admin-card-glow'>
+-    <h3 className='admin-card-title'>{editingBranch ? 'Cập nhật chi nhánh' : 'Tạo chi nhánh mới'}</h3>
++    <h3 className='admin-card-title'>{editingBranch ? t.update : t.create}</h3>
+     <div className='admin-row'>{locales.map((l)=><button key={l} className={`admin-btn ${mode===l?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode(l)}>{l}</button>)}</div>
+-    <p className='admin-helper'>Mặc định nhập tiếng Việt, hệ thống tự dịch sang Anh/Đức. Khi lưu vui lòng kiểm tra lại bản dịch.</p>
++    <p className='admin-helper'>{t.localeHint}</p>
+     <div className='admin-form-grid'>
+-      <label className='admin-field'><span className='admin-label'>Mã chi nhánh</span><input className='admin-input' value={branchForm.code || ''} readOnly /></label>
+-      <label className='admin-field'><span className='admin-label'>Tên chi nhánh ({mode})</span><input className='admin-input' value={current.name} onChange={(e)=>updateLocalized('name', e.target.value)} /></label>
+-      <label className='admin-field'><span className='admin-label'>Địa chỉ ({mode})</span><input className='admin-input' value={current.address} onChange={(e)=>updateLocalized('address', e.target.value)} /></label>
+-      <label className='admin-field'><span className='admin-label'>Số điện thoại</span><input className='admin-input' value={branchForm.phone || ''} onChange={(e)=>onBranchFormChange({ ...branchForm, phone: e.target.value })} /></label>
++      <label className='admin-field'><span className='admin-label'>{t.code}</span><input className='admin-input' value={branchForm.code || ''} readOnly /></label>
++      <label className='admin-field'><span className='admin-label'>{t.name} ({mode})</span><input className='admin-input' value={current.name} onChange={(e)=>updateLocalized('name', e.target.value)} /></label>
++      <label className='admin-field'><span className='admin-label'>{t.address} ({mode})</span><input className='admin-input' value={current.address} onChange={(e)=>updateLocalized('address', e.target.value)} /></label>
++      <label className='admin-field'><span className='admin-label'>{t.phone}</span><input className='admin-input' value={branchForm.phone || ''} onChange={(e)=>onBranchFormChange({ ...branchForm, phone: e.target.value })} /></label>
+     </div>
+     <label className='admin-checkbox admin-branch-status-toggle'>
+       <input type='checkbox' checked={Boolean(branchForm.isActive)} onChange={(e)=>onBranchFormChange({ ...branchForm, isActive: e.target.checked })} />
+       <span className='admin-checkbox-slider' />
+-      <span className='admin-checkbox-label'>{branchForm.isActive ? 'Đang hoạt động' : 'Đang tắt'}</span>
++      <span className='admin-checkbox-label'>{branchForm.isActive ? t.active : t.inactive}</span>
+     </label>
+-    <div className='admin-row'><button className='admin-btn admin-btn-primary' onClick={onSaveBranch}>{editingBranch ? 'Lưu thay đổi' : 'Thêm chi nhánh'}</button><button className='admin-btn admin-btn-ghost' onClick={handleReset}>{editingBranch ? 'Hủy' : 'Làm mới'}</button></div>
++    <div className='admin-row'><button className='admin-btn admin-btn-primary' onClick={onSaveBranch}>{editingBranch ? t.save : t.add}</button><button className='admin-btn admin-btn-ghost' onClick={handleReset}>{editingBranch ? t.cancel : t.reset}</button></div>
+   </section>
+-  <section className='admin-card'><h3 className='admin-card-title'>Danh sách chi nhánh</h3><div className='admin-table-wrap'><table className='admin-table'><thead><tr><th>Tên</th><th>Mã</th><th>Địa chỉ</th><th>Điện thoại</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>{branches.map((branch)=>{const cannotDelete = !branch.isActive
+-  return <tr key={branch.id}><td>{branch.name}</td><td>{branch.code}</td><td>{branch.address}</td><td>{branch.phone||'-'}</td><td><span className={`services-status-icon ${branch.isActive ? 'is-active' : 'is-inactive'}`} title={branch.isActive ? 'Đang hoạt động' : 'Đang tắt'}><i className={`fa-solid ${branch.isActive ? 'fa-circle-check' : 'fa-circle-xmark'}`} /></span></td><td><div className='admin-row admin-row-nowrap'><button className='admin-btn admin-btn-ghost' onClick={()=>onEditBranch(branch)}>Sửa</button><button className='admin-btn admin-btn-danger' onClick={()=>onDeleteBranch(branch)} disabled={cannotDelete} title={cannotDelete ? 'Chi nhánh đã ngưng hoạt động, không thể xóa thêm.' : undefined}>Xóa</button></div></td></tr>})}</tbody></table></div></section></div>
++  <section className='admin-card'><h3 className='admin-card-title'>{t.list}</h3><div className='admin-table-wrap'><table className='admin-table'><thead><tr><th>{t.colName}</th><th>{t.colCode}</th><th>{t.colAddress}</th><th>{t.colPhone}</th><th>{t.colStatus}</th><th>{t.colAction}</th></tr></thead><tbody>{branches.map((branch)=>{const cannotDelete = !branch.isActive
++  return <tr key={branch.id}><td>{branch.name}</td><td>{branch.code}</td><td>{branch.address}</td><td>{branch.phone||'-'}</td><td><span className={`services-status-icon ${branch.isActive ? 'is-active' : 'is-inactive'}`} title={branch.isActive ? t.active : t.inactive}><i className={`fa-solid ${branch.isActive ? 'fa-circle-check' : 'fa-circle-xmark'}`} /></span></td><td><div className='admin-row admin-row-nowrap'><button className='admin-btn admin-btn-ghost' onClick={()=>onEditBranch(branch)}>{t.edit}</button><button className='admin-btn admin-btn-danger' onClick={()=>onDeleteBranch(branch)} disabled={cannotDelete} title={cannotDelete ? t.disabledDelete : undefined}>{t.del}</button></div></td></tr>})}</tbody></table></div></section></div>
+ }
+diff --git a/ayanavita-fontend/src/pages/admin/tabs/CategoriesTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/CategoriesTab.tsx
+index cb14c7009631c3796182fbc0f8d9ed9af028c070..a964cb41376658eeeed5d3b1a479bd84bd8001a1 100644
+--- a/ayanavita-fontend/src/pages/admin/tabs/CategoriesTab.tsx
++++ b/ayanavita-fontend/src/pages/admin/tabs/CategoriesTab.tsx
+@@ -1,39 +1,58 @@
+ import { useRef, useState } from 'react'
+ import type { CategoriesTabProps } from './types'
+ import { autoTranslateFromVietnamese, type LocaleMode } from './i18nForm'
+
+-export function CategoriesTab({ categories, categoryForm, editingCategory, onCategoryFormChange, onSaveCategory, onEditCategory, onDeleteCategory, onCancelEdit }: CategoriesTabProps) {
++const textMap = {
++  vi: {
++    update: 'Cập nhật danh mục', create: 'Tạo danh mục mới', localeHint: 'Mặc định nhập tiếng Việt, hệ thống tự dịch sang Anh/Đức. Khi lưu vui lòng kiểm tra lại bản dịch.',
++    name: 'Tên danh mục', save: 'Lưu thay đổi', add: 'Thêm danh mục', cancel: 'Hủy', reset: 'Làm mới', list: 'Danh sách danh mục',
++    colName: 'Tên', colCount: 'SL dịch vụ', colAction: 'Thao tác', edit: 'Sửa', del: 'Xóa', disabledDelete: 'Danh mục đang có dịch vụ, không thể xóa.',
++  },
++  en: {
++    update: 'Update category', create: 'Create new category', localeHint: 'Default input is Vietnamese; the system auto-translates to English/German. Please review translations before saving.',
++    name: 'Category name', save: 'Save changes', add: 'Add category', cancel: 'Cancel', reset: 'Reset', list: 'Category list',
++    colName: 'Name', colCount: 'Service count', colAction: 'Actions', edit: 'Edit', del: 'Delete', disabledDelete: 'This category has services and cannot be deleted.',
++  },
++  de: {
++    update: 'Kategorie aktualisieren', create: 'Neue Kategorie erstellen', localeHint: 'Standardmäßig auf Vietnamesisch eingeben; das System übersetzt automatisch nach Englisch/Deutsch. Bitte Übersetzungen vor dem Speichern prüfen.',
++    name: 'Kategoriename', save: 'Änderungen speichern', add: 'Kategorie hinzufügen', cancel: 'Abbrechen', reset: 'Zurücksetzen', list: 'Kategorieliste',
++    colName: 'Name', colCount: 'Anzahl Leistungen', colAction: 'Aktionen', edit: 'Bearbeiten', del: 'Löschen', disabledDelete: 'Diese Kategorie enthält Leistungen und kann nicht gelöscht werden.',
++  },
++} as const
++
++export function CategoriesTab({ lang = 'vi', categories, categoryForm, editingCategory, onCategoryFormChange, onSaveCategory, onEditCategory, onDeleteCategory, onCancelEdit }: CategoriesTabProps) {
++  const t = textMap[lang]
+   const [mode, setMode] = useState<LocaleMode>('vi')
+   const translateReqRef = useRef(0)
+   const trans = categoryForm.translations || {}
+   const value = trans[mode]?.name || ''
+
+   const onChangeName = (name: string) => {
+     const next = { ...trans, [mode]: { name } }
+     const base = { ...categoryForm, name: mode === 'vi' ? name : categoryForm.name, translations: next }
+     onCategoryFormChange(base)
+     if (mode === 'vi') {
+       translateReqRef.current += 1
+       const reqId = translateReqRef.current
+       void Promise.all([autoTranslateFromVietnamese(name, 'en'), autoTranslateFromVietnamese(name, 'de')]).then(([en, de]) => {
+         if (reqId !== translateReqRef.current) return
+         onCategoryFormChange({ ...base, translations: { ...next, 'en': { name: en }, de: { name: de } } })
+       })
+     }
+   }
+
+   const handleReset = () => {
+     translateReqRef.current += 1
+     onCancelEdit()
+   }
+
+   return <div className='admin-grid'><section className='admin-card admin-card-glow'>
+-    <h3 className='admin-card-title'>{editingCategory ? 'Cập nhật danh mục' : 'Tạo danh mục mới'}</h3>
++    <h3 className='admin-card-title'>{editingCategory ? t.update : t.create}</h3>
+     <div className='admin-row'><button className={`admin-btn ${mode==='vi'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('vi')}>VI</button><button className={`admin-btn ${mode==='en'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('en')}>EN</button><button className={`admin-btn ${mode==='de'?'admin-btn-primary':'admin-btn-ghost'}`} onClick={()=>setMode('de')}>DE</button></div>
+-    <p className='admin-helper'>Mặc định nhập tiếng Việt, hệ thống tự dịch sang Anh/Đức. Khi lưu vui lòng kiểm tra lại bản dịch.</p>
+-    <label className='admin-field'><span className='admin-label'>Tên danh mục ({mode})</span><input className='admin-input' value={value} onChange={(e)=>onChangeName(e.target.value)} /></label>
+-    <div className='admin-row'><button className='admin-btn admin-btn-primary' onClick={onSaveCategory}>{editingCategory ? 'Lưu thay đổi' : 'Thêm danh mục'}</button><button className='admin-btn admin-btn-ghost' onClick={handleReset}>{editingCategory ? 'Hủy' : 'Làm mới'}</button></div>
++    <p className='admin-helper'>{t.localeHint}</p>
++    <label className='admin-field'><span className='admin-label'>{t.name} ({mode})</span><input className='admin-input' value={value} onChange={(e)=>onChangeName(e.target.value)} /></label>
++    <div className='admin-row'><button className='admin-btn admin-btn-primary' onClick={onSaveCategory}>{editingCategory ? t.save : t.add}</button><button className='admin-btn admin-btn-ghost' onClick={handleReset}>{editingCategory ? t.cancel : t.reset}</button></div>
+   </section>
+-  <section className='admin-card'><h3 className='admin-card-title'>Danh sách danh mục</h3><table className='admin-table'><thead><tr><th>Tên</th><th>SL dịch vụ</th><th>Thao tác</th></tr></thead><tbody>{categories.map((item)=>{const cannotDelete = item.serviceCount > 0
+-  return <tr key={item.id}><td>{item.name}</td><td>{item.serviceCount}</td><td><div className='admin-row admin-row-nowrap'><button className='admin-btn admin-btn-ghost' onClick={()=>onEditCategory(item)}>Sửa</button><button className='admin-btn admin-btn-danger' onClick={()=>onDeleteCategory(item)} disabled={cannotDelete} title={cannotDelete ? 'Danh mục đang có dịch vụ, không thể xóa.' : undefined}>Xóa</button></div></td></tr>})}</tbody></table></section></div>
++  <section className='admin-card'><h3 className='admin-card-title'>{t.list}</h3><table className='admin-table'><thead><tr><th>{t.colName}</th><th>{t.colCount}</th><th>{t.colAction}</th></tr></thead><tbody>{categories.map((item)=>{const cannotDelete = item.serviceCount > 0
++  return <tr key={item.id}><td>{item.name}</td><td>{item.serviceCount}</td><td><div className='admin-row admin-row-nowrap'><button className='admin-btn admin-btn-ghost' onClick={()=>onEditCategory(item)}>{t.edit}</button><button className='admin-btn admin-btn-danger' onClick={()=>onDeleteCategory(item)} disabled={cannotDelete} title={cannotDelete ? t.disabledDelete : undefined}>{t.del}</button></div></td></tr>})}</tbody></table></section></div>
+ }
+diff --git a/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx b/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
+index d2c326141b229b6916f0d4b5d01162528b35fd95..0d2213b7bcba328b5a75fba6d9cad3e1e4be887d 100644
+--- a/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
++++ b/ayanavita-fontend/src/pages/admin/tabs/ServicesTab.tsx
+@@ -4,68 +4,74 @@ import type { ServicesTabProps } from './types'
+ import { autoTranslateFromVietnamese, type LocaleMode } from './i18nForm'
+
+ const renderJsonPreview = (items: string[], badgeClass: string, extraBadgeClass: string) => {
+   if (!items?.length) return '-'
+   const [first, ...rest] = items
+   return (
+     <div className='admin-row admin-row-nowrap'>
+       <span className={`admin-badge admin-badge-ellipsis ${badgeClass}`} title={first}>{first}</span>
+       {rest.length > 0 && <span className={`admin-badge ${extraBadgeClass}`}>+{rest.length}</span>}
+     </div>
+   )
+ }
+
+ const pageSizeOptions = [5, 10, 20, 50]
+ const locales: LocaleMode[] = ['vi', 'en', 'de']
+ const emptyServiceLocale = { name: '', description: '', goals: '', suitableFor: '', process: '', tag: '' }
+ const textMap = {
+   vi: {
+     title: 'Quản lý dịch vụ', add: 'Thêm dịch vụ', searchLabel: 'Tìm tên dịch vụ', searchPlaceholder: 'Nhập tên dịch vụ...', perPage: 'Số mục/trang', perPageSuffix: '/ trang',
+     noData: 'Không có dữ liệu', create: 'Tạo dịch vụ mới', edit: 'Chỉnh sửa dịch vụ', close: 'Đóng', requiredHint: 'là thông tin bắt buộc.',
+     localeHint: 'Mặc định nhập tiếng Việt, hệ thống tự dịch sang Anh/Đức. Khi lưu vui lòng kiểm tra lại bản dịch.',
+     serviceName: 'Tên dịch vụ', category: 'Danh mục', chooseCategory: 'Chọn danh mục', duration: 'Thời lượng (phút)', price: 'Giá (VNĐ)', tag: 'Nhãn hiển thị', status: 'Trạng thái hoạt động',
+     active: 'Đang hoạt động', inactive: 'Đang tắt', branchApplied: 'Chi nhánh áp dụng', branchDisabledHint: 'Chi nhánh đang tắt sẽ không thể chọn.',
+     goals: 'Mục tiêu', suitableFor: 'Phù hợp với', process: 'Quy trình', description: 'Mô tả', uploadImage: 'Upload ảnh',
+     selectedImage: 'Đã chọn', save: 'Lưu thay đổi', addService: 'Thêm dịch vụ', cancel: 'Hủy',
++    colName: 'Tên dịch vụ', colCategory: 'Danh mục', colDuration: 'Thời lượng', colPrice: 'Giá', colRating: 'Đánh giá', colBooked: 'Lượt đặt', colGoals: 'Mục tiêu', colSuitable: 'Phù hợp', colStatus: 'Trạng thái', colAction: 'Thao tác',
++    details: 'Chi tiết', editAction: 'Sửa', deleteAction: 'Xóa', noMatched: 'Không có dịch vụ phù hợp.', showing: 'Hiển thị', prev: 'Trước', next: 'Sau', page: 'Trang',
+   },
+   'en': {
+     title: 'Service management', add: 'Add service', searchLabel: 'Search service name', searchPlaceholder: 'Enter service name...', perPage: 'Items/page', perPageSuffix: '/ page',
+     noData: 'No data', create: 'Create new service', edit: 'Edit service', close: 'Close', requiredHint: 'is required.',
+     localeHint: 'Default input is Vietnamese; the system auto-translates to English/German. Please review translations before saving.',
+     serviceName: 'Service name', category: 'Category', chooseCategory: 'Select category', duration: 'Duration (min)', price: 'Price (VND)', tag: 'Display tag', status: 'Status',
+     active: 'Active', inactive: 'Inactive', branchApplied: 'Applied branches', branchDisabledHint: 'Inactive branches cannot be selected.',
+     goals: 'Goals', suitableFor: 'Suitable for', process: 'Process', description: 'Description', uploadImage: 'Upload image',
+     selectedImage: 'Selected', save: 'Save changes', addService: 'Add service', cancel: 'Cancel',
++    colName: 'Service name', colCategory: 'Category', colDuration: 'Duration', colPrice: 'Price', colRating: 'Rating', colBooked: 'Booked', colGoals: 'Goals', colSuitable: 'Suitable', colStatus: 'Status', colAction: 'Actions',
++    details: 'Details', editAction: 'Edit', deleteAction: 'Delete', noMatched: 'No matching services.', showing: 'Showing', prev: 'Prev', next: 'Next', page: 'Page',
+   },
+   de: {
+     title: 'Leistungsverwaltung', add: 'Leistung hinzufügen', searchLabel: 'Leistungsname suchen', searchPlaceholder: 'Leistungsname eingeben...', perPage: 'Einträge/Seite', perPageSuffix: '/ Seite',
+     noData: 'Keine Daten', create: 'Neue Leistung erstellen', edit: 'Leistung bearbeiten', close: 'Schließen', requiredHint: 'ist erforderlich.',
+     localeHint: 'Standardmäßig auf Vietnamesisch eingeben; das System übersetzt automatisch nach Englisch/Deutsch. Bitte Übersetzungen vor dem Speichern prüfen.',
+     serviceName: 'Leistungsname', category: 'Kategorie', chooseCategory: 'Kategorie wählen', duration: 'Dauer (Min.)', price: 'Preis (VND)', tag: 'Anzeigetag', status: 'Status',
+     active: 'Aktiv', inactive: 'Inaktiv', branchApplied: 'Angewendete Filialen', branchDisabledHint: 'Inaktive Filialen können nicht ausgewählt werden.',
+     goals: 'Ziele', suitableFor: 'Geeignet für', process: 'Ablauf', description: 'Beschreibung', uploadImage: 'Bild hochladen',
+     selectedImage: 'Ausgewählt', save: 'Änderungen speichern', addService: 'Leistung hinzufügen', cancel: 'Abbrechen',
++    colName: 'Leistungsname', colCategory: 'Kategorie', colDuration: 'Dauer', colPrice: 'Preis', colRating: 'Bewertung', colBooked: 'Buchungen', colGoals: 'Ziele', colSuitable: 'Geeignet', colStatus: 'Status', colAction: 'Aktionen',
++    details: 'Details', editAction: 'Bearbeiten', deleteAction: 'Löschen', noMatched: 'Keine passenden Leistungen.', showing: 'Anzeige', prev: 'Zurück', next: 'Weiter', page: 'Seite',
+   },
+ } as const
+
+ const renderDetailLines = (items: string[]) => {
+   if (!items.length) return <p className='service-detail-empty'>Không có dữ liệu</p>
+   return (
+     <ul className='service-detail-lines'>
+       {items.map((item, index) => (
+         <li key={`${index}-${item}`}>
+           <i className='fa-solid fa-circle-dot service-detail-line-icon' />
+           <span>{index + 1}. {item}</span>
+         </li>
+       ))}
+     </ul>
+   )
+ }
+
+ export function ServicesTab({
+   lang = 'vi',
+   services,
+   branches,
+   categories,
+   serviceForm,
+   editingService,
+   selectedImageName,
+@@ -186,133 +192,133 @@ export function ServicesTab({
+
+       <div className='admin-row services-toolbar'>
+         <label className='admin-field services-search-field'>
+           <span className='admin-label'><i className='fa-solid fa-magnifying-glass' /> {t.searchLabel}</span>
+           <input
+             className='admin-input'
+             placeholder={t.searchPlaceholder}
+             value={searchKeyword}
+             onChange={(e) => onSearchKeywordChange(e.target.value)}
+           />
+         </label>
+         <label className='admin-field services-size-field'>
+           <span className='admin-label'><i className='fa-solid fa-list-ol' /> {t.perPage}</span>
+           <select className='admin-input' value={pagination.pageSize} onChange={(e) => onPageSizeChange(Number(e.target.value))}>
+             {pageSizeOptions.map((size) => (
+               <option key={size} value={size}>{size} {t.perPageSuffix}</option>
+             ))}
+           </select>
+         </label>
+       </div>
+
+       <div className='admin-table-wrap'>
+         <table className='admin-table services-table'>
+           <thead>
+             <tr>
+-              <th>Tên dịch vụ</th>
+-              <th>Danh mục</th>
+-              <th>Thời lượng</th>
+-              <th>Giá</th>
+-              <th>Đánh giá</th>
+-              <th>Lượt đặt</th>
+-              <th>Mục tiêu </th>
+-              <th>Phù hợp </th>
+-              <th>Trạng thái</th>
+-              <th>Thao tác</th>
++              <th>{t.colName}</th>
++              <th>{t.colCategory}</th>
++              <th>{t.colDuration}</th>
++              <th>{t.colPrice}</th>
++              <th>{t.colRating}</th>
++              <th>{t.colBooked}</th>
++              <th>{t.colGoals}</th>
++              <th>{t.colSuitable}</th>
++              <th>{t.colStatus}</th>
++              <th>{t.colAction}</th>
+             </tr>
+           </thead>
+           <tbody>
+             {services.map((service) => (
+               <tr key={service.id}>
+                 <td className='td-strong services-name-cell' title={service.name}>{service.name}</td>
+                 <td className='services-category-cell' title={service.category || '-'}>{service.category || '-'}</td>
+                 <td>{service.durationMin} phút</td>
+                 <td><span className='admin-badge admin-badge-blue'>{service.price.toLocaleString('vi-VN')}đ</span></td>
+                 <td>
+                   <span className='services-rating'>
+                     <i className='fa-solid fa-star services-rating-icon' /> {service.ratingAvg.toFixed(1)}
+                   </span>
+                 </td>
+                 <td><span className='services-booked'>{service.bookedCount ?? 0}</span></td>
+                 <td>{renderJsonPreview(service.goals || [], 'admin-badge-pink', 'admin-badge-rose')}</td>
+                 <td>{renderJsonPreview(service.suitableFor || [], 'admin-badge-cyan', 'admin-badge-sky')}</td>
+                 <td>
+-                  <span className={`services-status-icon ${service.isActive ? 'is-active' : 'is-inactive'}`} title={service.isActive ? 'Đang hoạt động' : 'Đang tắt'}>
++                  <span className={`services-status-icon ${service.isActive ? 'is-active' : 'is-inactive'}`} title={service.isActive ? t.active : t.inactive}>
+                     <i className={`fa-solid ${service.isActive ? 'fa-circle-check' : 'fa-circle-xmark'}`} />
+                   </span>
+                 </td>
+                 <td>
+                   <div className='service-action-menu'>
+                     <button className='admin-btn admin-btn-ghost service-action-trigger' aria-label='Mở thao tác'>
+                       <i className='fa-solid fa-ellipsis' />
+                     </button>
+                     <div className='service-action-list'>
+-                      <button className='service-action-item' onClick={() => setDetailService(service)} title='Chi tiết'>
++                      <button className='service-action-item' onClick={() => setDetailService(service)} title={t.details}>
+                         <span className='admin-btn-icon admin-btn-icon-info'>
+                           <i className='fa-solid fa-circle-info' />
+                         </span>
+-                        <span className='service-action-text'>Chi tiết</span>
++                        <span className='service-action-text'>{t.details}</span>
+                       </button>
+-                      <button className='service-action-item' onClick={() => handleOpenEdit(service)} title='Sửa'>
++                      <button className='service-action-item' onClick={() => handleOpenEdit(service)} title={t.editAction}>
+                         <span className='admin-btn-icon admin-btn-icon-edit'>
+                           <i className='fa-solid fa-pen-to-square' />
+                         </span>
+-                        <span className='service-action-text'>Sửa</span>
++                        <span className='service-action-text'>{t.editAction}</span>
+                       </button>
+-                      <button className='service-action-item' onClick={() => onDeleteService(service)} title='Xóa'>
++                      <button className='service-action-item' onClick={() => onDeleteService(service)} title={t.deleteAction}>
+                         <span className='admin-btn-icon admin-btn-icon-delete'>
+                           <i className='fa-solid fa-trash' />
+                         </span>
+-                        <span className='service-action-text'>Xóa</span>
++                        <span className='service-action-text'>{t.deleteAction}</span>
+                       </button>
+                     </div>
+                   </div>
+                 </td>
+               </tr>
+             ))}
+             {services.length === 0 && (
+               <tr>
+-                <td colSpan={10} className='services-empty-state'>Không có dịch vụ phù hợp.</td>
++                <td colSpan={10} className='services-empty-state'>{t.noMatched}</td>
+               </tr>
+             )}
+           </tbody>
+         </table>
+       </div>
+
+       <div className='admin-row admin-row-space services-pagination'>
+-        <span className='admin-helper'>Hiển thị: {pageInfoLabel}</span>
++        <span className='admin-helper'>{t.showing}: {pageInfoLabel}</span>
+         <div className='admin-row services-pagination-controls'>
+           <button className='admin-btn admin-btn-ghost' disabled={pagination.page <= 1} onClick={() => onPageChange(pagination.page - 1)}>
+-            <i className='fa-solid fa-chevron-left' /> Trước
++            <i className='fa-solid fa-chevron-left' /> {t.prev}
+           </button>
+-          <span className='admin-helper'>Trang {pagination.page}/{Math.max(1, pagination.totalPages)}</span>
++          <span className='admin-helper'>{t.page} {pagination.page}/{Math.max(1, pagination.totalPages)}</span>
+           <button
+             className='admin-btn admin-btn-ghost'
+             disabled={pagination.page >= pagination.totalPages}
+             onClick={() => onPageChange(pagination.page + 1)}
+           >
+-            Sau <i className='fa-solid fa-chevron-right' />
++            {t.next} <i className='fa-solid fa-chevron-right' />
+           </button>
+         </div>
+       </div>
+
+       {isEditModalOpen && (
+         <div className='admin-modal-overlay' onClick={handleCloseEdit}>
+           <div className='admin-modal' onClick={(e) => e.stopPropagation()}>
+             <div className='admin-row admin-row-space'>
+               <h3 className='admin-card-title'><i className='fa-solid fa-spa' /> {editingService ? t.edit : t.create}</h3>
+               <button className='admin-btn admin-btn-ghost' onClick={handleCloseEdit}><i className='fa-solid fa-xmark' /> {t.close}</button>
+             </div>
+             <p className='admin-helper'><b className='admin-required'>*</b> {t.requiredHint}</p>
+             <div className='admin-row'>{locales.map((l) => <button key={l} className={`admin-btn ${mode===l?'admin-btn-primary':'admin-btn-ghost'}`} onClick={() => setMode(l)}>{l}</button>)}</div>
+             <p className='admin-helper'>{t.localeHint}</p>
+             <div className='admin-form-grid services-edit-grid'>
+               <label className='admin-field'>
+                 <span className='admin-label'><i className='fa-solid fa-sparkles' /> {t.serviceName} ({mode}) <b className='admin-required'>*</b></span>
+                 <input className='admin-input' value={currentLocaleValue.name} onChange={(e) => updateLocalizedField('name', e.target.value)} />
+               </label>
+               <label className='admin-field'>
+                 <span className='admin-label'><i className='fa-solid fa-layer-group' /> {t.category} <b className='admin-required'>*</b></span>
+                 <select className='admin-input' value={serviceForm.categoryId || 0} onChange={(e) => onServiceFormChange({ ...serviceForm, categoryId: Number(e.target.value) })}>
+                   <option value={0}>{t.chooseCategory}</option>
+                   {categories.map((item) => (
+                     <option key={item.id} value={item.id}>{item.name}</option>
+diff --git a/ayanavita-fontend/src/pages/admin/tabs/types.ts b/ayanavita-fontend/src/pages/admin/tabs/types.ts
+index add6e72ebef8594158d0c2654365ade0ebb4b005..28dc931fd2df95bb2abfa54be0030ecf6ebb2a95 100644
+--- a/ayanavita-fontend/src/pages/admin/tabs/types.ts
++++ b/ayanavita-fontend/src/pages/admin/tabs/types.ts
+@@ -1,51 +1,51 @@
+ import type { Appointment, Branch, ServiceCategory, ServiceReview, SpaService, Specialist } from '../../../api/spaAdmin.api'
+
+-export type BranchForm = Partial<Branch> & { translations?: Partial<Record<'en-US'|'vi'|'de', { name: string; address: string }>> }
++export type BranchForm = Partial<Branch> & { translations?: Partial<Record<'en'|'vi'|'de', { name: string; address: string }>> }
+ export type ServiceForm = {
+   name: string
+   description: string
+   categoryId: number
+   goals: string
+   suitableFor: string
+   process: string
+   durationMin: number
+   price: number
+   tag: string
+   branchIds: number[]
+   isActive: boolean
+-  translations?: Partial<Record<'en-US'|'vi'|'de', { name: string; description: string; goals: string; suitableFor: string; process: string; tag: string }>>
++  translations?: Partial<Record<'en'|'vi'|'de', { name: string; description: string; goals: string; suitableFor: string; process: string; tag: string }>>
+ }
+ export type CategoryForm = {
+   name: string
+-  translations?: Partial<Record<'en-US'|'vi'|'de', { name: string }>>
++  translations?: Partial<Record<'en'|'vi'|'de', { name: string }>>
+ }
+
+-export type SpecialistForm = { name: string; email: string; level: string; bio: string; branchId: number; serviceIds: number[]; translations?: Partial<Record<'en-US'|'vi'|'de', { name: string; bio: string }>> }
++export type SpecialistForm = { name: string; email: string; level: string; bio: string; branchId: number; serviceIds: number[]; translations?: Partial<Record<'en'|'vi'|'de', { name: string; bio: string }>> }
+ export type ReviewForm = { serviceId: number; stars: number; comment: string; customerName: string }
+
+-export type AdminLang = 'vi' | 'en-US' | 'de'
++export type AdminLang = 'vi' | 'en' | 'de'
+
+ export type CommonTabProps = {
+   loading: boolean
+   lang?: AdminLang
+ }
+
+ export type BranchesTabProps = CommonTabProps & {
+   branches: Branch[]
+   branchForm: BranchForm
+   editingBranch: Branch | null
+   onBranchFormChange: (next: BranchForm) => void
+   onSaveBranch: () => Promise<void>
+   onEditBranch: (branch: Branch) => void
+   onDeleteBranch: (branch: Branch) => Promise<void>
+   onCancelEdit: () => void
+ }
+
+ export type ServicesTabProps = CommonTabProps & {
+   services: SpaService[]
+   branches: Branch[]
+   categories: ServiceCategory[]
+   serviceForm: ServiceForm
+   editingService: SpaService | null
+   selectedImageName: string
+   searchKeyword: string

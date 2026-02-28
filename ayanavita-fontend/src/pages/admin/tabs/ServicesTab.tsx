@@ -26,6 +26,8 @@ const textMap = {
     active: 'Đang hoạt động', inactive: 'Đang tắt', branchApplied: 'Chi nhánh áp dụng', branchDisabledHint: 'Chi nhánh đang tắt sẽ không thể chọn.',
     goals: 'Mục tiêu', suitableFor: 'Phù hợp với', process: 'Quy trình', description: 'Mô tả', uploadImage: 'Upload ảnh',
     selectedImage: 'Đã chọn', save: 'Lưu thay đổi', addService: 'Thêm dịch vụ', cancel: 'Hủy',
+    colName: 'Tên dịch vụ', colCategory: 'Danh mục', colDuration: 'Thời lượng', colPrice: 'Giá', colRating: 'Đánh giá', colBooked: 'Lượt đặt', colGoals: 'Mục tiêu', colSuitable: 'Phù hợp', colStatus: 'Trạng thái', colAction: 'Thao tác',
+    details: 'Chi tiết', editAction: 'Sửa', deleteAction: 'Xóa', noMatched: 'Không có dịch vụ phù hợp.', showing: 'Hiển thị', prev: 'Trước', next: 'Sau', page: 'Trang',
   },
   'en': {
     title: 'Service management', add: 'Add service', searchLabel: 'Search service name', searchPlaceholder: 'Enter service name...', perPage: 'Items/page', perPageSuffix: '/ page',
@@ -35,6 +37,8 @@ const textMap = {
     active: 'Active', inactive: 'Inactive', branchApplied: 'Applied branches', branchDisabledHint: 'Inactive branches cannot be selected.',
     goals: 'Goals', suitableFor: 'Suitable for', process: 'Process', description: 'Description', uploadImage: 'Upload image',
     selectedImage: 'Selected', save: 'Save changes', addService: 'Add service', cancel: 'Cancel',
+    colName: 'Service name', colCategory: 'Category', colDuration: 'Duration', colPrice: 'Price', colRating: 'Rating', colBooked: 'Booked', colGoals: 'Goals', colSuitable: 'Suitable', colStatus: 'Status', colAction: 'Actions',
+    details: 'Details', editAction: 'Edit', deleteAction: 'Delete', noMatched: 'No matching services.', showing: 'Showing', prev: 'Prev', next: 'Next', page: 'Page',
   },
   de: {
     title: 'Leistungsverwaltung', add: 'Leistung hinzufügen', searchLabel: 'Leistungsname suchen', searchPlaceholder: 'Leistungsname eingeben...', perPage: 'Einträge/Seite', perPageSuffix: '/ Seite',
@@ -44,6 +48,8 @@ const textMap = {
     active: 'Aktiv', inactive: 'Inaktiv', branchApplied: 'Angewendete Filialen', branchDisabledHint: 'Inaktive Filialen können nicht ausgewählt werden.',
     goals: 'Ziele', suitableFor: 'Geeignet für', process: 'Ablauf', description: 'Beschreibung', uploadImage: 'Bild hochladen',
     selectedImage: 'Ausgewählt', save: 'Änderungen speichern', addService: 'Leistung hinzufügen', cancel: 'Abbrechen',
+    colName: 'Leistungsname', colCategory: 'Kategorie', colDuration: 'Dauer', colPrice: 'Preis', colRating: 'Bewertung', colBooked: 'Buchungen', colGoals: 'Ziele', colSuitable: 'Geeignet', colStatus: 'Status', colAction: 'Aktionen',
+    details: 'Details', editAction: 'Bearbeiten', deleteAction: 'Löschen', noMatched: 'Keine passenden Leistungen.', showing: 'Anzeige', prev: 'Zurück', next: 'Weiter', page: 'Seite',
   },
 } as const
 
@@ -208,16 +214,16 @@ export function ServicesTab({
         <table className='admin-table services-table'>
           <thead>
             <tr>
-              <th>Tên dịch vụ</th>
-              <th>Danh mục</th>
-              <th>Thời lượng</th>
-              <th>Giá</th>
-              <th>Đánh giá</th>
-              <th>Lượt đặt</th>
-              <th>Mục tiêu </th>
-              <th>Phù hợp </th>
-              <th>Trạng thái</th>
-              <th>Thao tác</th>
+              <th>{t.colName}</th>
+              <th>{t.colCategory}</th>
+              <th>{t.colDuration}</th>
+              <th>{t.colPrice}</th>
+              <th>{t.colRating}</th>
+              <th>{t.colBooked}</th>
+              <th>{t.colGoals}</th>
+              <th>{t.colSuitable}</th>
+              <th>{t.colStatus}</th>
+              <th>{t.colAction}</th>
             </tr>
           </thead>
           <tbody>
@@ -236,7 +242,7 @@ export function ServicesTab({
                 <td>{renderJsonPreview(service.goals || [], 'admin-badge-pink', 'admin-badge-rose')}</td>
                 <td>{renderJsonPreview(service.suitableFor || [], 'admin-badge-cyan', 'admin-badge-sky')}</td>
                 <td>
-                  <span className={`services-status-icon ${service.isActive ? 'is-active' : 'is-inactive'}`} title={service.isActive ? 'Đang hoạt động' : 'Đang tắt'}>
+                  <span className={`services-status-icon ${service.isActive ? 'is-active' : 'is-inactive'}`} title={service.isActive ? t.active : t.inactive}>
                     <i className={`fa-solid ${service.isActive ? 'fa-circle-check' : 'fa-circle-xmark'}`} />
                   </span>
                 </td>
@@ -246,23 +252,23 @@ export function ServicesTab({
                       <i className='fa-solid fa-ellipsis' />
                     </button>
                     <div className='service-action-list'>
-                      <button className='service-action-item' onClick={() => setDetailService(service)} title='Chi tiết'>
+                      <button className='service-action-item' onClick={() => setDetailService(service)} title={t.details}>
                         <span className='admin-btn-icon admin-btn-icon-info'>
                           <i className='fa-solid fa-circle-info' />
                         </span>
-                        <span className='service-action-text'>Chi tiết</span>
+                        <span className='service-action-text'>{t.details}</span>
                       </button>
-                      <button className='service-action-item' onClick={() => handleOpenEdit(service)} title='Sửa'>
+                      <button className='service-action-item' onClick={() => handleOpenEdit(service)} title={t.editAction}>
                         <span className='admin-btn-icon admin-btn-icon-edit'>
                           <i className='fa-solid fa-pen-to-square' />
                         </span>
-                        <span className='service-action-text'>Sửa</span>
+                        <span className='service-action-text'>{t.editAction}</span>
                       </button>
-                      <button className='service-action-item' onClick={() => onDeleteService(service)} title='Xóa'>
+                      <button className='service-action-item' onClick={() => onDeleteService(service)} title={t.deleteAction}>
                         <span className='admin-btn-icon admin-btn-icon-delete'>
                           <i className='fa-solid fa-trash' />
                         </span>
-                        <span className='service-action-text'>Xóa</span>
+                        <span className='service-action-text'>{t.deleteAction}</span>
                       </button>
                     </div>
                   </div>
@@ -271,7 +277,7 @@ export function ServicesTab({
             ))}
             {services.length === 0 && (
               <tr>
-                <td colSpan={10} className='services-empty-state'>Không có dịch vụ phù hợp.</td>
+                <td colSpan={10} className='services-empty-state'>{t.noMatched}</td>
               </tr>
             )}
           </tbody>
@@ -279,18 +285,18 @@ export function ServicesTab({
       </div>
 
       <div className='admin-row admin-row-space services-pagination'>
-        <span className='admin-helper'>Hiển thị: {pageInfoLabel}</span>
+        <span className='admin-helper'>{t.showing}: {pageInfoLabel}</span>
         <div className='admin-row services-pagination-controls'>
           <button className='admin-btn admin-btn-ghost' disabled={pagination.page <= 1} onClick={() => onPageChange(pagination.page - 1)}>
-            <i className='fa-solid fa-chevron-left' /> Trước
+            <i className='fa-solid fa-chevron-left' /> {t.prev}
           </button>
-          <span className='admin-helper'>Trang {pagination.page}/{Math.max(1, pagination.totalPages)}</span>
+          <span className='admin-helper'>{t.page} {pagination.page}/{Math.max(1, pagination.totalPages)}</span>
           <button
             className='admin-btn admin-btn-ghost'
             disabled={pagination.page >= pagination.totalPages}
             onClick={() => onPageChange(pagination.page + 1)}
           >
-            Sau <i className='fa-solid fa-chevron-right' />
+            {t.next} <i className='fa-solid fa-chevron-right' />
           </button>
         </div>
       </div>

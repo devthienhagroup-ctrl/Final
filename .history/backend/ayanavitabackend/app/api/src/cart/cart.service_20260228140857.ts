@@ -33,7 +33,7 @@ type CartWithItems = Prisma.CartGetPayload<{
 
 @Injectable()
 export class CartService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   private toResponse(cart: CartWithItems | null) {
     const items = (cart?.items ?? []).map((item) => ({
@@ -45,10 +45,7 @@ export class CartService {
       image: item.product?.images?.[0]?.imageUrl ?? undefined,
     }))
 
-    const subtotal = items.reduce(
-      (sum, item) => sum + Number(item.price) * Number(item.quantity),
-      0
-    )
+    const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
 
     return normalizeBigInt({

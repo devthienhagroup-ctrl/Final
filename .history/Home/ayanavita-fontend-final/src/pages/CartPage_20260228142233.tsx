@@ -185,24 +185,30 @@ export default function CartPage() {
   } = useCart();
 
   // Tạo items với thông tin sản phẩm đầy đủ từ PRODUCTS
-// Tạo items với thông tin sản phẩm đầy đủ từ PRODUCTS
-const items = useMemo(() => {
-  return cartItems
-    .map((item) => {
-      const product = Object.values(PRODUCTS).find(
-        (p) => String(p.id) === String(item.productId)
-      );
-      if (!product) return null;
-
-      return {
-        ...item,
-        product,
-        line: product.price * item.quantity,
-        id: item.itemId ?? item.productId, // giữ nguyên kiểu
-      };
-    })
-    .filter((x): x is NonNullable<typeof x> => Boolean(x));
-}, [cartItems]);
+  const items = useMemo(() => {
+    return cartItems
+      .map((item) => {
+        // Tìm product trong PRODUCTS dựa trên productId (so sánh chuỗi để linh hoạt)
+        const product = Object.values(PRODUCTS).find(
+          (p) => String(p.id) === String(item.productId)
+        );
+        if (!product) return null;
+        return {
+          ...item,
+          product,
+          line: product.price * item.quantity,
+          // id dùng cho thao tác: ưu tiên itemId nếu có (khi đã đăng nhập)
+          id: item.itemId || item.productId,
+        };
+      })
+      .filter(Boolean) as Array<
+        ReturnType<typeof cartItems[number]> & {
+          product: Product;
+          line: number;
+          id: number;
+        }
+      >;
+  }, [cartItems]);
 
   // State cho coupon và shipping
   const [couponInput, setCouponInput] = useState("");

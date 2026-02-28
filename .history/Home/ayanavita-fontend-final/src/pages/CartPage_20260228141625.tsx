@@ -2,11 +2,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { SiteHeader } from "../components/layout/SiteHeader";
+import { Footer } from "../components/layout/Footer";
 import { http } from "../api/http";
-import { useCart } from "../contexts/CartContext";
+import { useCart } from "../contexts/CartContext"; // Import context
 
 import {
   PRODUCTS,
+  PRODUCT_CART_SEED,
   UPSELL,
   type ProductSku,
 } from "../data/products.data";
@@ -26,7 +29,7 @@ const COUPONS: Record<
 
 type Product = (typeof PRODUCTS)[keyof typeof PRODUCTS];
 
-// Định nghĩa kiểu dữ liệu cho CMS
+// Định nghĩa kiểu dữ liệu cho CMS (giữ nguyên)
 interface CmsData {
   storeName: string;
   pageTitle: string;
@@ -77,7 +80,7 @@ interface CmsData {
   footerText: string;
 }
 
-// Nội dung mặc định (fallback)
+// Nội dung mặc định (fallback) - giữ nguyên
 const defaultCmsData: CmsData = {
   storeName: "Cửa hàng AYANAVITA",
   pageTitle: "Giỏ hàng",
@@ -133,13 +136,13 @@ const defaultCmsData: CmsData = {
 };
 
 export default function CartPage() {
-  // State cho ngôn ngữ và dữ liệu CMS từ API
+  // State cho ngôn ngữ và dữ liệu CMS từ API (giữ nguyên)
   const [currentLanguage, setCurrentLanguage] = useState<string>(() => {
     return localStorage.getItem("preferred-language") || "vi";
   });
   const [cmsDataFromAPI, setCmsDataFromAPI] = useState<CmsData | null>(null);
 
-  // Lắng nghe sự kiện thay đổi ngôn ngữ từ Header
+  // Lắng nghe sự kiện thay đổi ngôn ngữ từ Header (giữ nguyên)
   useEffect(() => {
     const handleLanguageChange = (event: CustomEvent) => {
       setCurrentLanguage(event.detail.language);
@@ -155,7 +158,7 @@ export default function CartPage() {
       );
   }, []);
 
-  // Gọi API lấy nội dung CMS cho trang giỏ hàng
+  // Gọi API lấy nội dung CMS cho trang giỏ hàng (giữ nguyên)
   useEffect(() => {
     const fetchCms = async () => {
       try {
@@ -168,7 +171,7 @@ export default function CartPage() {
     fetchCms();
   }, [currentLanguage]);
 
-  // Merge dữ liệu từ API với default
+  // Merge dữ liệu từ API với default (giữ nguyên)
   const cms = useMemo(() => {
     return { ...defaultCmsData, ...cmsDataFromAPI };
   }, [cmsDataFromAPI]);
@@ -181,30 +184,34 @@ export default function CartPage() {
     isAuthenticated,            // đã đăng nhập chưa
     updateQuantity,             // hàm cập nhật số lượng
     removeItem,                 // hàm xoá item
-    addItem,                    // hàm thêm sản phẩm (dùng cho upsell)
+    addToCart,                  // hàm thêm sản phẩm (dùng cho upsell)
+    clearCart,                  // hàm xoá toàn bộ giỏ (nếu có)
   } = useCart();
 
-  // Tạo items với thông tin sản phẩm đầy đủ từ PRODUCTS
-// Tạo items với thông tin sản phẩm đầy đủ từ PRODUCTS
-const items = useMemo(() => {
-  return cartItems
-    .map((item) => {
-      const product = Object.values(PRODUCTS).find(
-        (p) => String(p.id) === String(item.productId)
-      );
-      if (!product) return null;
+  // Tạo items với thông tin sản phẩm đầy đủ từ PRODUCTS (để dùng ảnh, tên, ...)
+  const items = useMemo(() => {
+    return cartItems
+      .map((item) => {
+        const product = (PRODUCTS as any)[item.productId] as Product | undefined;
+        if (!product) return null;
+        return {
+          ...item,
+          product,
+          line: product.price * item.quantity,
+          // Lưu lại id dùng cho các thao tác: ưu tiên itemId nếu có (khi đã đăng nhập)
+          id: item.itemId || item.productId,
+        };
+      })
+      .filter(Boolean) as Array<
+        ReturnType<typeof cartItems[number]> & {
+          product: Product;
+          line: number;
+          id: string;
+        }
+      >;
+  }, [cartItems]);
 
-      return {
-        ...item,
-        product,
-        line: product.price * item.quantity,
-        id: item.itemId ?? item.productId, // giữ nguyên kiểu
-      };
-    })
-    .filter((x): x is NonNullable<typeof x> => Boolean(x));
-}, [cartItems]);
-
-  // State cho coupon và shipping
+  // State cho coupon và shipping (giữ nguyên)
   const [couponInput, setCouponInput] = useState("");
   const [coupon, setCoupon] = useState<CouponCode>(null);
   const [couponNote, setCouponNote] = useState("");
@@ -213,7 +220,7 @@ const items = useMemo(() => {
   const [shipBaseFee, setShipBaseFee] = useState(0);
   const [shipNote, setShipNote] = useState("");
 
-  // Tính toán discount, shipping, grand total
+  // Tính toán discount, shipping, grand total (dựa trên subtotal từ context)
   const discountValue = useMemo(() => {
     if (!coupon) return 0;
     const c = COUPONS[coupon];
@@ -234,42 +241,36 @@ const items = useMemo(() => {
   );
 
   // Handlers dùng context
-  function onInc(id: number, currentQty: number) {
+  function onInc(id: string, currentQty: number) {
     updateQuantity(id, currentQty + 1);
   }
 
-  function onDec(id: number, currentQty: number) {
+  function onDec(id: string, currentQty: number) {
     if (currentQty > 1) {
       updateQuantity(id, currentQty - 1);
     }
   }
 
-  function onDel(id: number) {
+  function onDel(id: string) {
     removeItem(id);
   }
 
   function onUpsellAdd(sku: ProductSku) {
-    const product = PRODUCTS[sku];
-    if (!product) return;
-    // Chuyển product.id (string) sang number nếu cần, đảm bảo đúng kiểu
-    const productId = Number(product.id);
-    addItem({
-      productId,
-      quantity: 1,
-      name: product.name,
-      price: product.price,
-      image: product.img,
-    });
+    addToCart(sku, 1);
     window.alert(cms.addToCartMessage);
   }
 
   function clearAll() {
     if (!window.confirm(cms.confirmClearCart)) return;
-    // Xoá lần lượt từng item (vì context không có clearCart)
-    items.forEach((item) => removeItem(item.id));
+    if (clearCart) {
+      clearCart();
+    } else {
+      // fallback: xoá từng item
+      items.forEach((item) => removeItem(item.id));
+    }
   }
 
-  // Các hàm coupon và shipping
+  // Các hàm coupon và shipping giữ nguyên
   function applyCoupon() {
     const code = couponInput.trim().toUpperCase();
     setCoupon(null);
@@ -304,6 +305,8 @@ const items = useMemo(() => {
 
     setShipNote(cms.shipNoteTemplate.replace("{fee}", money(fee)));
   }
+
+  // Không cần reloadFromLocal nữa, context đã đồng bộ
 
   if (loading) {
     return (
@@ -438,7 +441,7 @@ const items = useMemo(() => {
               </table>
             </div>
 
-            {/* Voucher + Shipping */}
+            {/* Voucher + Shipping (giữ nguyên) */}
             <div className="mt-5 flex flex-col gap-3">
               <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
                 <div className="font-extrabold">{cms.voucherTitle}</div>
@@ -506,7 +509,7 @@ const items = useMemo(() => {
               </div>
             </div>
 
-            {/* Upsell */}
+            {/* Upsell (giữ nguyên) */}
             <div className="mt-6">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="font-extrabold">{cms.upsellTitle}</div>
@@ -517,7 +520,7 @@ const items = useMemo(() => {
 
               <div className="mt-3 grid gap-3 md:grid-cols-3">
                 {UPSELL.map((u) => {
-                  const p = PRODUCTS[u.sku];
+                  const p = (PRODUCTS as any)[u.sku] as Product;
                   return (
                     <div
                       key={u.sku}
@@ -553,12 +556,16 @@ const items = useMemo(() => {
                   <i className="fa-solid fa-trash mr-2" />
                   {cms.clearCartButton}
                 </button>
-                {/* Nút Sync đã bỏ vì context tự đồng bộ */}
+                {/* Nút Sync không còn cần thiết, có thể ẩn hoặc giữ lại cho demo */}
+                {/* <button className="btn" type="button" onClick={reloadFromLocal}>
+                  <i className="fa-solid fa-rotate mr-2" />
+                  {cms.syncButton}
+                </button> */}
               </div>
             </div>
           </section>
 
-          {/* Right column */}
+          {/* Right column (giữ nguyên, chỉ thay subtotal bằng subtotal từ context) */}
           <aside className="card p-6">
             <div className="flex items-center justify-between">
               <div className="font-extrabold">{cms.summaryTitle}</div>

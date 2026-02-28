@@ -59,6 +59,8 @@ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searc
         </button>
       </div>
 
+      <hr style={{ marginBottom: 20 }}/>
+
       {activeTab === 'list' && (
         <>
           <div className='admin-row' style={{ gap: 16, marginBottom: 12, flexWrap: 'wrap' }}>
@@ -90,6 +92,8 @@ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searc
               />
             </label>
           </div>
+
+
 
           <div className='admin-table-wrap'>
             <table className='admin-table admin-table-courses-full no-scroll-table'>

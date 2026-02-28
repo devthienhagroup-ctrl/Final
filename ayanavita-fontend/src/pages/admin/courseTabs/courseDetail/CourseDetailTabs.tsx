@@ -24,7 +24,12 @@ export function CourseDetailTabs({ course, lang, text, topics }: Props) {
     <section>
       <div className='admin-tabs' style={{ marginBottom: 10 }}>
         <button className={`admin-tab ${activeTab === 'info' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('info')}>
-          <i className='fa-solid fa-circle-info' /> {lang === 'vi' ? 'Chi tiết khóa học' : lang === 'en' ? 'Course details' : 'Kursdetails'}
+          <i className='fa-solid fa-circle-info' />{' '}
+          {lang === 'vi'
+              ? 'Thông tin khóa học'
+              : lang === 'en'
+                  ? 'Course Information'
+                  : 'Kursinformationen'}
         </button>
         <button className={`admin-tab ${activeTab === 'content' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('content')}>
           <i className='fa-solid fa-list-check' /> {lang === 'vi' ? 'Nội dung mở rộng' : lang === 'en' ? 'Extended content' : 'Erweiterte Inhalte'}

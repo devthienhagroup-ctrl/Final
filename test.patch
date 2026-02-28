@@ -1,648 +1,211 @@
-diff --git a/ayanavita-fontend/src/api/adminCourses.api.ts b/ayanavita-fontend/src/api/adminCourses.api.ts
-index 285c543d45da23f7b3291a1e90c637adcbda1b3f..81b7a2409a9512598375ae8b8851b93e87f1ec5a 100644
---- a/ayanavita-fontend/src/api/adminCourses.api.ts
-+++ b/ayanavita-fontend/src/api/adminCourses.api.ts
-@@ -101,58 +101,66 @@ export type CoursePayload = {
-   topicId?: number
-   title: string
-   shortDescription?: string
-   slug: string
-   description?: string
-   thumbnail?: string
-   price?: number
-   published?: boolean
-   translations?: Record<string, { title: string; description?: string }>
-   objectives?: string[]
-   targetAudience?: string[]
-   benefits?: string[]
-   contentTranslations?: Record<string, { objectives?: string[]; targetAudience?: string[]; benefits?: string[] }>
-   ratingAvg?: number
-   ratingCount?: number
-   enrollmentCount?: number
- }
-
- export type CourseListResponse = {
-   items: CourseAdmin[]
-   total: number
-   page: number
-   pageSize: number
- }
-
-+export type CourseDetailAdmin = CourseAdmin
-+
- export const adminCoursesApi = {
-   listTopics: () => get<CourseTopic[]>('/admin/course-topics', { auth: true }),
-   createTopic: (body: TopicPayload) => post<CourseTopic>('/admin/course-topics', body, { auth: true }),
-   updateTopic: (id: number, body: TopicPayload) => patch<CourseTopic>(`/admin/course-topics/${id}`, body, { auth: true }),
-   deleteTopic: (id: number) => del<{ id: number }>(`/admin/course-topics/${id}`, { auth: true }),
-   listCourses: (params?: { topicId?: number; search?: string; page?: number; pageSize?: number; lang?: string }) => {
-     const qs = new URLSearchParams()
-     if (params?.topicId) qs.set('topicId', String(params.topicId))
-     if (params?.search?.trim()) qs.set('search', params.search.trim())
-     if (params?.page) qs.set('page', String(params.page))
-     if (params?.pageSize) qs.set('pageSize', String(params.pageSize))
-     if (params?.lang) qs.set('lang', params.lang)
-     const suffix = qs.toString() ? `?${qs.toString()}` : ''
-     return get<CourseListResponse>(`/courses${suffix}`, { auth: true })
-   },
-   createCourse: (body: CoursePayload | FormData) => post<CourseAdmin>('/courses', body, { auth: true }),
-   updateCourse: (id: number, body: Partial<CoursePayload>) => patch<CourseAdmin>(`/courses/${id}`, body, { auth: true }),
-   deleteCourse: (id: number) => del<{ id: number }>(`/courses/${id}`, { auth: true }),
-+  getCourseDetail: (id: number, lang?: string) => {
-+    const qs = new URLSearchParams()
-+    if (lang) qs.set('lang', lang)
-+    const suffix = qs.toString() ? `?${qs.toString()}` : ''
-+    return get<CourseDetailAdmin>(`/courses/${id}${suffix}`, { auth: true })
-+  },
-
-   listCourseLessons: (courseId: number) => get<LessonAdmin[]>(`/courses/${courseId}/lessons-outline`, { auth: true }),
-   getLessonDetail: (lessonId: number) => get<LessonDetailAdmin>(`/lessons/${lessonId}`, { auth: true }),
-   createLesson: (courseId: number, body: LessonPayload) => post<LessonAdmin>(`/courses/${courseId}/lessons`, body, { auth: true }),
-   updateLesson: (lessonId: number, body: Partial<LessonPayload>) => patch<LessonAdmin>(`/lessons/${lessonId}`, body, { auth: true }),
-   deleteLesson: (lessonId: number) => del<{ id: number }>(`/lessons/${lessonId}`, { auth: true }),
-
-   uploadModuleMedia: (lessonId: number, moduleId: string | number, file: File, type: 'video' | 'image', order?: number) => {
-     const body = new FormData()
-     body.append('file', file)
-     body.append('type', type)
-     if (order !== undefined) body.append('order', String(order))
-     return post<{ moduleId?: string; lessonId?: number; hlsPlaylistKey?: string; segmentCount?: number; imageKey?: string; sourceUrl?: string; storage: string; videoId?: number }>(`/lessons/${lessonId}/modules/${moduleId}/media/upload`, body, { auth: true })
-   },
- }
-diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx
-index 3820ff2b0abcf53a179060e17e159b1bd6d56b7b..ed8477519aebf020dd339142d88be6da05596a4a 100644
---- a/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx
-+++ b/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx
-@@ -1,106 +1,154 @@
--import { useState } from 'react'
--import { type CourseAdmin, type CourseTopic } from '../../../api/adminCourses.api'
-+import { useEffect, useState } from 'react'
-+import { adminCoursesApi, type CourseAdmin, type CourseDetailAdmin, type CourseTopic } from '../../../api/adminCourses.api'
- import { CreateCourseModal } from './CreateCourseModal'
-+import { CourseDetailTabs } from './courseDetail/CourseDetailTabs'
+diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx
+index a7d40e483b8c06329115b743e704c9d56efe45c6..27a7f94a49143d78f815b56efd223d29b37dfc11 100644
+--- a/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx
++++ b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx
+@@ -1,34 +1,194 @@
+ import { type CourseDetailAdmin, type CourseTopic } from '../../../../api/adminCourses.api'
 
  type Props = {
-   courses: CourseAdmin[]
-   topics: CourseTopic[]
-   text: Record<string, string>
+   course: CourseDetailAdmin
    lang: 'vi' | 'en' | 'de'
-   selectedTopicId: number | 'all'
-   searchTerm: string
-   page: number
-   totalPages: number
-   totalItems: number
-   onChangeFilters: (patch: { selectedTopicId?: number | 'all'; searchTerm?: string }) => void
-   onChangePage: (page: number) => void
-   onCourseCreated: () => Promise<void> | void
+   text: Record<string, string>
+   topics: CourseTopic[]
  }
 
-+type CourseInnerTab = 'list' | 'detail'
++type InfoItem = {
++  key: string
++  label: string
++  value: string | number
++  icon: string
++  fullWidth?: boolean
++}
 +
- export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searchTerm, page, totalPages, totalItems, onChangeFilters, onChangePage, onCourseCreated }: Props) {
-   const [openCreateModal, setOpenCreateModal] = useState(false)
-+  const [activeTab, setActiveTab] = useState<CourseInnerTab>('list')
-+  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
-+  const [selectedCourse, setSelectedCourse] = useState<CourseDetailAdmin | null>(null)
-+  const [loadingDetail, setLoadingDetail] = useState(false)
-
++type CourseTranslationItem = {
++  locale: string
++  title?: string
++  shortDescription?: string
++  description?: string
++}
++
++type CourseContentTranslationItem = {
++  locale: string
++  objectives?: string[]
++  targetAudience?: string[]
++  benefits?: string[]
++}
++
+ export function CourseDetailInfoTab({ course, lang, text, topics }: Props) {
    const displayTopicName = (topic: CourseTopic) => {
      if (lang === 'de') return topic.translations?.de?.name || topic.name
-     if (lang === 'en') return topic.translations?.['en']?.name || topic.name
+     if (lang === 'en') return topic.translations?.en?.name || topic.name
      return topic.translations?.vi?.name || topic.name
    }
 
-+  useEffect(() => {
-+    if (activeTab !== 'detail' || !selectedCourseId) return
-+    setLoadingDetail(true)
-+    adminCoursesApi.getCourseDetail(selectedCourseId, lang)
-+      .then((detail) => setSelectedCourse(detail))
-+      .finally(() => setLoadingDetail(false))
-+  }, [activeTab, selectedCourseId, lang])
-+
-   return (
-     <section className='admin-card admin-card-glow admin-course-management-card'>
-       <div className='admin-row' style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-         <h3 className='admin-card-title'><i className='fa-solid fa-graduation-cap' /> {text.coursesTab}</h3>
-         <button className='admin-btn admin-btn-save' type='button' onClick={() => setOpenCreateModal(true)}>
-           <i className='fa-solid fa-circle-plus' /> {lang === 'vi' ? 'Thêm khóa học mới' : lang === 'en' ? 'Add new course' : 'Neuen Kurs hinzufügen'}
-         </button>
-       </div>
-
--      <div className='admin-row' style={{ gap: 16, marginBottom: 12, flexWrap: 'wrap' }}>
--        <label className='admin-field' style={{ marginBottom: 0, minWidth: 220 }}>
--          <span className='admin-label'>{text.filterByTopic}</span>
--          <select
--            className='admin-input'
--            value={selectedTopicId === 'all' ? 'all' : String(selectedTopicId)}
--            onChange={(e) => {
--              onChangeFilters({ selectedTopicId: e.target.value === 'all' ? 'all' : Number(e.target.value) })
--            }}
--          >
--            <option value='all'>{text.allTopics}</option>
--            {topics.map((topic) => (
--              <option key={topic.id} value={topic.id}>{displayTopicName(topic)}</option>
--            ))}
--          </select>
--        </label>
--
--        <label className='admin-field' style={{ marginBottom: 0, minWidth: 280 }}>
--          <span className='admin-label'>{text.searchByCourseName}</span>
--          <input
--            className='admin-input'
--            value={searchTerm}
--            placeholder={text.searchPlaceholder}
--            onChange={(e) => {
--              onChangeFilters({ searchTerm: e.target.value })
--            }}
--          />
--        </label>
-+      <div className='admin-tabs' style={{ marginBottom: 10 }}>
-+        <button className={`admin-tab ${activeTab === 'list' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('list')}>
-+          <i className='fa-solid fa-table-list' /> {lang === 'vi' ? 'Danh sách' : lang === 'en' ? 'List' : 'Liste'}
-+        </button>
-+        <button className={`admin-tab ${activeTab === 'detail' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('detail')} disabled={!selectedCourseId}>
-+          <i className='fa-solid fa-eye' /> {lang === 'vi' ? 'Chi tiết' : lang === 'en' ? 'Details' : 'Details'}
-+        </button>
-       </div>
-
--      <div className='admin-table-wrap'>
--        <table className='admin-table admin-table-courses-full no-scroll-table'>
--          <thead>
--            <tr>
--              <th>ID</th><th>{text.titleCol}</th><th>{text.topicCol}</th><th>{text.priceCol}</th><th>{text.ratingCol}</th><th>{text.enrollmentCol}</th><th>{text.lessonCol}</th><th>{text.videoCountCol}</th><th>{text.createdAtCol}</th><th>{text.updatedAtCol}</th><th>{text.statusCol}</th>
--            </tr>
--          </thead>
--          <tbody>
--            {courses.map((c) => (
--              <tr key={c.id}>
--                <td>{c.id}</td>
--                <td className='td-strong'>{c.title}</td>
--                <td>{c.topic ? displayTopicName(c.topic as CourseTopic) : text.unassigned}</td>
--                <td>{(c.price || 0).toLocaleString('vi-VN')}đ</td>
--                <td>{c.ratingAvg ?? 0} ({c.ratingCount ?? 0})</td>
--                <td>{c.enrollmentCount ?? 0}</td>
--                <td>{c._count?.lessons ?? 0}</td>
--                <td>{c.videoCount ?? 0}</td>
--                <td>{c.createdAt ? new Date(c.createdAt).toLocaleString('vi-VN') : '--'}</td>
--                <td>{c.updatedAt ? new Date(c.updatedAt).toLocaleString('vi-VN') : '--'}</td>
--                <td><span className={`status-pill ${c.published ? 'is-published' : 'is-draft'}`}>{c.published ? text.publishedStatus : text.draftStatus}</span></td>
--              </tr>
--            ))}
--          </tbody>
--        </table>
--      </div>
-+      {activeTab === 'list' && (
-+        <>
-+          <div className='admin-row' style={{ gap: 16, marginBottom: 12, flexWrap: 'wrap' }}>
-+            <label className='admin-field' style={{ marginBottom: 0, minWidth: 220 }}>
-+              <span className='admin-label'>{text.filterByTopic}</span>
-+              <select
-+                className='admin-input'
-+                value={selectedTopicId === 'all' ? 'all' : String(selectedTopicId)}
-+                onChange={(e) => {
-+                  onChangeFilters({ selectedTopicId: e.target.value === 'all' ? 'all' : Number(e.target.value) })
-+                }}
-+              >
-+                <option value='all'>{text.allTopics}</option>
-+                {topics.map((topic) => (
-+                  <option key={topic.id} value={topic.id}>{displayTopicName(topic)}</option>
-+                ))}
-+              </select>
-+            </label>
-
--      <div className='admin-row' style={{ justifyContent: 'space-between', marginTop: 12 }}>
--        <span>{text.pageLabel} {Math.min(page, totalPages)} / {totalPages} • {text.totalCoursesLabel} {totalItems}</span>
--        <div className='admin-row'>
--          <button className='admin-btn admin-btn-ghost' type='button' disabled={page <= 1} onClick={() => onChangePage(Math.max(1, page - 1))}>{text.prevPage}</button>
--          <button className='admin-btn admin-btn-ghost' type='button' disabled={page >= totalPages} onClick={() => onChangePage(Math.min(totalPages, page + 1))}>{text.nextPage}</button>
--        </div>
--      </div>
-+            <label className='admin-field' style={{ marginBottom: 0, minWidth: 280 }}>
-+              <span className='admin-label'>{text.searchByCourseName}</span>
-+              <input
-+                className='admin-input'
-+                value={searchTerm}
-+                placeholder={text.searchPlaceholder}
-+                onChange={(e) => {
-+                  onChangeFilters({ searchTerm: e.target.value })
-+                }}
-+              />
-+            </label>
-+          </div>
-+
-+          <div className='admin-table-wrap'>
-+            <table className='admin-table admin-table-courses-full no-scroll-table'>
-+              <thead>
-+                <tr>
-+                  <th>ID</th><th>{text.titleCol}</th><th>{text.topicCol}</th><th>{text.priceCol}</th><th>{text.ratingCol}</th><th>{text.enrollmentCol}</th><th>{text.lessonCol}</th><th>{text.videoCountCol}</th><th>{text.createdAtCol}</th><th>{text.updatedAtCol}</th><th>{text.statusCol}</th><th>{text.actions}</th>
-+                </tr>
-+              </thead>
-+              <tbody>
-+                {courses.map((c) => (
-+                  <tr key={c.id}>
-+                    <td>{c.id}</td>
-+                    <td className='td-strong'>{c.title}</td>
-+                    <td>{c.topic ? displayTopicName(c.topic as CourseTopic) : text.unassigned}</td>
-+                    <td>{(c.price || 0).toLocaleString('vi-VN')}đ</td>
-+                    <td>{c.ratingAvg ?? 0} ({c.ratingCount ?? 0})</td>
-+                    <td>{c.enrollmentCount ?? 0}</td>
-+                    <td>{c._count?.lessons ?? 0}</td>
-+                    <td>{c.videoCount ?? 0}</td>
-+                    <td>{c.createdAt ? new Date(c.createdAt).toLocaleString('vi-VN') : '--'}</td>
-+                    <td>{c.updatedAt ? new Date(c.updatedAt).toLocaleString('vi-VN') : '--'}</td>
-+                    <td><span className={`status-pill ${c.published ? 'is-published' : 'is-draft'}`}>{c.published ? text.publishedStatus : text.draftStatus}</span></td>
-+                    <td>
-+                      <button
-+                        type='button'
-+                        className='admin-btn admin-btn-ghost'
-+                        onClick={() => {
-+                          setSelectedCourseId(c.id)
-+                          setActiveTab('detail')
-+                        }}
-+                      >
-+                        <i className='fa-solid fa-eye' />
-+                      </button>
-+                    </td>
-+                  </tr>
-+                ))}
-+              </tbody>
-+            </table>
-+          </div>
-+
-+          <div className='admin-row' style={{ justifyContent: 'space-between', marginTop: 12 }}>
-+            <span>{text.pageLabel} {Math.min(page, totalPages)} / {totalPages} • {text.totalCoursesLabel} {totalItems}</span>
-+            <div className='admin-row'>
-+              <button className='admin-btn admin-btn-ghost' type='button' disabled={page <= 1} onClick={() => onChangePage(Math.max(1, page - 1))}>{text.prevPage}</button>
-+              <button className='admin-btn admin-btn-ghost' type='button' disabled={page >= totalPages} onClick={() => onChangePage(Math.min(totalPages, page + 1))}>{text.nextPage}</button>
-+            </div>
-+          </div>
-+        </>
-+      )}
-+
-+      {activeTab === 'detail' && (
-+        <>
-+          {!selectedCourseId && <p className='admin-helper'>{lang === 'vi' ? 'Vui lòng chọn khóa học ở tab danh sách.' : lang === 'en' ? 'Please select a course from list tab.' : 'Bitte wählen Sie einen Kurs aus der Liste.'}</p>}
-+          {loadingDetail && <p className='admin-helper'>{text.loading}</p>}
-+          {!loadingDetail && selectedCourse && <CourseDetailTabs course={selectedCourse} lang={lang} text={text} topics={topics} />}
-+        </>
-+      )}
-
-       <CreateCourseModal open={openCreateModal} lang={lang} topics={topics} onClose={() => setOpenCreateModal(false)} onCreated={onCourseCreated} />
-     </section>
-   )
- }
-diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx
-new file mode 100644
-index 0000000000000000000000000000000000000000..a7d40e483b8c06329115b743e704c9d56efe45c6
---- /dev/null
-+++ b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx
-@@ -0,0 +1,34 @@
-+import { type CourseDetailAdmin, type CourseTopic } from '../../../../api/adminCourses.api'
-+
-+type Props = {
-+  course: CourseDetailAdmin
-+  lang: 'vi' | 'en' | 'de'
-+  text: Record<string, string>
-+  topics: CourseTopic[]
-+}
-+
-+export function CourseDetailInfoTab({ course, lang, text, topics }: Props) {
-+  const displayTopicName = (topic: CourseTopic) => {
-+    if (lang === 'de') return topic.translations?.de?.name || topic.name
-+    if (lang === 'en') return topic.translations?.en?.name || topic.name
-+    return topic.translations?.vi?.name || topic.name
++  const normalizeTranslations = (value: CourseDetailAdmin['translations']): CourseTranslationItem[] => {
++    if (!value) return []
++    if (Array.isArray(value)) return value as CourseTranslationItem[]
++    return Object.entries(value).map(([locale, item]) => ({ locale, ...item }))
 +  }
 +
-+  const topic = topics.find((item) => item.id === course.topicId)
++  const normalizeContentTranslations = (value: CourseDetailAdmin['contentTranslations']): CourseContentTranslationItem[] => {
++    if (!value) return []
++    if (Array.isArray(value)) return value as CourseContentTranslationItem[]
++    return Object.entries(value).map(([locale, item]) => ({ locale, ...item }))
++  }
 +
-+  return (
-+    <div className='admin-row' style={{ flexDirection: 'column', gap: 10 }}>
-+      <div><b>ID:</b> {course.id}</div>
-+      <div><b>{text.titleCol}:</b> {course.title}</div>
-+      <div><b>{text.topicCol}:</b> {topic ? displayTopicName(topic) : text.unassigned}</div>
-+      <div><b>{text.priceCol}:</b> {(course.price || 0).toLocaleString('vi-VN')}đ</div>
-+      <div><b>{text.ratingCol}:</b> {course.ratingAvg ?? 0} ({course.ratingCount ?? 0})</div>
-+      <div><b>{text.enrollmentCol}:</b> {course.enrollmentCount ?? 0}</div>
-+      <div><b>{text.lessonCol}:</b> {course._count?.lessons ?? 0}</div>
-+      <div><b>{text.videoCountCol}:</b> {course.videoCount ?? 0}</div>
-+      <div><b>{text.statusCol}:</b> {course.published ? text.publishedStatus : text.draftStatus}</div>
-+      <div><b>{text.createdAtCol}:</b> {course.createdAt ? new Date(course.createdAt).toLocaleString('vi-VN') : '--'}</div>
-+      <div><b>{text.updatedAtCol}:</b> {course.updatedAt ? new Date(course.updatedAt).toLocaleString('vi-VN') : '--'}</div>
-+    </div>
-+  )
-+}
-diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx
-new file mode 100644
-index 0000000000000000000000000000000000000000..57eda094670cb536721494af406a97f00ee4025c
---- /dev/null
-+++ b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx
-@@ -0,0 +1,60 @@
-+import { useMemo, useState } from 'react'
-+import { type CourseDetailAdmin, type CourseTopic } from '../../../../api/adminCourses.api'
-+import { CourseDetailInfoTab } from './CourseDetailInfoTab'
+   const topic = topics.find((item) => item.id === course.topicId)
++  const translations = normalizeTranslations(course.translations)
++  const contentTranslations = normalizeContentTranslations(course.contentTranslations)
 +
-+type Props = {
-+  course: CourseDetailAdmin
-+  lang: 'vi' | 'en' | 'de'
-+  text: Record<string, string>
-+  topics: CourseTopic[]
-+}
-+
-+type DetailTabKey = 'info' | 'content'
-+
-+export function CourseDetailTabs({ course, lang, text, topics }: Props) {
-+  const [activeTab, setActiveTab] = useState<DetailTabKey>('info')
-+
-+  const localizedContent = useMemo(() => ({
-+    objectives: course.objectives || [],
-+    targetAudience: course.targetAudience || [],
-+    benefits: course.benefits || [],
-+  }), [course])
-+
-+  return (
-+    <section>
-+      <div className='admin-tabs' style={{ marginBottom: 10 }}>
-+        <button className={`admin-tab ${activeTab === 'info' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('info')}>
-+          <i className='fa-solid fa-circle-info' /> {lang === 'vi' ? 'Chi tiết khóa học' : lang === 'en' ? 'Course details' : 'Kursdetails'}
-+        </button>
-+        <button className={`admin-tab ${activeTab === 'content' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('content')}>
-+          <i className='fa-solid fa-list-check' /> {lang === 'vi' ? 'Nội dung mở rộng' : lang === 'en' ? 'Extended content' : 'Erweiterte Inhalte'}
-+        </button>
-+      </div>
-+
-+      {activeTab === 'info' && <CourseDetailInfoTab course={course} text={text} lang={lang} topics={topics} />}
-+
-+      {activeTab === 'content' && (
-+        <div className='admin-row' style={{ alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-+          <div className='admin-card' style={{ flex: 1, minWidth: 240 }}>
-+            <h4>Objectives</h4>
-+            <ul>
-+              {localizedContent.objectives.length ? localizedContent.objectives.map((item, idx) => <li key={`${item}-${idx}`}>{item}</li>) : <li>--</li>}
-+            </ul>
-+          </div>
-+          <div className='admin-card' style={{ flex: 1, minWidth: 240 }}>
-+            <h4>Target audience</h4>
-+            <ul>
-+              {localizedContent.targetAudience.length ? localizedContent.targetAudience.map((item, idx) => <li key={`${item}-${idx}`}>{item}</li>) : <li>--</li>}
-+            </ul>
-+          </div>
-+          <div className='admin-card' style={{ flex: 1, minWidth: 240 }}>
-+            <h4>Benefits</h4>
-+            <ul>
-+              {localizedContent.benefits.length ? localizedContent.benefits.map((item, idx) => <li key={`${item}-${idx}`}>{item}</li>) : <li>--</li>}
-+            </ul>
++  const infoItems: InfoItem[] = [
++    { key: 'id', label: 'ID', value: course.id || '--', icon: 'fa-hashtag' },
++    { key: 'topicId', label: 'Topic ID', value: course.topicId ?? '--', icon: 'fa-fingerprint' },
++    { key: 'topic', label: text.topicCol, value: topic ? displayTopicName(topic) : text.unassigned, icon: 'fa-folder-tree' },
++    { key: 'slug', label: 'Slug', value: course.slug || '--', icon: 'fa-link' },
++    { key: 'description', label: 'Description', value: course.description || '--', icon: 'fa-paragraph', fullWidth: true },
++    { key: 'price', label: text.priceCol, value: `${(course.price || 0).toLocaleString('vi-VN')}đ`, icon: 'fa-money-bill-wave' },
++    { key: 'rating', label: text.ratingCol, value: `${course.ratingAvg ?? 0} (${course.ratingCount ?? 0})`, icon: 'fa-star' },
++    { key: 'enrollment', label: text.enrollmentCol, value: course.enrollmentCount ?? 0, icon: 'fa-user-graduate' },
++    { key: 'lesson', label: text.lessonCol, value: course._count?.lessons ?? 0, icon: 'fa-book-open' },
++    { key: 'video', label: text.videoCountCol, value: course.videoCount ?? 0, icon: 'fa-video' },
++    {
++      key: 'createdAt',
++      label: text.createdAtCol,
++      value: course.createdAt ? new Date(course.createdAt).toLocaleString('vi-VN') : '--',
++      icon: 'fa-clock',
++    },
++    {
++      key: 'updatedAt',
++      label: text.updatedAtCol,
++      value: course.updatedAt ? new Date(course.updatedAt).toLocaleString('vi-VN') : '--',
++      icon: 'fa-rotate',
++    },
++  ]
+
+   return (
+-    <div className='admin-row' style={{ flexDirection: 'column', gap: 10 }}>
+-      <div><b>ID:</b> {course.id}</div>
+-      <div><b>{text.titleCol}:</b> {course.title}</div>
+-      <div><b>{text.topicCol}:</b> {topic ? displayTopicName(topic) : text.unassigned}</div>
+-      <div><b>{text.priceCol}:</b> {(course.price || 0).toLocaleString('vi-VN')}đ</div>
+-      <div><b>{text.ratingCol}:</b> {course.ratingAvg ?? 0} ({course.ratingCount ?? 0})</div>
+-      <div><b>{text.enrollmentCol}:</b> {course.enrollmentCount ?? 0}</div>
+-      <div><b>{text.lessonCol}:</b> {course._count?.lessons ?? 0}</div>
+-      <div><b>{text.videoCountCol}:</b> {course.videoCount ?? 0}</div>
+-      <div><b>{text.statusCol}:</b> {course.published ? text.publishedStatus : text.draftStatus}</div>
+-      <div><b>{text.createdAtCol}:</b> {course.createdAt ? new Date(course.createdAt).toLocaleString('vi-VN') : '--'}</div>
+-      <div><b>{text.updatedAtCol}:</b> {course.updatedAt ? new Date(course.updatedAt).toLocaleString('vi-VN') : '--'}</div>
++    <div className='admin-row' style={{ gap: 14, flexWrap: 'wrap', alignItems: 'stretch' }}>
++      <div style={{ flex: '1 1 100%', borderBottom: '1px dashed rgba(148, 163, 184, 0.35)', paddingBottom: 12 }}>
++        <div className='admin-row' style={{ gap: 12, alignItems: 'flex-start', flexWrap: 'nowrap' }}>
++          {course.thumbnail ? (
++            <img
++              src={course.thumbnail}
++              alt={course.title}
++              style={{ width: 250, height: 150, objectFit: 'cover', borderRadius: 8, border: '1px solid rgba(148, 163, 184, 0.35)', flexShrink: 0 }}
++            />
++          ) : (
++            <div
++              style={{
++                width: 250,
++                height: 150,
++                borderRadius: 8,
++                border: '1px dashed rgba(148, 163, 184, 0.5)',
++                display: 'flex',
++                alignItems: 'center',
++                justifyContent: 'center',
++                color: '#94a3b8',
++                fontSize: 12,
++                flexShrink: 0,
++              }}
++            >
++              No image
++            </div>
++          )}
++          <div style={{ minWidth: 0 }}>
++            <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 4 }}>
++              <i className='fa-solid fa-heading' style={{ width: 16, color: '#22d3ee' }} />
++              <span style={{ fontSize: 13, color: '#94a3b8' }}>{text.titleCol}</span>
++            </div>
++            <div style={{ fontWeight: 800, fontSize: 26, lineHeight: 1.25, marginBottom: 8, color: '#22c55e' }}>{course.title || '--'}</div>
++            <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 4 }}>
++              <i className='fa-solid fa-align-left' style={{ width: 16, color: '#22d3ee' }} />
++              <span style={{ fontSize: 13, color: '#94a3b8' }}>Short description</span>
++            </div>
++            <div style={{ fontWeight: 600, fontSize: 15, lineHeight: 1.4, wordBreak: 'break-word' }}>{course.shortDescription || '--'}</div>
 +          </div>
 +        </div>
-+      )}
-+    </section>
-+  )
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-index 2a0b90a44b5b9102d0eb59524ed838c84ea0dec9..b1764380443c430d2496233ee04465aa9e294415 100644
---- a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-+++ b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-@@ -50,52 +50,52 @@ const parseMultipartData = (input: Record<string, any>) => {
-   }
-   return data
++      </div>
++
++      {infoItems.map((item) => (
++        <div
++          key={item.key}
++          style={{
++            flex: item.fullWidth ? '1 1 100%' : '1 1 320px',
++            minWidth: item.fullWidth ? '100%' : 280,
++            borderBottom: '1px dashed rgba(148, 163, 184, 0.35)',
++            paddingBottom: 10,
++          }}
++        >
++          <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 4 }}>
++            <i className={`fa-solid ${item.icon}`} style={{ width: 16, color: '#22d3ee' }} />
++            <span style={{ fontSize: 13, color: '#94a3b8' }}>{item.label}</span>
++          </div>
++          <div style={{ fontWeight: 600, fontSize: 16, lineHeight: 1.4, wordBreak: 'break-word' }}>{item.value}</div>
++        </div>
++      ))}
++
++      <div style={{ flex: '1 1 320px', minWidth: 280, borderBottom: '1px dashed rgba(148, 163, 184, 0.35)', paddingBottom: 10 }}>
++        <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 4 }}>
++          <i className='fa-solid fa-circle-check' style={{ width: 16, color: '#22d3ee' }} />
++          <span style={{ fontSize: 13, color: '#94a3b8' }}>{text.statusCol}</span>
++        </div>
++        <div style={{ fontWeight: 600, fontSize: 16, lineHeight: 1.4 }}>
++          {course.published ? text.publishedStatus : text.draftStatus}
++        </div>
++      </div>
++
++      <div style={{ flex: '1 1 100%', borderBottom: '1px dashed rgba(148, 163, 184, 0.35)', paddingBottom: 10 }}>
++        <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 8 }}>
++          <i className='fa-solid fa-language' style={{ width: 16, color: '#22d3ee' }} />
++          <span style={{ fontSize: 13, color: '#94a3b8' }}>Translations</span>
++        </div>
++        {translations.length ? (
++          <div className='admin-row' style={{ gap: 12, flexWrap: 'wrap' }}>
++            {translations.map((translation) => (
++              <div key={translation.locale} style={{ flex: '1 1 300px', minWidth: 280 }}>
++                <div style={{ fontWeight: 700, marginBottom: 4 }}>{translation.locale.toUpperCase()}</div>
++                <div style={{ fontSize: 14, lineHeight: 1.5 }}><b>Title:</b> {translation.title || '--'}</div>
++                <div style={{ fontSize: 14, lineHeight: 1.5 }}><b>Short:</b> {translation.shortDescription || '--'}</div>
++                <div style={{ fontSize: 14, lineHeight: 1.5 }}><b>Description:</b> {translation.description || '--'}</div>
++              </div>
++            ))}
++          </div>
++        ) : (
++          <div style={{ fontWeight: 600 }}>--</div>
++        )}
++      </div>
++
++      <div style={{ flex: '1 1 100%', borderBottom: '1px dashed rgba(148, 163, 184, 0.35)', paddingBottom: 10 }}>
++        <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 8 }}>
++          <i className='fa-solid fa-list-check' style={{ width: 16, color: '#22d3ee' }} />
++          <span style={{ fontSize: 13, color: '#94a3b8' }}>Content translations</span>
++        </div>
++        {contentTranslations.length ? (
++          <div className='admin-row' style={{ gap: 12, flexWrap: 'wrap' }}>
++            {contentTranslations.map((translation) => (
++              <div key={translation.locale} style={{ flex: '1 1 300px', minWidth: 280 }}>
++                <div style={{ fontWeight: 700, marginBottom: 4 }}>{translation.locale.toUpperCase()}</div>
++                <div style={{ fontSize: 14, lineHeight: 1.5 }}><b>Objectives:</b> {translation.objectives?.join(' • ') || '--'}</div>
++                <div style={{ fontSize: 14, lineHeight: 1.5 }}><b>Target:</b> {translation.targetAudience?.join(' • ') || '--'}</div>
++                <div style={{ fontSize: 14, lineHeight: 1.5 }}><b>Benefits:</b> {translation.benefits?.join(' • ') || '--'}</div>
++              </div>
++            ))}
++          </div>
++        ) : (
++          <div style={{ fontWeight: 600 }}>--</div>
++        )}
++      </div>
+     </div>
+   )
  }
-
- @Controller('courses')
- export class CoursesController {
-   constructor(private readonly courses: CoursesService) {}
-
-   @UseGuards(AccessTokenGuard)
-   @Get('courses/:id/lessons-outline')
-   lessonsOutline(
-     @CurrentUser() user: JwtUser,
-     @Param('id', ParseIntPipe) id: number,
-   ) {
-     return this.courses.lessonsOutline(user, id)
-   }
-
-   @Get()
-   @UseGuards(OptionalAccessTokenGuard)
-   findAll(@CurrentUser() user: JwtUser | null, @Query() query: CourseQueryDto) {
-     return this.courses.findAll(query, user)
-   }
-
-   @UseGuards(AccessTokenGuard)
-   @Get(':id')
--  findOne(@Param('id', ParseIntPipe) id: number) {
--    return this.courses.findOne(id)
-+  findOne(@Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
-+    return this.courses.findOne(id, lang)
-   }
-
-   @UseGuards(AccessTokenGuard)
-   @Get(':id/lessons')
-   listLessons(@CurrentUser() user: any, @Param('id', ParseIntPipe) id: number) {
-     return this.courses.listLessons(user, id)
-   }
-
-   @UseGuards(AccessTokenGuard)
-   @Get(':id/lessons/:lessonId')
-   getLesson(
-     @CurrentUser() user: any,
-     @Param('id', ParseIntPipe) courseId: number,
-     @Param('lessonId', ParseIntPipe) lessonId: number,
-   ) {
-     return this.courses.getLessonDetail(user, courseId, lessonId)
-   }
-
-   @UseGuards(AccessTokenGuard, RolesGuard)
-   @Roles('ADMIN')
-   @Post('thumbnail/upload')
-   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
-   uploadThumbnail(@UploadedFile() file?: any) {
-     if (!file) return { message: 'Missing thumbnail file' }
-     return this.courses.uploadThumbnail(file)
-diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-index 762e05a2e75c98d3eca193d571018c1e880f85cd..72a90fcfd5ec8b856ddf0a830b8d8ab39f70ca11 100644
---- a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-@@ -18,50 +18,57 @@ export class CoursesService {
-     private readonly enrollments: EnrollmentsService,
-     private readonly courseMedia: CoursesMediaService,
-   ) {}
-
-   private readonly baseCourseSelect = {
-     id: true,
-     topicId: true,
-     title: true,
-     shortDescription: true,
-     slug: true,
-     description: true,
-     thumbnail: true,
-     price: true,
-     published: true,
-     objectives: true,
-     targetAudience: true,
-     benefits: true,
-     ratingAvg: true,
-     ratingCount: true,
-     enrollmentCount: true,
-     createdAt: true,
-     updatedAt: true,
-     _count: { select: { lessons: true } },
-   } as const
-
-+  private resolveCourseLocale(lang?: string): Locale {
-+    const activeLang = (lang || 'vi').toLowerCase()
-+    if (activeLang === 'en-us' || activeLang === 'en') return 'en'
-+    if (activeLang === 'de') return 'de'
-+    return 'vi'
-+  }
-+
-   private normalizeLocalizedList(value: unknown): MultiLingualStringList {
-     const empty: MultiLingualStringList = { vi: [], en: [], de: [] }
-     if (Array.isArray(value)) return { ...empty, vi: value.filter((item): item is string => typeof item === 'string') }
-     if (!value || typeof value !== 'object') return empty
-     const input = value as Record<string, unknown>
-     return {
-       vi: Array.isArray(input.vi) ? input.vi.filter((item): item is string => typeof item === 'string') : [],
-       en: Array.isArray(input.en) ? input.en.filter((item): item is string => typeof item === 'string') : [],
-       de: Array.isArray(input.de) ? input.de.filter((item): item is string => typeof item === 'string') : [],
-     }
-   }
-
-   private buildCreateCoursePayload(dto: CreateCourseDto & { title: string }): Prisma.CourseUncheckedCreateInput {
-     return {
-       title: dto.title,
-       slug: dto.slug,
-       ...(dto.description !== undefined ? { description: dto.description } : {}),
-       ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
-       ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
-       ...(dto.price !== undefined ? { price: dto.price } : {}),
-       ...(dto.published !== undefined ? { published: dto.published } : {}),
-       ...(dto.topicId !== undefined ? { topicId: dto.topicId } : {}),
-       ...(dto.objectives !== undefined ? { objectives: dto.objectives as any } : {}),
-       ...(dto.targetAudience !== undefined ? { targetAudience: dto.targetAudience as any } : {}),
-       ...(dto.benefits !== undefined ? { benefits: dto.benefits as any } : {}),
-@@ -76,90 +83,124 @@ export class CoursesService {
-       ...(dto.title !== undefined ? { title: dto.title } : {}),
-       ...(dto.slug !== undefined ? { slug: dto.slug } : {}),
-       ...(dto.description !== undefined ? { description: dto.description } : {}),
-       ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
-       ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
-       ...(dto.price !== undefined ? { price: dto.price } : {}),
-       ...(dto.published !== undefined ? { published: dto.published } : {}),
-       ...(dto.topicId !== undefined ? { topicId: dto.topicId } : {}),
-       ...(dto.objectives !== undefined ? { objectives: dto.objectives as any } : {}),
-       ...(dto.targetAudience !== undefined ? { targetAudience: dto.targetAudience as any } : {}),
-       ...(dto.benefits !== undefined ? { benefits: dto.benefits as any } : {}),
-       ...(dto.ratingAvg !== undefined ? { ratingAvg: dto.ratingAvg } : {}),
-       ...(dto.ratingCount !== undefined ? { ratingCount: dto.ratingCount } : {}),
-       ...(dto.enrollmentCount !== undefined ? { enrollmentCount: dto.enrollmentCount } : {}),
-     }
-   }
-
-   async lessonsOutline(user: JwtUser, courseId: number) { /* unchanged */
-     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } })
-     if (!course) throw new NotFoundException('Course not found')
-     if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
-     return this.prisma.lesson.findMany({ where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) }, select: { id: true, courseId: true, title: true, slug: true, order: true, published: true, createdAt: true, updatedAt: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] })
-   }
-
-   async findAll(query: CourseQueryDto, user?: { sub: number; role: string } | null) {
--    const activeLang = (query.lang || 'vi').toLowerCase()
--    const courseLocale = activeLang === 'en-us' || activeLang === 'en' ? 'en' : activeLang === 'de' ? 'de' : 'vi'
-+    const courseLocale = this.resolveCourseLocale(query.lang)
-     const topicLocale = courseLocale
-     const where: Prisma.CourseWhereInput = {
-       ...(user?.role === 'ADMIN' ? {} : { published: true }),
-       ...(query.topicId ? { topicId: query.topicId } : {}),
-       ...(query.search?.trim() ? { OR: [{ title: { contains: query.search.trim() } }, { slug: { contains: query.search.trim() } }] } : {}),
-     }
-     const page = Math.max(1, Number(query.page || 1)); const pageSize = Math.min(100, Math.max(1, Number(query.pageSize || 10)))
-     const [rows, total] = await Promise.all([
-       this.prisma.course.findMany({
-         where,
-         select: {
-           ...this.baseCourseSelect,
-           translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, title: true, shortDescription: true, description: true } },
-           contentTranslations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, objectives: true, targetAudience: true, benefits: true } },
-           topic: { select: { id: true, name: true, translations: { where: { locale: { in: [topicLocale, 'vi'] } }, select: { locale: true, name: true } } } },
-         },
-         skip: (page - 1) * pageSize, take: pageSize, orderBy: { id: 'desc' },
-       }),
-       this.prisma.course.count({ where }),
-     ])
-     const courseIds = rows.map((r) => r.id)
-     if (!courseIds.length) return { items: [], total, page, pageSize }
-     const videoRows = await this.prisma.$queryRaw<Array<{ courseId: number; videoCount: bigint | number }>>`SELECT l.courseId as courseId, COUNT(v.id) as videoCount FROM LessonVideo v INNER JOIN LessonModule m ON m.id = v.moduleId INNER JOIN Lesson l ON l.id = m.lessonId WHERE l.courseId IN (${Prisma.join(courseIds)}) GROUP BY l.courseId`
-     const videoCountMap = new Map(videoRows.map((r) => [Number(r.courseId), Number(r.videoCount)]))
-     const items = rows.map((row: any) => {
-       const tr = row.translations?.find((x: any) => x.locale === courseLocale) || row.translations?.find((x: any) => x.locale === 'vi')
-       const ct = row.contentTranslations?.find((x: any) => x.locale === courseLocale) || row.contentTranslations?.find((x: any) => x.locale === 'vi')
-       const tt = row.topic?.translations?.find((x: any) => x.locale === topicLocale) || row.topic?.translations?.find((x: any) => x.locale === 'vi')
-       return { ...row, title: tr?.title || row.title, shortDescription: tr?.shortDescription || row.shortDescription, description: tr?.description || row.description, objectives: ct?.objectives || row.objectives, targetAudience: ct?.targetAudience || row.targetAudience, benefits: ct?.benefits || row.benefits, topic: row.topic ? { id: row.topic.id, name: tt?.name || row.topic.name } : null, videoCount: videoCountMap.get(row.id) || 0 }
-     })
-     return { items, total, page, pageSize }
-   }
-
-
-   async uploadThumbnail(file: { buffer: Buffer }) {
-     return this.courseMedia.uploadThumbnail(file)
-   }
--  async findOne(id: number) { const c = await this.prisma.course.findUnique({ where: { id }, select: this.baseCourseSelect }); if (!c) throw new NotFoundException('Course not found'); return c }
-+  async findOne(id: number, lang?: string) {
-+    const courseLocale = this.resolveCourseLocale(lang)
-+    const c = await this.prisma.course.findUnique({
-+      where: { id },
-+      select: {
-+        ...this.baseCourseSelect,
-+        translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, title: true, shortDescription: true, description: true } },
-+        contentTranslations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, objectives: true, targetAudience: true, benefits: true } },
-+        topic: { select: { id: true, name: true, translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, name: true } } } },
-+      },
-+    })
-+    if (!c) throw new NotFoundException('Course not found')
-+    const tr = (c as any).translations?.find((x: any) => x.locale === courseLocale) || (c as any).translations?.find((x: any) => x.locale === 'vi')
-+    const ct = (c as any).contentTranslations?.find((x: any) => x.locale === courseLocale) || (c as any).contentTranslations?.find((x: any) => x.locale === 'vi')
-+    const tt = (c as any).topic?.translations?.find((x: any) => x.locale === courseLocale) || (c as any).topic?.translations?.find((x: any) => x.locale === 'vi')
-+
-+    const videoRows = await this.prisma.$queryRaw<Array<{ videoCount: bigint | number }>>`
-+      SELECT COUNT(v.id) as videoCount
-+      FROM LessonVideo v
-+      INNER JOIN LessonModule m ON m.id = v.moduleId
-+      INNER JOIN Lesson l ON l.id = m.lessonId
-+      WHERE l.courseId = ${id}
-+    `
-+
-+    return {
-+      ...c,
-+      title: tr?.title || c.title,
-+      shortDescription: tr?.shortDescription || c.shortDescription,
-+      description: tr?.description || c.description,
-+      objectives: ct?.objectives || c.objectives,
-+      targetAudience: ct?.targetAudience || c.targetAudience,
-+      benefits: ct?.benefits || c.benefits,
-+      topic: (c as any).topic ? { id: (c as any).topic.id, name: tt?.name || (c as any).topic.name } : null,
-+      videoCount: Number(videoRows[0]?.videoCount || 0),
-+    }
-+  }
-
-   async create(dto: CreateCourseDto, thumbnailFile?: { buffer: Buffer; mimetype?: string }) {
-     if (!dto.title?.trim()) throw new BadRequestException('Title is required')
-     try {
-       const thumbnailUrl = thumbnailFile ? (await this.courseMedia.uploadThumbnail(thumbnailFile)).url : dto.thumbnail
-       const created = await this.prisma.course.create({ data: this.buildCreateCoursePayload({ ...dto, title: dto.title.trim(), thumbnail: thumbnailUrl }), select: this.baseCourseSelect })
-       await this.syncCourseTranslations(created.id, dto)
-       return created
-     } catch (e) {
-       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException('Slug already exists')
-       throw e
-     }
-   }
-
-   async update(id: number, dto: UpdateCourseDto) { await this.ensureCourseExists(id); const updated = await this.prisma.course.update({ where: { id }, data: this.buildUpdateCoursePayload(dto), select: this.baseCourseSelect }); await this.syncCourseTranslations(id, dto); return updated }
-   async remove(id: number) { await this.ensureCourseExists(id); return this.prisma.course.delete({ where: { id }, select: { id: true } }) }
-
-   async listLessons(user: { sub: number; role: string }, courseId: number) { /* kept */
-     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } }); if (!course) throw new NotFoundException('Course not found'); await this.enrollments.assertEnrolledOrAdmin(user, courseId); if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
-     const lessons = await this.prisma.lesson.findMany({ where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) }, select: { id: true, courseId: true, title: true, slug: true, order: true, published: true, createdAt: true, updatedAt: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] })
-     if (user.role === 'ADMIN') return lessons.map((l) => ({ ...l, locked: false, lockReason: null, progress: null }))
-     const progressRows = await this.prisma.lessonProgress.findMany({ where: { userId: user.sub, lessonId: { in: lessons.map((l) => l.id) } }, select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true } })
-     const progressMap = new Map(progressRows.map((p) => [p.lessonId, p])); let prevCompleted = true
-     return lessons.map((lesson, idx) => { const progress = progressMap.get(lesson.id) ?? null; const locked = idx === 0 ? false : prevCompleted === false; const lockReason = locked ? 'PREV_NOT_COMPLETED' : null; prevCompleted = progress?.status === ProgressStatus.COMPLETED; return { ...lesson, locked, lockReason, progress } })
-   }

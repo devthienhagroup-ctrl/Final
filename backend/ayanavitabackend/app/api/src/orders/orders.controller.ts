@@ -1,6 +1,8 @@
 import {
+  Body,
   Controller,
   Get,
+  Headers,
   Param,
   ParseIntPipe,
   Post,
@@ -47,5 +49,23 @@ export class OrdersController {
   @Post('orders/:id/mark-paid')
   markPaid(@Param('id', ParseIntPipe) id: number) {
     return this.orders.markPaid(id)
+  }
+}
+
+@Controller('hooks')
+export class SepayWebhookController {
+  constructor(private readonly orders: OrdersService) {}
+
+  @Post('sepay-payment')
+  async handlePayment(
+    @Headers('authorization') authorization?: string,
+    @Headers('x-sepay-key') xSepayKey?: string,
+    @Headers('x-api-key') xApiKey?: string,
+    @Body() payload?: any,
+  ) {
+    const token = xSepayKey ?? xApiKey ?? authorization?.replace(/^Bearer\s+/i, '').trim()
+    await this.orders.assertWebhookKey(token)
+
+    return this.orders.handleSepayWebhook(payload)
   }
 }

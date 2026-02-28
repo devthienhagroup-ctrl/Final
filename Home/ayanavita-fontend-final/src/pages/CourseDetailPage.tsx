@@ -31,6 +31,24 @@ type CourseDetail = {
   reviews: ReviewItem[];
 };
 
+type SepayOrderResponse = {
+  id?: number;
+  orderId?: number;
+  status?: string;
+  mode?: string;
+  enrolled?: boolean;
+  total?: number;
+  payment?: {
+    provider?: string;
+    bank?: {
+      gateway?: string;
+      accountNumber?: string;
+      accountName?: string;
+    };
+    transferContent?: string;
+  };
+};
+
 const money = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n || 0);
 
@@ -44,6 +62,26 @@ const formatHour = (value?: string | null) => {
 const COURSE_THUMBNAIL_FALLBACK =
   "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?auto=format&fit=crop&w=1600&q=80";
 
+const REGISTER_LABEL: Record<string, string> = {
+  vi: "Đăng ký",
+  en: "Register",
+  de: "Registrieren",
+};
+
+const toRegisterUrl = (courseSlug: string, lang: string) => {
+  const qs = new URLSearchParams({ auth: "login", lang, course: courseSlug });
+  return `/?${qs.toString()}`;
+};
+
+function buildQrUrl(bankCode: string, accountNumber: string, amount: number, content: string, accountName: string) {
+  const qs = new URLSearchParams({
+    amount: String(Math.max(0, amount || 0)),
+    addInfo: content,
+    accountName,
+  });
+  return `https://img.vietqr.io/image/${encodeURIComponent(bankCode)}-${encodeURIComponent(accountNumber)}-compact2.png?${qs.toString()}`;
+}
+
 export default function CourseDetailPage() {
   const { slug = "" } = useParams<{ slug: string }>();
   const nav = useNavigate();
@@ -51,6 +89,9 @@ export default function CourseDetailPage() {
   const [lang, setLang] = useState(() => localStorage.getItem("preferred-language") || "vi");
   const [course, setCourse] = useState<CourseDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [ordering, setOrdering] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrData, setQrData] = useState<{ bankCode: string; accountNumber: string; accountName: string; content: string; amount: number } | null>(null);
 
   useEffect(() => {
     const onLangChange = (event: Event) => {
@@ -88,6 +129,48 @@ export default function CourseDetailPage() {
   );
 
   const thumbnail = course?.thumbnail || COURSE_THUMBNAIL_FALLBACK;
+
+  const onRegister = async () => {
+    if (!course) return;
+    const token = localStorage.getItem("aya_access_token");
+    if (!token) {
+      nav(toRegisterUrl(course.slug, lang));
+      return;
+    }
+
+    try {
+      setOrdering(true);
+      const res = await http.post<SepayOrderResponse>(`/courses/${course.id}/order`);
+      const payload = res.data || {};
+
+      if (payload.mode === "FREE" || payload.enrolled) {
+        window.alert("Đăng ký thành công. Khóa học miễn phí đã được kích hoạt.");
+        return;
+      }
+
+      const bankCode = payload.payment?.bank?.gateway || "BIDV";
+      const accountNumber = payload.payment?.bank?.accountNumber || "8810091561";
+      const accountName = payload.payment?.bank?.accountName || "LE MINH HIEU";
+      const content = payload.payment?.transferContent || "";
+      const amount = Number(payload.total || course.price || 0);
+
+      if (!content) {
+        window.alert("Không lấy được thông tin chuyển khoản từ hệ thống.");
+        return;
+      }
+
+      setQrData({ bankCode, accountNumber, accountName, content, amount });
+      setQrOpen(true);
+    } catch (error: any) {
+      if (error?.response?.status === 401) {
+        nav(toRegisterUrl(course.slug, lang));
+        return;
+      }
+      window.alert(error?.response?.data?.message || "Không thể tạo đơn đăng ký. Vui lòng thử lại.");
+    } finally {
+      setOrdering(false);
+    }
+  };
 
   return (
     <div className="text-slate-900">
@@ -144,9 +227,10 @@ export default function CourseDetailPage() {
                   <button
                     className="btn btn-primary w-full mt-4"
                     type="button"
-                    onClick={() => window.alert("Đăng ký khóa học thành công (demo).")}
+                    onClick={onRegister}
+                    disabled={ordering}
                   >
-                    Đăng ký
+                    {ordering ? "Đang tạo mã QR..." : REGISTER_LABEL[lang] || REGISTER_LABEL.vi}
                   </button>
                 </article>
 
@@ -173,6 +257,32 @@ export default function CourseDetailPage() {
           )}
         </div>
       </main>
+
+      {qrOpen && qrData ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4" onMouseDown={(e) => {
+          if (e.target === e.currentTarget) setQrOpen(false);
+        }}>
+          <div className="card w-full max-w-md p-5">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-lg font-extrabold">Quét QR để thanh toán</h3>
+              <button className="btn h-9 w-9 p-0" onClick={() => setQrOpen(false)} type="button">✕</button>
+            </div>
+            <img
+              className="mt-4 w-full rounded-2xl ring-1 ring-slate-200"
+              src={buildQrUrl(qrData.bankCode, qrData.accountNumber, qrData.amount, qrData.content, qrData.accountName)}
+              alt="SePay QR"
+            />
+            <div className="mt-4 space-y-2 text-sm">
+              <p><b>Ngân hàng:</b> {qrData.bankCode}</p>
+              <p><b>Số tài khoản:</b> {qrData.accountNumber}</p>
+              <p><b>Chủ tài khoản:</b> {qrData.accountName}</p>
+              <p><b>Số tiền:</b> {money(qrData.amount)}</p>
+              <p><b>Nội dung CK:</b> <span className="font-mono">{qrData.content}</span></p>
+              <p className="text-emerald-700 font-semibold">Sau khi SePay nhận webhook thành công, hệ thống sẽ tự kích hoạt khóa học.</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <Footer />
     </div>
   );

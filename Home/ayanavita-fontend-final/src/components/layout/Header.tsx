@@ -114,6 +114,20 @@ export function Header({
     return location.pathname.startsWith(path);
   };
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const auth = params.get("auth");
+    if (auth !== "login" && auth !== "register") return;
+
+    const langFromQuery = params.get("lang") as Language | null;
+    if (langFromQuery === "vi" || langFromQuery === "en" || langFromQuery === "de") {
+      setLanguage(langFromQuery);
+    }
+
+    setAuthTab(auth);
+    setAuthOpen(true);
+  }, [location.search]);
+
   const isProductsActive = useMemo(() => {
     return cms.productsDropdownItems.some(
       (item) => !("separator" in item) && location.pathname.startsWith(item.to),

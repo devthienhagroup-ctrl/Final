@@ -797,23 +797,37 @@ export class BookingService {
       throw new BadRequestException('Selected time is fully booked for this service in selected branch')
     }
 
-    const created = await this.prisma.appointment.create({
-      data: {
+    const created = await this.prisma.$transaction(async (tx) => {
+      const appointment = await tx.appointment.create({
+        data: {
           code: `APM-${Date.now()}`,
-        customerName: dto.customerName,
-        customerPhone: dto.customerPhone,
-        customerEmail: dto.customerEmail,
-        appointmentAt,
-        note: dto.note,
-        branchId: dto.branchId,
-        serviceId: dto.serviceId,
-        specialistId: dto.specialistId,
-      },
-      include: {
-        branch: { select: { id: true, name: true } },
-        service: { select: { id: true, name: true, durationMin: true, price: true } },
-        specialist: { select: { id: true, name: true, level: true } },
-      },
+          customerName: dto.customerName,
+          customerPhone: dto.customerPhone,
+          customerEmail: dto.customerEmail,
+          appointmentAt,
+          note: dto.note,
+          branchId: dto.branchId,
+          serviceId: dto.serviceId,
+          specialistId: dto.specialistId,
+        },
+        include: {
+          branch: { select: { id: true, name: true } },
+          service: { select: { id: true, name: true, durationMin: true, price: true } },
+          specialist: { select: { id: true, name: true, level: true } },
+        },
+      })
+
+      // 🔥 Tăng bookedCount lên 1
+      await tx.service.update({
+        where: { id: dto.serviceId },
+        data: {
+          bookedCount: {
+            increment: 1,
+          },
+        },
+      })
+
+      return appointment
     })
 
     return created

@@ -17,6 +17,20 @@ import {
 
 type ApiTopicOption = { id: number; name: string };
 
+type SepayOrderResponse = {
+  mode?: string;
+  enrolled?: boolean;
+  total?: number;
+  payment?: {
+    bank?: {
+      gateway?: string;
+      accountNumber?: string;
+      accountName?: string;
+    };
+    transferContent?: string;
+  };
+};
+
 export type CoursesPageCmsData = {
   // HERO
   heroImageSrc: string;
@@ -134,6 +148,20 @@ export const defaultCmsData: CoursesPageCmsData = {
   alertCheckout: "Đang chuyển sang trang thanh toán...",
 };
 const HERO_CHIP_COLOR_BY_INDEX = ["text-amber-600", "text-emerald-600", "text-indigo-600"] as const;
+
+const toRegisterUrl = (courseSlug: string, language: string) => {
+  const qs = new URLSearchParams({ auth: "login", lang: language, course: courseSlug });
+  return `/?${qs.toString()}`;
+};
+
+const buildQrUrl = (bankCode: string, accountNumber: string, amount: number, content: string, accountName: string) => {
+  const qs = new URLSearchParams({
+    amount: String(Math.max(0, amount || 0)),
+    addInfo: content,
+    accountName,
+  });
+  return `https://img.vietqr.io/image/${encodeURIComponent(bankCode)}-${encodeURIComponent(accountNumber)}-compact2.png?${qs.toString()}`;
+};
 
 function tpl(text: string, vars: Record<string, string | number>) {
   let out = text;
@@ -407,6 +435,9 @@ export default function CoursesPage({
 
   const [detailId, setDetailId] = useState<string | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
+  const [orderingId, setOrderingId] = useState<string | null>(null);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrData, setQrData] = useState<{ bankCode: string; accountNumber: string; accountName: string; content: string; amount: number } | null>(null);
 
   const [cartIds, setCartIds] = useState<string[]>(() => readCourseCart());
 
@@ -505,6 +536,47 @@ export default function CoursesPage({
     setQ("");
     setTopic("all");
     setPage(1);
+  }
+
+  async function registerCourse(c: Course) {
+    const token = localStorage.getItem("aya_access_token");
+    if (!token) {
+      navigate(toRegisterUrl((c as any).slug || c.id, currentLanguage));
+      return;
+    }
+
+    try {
+      setOrderingId(c.id);
+      const res = await http.post<SepayOrderResponse>(`/courses/${c.id}/order`);
+      const payload = res.data || {};
+
+      if (payload.mode === "FREE" || payload.enrolled) {
+        window.alert("Đăng ký thành công. Khóa học miễn phí đã được kích hoạt.");
+        return;
+      }
+
+      const bankCode = payload.payment?.bank?.gateway || "BIDV";
+      const accountNumber = payload.payment?.bank?.accountNumber || "8810091561";
+      const accountName = payload.payment?.bank?.accountName || "LE MINH HIEU";
+      const content = payload.payment?.transferContent || "";
+      const amount = Number(payload.total || c.price || 0);
+
+      if (!content) {
+        window.alert("Không lấy được thông tin chuyển khoản từ hệ thống.");
+        return;
+      }
+
+      setQrData({ bankCode, accountNumber, accountName, content, amount });
+      setQrOpen(true);
+    } catch (error: any) {
+      if (error?.response?.status === 401) {
+        navigate(toRegisterUrl((c as any).slug || c.id, currentLanguage));
+        return;
+      }
+      window.alert(error?.response?.data?.message || "Không thể tạo đơn đăng ký. Vui lòng thử lại.");
+    } finally {
+      setOrderingId(null);
+    }
   }
 
   return (
@@ -656,8 +728,8 @@ export default function CoursesPage({
                             <button className="btn text-sm" type="button" onClick={() => navigate(`/courses/${encodeURIComponent((c as any).slug || c.id)}`)}>
                               <i className="fa-solid fa-eye" /> {cms.viewDetailBtn}
                             </button>
-                            <button className="btn btn-primary text-sm hover:text-purple-800" type="button" onClick={() => addToCart(c.id)}>
-                              <i className="fa-solid fa-user-plus" /> {cms.addBtn}
+                            <button className="btn btn-primary text-sm hover:text-purple-800" type="button" onClick={() => registerCourse(c)} disabled={orderingId === c.id}>
+                              <i className="fa-solid fa-user-plus" /> {orderingId === c.id ? "Đang tạo QR..." : cms.registerBtn}
                             </button>
                           </div>
                         </div>
@@ -698,6 +770,32 @@ export default function CoursesPage({
             onClear={clearCart}
             cms={cms}
         />
+
+        {qrOpen && qrData ? (
+          <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4" onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setQrOpen(false);
+          }}>
+            <div className="card w-full max-w-md p-5">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-lg font-extrabold">Quét QR để thanh toán</h3>
+                <button className="btn h-9 w-9 p-0" onClick={() => setQrOpen(false)} type="button">✕</button>
+              </div>
+              <img
+                className="mt-4 w-full rounded-2xl ring-1 ring-slate-200"
+                src={buildQrUrl(qrData.bankCode, qrData.accountNumber, qrData.amount, qrData.content, qrData.accountName)}
+                alt="SePay QR"
+              />
+              <div className="mt-4 space-y-2 text-sm">
+                <p><b>Ngân hàng:</b> {qrData.bankCode}</p>
+                <p><b>Số tài khoản:</b> {qrData.accountNumber}</p>
+                <p><b>Chủ tài khoản:</b> {qrData.accountName}</p>
+                <p><b>Số tiền:</b> {money(qrData.amount)}</p>
+                <p><b>Nội dung CK:</b> <span className="font-mono">{qrData.content}</span></p>
+                <p className="text-emerald-700 font-semibold">Sau khi SePay nhận webhook thành công, hệ thống sẽ tự kích hoạt khóa học.</p>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
   );
 }

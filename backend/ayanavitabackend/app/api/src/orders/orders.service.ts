@@ -1,13 +1,63 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common'
 import { CourseAccessStatus, OrderStatus, Prisma } from '@prisma/client'
+import * as bcrypt from 'bcrypt'
 import { PrismaService } from 'src/prisma/prisma.service'
 
 @Injectable()
 export class OrdersService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private readonly sepayKeyHash =
+    process.env.SEPAY_WEBHOOK_KEY_HASH ?? '$2b$10$EalbSO88wwwkz0Y54ZUW4ux1n98rJEPyW6coC8odiInDUET3HARCO'
+
+  private readonly bankInfo = {
+    gateway: 'BIDV',
+    accountNumber: '8810091561',
+    accountName: 'LE MINH HIEU',
+  }
+
   private genOrderCode() {
     return `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+  }
+
+  private buildSepayCode(email: string, courseSlug: string) {
+    return `RQA:${encodeURIComponent(email)}::${encodeURIComponent(courseSlug)}`
+  }
+
+  private parseSepayCode(content?: string | null): { email: string; courseSlug: string } | null {
+    if (!content) return null
+
+    const matched = content.match(/RQA:([A-Za-z0-9._%+\-]+)::([A-Za-z0-9._%+\-]+)/i)
+    if (!matched) return null
+
+    try {
+      const email = decodeURIComponent(matched[1]).trim().toLowerCase()
+      const courseSlug = decodeURIComponent(matched[2]).trim().toLowerCase()
+      if (!email || !courseSlug) return null
+      return { email, courseSlug }
+    } catch {
+      return null
+    }
+  }
+
+  private withSepayMeta(order: { id: number; status: OrderStatus; total: number; createdAt: Date }, email: string, courseSlug: string) {
+    return {
+      ...order,
+      payment: {
+        provider: 'SEPAY',
+        webhookUrl: '/hooks/sepay-payment',
+        bank: this.bankInfo,
+        transferContent: this.buildSepayCode(email, courseSlug),
+      },
+    }
+  }
+
+  async assertWebhookKey(rawKey?: string) {
+    const token = (rawKey ?? '').trim()
+    if (!token) throw new UnauthorizedException('Missing SePay webhook key')
+
+    const ok = await bcrypt.compare(token, this.sepayKeyHash)
+    if (!ok) throw new UnauthorizedException('Invalid SePay webhook key')
   }
 
   // ADMIN: list orders cho UI Admin Orders (GET /orders)
@@ -73,10 +123,16 @@ export class OrdersService {
   async createOrder(userId: number, courseId: number) {
     const course = await this.prisma.course.findUnique({
       where: { id: courseId },
-      select: { id: true, title: true, price: true, published: true },
+      select: { id: true, title: true, price: true, published: true, slug: true },
     })
     if (!course) throw new NotFoundException('Course not found')
     if (!course.published) throw new ForbiddenException('Course not published')
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    })
+    if (!user) throw new NotFoundException('User not found')
 
     const existingAccess = await this.prisma.courseAccess.findUnique({
       where: { userId_courseId: { userId, courseId } },
@@ -86,7 +142,6 @@ export class OrdersService {
       throw new ForbiddenException('Already enrolled')
     }
 
-    // FREE: tạo order PAID total=0 và ghi nhận quyền truy cập khóa học ở CourseAccess
     if ((course.price ?? 0) === 0) {
       const paid = await this.prisma.$transaction(async (tx) => {
         const paidOrder = await tx.order.create({
@@ -123,7 +178,6 @@ export class OrdersService {
       return { mode: 'FREE', enrolled: true, orderId: paid.id }
     }
 
-    // Nếu có order pending cho course này => trả lại order đó (tránh tạo trùng)
     const pending = await this.prisma.order.findFirst({
       where: {
         userId,
@@ -133,9 +187,8 @@ export class OrdersService {
       select: { id: true, status: true, total: true, createdAt: true },
       orderBy: { id: 'desc' },
     })
-    if (pending) return pending
+    if (pending) return this.withSepayMeta(pending, user.email, course.slug)
 
-    // Create order + item (PENDING)
     const order = await this.prisma.order.create({
       data: {
         code: this.genOrderCode(),
@@ -160,11 +213,61 @@ export class OrdersService {
         status: true,
         total: true,
         createdAt: true,
-        items: { select: { id: true, courseId: true, price: true, courseTitle: true } },
       },
     })
 
-    return order
+    return this.withSepayMeta(order, user.email, course.slug)
+  }
+
+  async handleSepayWebhook(payload: any) {
+    if (String(payload?.transferType || '').toLowerCase() !== 'in') {
+      return { ok: true, ignored: true, message: 'Ignore transferType != in' }
+    }
+
+    const parsed = this.parseSepayCode(payload?.content)
+    if (!parsed) {
+      return { ok: true, ignored: true, message: 'Missing RQA code in content' }
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { email: parsed.email },
+      select: { id: true },
+    })
+    if (!user) throw new NotFoundException('User not found from SePay content')
+
+    const course = await this.prisma.course.findUnique({
+      where: { slug: parsed.courseSlug },
+      select: { id: true },
+    })
+    if (!course) throw new NotFoundException('Course not found from SePay content')
+
+    const order = await this.prisma.order.findFirst({
+      where: {
+        userId: user.id,
+        status: { in: [OrderStatus.PENDING, OrderStatus.PAID] },
+        items: { some: { courseId: course.id } },
+      },
+      select: { id: true, status: true, total: true },
+      orderBy: { id: 'desc' },
+    })
+    if (!order) throw new NotFoundException('Order not found for SePay webhook')
+
+    if (order.status === OrderStatus.PAID) {
+      return { ok: true, alreadyPaid: true, orderId: order.id, message: 'Order already paid' }
+    }
+
+    const transferAmount = Number(payload?.transferAmount ?? 0)
+    if (!Number.isFinite(transferAmount) || transferAmount < order.total) {
+      throw new ForbiddenException('Transfer amount is not enough for this order')
+    }
+
+    const paid = await this.markPaid(order.id)
+    return {
+      ok: true,
+      message: 'Thanh toán SePay thành công, đã kích hoạt khóa học',
+      orderId: order.id,
+      paid,
+    }
   }
 
   myOrders(userId: number) {
@@ -194,7 +297,6 @@ export class OrdersService {
     })
   }
 
-  // ADMIN mark-paid (mock payment)
   async markPaid(orderId: number) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },

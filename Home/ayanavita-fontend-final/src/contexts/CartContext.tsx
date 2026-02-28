@@ -66,16 +66,28 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<CartState>(emptyState)
   const [loading, setLoading] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => Boolean(localStorage.getItem('aya_access_token')))
+  const [serverCartEnabled, setServerCartEnabled] = useState(true)
   const prevAuthRef = useRef(isAuthenticated)
 
+  const disableServerCartAndUseGuest = useCallback(() => {
+    setServerCartEnabled(false)
+    setState(mapGuestToState(readGuestCart()))
+  }, [])
+
+  const canUseServerCart = isAuthenticated && serverCartEnabled
+
   const refresh = useCallback(async () => {
-    if (!isAuthenticated) {
+    if (!canUseServerCart) {
       setState(mapGuestToState(readGuestCart()))
       return
     }
-    const cart = await cartApi.getCart()
-    setState(mapServerToState(cart))
-  }, [isAuthenticated])
+    try {
+      const cart = await cartApi.getCart()
+      setState(mapServerToState(cart))
+    } catch {
+      disableServerCartAndUseGuest()
+    }
+  }, [canUseServerCart, disableServerCartAndUseGuest])
 
   useEffect(() => {
     const syncToken = () => setIsAuthenticated(Boolean(localStorage.getItem('aya_access_token')))
@@ -95,7 +107,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const handleAuthTransition = async () => {
       try {
         setLoading(true)
-        if (!prevAuthRef.current && isAuthenticated) {
+        if (!prevAuthRef.current && canUseServerCart) {
           const guest = readGuestCart()
           if (guest.length) {
             await cartApi.merge(
@@ -105,6 +117,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           }
         }
         await refresh()
+      } catch {
+        disableServerCartAndUseGuest()
       } finally {
         prevAuthRef.current = isAuthenticated
         setLoading(false)
@@ -112,18 +126,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
 
     handleAuthTransition()
-  }, [isAuthenticated, refresh])
+  }, [canUseServerCart, disableServerCartAndUseGuest, isAuthenticated, refresh])
 
   const addItem = useCallback(
     async (input: AddItemInput) => {
       const quantity = input.quantity ?? 1
-      if (isAuthenticated) {
-        const cart = await cartApi.addItem({
-          productId: input.productId,
-          quantity,
-        })
-        setState(mapServerToState(cart))
-        return
+      if (canUseServerCart) {
+        try {
+          const cart = await cartApi.addItem({
+            productId: input.productId,
+            quantity,
+          })
+          setState(mapServerToState(cart))
+          return
+        } catch {
+          setServerCartEnabled(false)
+        }
       }
 
       const current = readGuestCart()
@@ -142,15 +160,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       writeGuestCart(current)
       setState(mapGuestToState(current))
     },
-    [isAuthenticated],
+    [canUseServerCart],
   )
 
   const updateQuantity = useCallback(
     async (itemIdOrProductId: number, quantity: number) => {
-      if (isAuthenticated) {
-        const cart = await cartApi.updateItem(itemIdOrProductId, quantity)
-        setState(mapServerToState(cart))
-        return
+      if (canUseServerCart) {
+        try {
+          const cart = await cartApi.updateItem(itemIdOrProductId, quantity)
+          setState(mapServerToState(cart))
+          return
+        } catch {
+          setServerCartEnabled(false)
+        }
       }
 
       const current = readGuestCart()
@@ -162,21 +184,25 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       writeGuestCart(next)
       setState(mapGuestToState(next))
     },
-    [isAuthenticated],
+    [canUseServerCart],
   )
 
   const removeItem = useCallback(
     async (itemIdOrProductId: number) => {
-      if (isAuthenticated) {
-        const cart = await cartApi.removeItem(itemIdOrProductId)
-        setState(mapServerToState(cart))
-        return
+      if (canUseServerCart) {
+        try {
+          const cart = await cartApi.removeItem(itemIdOrProductId)
+          setState(mapServerToState(cart))
+          return
+        } catch {
+          setServerCartEnabled(false)
+        }
       }
       const next = readGuestCart().filter((item) => item.productId !== itemIdOrProductId)
       writeGuestCart(next)
       setState(mapGuestToState(next))
     },
-    [isAuthenticated],
+    [canUseServerCart],
   )
 
   const value = useMemo(

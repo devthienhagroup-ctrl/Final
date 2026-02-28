@@ -1,14 +1,10 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
-import { EnrollmentStatus, OrderStatus, Prisma } from '@prisma/client'
-import { EnrollmentsService } from 'src/enrollments/enrollments.service'
+import { CourseAccessStatus, OrderStatus, Prisma } from '@prisma/client'
 import { PrismaService } from 'src/prisma/prisma.service'
 
 @Injectable()
 export class OrdersService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly enrollments: EnrollmentsService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   private genOrderCode() {
     return `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`
@@ -82,15 +78,15 @@ export class OrdersService {
     if (!course) throw new NotFoundException('Course not found')
     if (!course.published) throw new ForbiddenException('Course not published')
 
-    const existingEnroll = await this.prisma.enrollment.findUnique({
+    const existingAccess = await this.prisma.courseAccess.findUnique({
       where: { userId_courseId: { userId, courseId } },
       select: { status: true },
     })
-    if (existingEnroll?.status === EnrollmentStatus.ACTIVE) {
+    if (existingAccess?.status === CourseAccessStatus.ACTIVE) {
       throw new ForbiddenException('Already enrolled')
     }
 
-    // FREE: vì Enrollment bắt buộc orderId => tạo order PAID total=0 rồi enroll
+    // FREE: tạo order PAID total=0 và ghi nhận quyền truy cập khóa học ở CourseAccess
     if ((course.price ?? 0) === 0) {
       const paid = await this.prisma.$transaction(async (tx) => {
         const paidOrder = await tx.order.create({
@@ -115,8 +111,11 @@ export class OrdersService {
           select: { id: true },
         })
 
-        // dùng service để giữ logic tập trung
-        await this.enrollments.enroll(userId, courseId, paidOrder.id)
+        await tx.courseAccess.upsert({
+          where: { userId_courseId: { userId, courseId } },
+          update: { status: CourseAccessStatus.ACTIVE, grantedAt: new Date() },
+          create: { userId, courseId, status: CourseAccessStatus.ACTIVE },
+        })
 
         return paidOrder
       })
@@ -217,14 +216,13 @@ export class OrdersService {
       })
 
       for (const item of order.items) {
-        await tx.enrollment.upsert({
+        await tx.courseAccess.upsert({
           where: { userId_courseId: { userId: order.userId, courseId: item.courseId } },
-          update: { status: EnrollmentStatus.ACTIVE, orderId: paidOrder.id },
+          update: { status: CourseAccessStatus.ACTIVE, grantedAt: new Date() },
           create: {
             userId: order.userId,
             courseId: item.courseId,
-            orderId: paidOrder.id,
-            status: EnrollmentStatus.ACTIVE,
+            status: CourseAccessStatus.ACTIVE,
           },
         })
       }

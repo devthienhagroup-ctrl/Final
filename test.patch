@@ -1,211 +1,113 @@
-diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx
-index a7d40e483b8c06329115b743e704c9d56efe45c6..27a7f94a49143d78f815b56efd223d29b37dfc11 100644
---- a/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx
-+++ b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx
-@@ -1,34 +1,194 @@
- import { type CourseDetailAdmin, type CourseTopic } from '../../../../api/adminCourses.api'
+diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx
+index 53a9108ae02e44521e64ce55b3c6d9f3a933f05e..9c231bf45807c91e543d2f8d28b026a9d1e7f806 100644
+--- a/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx
++++ b/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx
+@@ -1,48 +1,49 @@
+ import { useEffect, useState } from 'react'
+ import { adminCoursesApi, type CourseAdmin, type CourseDetailAdmin, type CourseTopic } from '../../../api/adminCourses.api'
+ import { CreateCourseModal } from './CreateCourseModal'
+ import { CourseDetailTabs } from './courseDetail/CourseDetailTabs'
 
  type Props = {
-   course: CourseDetailAdmin
-   lang: 'vi' | 'en' | 'de'
-   text: Record<string, string>
+   courses: CourseAdmin[]
    topics: CourseTopic[]
+   text: Record<string, string>
+   lang: 'vi' | 'en' | 'de'
+   selectedTopicId: number | 'all'
+   searchTerm: string
+   page: number
+   totalPages: number
+   totalItems: number
+   onChangeFilters: (patch: { selectedTopicId?: number | 'all'; searchTerm?: string }) => void
+   onChangePage: (page: number) => void
+   onCourseCreated: () => Promise<void> | void
  }
 
-+type InfoItem = {
-+  key: string
-+  label: string
-+  value: string | number
-+  icon: string
-+  fullWidth?: boolean
-+}
-+
-+type CourseTranslationItem = {
-+  locale: string
-+  title?: string
-+  shortDescription?: string
-+  description?: string
-+}
-+
-+type CourseContentTranslationItem = {
-+  locale: string
-+  objectives?: string[]
-+  targetAudience?: string[]
-+  benefits?: string[]
-+}
-+
- export function CourseDetailInfoTab({ course, lang, text, topics }: Props) {
+ type CourseInnerTab = 'list' | 'detail'
+
+ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searchTerm, page, totalPages, totalItems, onChangeFilters, onChangePage, onCourseCreated }: Props) {
++  const courseTableColumnWidths = ['4%', '17%', '13%', '8%', '7%', '7%', '5%', '5%', '10%', '10%', '8%', '6%']
+   const [openCreateModal, setOpenCreateModal] = useState(false)
+   const [activeTab, setActiveTab] = useState<CourseInnerTab>('list')
+   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
+   const [selectedCourse, setSelectedCourse] = useState<CourseDetailAdmin | null>(null)
+   const [loadingDetail, setLoadingDetail] = useState(false)
+
    const displayTopicName = (topic: CourseTopic) => {
      if (lang === 'de') return topic.translations?.de?.name || topic.name
-     if (lang === 'en') return topic.translations?.en?.name || topic.name
+     if (lang === 'en') return topic.translations?.['en']?.name || topic.name
      return topic.translations?.vi?.name || topic.name
    }
 
-+  const normalizeTranslations = (value: CourseDetailAdmin['translations']): CourseTranslationItem[] => {
-+    if (!value) return []
-+    if (Array.isArray(value)) return value as CourseTranslationItem[]
-+    return Object.entries(value).map(([locale, item]) => ({ locale, ...item }))
-+  }
-+
-+  const normalizeContentTranslations = (value: CourseDetailAdmin['contentTranslations']): CourseContentTranslationItem[] => {
-+    if (!value) return []
-+    if (Array.isArray(value)) return value as CourseContentTranslationItem[]
-+    return Object.entries(value).map(([locale, item]) => ({ locale, ...item }))
-+  }
-+
-   const topic = topics.find((item) => item.id === course.topicId)
-+  const translations = normalizeTranslations(course.translations)
-+  const contentTranslations = normalizeContentTranslations(course.contentTranslations)
-+
-+  const infoItems: InfoItem[] = [
-+    { key: 'id', label: 'ID', value: course.id || '--', icon: 'fa-hashtag' },
-+    { key: 'topicId', label: 'Topic ID', value: course.topicId ?? '--', icon: 'fa-fingerprint' },
-+    { key: 'topic', label: text.topicCol, value: topic ? displayTopicName(topic) : text.unassigned, icon: 'fa-folder-tree' },
-+    { key: 'slug', label: 'Slug', value: course.slug || '--', icon: 'fa-link' },
-+    { key: 'description', label: 'Description', value: course.description || '--', icon: 'fa-paragraph', fullWidth: true },
-+    { key: 'price', label: text.priceCol, value: `${(course.price || 0).toLocaleString('vi-VN')}đ`, icon: 'fa-money-bill-wave' },
-+    { key: 'rating', label: text.ratingCol, value: `${course.ratingAvg ?? 0} (${course.ratingCount ?? 0})`, icon: 'fa-star' },
-+    { key: 'enrollment', label: text.enrollmentCol, value: course.enrollmentCount ?? 0, icon: 'fa-user-graduate' },
-+    { key: 'lesson', label: text.lessonCol, value: course._count?.lessons ?? 0, icon: 'fa-book-open' },
-+    { key: 'video', label: text.videoCountCol, value: course.videoCount ?? 0, icon: 'fa-video' },
-+    {
-+      key: 'createdAt',
-+      label: text.createdAtCol,
-+      value: course.createdAt ? new Date(course.createdAt).toLocaleString('vi-VN') : '--',
-+      icon: 'fa-clock',
-+    },
-+    {
-+      key: 'updatedAt',
-+      label: text.updatedAtCol,
-+      value: course.updatedAt ? new Date(course.updatedAt).toLocaleString('vi-VN') : '--',
-+      icon: 'fa-rotate',
-+    },
-+  ]
+   useEffect(() => {
+     if (activeTab !== 'detail' || !selectedCourseId) return
+     setLoadingDetail(true)
+     adminCoursesApi.getCourseDetail(selectedCourseId, lang)
+       .then((detail) => setSelectedCourse(detail))
+       .finally(() => setLoadingDetail(false))
+   }, [activeTab, selectedCourseId, lang])
 
    return (
--    <div className='admin-row' style={{ flexDirection: 'column', gap: 10 }}>
--      <div><b>ID:</b> {course.id}</div>
--      <div><b>{text.titleCol}:</b> {course.title}</div>
--      <div><b>{text.topicCol}:</b> {topic ? displayTopicName(topic) : text.unassigned}</div>
--      <div><b>{text.priceCol}:</b> {(course.price || 0).toLocaleString('vi-VN')}đ</div>
--      <div><b>{text.ratingCol}:</b> {course.ratingAvg ?? 0} ({course.ratingCount ?? 0})</div>
--      <div><b>{text.enrollmentCol}:</b> {course.enrollmentCount ?? 0}</div>
--      <div><b>{text.lessonCol}:</b> {course._count?.lessons ?? 0}</div>
--      <div><b>{text.videoCountCol}:</b> {course.videoCount ?? 0}</div>
--      <div><b>{text.statusCol}:</b> {course.published ? text.publishedStatus : text.draftStatus}</div>
--      <div><b>{text.createdAtCol}:</b> {course.createdAt ? new Date(course.createdAt).toLocaleString('vi-VN') : '--'}</div>
--      <div><b>{text.updatedAtCol}:</b> {course.updatedAt ? new Date(course.updatedAt).toLocaleString('vi-VN') : '--'}</div>
-+    <div className='admin-row' style={{ gap: 14, flexWrap: 'wrap', alignItems: 'stretch' }}>
-+      <div style={{ flex: '1 1 100%', borderBottom: '1px dashed rgba(148, 163, 184, 0.35)', paddingBottom: 12 }}>
-+        <div className='admin-row' style={{ gap: 12, alignItems: 'flex-start', flexWrap: 'nowrap' }}>
-+          {course.thumbnail ? (
-+            <img
-+              src={course.thumbnail}
-+              alt={course.title}
-+              style={{ width: 250, height: 150, objectFit: 'cover', borderRadius: 8, border: '1px solid rgba(148, 163, 184, 0.35)', flexShrink: 0 }}
-+            />
-+          ) : (
-+            <div
-+              style={{
-+                width: 250,
-+                height: 150,
-+                borderRadius: 8,
-+                border: '1px dashed rgba(148, 163, 184, 0.5)',
-+                display: 'flex',
-+                alignItems: 'center',
-+                justifyContent: 'center',
-+                color: '#94a3b8',
-+                fontSize: 12,
-+                flexShrink: 0,
-+              }}
-+            >
-+              No image
-+            </div>
-+          )}
-+          <div style={{ minWidth: 0 }}>
-+            <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 4 }}>
-+              <i className='fa-solid fa-heading' style={{ width: 16, color: '#22d3ee' }} />
-+              <span style={{ fontSize: 13, color: '#94a3b8' }}>{text.titleCol}</span>
-+            </div>
-+            <div style={{ fontWeight: 800, fontSize: 26, lineHeight: 1.25, marginBottom: 8, color: '#22c55e' }}>{course.title || '--'}</div>
-+            <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 4 }}>
-+              <i className='fa-solid fa-align-left' style={{ width: 16, color: '#22d3ee' }} />
-+              <span style={{ fontSize: 13, color: '#94a3b8' }}>Short description</span>
-+            </div>
-+            <div style={{ fontWeight: 600, fontSize: 15, lineHeight: 1.4, wordBreak: 'break-word' }}>{course.shortDescription || '--'}</div>
-+          </div>
-+        </div>
-+      </div>
-+
-+      {infoItems.map((item) => (
-+        <div
-+          key={item.key}
-+          style={{
-+            flex: item.fullWidth ? '1 1 100%' : '1 1 320px',
-+            minWidth: item.fullWidth ? '100%' : 280,
-+            borderBottom: '1px dashed rgba(148, 163, 184, 0.35)',
-+            paddingBottom: 10,
-+          }}
-+        >
-+          <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 4 }}>
-+            <i className={`fa-solid ${item.icon}`} style={{ width: 16, color: '#22d3ee' }} />
-+            <span style={{ fontSize: 13, color: '#94a3b8' }}>{item.label}</span>
-+          </div>
-+          <div style={{ fontWeight: 600, fontSize: 16, lineHeight: 1.4, wordBreak: 'break-word' }}>{item.value}</div>
-+        </div>
-+      ))}
-+
-+      <div style={{ flex: '1 1 320px', minWidth: 280, borderBottom: '1px dashed rgba(148, 163, 184, 0.35)', paddingBottom: 10 }}>
-+        <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 4 }}>
-+          <i className='fa-solid fa-circle-check' style={{ width: 16, color: '#22d3ee' }} />
-+          <span style={{ fontSize: 13, color: '#94a3b8' }}>{text.statusCol}</span>
-+        </div>
-+        <div style={{ fontWeight: 600, fontSize: 16, lineHeight: 1.4 }}>
-+          {course.published ? text.publishedStatus : text.draftStatus}
-+        </div>
-+      </div>
-+
-+      <div style={{ flex: '1 1 100%', borderBottom: '1px dashed rgba(148, 163, 184, 0.35)', paddingBottom: 10 }}>
-+        <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 8 }}>
-+          <i className='fa-solid fa-language' style={{ width: 16, color: '#22d3ee' }} />
-+          <span style={{ fontSize: 13, color: '#94a3b8' }}>Translations</span>
-+        </div>
-+        {translations.length ? (
-+          <div className='admin-row' style={{ gap: 12, flexWrap: 'wrap' }}>
-+            {translations.map((translation) => (
-+              <div key={translation.locale} style={{ flex: '1 1 300px', minWidth: 280 }}>
-+                <div style={{ fontWeight: 700, marginBottom: 4 }}>{translation.locale.toUpperCase()}</div>
-+                <div style={{ fontSize: 14, lineHeight: 1.5 }}><b>Title:</b> {translation.title || '--'}</div>
-+                <div style={{ fontSize: 14, lineHeight: 1.5 }}><b>Short:</b> {translation.shortDescription || '--'}</div>
-+                <div style={{ fontSize: 14, lineHeight: 1.5 }}><b>Description:</b> {translation.description || '--'}</div>
-+              </div>
-+            ))}
-+          </div>
-+        ) : (
-+          <div style={{ fontWeight: 600 }}>--</div>
-+        )}
-+      </div>
-+
-+      <div style={{ flex: '1 1 100%', borderBottom: '1px dashed rgba(148, 163, 184, 0.35)', paddingBottom: 10 }}>
-+        <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 8 }}>
-+          <i className='fa-solid fa-list-check' style={{ width: 16, color: '#22d3ee' }} />
-+          <span style={{ fontSize: 13, color: '#94a3b8' }}>Content translations</span>
-+        </div>
-+        {contentTranslations.length ? (
-+          <div className='admin-row' style={{ gap: 12, flexWrap: 'wrap' }}>
-+            {contentTranslations.map((translation) => (
-+              <div key={translation.locale} style={{ flex: '1 1 300px', minWidth: 280 }}>
-+                <div style={{ fontWeight: 700, marginBottom: 4 }}>{translation.locale.toUpperCase()}</div>
-+                <div style={{ fontSize: 14, lineHeight: 1.5 }}><b>Objectives:</b> {translation.objectives?.join(' • ') || '--'}</div>
-+                <div style={{ fontSize: 14, lineHeight: 1.5 }}><b>Target:</b> {translation.targetAudience?.join(' • ') || '--'}</div>
-+                <div style={{ fontSize: 14, lineHeight: 1.5 }}><b>Benefits:</b> {translation.benefits?.join(' • ') || '--'}</div>
-+              </div>
-+            ))}
-+          </div>
-+        ) : (
-+          <div style={{ fontWeight: 600 }}>--</div>
-+        )}
-+      </div>
-     </div>
-   )
- }
+     <section className='admin-card admin-card-glow admin-course-management-card'>
+       <div className='admin-row' style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+         <h3 className='admin-card-title'><i className='fa-solid fa-graduation-cap' /> {text.coursesTab}</h3>
+         <button className='admin-btn admin-btn-save' type='button' onClick={() => setOpenCreateModal(true)}>
+@@ -73,52 +74,57 @@ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searc
+                   onChangeFilters({ selectedTopicId: e.target.value === 'all' ? 'all' : Number(e.target.value) })
+                 }}
+               >
+                 <option value='all'>{text.allTopics}</option>
+                 {topics.map((topic) => (
+                   <option key={topic.id} value={topic.id}>{displayTopicName(topic)}</option>
+                 ))}
+               </select>
+             </label>
+
+             <label className='admin-field' style={{ marginBottom: 0, minWidth: 280 }}>
+               <span className='admin-label'>{text.searchByCourseName}</span>
+               <input
+                 className='admin-input'
+                 value={searchTerm}
+                 placeholder={text.searchPlaceholder}
+                 onChange={(e) => {
+                   onChangeFilters({ searchTerm: e.target.value })
+                 }}
+               />
+             </label>
+           </div>
+
+
+
+-          <div className='admin-table-wrap'>
++          <div className='admin-table-wrap' style={{ paddingRight: 12, boxSizing: 'border-box' }}>
+             <table className='admin-table admin-table-courses-full no-scroll-table'>
++              <colgroup>
++                {courseTableColumnWidths.map((width, index) => (
++                  <col key={`${width}-${index}`} style={{ width }} />
++                ))}
++              </colgroup>
+               <thead>
+                 <tr>
+                   <th>ID</th><th>{text.titleCol}</th><th>{text.topicCol}</th><th>{text.priceCol}</th><th>{text.ratingCol}</th><th>{text.enrollmentCol}</th><th>{text.lessonCol}</th><th>{text.videoCountCol}</th><th>{text.createdAtCol}</th><th>{text.updatedAtCol}</th><th>{text.statusCol}</th><th>{text.actions}</th>
+                 </tr>
+               </thead>
+               <tbody>
+                 {courses.map((c) => (
+                   <tr key={c.id}>
+                     <td>{c.id}</td>
+                     <td className='td-strong'>{c.title}</td>
+                     <td>{c.topic ? displayTopicName(c.topic as CourseTopic) : text.unassigned}</td>
+                     <td>{(c.price || 0).toLocaleString('vi-VN')}đ</td>
+                     <td>{c.ratingAvg ?? 0} ({c.ratingCount ?? 0})</td>
+                     <td>{c.enrollmentCount ?? 0}</td>
+                     <td>{c._count?.lessons ?? 0}</td>
+                     <td>{c.videoCount ?? 0}</td>
+                     <td>{c.createdAt ? new Date(c.createdAt).toLocaleString('vi-VN') : '--'}</td>
+                     <td>{c.updatedAt ? new Date(c.updatedAt).toLocaleString('vi-VN') : '--'}</td>
+                     <td><span className={`status-pill ${c.published ? 'is-published' : 'is-draft'}`}>{c.published ? text.publishedStatus : text.draftStatus}</span></td>
+                     <td>
+                       <button
+                         type='button'
+                         className='admin-btn admin-btn-ghost'
+                         onClick={() => {
+                           setSelectedCourseId(c.id)

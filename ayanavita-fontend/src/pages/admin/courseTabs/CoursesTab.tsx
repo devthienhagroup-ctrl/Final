@@ -21,6 +21,7 @@ type Props = {
 type CourseInnerTab = 'list' | 'detail'
 
 export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searchTerm, page, totalPages, totalItems, onChangeFilters, onChangePage, onCourseCreated }: Props) {
+  const courseTableColumnWidths = ['4%', '17%', '13%', '8%', '7%', '7%', '5%', '5%', '10%', '10%', '8%', '6%']
   const [openCreateModal, setOpenCreateModal] = useState(false)
   const [activeTab, setActiveTab] = useState<CourseInnerTab>('list')
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
@@ -95,8 +96,13 @@ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searc
 
 
 
-          <div className='admin-table-wrap'>
+          <div className='admin-table-wrap' style={{ paddingRight: 12, boxSizing: 'border-box' }}>
             <table className='admin-table admin-table-courses-full no-scroll-table'>
+              <colgroup>
+                {courseTableColumnWidths.map((width, index) => (
+                  <col key={`${width}-${index}`} style={{ width }} />
+                ))}
+              </colgroup>
               <thead>
                 <tr>
                   <th>ID</th><th>{text.titleCol}</th><th>{text.topicCol}</th><th>{text.priceCol}</th><th>{text.ratingCol}</th><th>{text.enrollmentCol}</th><th>{text.lessonCol}</th><th>{text.videoCountCol}</th><th>{text.createdAtCol}</th><th>{text.updatedAtCol}</th><th>{text.statusCol}</th><th>{text.actions}</th>

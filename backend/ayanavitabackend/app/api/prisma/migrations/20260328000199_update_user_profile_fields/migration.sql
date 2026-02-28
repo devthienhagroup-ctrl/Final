@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE `User`
+  ADD COLUMN `birthDate` DATETIME(3) NULL,
+  ADD COLUMN `gender` ENUM('MALE', 'FEMALE', 'OTHER') NULL,
+  ADD COLUMN `address` VARCHAR(500) NULL;

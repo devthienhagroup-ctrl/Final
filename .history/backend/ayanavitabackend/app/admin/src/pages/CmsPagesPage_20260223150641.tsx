@@ -365,10 +365,10 @@ export function CmsPagesPage() {
 
                         <td style={{ textAlign: "right" }}>
                           <div className="qActions">
-                            {/* <button className="btn" type="button" onClick={() => onPreview(r)}>
+                            <button className="btn" type="button" onClick={() => onPreview(r)}>
                               Preview
-                            </button> */}
-{/* 
+                            </button>
+
                             <button
                               className="btn"
                               type="button"
@@ -377,9 +377,9 @@ export function CmsPagesPage() {
                               title="Duplicate page"
                             >
                               {busyId === r.id ? "…" : "Duplicate"}
-                            </button> */}
+                            </button>
 
-                            {/* <button
+                            <button
                               className="btn"
                               type="button"
                               onClick={() => onToggleActive(r)}
@@ -387,7 +387,7 @@ export function CmsPagesPage() {
                               title="Toggle active"
                             >
                               {active ? "Disable" : "Enable"}
-                            </button> */}
+                            </button>
 
                             <Link className="btn btn-primary" to={`/cms/pages/${encodeURIComponent(r.slug)}`}>
                               Edit

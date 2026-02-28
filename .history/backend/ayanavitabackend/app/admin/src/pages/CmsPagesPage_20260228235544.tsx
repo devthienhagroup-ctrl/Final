@@ -365,9 +365,9 @@ export function CmsPagesPage() {
 
                         <td style={{ textAlign: "right" }}>
                           <div className="qActions">
-                            {/* <button className="btn" type="button" onClick={() => onPreview(r)}>
+                            <button className="btn" type="button" onClick={() => onPreview(r)}>
                               Preview
-                            </button> */}
+                            </button>
 {/* 
                             <button
                               className="btn"

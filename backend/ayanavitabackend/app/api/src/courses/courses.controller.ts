@@ -60,8 +60,9 @@ export class CoursesController {
   lessonsOutline(
     @CurrentUser() user: JwtUser,
     @Param('id', ParseIntPipe) id: number,
+    @Query('lang') lang?: string,
   ) {
-    return this.courses.lessonsOutline(user, id)
+    return this.courses.lessonsOutline(user, id, lang)
   }
 
   @Get()

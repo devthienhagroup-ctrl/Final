@@ -60,6 +60,11 @@ export type LessonAdmin = {
   updatedAt?: string
 }
 
+export type LessonOutlineAdmin = LessonAdmin & {
+  localizedTitle?: string
+  localizedDescription?: string
+}
+
 export type LessonDetailAdmin = LessonAdmin & { modules: LessonModuleAdmin[] }
 
 export type CourseAdmin = {
@@ -150,7 +155,12 @@ export const adminCoursesApi = {
     return get<CourseDetailAdmin>(`/courses/${id}${suffix}`, { auth: true })
   },
 
-  listCourseLessons: (courseId: number) => get<LessonAdmin[]>(`/courses/${courseId}/lessons-outline`, { auth: true }),
+  listCourseLessons: (courseId: number, lang?: string) => {
+    const qs = new URLSearchParams()
+    if (lang) qs.set('lang', lang)
+    const suffix = qs.toString() ? `?${qs.toString()}` : ''
+    return get<LessonOutlineAdmin[]>(`/courses/${courseId}/lessons-outline${suffix}`, { auth: true })
+  },
   getLessonDetail: (lessonId: number) => get<LessonDetailAdmin>(`/lessons/${lessonId}`, { auth: true }),
   createLesson: (courseId: number, body: LessonPayload) => post<LessonAdmin>(`/courses/${courseId}/lessons`, body, { auth: true }),
   updateLesson: (lessonId: number, body: Partial<LessonPayload>) => patch<LessonAdmin>(`/lessons/${lessonId}`, body, { auth: true }),

@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import { CreateLessonDto } from './dto/create-lesson.dto'
 import { UpdateLessonDto } from './dto/update-lesson.dto'
@@ -47,6 +47,7 @@ export class LessonsService {
           await this.upsertModuleTranslations(tx, mod.id, m)
           if (m.videos?.length) {
             for (const [idx, v] of m.videos.entries()) {
+              if (!v.sourceUrl?.trim()) throw new BadRequestException('Video/Image sourceUrl is required')
               const video = await tx.lessonVideo.create({ data: { moduleId: mod.id, title: v.title, description: v.description, sourceUrl: v.sourceUrl, mediaType: v.mediaType === 'IMAGE' ? LessonMediaType.IMAGE : LessonMediaType.VIDEO, durationSec: v.durationSec ?? 0, order: v.order ?? idx, published: v.published ?? true } as any })
               await this.upsertVideoTranslations(tx, video.id, v)
             }
@@ -96,6 +97,7 @@ export class LessonsService {
           const mod = await tx.lessonModule.create({ data: { lessonId: id, title: m.title, description: m.description, order: m.order, published: m.published } as any })
           await this.upsertModuleTranslations(tx, mod.id, m)
           for (const [idx, v] of (m.videos || []).entries()) {
+            if (!v.sourceUrl?.trim()) throw new BadRequestException('Video/Image sourceUrl is required')
             const video = await tx.lessonVideo.create({ data: { moduleId: mod.id, title: v.title, description: v.description, sourceUrl: v.sourceUrl, mediaType: v.mediaType === 'IMAGE' ? LessonMediaType.IMAGE : LessonMediaType.VIDEO, durationSec: v.durationSec ?? 0, order: v.order ?? idx, published: v.published ?? true } as any })
             await this.upsertVideoTranslations(tx, video.id, v)
           }

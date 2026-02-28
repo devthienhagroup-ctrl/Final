@@ -113,11 +113,39 @@ export class CoursesService {
     }
   }
 
-  async lessonsOutline(user: JwtUser, courseId: number) { /* unchanged */
+  async lessonsOutline(user: JwtUser, courseId: number, lang?: string) {
+    const lessonLocale = this.resolveCourseLocale(lang)
     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } })
     if (!course) throw new NotFoundException('Course not found')
     if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
-    return this.prisma.lesson.findMany({ where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) }, select: { id: true, courseId: true, title: true, slug: true, order: true, published: true, createdAt: true, updatedAt: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] })
+    const lessons = await this.prisma.lesson.findMany({
+      where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) },
+      select: {
+        id: true,
+        courseId: true,
+        title: true,
+        slug: true,
+        description: true,
+        order: true,
+        published: true,
+        createdAt: true,
+        updatedAt: true,
+        translations: {
+          where: { locale: { in: [lessonLocale, 'vi'] } },
+          select: { locale: true, title: true, description: true },
+        },
+      },
+      orderBy: [{ order: 'asc' }, { id: 'asc' }],
+    })
+
+    return lessons.map((lesson: any) => {
+      const tr = lesson.translations?.find((item: any) => item.locale === lessonLocale) || lesson.translations?.find((item: any) => item.locale === 'vi')
+      return {
+        ...lesson,
+        localizedTitle: tr?.title || lesson.title,
+        localizedDescription: tr?.description || lesson.description || null,
+      }
+    })
   }
 
   async findAll(query: CourseQueryDto, user?: { sub: number; role: string } | null) {

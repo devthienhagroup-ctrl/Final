@@ -209,7 +209,16 @@ export function PaymentCard({
 
   {isBank && (
     <div className="mt-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 text-sm">
-      Sau khi nhấn tiếp 'Thanh toán', vui lòng quét QR code bên dưới để thanh toán.
+      <div className="font-extrabold">Thông tin chuyển khoản</div>
+      <div className="mt-2 text-slate-700">
+        • Ngân hàng: <b>Vietcombank</b>
+        <br />
+        • STK: <b>0123456789</b>
+        <br />
+        • Chủ TK: <b>NGUYEN VAN A</b>
+        <br />
+        • Nội dung chuyển khoản: <b>{orderCodePreview}</b>
+      </div>
     </div>
   )}
 </RadioCard>

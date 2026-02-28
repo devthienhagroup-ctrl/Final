@@ -622,7 +622,7 @@ export default function CartPage() {
           </aside>
         </div>
 
-        <div className="max-w-7xl mx-auto mt-4 text-center text-sm text-slate-500">
+        <div className="max-w-6xl mx-auto mt-4 text-center text-sm text-slate-500">
           {cms.footerText}
         </div>
       </main>

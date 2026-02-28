@@ -146,6 +146,16 @@ export function CustomerShippingCard({
           </div>
 
 
+          <div>
+            <label className="text-sm font-extrabold text-slate-700">{content.districtLabel}</label>
+            <input
+                className="field mt-2"
+                value={customer.district}
+                onChange={(e) => set("district")(e.target.value)}
+                placeholder={content.districtPlaceholder}
+            />
+          </div>
+
           <div className="md:col-span-2">
             <label className="text-sm font-extrabold text-slate-700">{content.noteLabel}</label>
             <textarea
@@ -157,7 +167,7 @@ export function CustomerShippingCard({
             />
           </div>
         </div>
-{/* 
+
         <div className="mt-5 rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
           <div className="font-extrabold">{content.shippingTitle}</div>
           <div className="mt-3 grid gap-2 md:grid-cols-2">
@@ -179,7 +189,7 @@ export function CustomerShippingCard({
               <div className="text-sm muted">{content.fastDescription}</div>
             </RadioCard>
           </div>
-        </div> */}
+        </div>
       </div>
   );
 }

@@ -354,13 +354,12 @@ export function Header({
               </Link>
             ))}
           </nav>
-            
-          {/* Actions */}
-          <div className="flex min-w-fit items-center gap-2 lg:min-w-[260px] lg:justify-end">
                       <button type="button" onClick={() => setMiniCartOpen(true)} className="relative rounded-xl border px-3 py-2 text-sm font-semibold hover:bg-slate-50">
             <i className="fa-solid fa-cart-shopping" />
             {totalItems > 0 && <span className="absolute -top-2 -right-2 rounded-full bg-rose-500 px-2 py-0.5 text-[8px] text-white">{totalItems}</span>}
           </button>
+          {/* Actions */}
+          <div className="flex min-w-fit items-center gap-2 lg:min-w-[260px] lg:justify-end">
             {/* Language (Desktop) */}
             <div className="relative hidden sm:block">
               <button

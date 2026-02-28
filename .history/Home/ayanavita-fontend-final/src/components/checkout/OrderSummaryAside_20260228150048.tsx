@@ -131,7 +131,7 @@ export function OrderSummaryAside({
                           <div className="font-bold text-amber-600 text-sm">
                             {moneyVND(Number(i.price) * Number(i.qty))}
                           </div>
-                          {/* <div className="mt-1 flex items-center justify-end gap-1">
+                          {/* <div className="mt-1 flex items-center justify-end gap-1"> */}
                             <button
                                 className="btn w-7 h-7 p-0 text-xs"
                                 type="button"
@@ -153,7 +153,7 @@ export function OrderSummaryAside({
                             >
                               {content.removeButtonText}
                             </button>
-                          </div> */}
+                          </div>
                         </div>
                       </div>
                     </div>

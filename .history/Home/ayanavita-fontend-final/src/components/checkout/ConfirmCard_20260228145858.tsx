@@ -75,7 +75,7 @@ export function ConfirmCard({
         </div>
 
         <div className="mt-5 grid gap-2 sm:grid-cols-2">
-          <button className="btn btn-primary hover:text-purple-800" type="button" onClick={onPay}>
+          <button className="btn btn-primary hover:text-pu" type="button" onClick={onPay}>
             <i className="fa-solid fa-lock mr-2" />
             {cms.payButtonText}
           </button>

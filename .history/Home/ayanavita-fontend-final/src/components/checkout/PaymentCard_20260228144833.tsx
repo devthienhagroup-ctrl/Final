@@ -204,36 +204,45 @@ export function PaymentCard({
           </RadioCard> */}
 
           <RadioCard name="pay" active={isBank} onClick={() => setPay("bank")}>
-  <div className="font-extrabold">Thanh toán với QR Code</div>
-  <div className="text-sm muted mt-1">Thanh toán trước</div>
+            <div className="font-extrabold">{data.bankMethodTitle}</div>
+            <div className="text-sm muted mt-1">{helper}</div>
 
-  {isBank && (
-    <div className="mt-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 text-sm">
-      Sau khi nhấn tiếp 'Thanh toán', vui lòng quét QR code bên dưới để thanh toán.
-    </div>
-  )}
-</RadioCard>
+            {isBank && (
+                <div className="mt-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 text-sm">
+                  <div className="font-extrabold">{data.bankInfoTitle}</div>
+                  <div className="mt-2 text-slate-700">
+                    • Ngân hàng: <b>{data.bankInfo.bankName}</b>
+                    <br />
+                    • STK: <b>{data.bankInfo.accountNumber}</b>
+                    <br />
+                    • Chủ TK: <b>{data.bankInfo.accountHolder}</b>
+                    <br />
+                    • {data.bankContentLabel} <b>{orderCodePreview}</b>
+                  </div>
+                </div>
+            )}
+          </RadioCard>
 
-<RadioCard name="pay" active={isWallet} onClick={() => setPay("wallet")}>
-  <div className="font-extrabold">Thanh toán COD</div>
-  <div className="text-sm muted mt-1">Thanh toán khi nhận hàng</div>
+          <RadioCard name="pay" active={isWallet} onClick={() => setPay("wallet")}>
+            <div className="font-extrabold">{data.walletMethodTitle}</div>
+            <div className="text-sm muted mt-1">{helper}</div>
 
-  {isWallet && (
-    <div className="mt-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 text-sm">
-      <div className="font-extrabold">Thanh toán khi nhận hàng</div>
-      <div className="mt-2 text-slate-700 flex items-center gap-3">
-        <div className="h-20 w-20 rounded-2xl bg-white ring-1 ring-slate-200 flex items-center justify-center">
-          <i className="fa-solid fa-money-bill-wave text-2xl text-slate-700" />
-        </div>
-        <div>
-          Vui lòng chuẩn bị tiền mặt khi nhận hàng.
-          <br />
-          Mã đơn hàng: <b>{orderCodePreview}</b>
-        </div>
-      </div>
-    </div>
-  )}
-</RadioCard>
+            {isWallet && (
+                <div className="mt-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 text-sm">
+                  <div className="font-extrabold">{data.walletQrTitle}</div>
+                  <div className="mt-2 text-slate-700 flex items-center gap-3">
+                    <div className="h-20 w-20 rounded-2xl bg-white ring-1 ring-slate-200 flex items-center justify-center">
+                      <i className="fa-solid fa-qrcode text-2xl text-slate-700" />
+                    </div>
+                    <div>
+                      {data.walletQrDescription}
+                      <br />
+                      {data.walletOrderCodeLabel} <b>{orderCodePreview}</b>
+                    </div>
+                  </div>
+                </div>
+            )}
+          </RadioCard>
         </div>
 
         <div className="mt-5 rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">

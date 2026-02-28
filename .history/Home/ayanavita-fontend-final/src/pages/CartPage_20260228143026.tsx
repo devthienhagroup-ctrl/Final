@@ -321,7 +321,7 @@ export default function CartPage() {
   return (
     <div className="text-slate-900">
       <main className="mt-2 px-4 pb-10">
-        <div className="max-w-7xl mx-auto grid gap-4 lg:grid-cols-3">
+        <div className="max-w-77xl mx-auto grid gap-4 lg:grid-cols-3">
           {/* Left column */}
           <section className="card hover:translate-y-0 p-6 lg:col-span-2">
             <div className="flex items-end justify-between gap-3 flex-wrap">
@@ -622,7 +622,7 @@ export default function CartPage() {
           </aside>
         </div>
 
-        <div className="max-w-7xl mx-auto mt-4 text-center text-sm text-slate-500">
+        <div className="max-w-6xl mx-auto mt-4 text-center text-sm text-slate-500">
           {cms.footerText}
         </div>
       </main>

@@ -157,7 +157,7 @@ export function CustomerShippingCard({
             />
           </div>
         </div>
-{/* 
+
         <div className="mt-5 rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
           <div className="font-extrabold">{content.shippingTitle}</div>
           <div className="mt-3 grid gap-2 md:grid-cols-2">
@@ -179,7 +179,7 @@ export function CustomerShippingCard({
               <div className="text-sm muted">{content.fastDescription}</div>
             </RadioCard>
           </div>
-        </div> */}
+        </div>
       </div>
   );
 }

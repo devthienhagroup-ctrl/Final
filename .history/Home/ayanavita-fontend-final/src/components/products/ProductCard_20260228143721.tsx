@@ -114,14 +114,7 @@ export function ProductCard({
                         const productId = Number((p as any).id);
                         if (!Number.isFinite(productId)) return;
                         void addItem({ productId, quantity: 1, name: p.name, price: p.price, image: p.img });
-                        Swal.fire({
-                            title: cms.addToCartSuccessAlert,
-                            icon: "success",
-                            position: "top-right",
-                            toast: true,
-                            showConfirmButton: false,
-                            timer: 2000,
-                        });
+                        // window.alert(cms.addToCartSuccessAlert);
                     }}
                 >
                     <i className="fa-solid fa-cart-plus mr-1" />

@@ -209,7 +209,7 @@ export function PaymentCard({
 
   {isBank && (
     <div className="mt-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 text-sm">
-      Sau khi nhấn tiếp 'Thanh toán', vui lòng quét QR code bên dưới để thanh toán.
+      Sau khi nhấn tiếp 'Thanh toán'
     </div>
   )}
 </RadioCard>

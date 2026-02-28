@@ -131,7 +131,7 @@ export function OrderSummaryAside({
                           <div className="font-bold text-amber-600 text-sm">
                             {moneyVND(Number(i.price) * Number(i.qty))}
                           </div>
-                          {/* <div className="mt-1 flex items-center justify-end gap-1">
+                          <div className="mt-1 flex items-center justify-end gap-1">
                             <button
                                 className="btn w-7 h-7 p-0 text-xs"
                                 type="button"
@@ -153,7 +153,7 @@ export function OrderSummaryAside({
                             >
                               {content.removeButtonText}
                             </button>
-                          </div> */}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -167,7 +167,7 @@ export function OrderSummaryAside({
 
           <div className="mt-3 divider" />
 
-          {/* <div className="mt-3 grid gap-3">
+          <div className="mt-3 grid gap-3">
             <div>
               <label className="text-xs font-bold text-slate-700">{content.voucherLabel}</label>
               <div className="mt-1 flex gap-2">
@@ -215,7 +215,7 @@ export function OrderSummaryAside({
               </div>
               <div className="mt-2 text-[10px] muted">{content.prototypeNote}</div>
             </div>
-          </div> */}
+          </div>
 
           <div className="mt-3 rounded-lg bg-slate-50 p-3 ring-1 ring-slate-200">
             <div className="font-bold text-sm">{content.supportTitle}</div>

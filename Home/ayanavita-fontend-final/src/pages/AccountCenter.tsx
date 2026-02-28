@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { authApi } from "../api/auth.api";
 
+
 export default function AccountCenter() {
   const [profile, setProfile] = useState({
     fullName: "",
@@ -138,7 +139,8 @@ export default function AccountCenter() {
       setForgotStep("otp");
       setMessage(res?.message || "OTP đã được gửi tới email.");
     } catch (e: any) {
-      setError(e?.response?.data?.message || "Không gửi được OTP.");
+      const serverMessage = e?.response?.data?.message;
+      setError(serverMessage === "Email không đúng" ? "Email không đúng" : serverMessage || "Không gửi được OTP.");
     } finally {
       setLoading(false);
     }
@@ -217,7 +219,7 @@ export default function AccountCenter() {
         <form className="grid gap-4 md:grid-cols-2" onSubmit={onProfileSubmit}>
           <input className="rounded-xl border border-slate-300 px-3 py-2" placeholder="Họ và tên" value={profile.fullName} onChange={(e) => setProfile((prev) => ({ ...prev, fullName: e.target.value }))} />
           <input className="rounded-xl border border-slate-300 px-3 py-2" placeholder="Số điện thoại" value={profile.phone} onChange={(e) => setProfile((prev) => ({ ...prev, phone: e.target.value }))} />
-          <input className="rounded-xl border border-slate-300 px-3 py-2" type="email" placeholder="Email" value={profile.email} onChange={(e) => setProfile((prev) => ({ ...prev, email: e.target.value }))} />
+          <input className="rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-slate-600" type="text" placeholder="Email" value={profile.email} readOnly />
           <input className="rounded-xl border border-slate-300 px-3 py-2" type="date" value={profile.birthDate} onChange={(e) => setProfile((prev) => ({ ...prev, birthDate: e.target.value }))} />
           <select className="rounded-xl border border-slate-300 px-3 py-2" value={profile.gender} onChange={(e) => setProfile((prev) => ({ ...prev, gender: e.target.value }))}>
             <option value="MALE">Nam</option>
@@ -258,7 +260,7 @@ export default function AccountCenter() {
 
         {forgotStep === "email" && (
           <form className="flex flex-col gap-4 md:flex-row" onSubmit={onSendForgotOtp}>
-            <input className="flex-1 rounded-xl border border-slate-300 px-3 py-2" type="email" placeholder="Nhập email tài khoản" value={forgotForm.email} onChange={(e) => setForgotForm((prev) => ({ ...prev, email: e.target.value }))} />
+            <input className="flex-1 rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-slate-600" type="text" placeholder="Email tài khoản" value={forgotForm.email} readOnly />
             <button type="submit" className="rounded-xl border border-indigo-300 px-4 py-2 font-semibold text-indigo-700 hover:bg-indigo-50">Gửi OTP</button>
           </form>
         )}

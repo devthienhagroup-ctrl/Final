@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable, Logger, UnauthorizedException } from '@nestjs/common'
+import { JwtPayload, verify } from 'jsonwebtoken'
 import { JwtService } from '@nestjs/jwt'
 import * as bcrypt from 'bcrypt'
 import * as tls from 'tls'
@@ -13,7 +14,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto'
 import { CheckPasswordDto } from './dto/check-password.dto'
 import { VerifyOtpDto } from './dto/verify-otp.dto'
 
-type JwtPayload = { sub: number; email: string; role: string }
+type AuthJwtPayload = { sub: number; email: string; role: string }
 
 @Injectable()
 export class AuthService {
@@ -115,7 +116,11 @@ export class AuthService {
     })
 
     if (!user) throw new UnauthorizedException('User not found')
-    return user
+
+    return {
+      ...user,
+      email: this.maskEmail(user.email),
+    }
   }
 
   async updateProfile(userId: number, dto: UpdateProfileDto) {
@@ -174,15 +179,29 @@ export class AuthService {
     return { success: true, message: 'Mật khẩu hiện tại chính xác' }
   }
 
-  async sendForgotPasswordOtp(dto: SendOtpDto) {
-    const email = dto.email.trim().toLowerCase()
-    const user = await this.prisma.user.findUnique({ where: { email } })
+  async sendForgotPasswordOtp(dto: SendOtpDto, accessToken?: string) {
+    const requestedEmail = dto.email.trim().toLowerCase()
+    let emailToProcess = requestedEmail
+
+    if (accessToken) {
+      const payload = verify(accessToken, process.env.JWT_ACCESS_SECRET ?? '') as JwtPayload
+      const authenticatedEmail = payload.email?.trim().toLowerCase()
+      const maskedAuthenticatedEmail = authenticatedEmail ? this.maskEmail(authenticatedEmail).toLowerCase() : ''
+
+      if (!authenticatedEmail || requestedEmail !== maskedAuthenticatedEmail) {
+        throw new ForbiddenException('Email không đúng')
+      }
+
+      emailToProcess = authenticatedEmail
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { email: emailToProcess } })
 
     if (!user) {
       return { success: true, message: 'Nếu email tồn tại, hệ thống đã gửi OTP.', expiresInSeconds: 300 }
     }
 
-    await this.issueOtp(email, 'đặt lại mật khẩu AYANAVITA')
+    await this.issueOtp(emailToProcess, 'đặt lại mật khẩu AYANAVITA')
     return { success: true, message: 'OTP đã được gửi tới email của bạn.', expiresInSeconds: 300 }
   }
 
@@ -444,8 +463,20 @@ export class AuthService {
     }
   }
 
+  private maskEmail(email: string) {
+    const normalized = email.trim().toLowerCase()
+    const atIndex = normalized.indexOf('@')
+    if (!normalized || atIndex <= 0) return normalized
+
+    const localPart = normalized.slice(0, atIndex)
+    const domainPart = normalized.slice(atIndex)
+    const visibleLocal = localPart.slice(0, 2)
+
+    return `${visibleLocal}${'*'.repeat(Math.max(localPart.length - 2, 5))}${domainPart}`
+  }
+
   private issueTokens(userId: number, email: string, role: string) {
-    const payload: JwtPayload = { sub: userId, email, role }
+    const payload: AuthJwtPayload = { sub: userId, email, role }
 
     const accessToken = this.jwt.sign(payload, {
       secret: process.env.JWT_ACCESS_SECRET,

@@ -7,7 +7,7 @@ import { normalizeBigInt } from '../catalog/utils'
 type CartWithItems = Prisma.CartGetPayload<{
   include: {
     items: {
-      include: {    
+      include: {
         product: {
           select: {
             id: true,

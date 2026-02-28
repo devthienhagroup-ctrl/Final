@@ -359,7 +359,7 @@ model CartDetail {
 
   cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
   product CatalogProduct @relation(fields: [productId], references: [id], onDelete: Restrict)
-
+  product CatalogProduct @relation(fields: [productId], references: [id], onDelete: Restrict)
   @@unique([cartId, productId])
   @@index([productId])
 }

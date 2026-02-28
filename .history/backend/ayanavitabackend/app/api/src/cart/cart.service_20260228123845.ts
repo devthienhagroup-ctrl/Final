@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
-import { CartStatus, Prisma } from '@prisma/client'
+    import { CartStatus, Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { AddCartItemDto, MergeCartDto, UpdateCartItemDto } from './dto/cart.dto'
 import { normalizeBigInt } from '../catalog/utils'

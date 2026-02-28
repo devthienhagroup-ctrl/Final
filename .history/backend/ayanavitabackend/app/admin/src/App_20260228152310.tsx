@@ -14,7 +14,6 @@ import { ProductAdminListPage } from "./pages/ProductAdminListPage";
 import { ProductAdminDetailPage } from "./pages/ProductAdminDetailPage";
 import { CatalogCrudPage } from "./pages/CatalogCrudPage";
 import { HomePage } from "./pages/HomePage";
-import OrderAdminPage from "./pages/OrderAdminPage";
 
 export default function App() {
   return (
@@ -37,7 +36,7 @@ export default function App() {
           <Route path="catalog/products" element={<ProductAdminListPage />} />
           <Route path="catalog/products/:productId" element={<ProductAdminDetailPage />} />
           <Route path="catalog/crud" element={<CatalogCrudPage />} />
-          <Route path="orders" element={<OrderAdminPage />} />
+          <R
         </Route>
 
         <Route path="*" element={<NotFound />} />

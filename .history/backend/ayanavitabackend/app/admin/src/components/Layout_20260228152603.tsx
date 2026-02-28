@@ -35,7 +35,7 @@ export function Layout() {
             <NavItem to="/leads" label="Leads" />
             <NavItem to="/catalog/products" label="Products" />
             <NavItem to="/catalog/crud" label="Catalog CRUD" />
-            <NavItem to="/orders" label="Orders" />
+            
           </div>
 
           <div className="side-footer">

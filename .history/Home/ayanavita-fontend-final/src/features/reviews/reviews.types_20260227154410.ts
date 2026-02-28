@@ -14,7 +14,6 @@ export type Review = {
   rating: number; // 1..5
   text: string;
   img: string;
-  images?: string[];
   verified: boolean;
   helpful: number;
   createdAt: string; // ISO

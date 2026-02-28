@@ -288,55 +288,10 @@ function mapPublicReview(row: PublicReviewApi): Review {
     rating: Number(row.stars || 0),
     text: row.comment || "",
     img: row.images?.[0]?.imageUrl || "",
-    images: (row.images || []).map((image) => image.imageUrl || "").filter(Boolean),
     verified: row.type === "PRODUCT",
     helpful: 0,
     createdAt: row.createdAt || new Date().toISOString(),
   };
-}
-
-
-function ReviewImageSlider({ images, alt }: { images: string[]; alt: string }) {
-  const [index, setIndex] = useState(0);
-
-  useEffect(() => {
-    setIndex(0);
-  }, [images]);
-
-  if (!images.length) return null;
-
-  const hasMultiple = images.length > 1;
-  const current = images[index] || images[0];
-
-  return (
-    <div className="relative">
-      <img src={current} alt={alt} className="w-full h-44 object-cover" />
-      <div className="absolute inset-0 bg-gradient-to-t from-slate-900/55 to-transparent" />
-      {hasMultiple && (
-        <>
-          <button
-            type="button"
-            aria-label="Ảnh trước"
-            className="absolute left-3 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/45 text-white font-extrabold"
-            onClick={() => setIndex((prev) => (prev - 1 + images.length) % images.length)}
-          >
-            ←
-          </button>
-          <button
-            type="button"
-            aria-label="Ảnh tiếp theo"
-            className="absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/45 text-white font-extrabold"
-            onClick={() => setIndex((prev) => (prev + 1) % images.length)}
-          >
-            →
-          </button>
-          <div className="absolute right-3 bottom-3 rounded-full bg-black/50 px-2 py-0.5 text-xs font-bold text-white">
-            {index + 1}/{images.length}
-          </div>
-        </>
-      )}
-    </div>
-  );
 }
 
 
@@ -598,7 +553,6 @@ setModalOpen(false);
       setPickedStars(5);
       setSelectedFiles([]);
       setImgPreviews([]);
-      setImgPreview("");
     } catch (err: any) {
       alert(err?.response?.data?.message || err?.message || "Gửi đánh giá thất bại");
     } finally {
@@ -608,18 +562,8 @@ setModalOpen(false);
 
 
   function onFileChange(files?: FileList | null) {
-    const arr = Array.from(files || []);
-    setImgPreviews((prev) => {
-      prev.forEach((url) => URL.revokeObjectURL(url));
-      return [];
-    });
-
-    if (!arr.length) {
-      setSelectedFiles([]);
-      setImgPreview("");
-      return;
-    }
-
+    if (!files?.length) return;
+    const arr = Array.from(files);
     setSelectedFiles(arr);
     const previews = arr.map((file) => URL.createObjectURL(file));
     setImgPreviews(previews);
@@ -692,12 +636,12 @@ setModalOpen(false);
                       <div className="text-xs text-white/70 mt-1">{cmsData.statsCards[1].suffix}</div>
                     </div>
                   </Card>
-                  {/* <Card className="bg-white/10 border-white/15 text-white">
+                  <Card className="bg-white/10 border-white/15 text-white">
                     <div className="p-4">
                       <div className="text-xs font-extrabold text-white/70">{cmsData.statsCards[2].label}</div>
                       <div className="text-xs text-white/70 mt-1">{cmsData.statsCards[2].suffix}</div>
                     </div>
-                  </Card> */}
+                  </Card>
                   <Card className="bg-white/10 border-white/15 text-white">
                     <div className="p-4">
                       <div className="text-xs font-extrabold text-white/70">{cmsData.statsCards[3].label}</div>
@@ -888,46 +832,36 @@ setModalOpen(false);
 
                     return (
                         <Card key={r.id} className="overflow-hidden card flex flex-col h-full">
-                          {(r.images?.length || r.img) && (
-                            <div className="relative">
-                              <ReviewImageSlider images={r.images?.length ? r.images : [r.img]} alt={r.item} />
-                              <div className="absolute left-4 bottom-4 flex flex-wrap gap-2 z-10">
-                                <Badge tone={r.category === "service" ? "brand" : "accent"}>
-                                  {r.category === "service" ? cmsData.reviewCard.badgeService : cmsData.reviewCard.badgeProduct}
-                                </Badge>
-                                {r.verified && <Badge tone="success">{cmsData.reviewCard.badgeVerified}</Badge>}
-                                <Badge tone="accent">{r.rating}.0</Badge>
-                              </div>
+                          <div className="relative">
+                            <img src={r.img} alt={r.item} className="w-full h-44 object-cover" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/55 to-transparent" />
+                            <div className="absolute left-4 bottom-4 flex flex-wrap gap-2">
+                              <Badge tone={r.category === "service" ? "brand" : "accent"}>
+                                {r.category === "service" ? cmsData.reviewCard.badgeService : cmsData.reviewCard.badgeProduct}
+                              </Badge>
+                              {r.verified && <Badge tone="success">{cmsData.reviewCard.badgeVerified}</Badge>}
+                              <Badge tone="accent">{r.rating}.0</Badge>
                             </div>
-                          )}
+                          </div>
 
                           <div className="p-6 flex flex-col flex-1">
                             <div className="flex-1">
                               <div className="flex items-start justify-between gap-3">
                                 <div>
                                   <div className="text-lg font-extrabold">{r.item}</div>
-                                  {!(r.images?.length || r.img) && (
-                                    <div className="mt-2 flex flex-wrap gap-2">
-                                      <Badge tone={r.category === "service" ? "brand" : "accent"}>
-                                        {r.category === "service" ? cmsData.reviewCard.badgeService : cmsData.reviewCard.badgeProduct}
-                                      </Badge>
-                                      {r.verified && <Badge tone="success">{cmsData.reviewCard.badgeVerified}</Badge>}
-                                      <Badge tone="accent">{r.rating}.0</Badge>
-                                    </div>
-                                  )}
                                   <div className="text-sm text-slate-600 mt-1">
                                     <b>{displayName}</b> {r.branch ? `• ${r.branch}` : ""} • <Muted>{formatDateVi(r.createdAt)}</Muted>
                                   </div>
                                 </div>
-
+{/* 
                                 <Button
-                                  variant="ghost"
-                                  title={cmsData.reviewCard.save}
-                                  className={savedOn ? "border-indigo-200 bg-indigo-50 text-indigo-700" : ""}
-                                  onClick={() => toggleSave(r.id)}
+                                    variant="ghost"
+                                    title={cmsData.reviewCard.save}
+                                    className={savedOn ? "border-indigo-200 bg-indigo-50 text-indigo-700" : ""}
+                                    onClick={() => toggleSave(r.id)}
                                 >
                                   {savedOn ? cmsData.reviewCard.saved : cmsData.reviewCard.save}
-                                </Button>
+                                </Button> */}
                               </div>
 
                               <div className="mt-3">

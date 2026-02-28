@@ -1,1278 +1,283 @@
-diff --git a/ayanavita-fontend/src/api/adminCourses.api.ts b/ayanavita-fontend/src/api/adminCourses.api.ts
-index 81b7a2409a9512598375ae8b8851b93e87f1ec5a..7a0eb527064549e6a25ff3235318c1c7a43086b3 100644
---- a/ayanavita-fontend/src/api/adminCourses.api.ts
-+++ b/ayanavita-fontend/src/api/adminCourses.api.ts
-@@ -119,48 +119,48 @@ export type CoursePayload = {
- export type CourseListResponse = {
-   items: CourseAdmin[]
-   total: number
-   page: number
-   pageSize: number
- }
-
- export type CourseDetailAdmin = CourseAdmin
-
- export const adminCoursesApi = {
-   listTopics: () => get<CourseTopic[]>('/admin/course-topics', { auth: true }),
-   createTopic: (body: TopicPayload) => post<CourseTopic>('/admin/course-topics', body, { auth: true }),
-   updateTopic: (id: number, body: TopicPayload) => patch<CourseTopic>(`/admin/course-topics/${id}`, body, { auth: true }),
-   deleteTopic: (id: number) => del<{ id: number }>(`/admin/course-topics/${id}`, { auth: true }),
-   listCourses: (params?: { topicId?: number; search?: string; page?: number; pageSize?: number; lang?: string }) => {
-     const qs = new URLSearchParams()
-     if (params?.topicId) qs.set('topicId', String(params.topicId))
-     if (params?.search?.trim()) qs.set('search', params.search.trim())
-     if (params?.page) qs.set('page', String(params.page))
-     if (params?.pageSize) qs.set('pageSize', String(params.pageSize))
-     if (params?.lang) qs.set('lang', params.lang)
-     const suffix = qs.toString() ? `?${qs.toString()}` : ''
-     return get<CourseListResponse>(`/courses${suffix}`, { auth: true })
+diff --git a/backend/ayanavitabackend/app/api/package.json b/backend/ayanavitabackend/app/api/package.json
+index fa00ca3a6b6924a0d0de1d777506205f71640bcf..ad295b1473a03ec7e557dd991bd05ffc3f0201bb 100644
+--- a/backend/ayanavitabackend/app/api/package.json
++++ b/backend/ayanavitabackend/app/api/package.json
+@@ -1,55 +1,59 @@
+ {
+   "name": "ayanavitabackend",
+   "version": "0.0.1",
+   "scripts": {
+     "dev": "vite",
+     "preview": "vite preview",
+     "build": "nest build",
+     "start": "node dist/main.js",
+     "start:dev": "npx nest start --watch",
+     "prisma:generate": "prisma generate",
+-    "prisma:migrate": "prisma migrate dev"
++    "prisma:migrate": "prisma migrate dev",
++    "db:bootstrap": "node scripts/bootstrap-db.js",
++    "db:setup": "node scripts/setup-prisma.js",
++    "start:dev:setup": "npm run db:setup && npm run start:dev"
    },
-   createCourse: (body: CoursePayload | FormData) => post<CourseAdmin>('/courses', body, { auth: true }),
--  updateCourse: (id: number, body: Partial<CoursePayload>) => patch<CourseAdmin>(`/courses/${id}`, body, { auth: true }),
-+  updateCourse: (id: number, body: Partial<CoursePayload> | FormData) => patch<CourseAdmin>(`/courses/${id}`, body, { auth: true }),
-   deleteCourse: (id: number) => del<{ id: number }>(`/courses/${id}`, { auth: true }),
-   getCourseDetail: (id: number, lang?: string) => {
-     const qs = new URLSearchParams()
-     if (lang) qs.set('lang', lang)
-     const suffix = qs.toString() ? `?${qs.toString()}` : ''
-     return get<CourseDetailAdmin>(`/courses/${id}${suffix}`, { auth: true })
+   "devDependencies": {
+     "@nestjs/cli": "^11.0.16",
+     "@nestjs/schematics": "^11.0.9",
+     "@nestjs/testing": "^11.1.10",
+     "@types/bcrypt": "^6.0.0",
+     "@types/multer": "^2.0.0",
+     "@types/node": "^25.0.3",
+     "@types/passport-jwt": "^4.0.1",
+     "prisma": "^6.19.1",
+     "ts-node": "^10.9.2",
+     "typescript": "^5.9.3"
    },
-
-   listCourseLessons: (courseId: number) => get<LessonAdmin[]>(`/courses/${courseId}/lessons-outline`, { auth: true }),
-   getLessonDetail: (lessonId: number) => get<LessonDetailAdmin>(`/lessons/${lessonId}`, { auth: true }),
-   createLesson: (courseId: number, body: LessonPayload) => post<LessonAdmin>(`/courses/${courseId}/lessons`, body, { auth: true }),
-   updateLesson: (lessonId: number, body: Partial<LessonPayload>) => patch<LessonAdmin>(`/lessons/${lessonId}`, body, { auth: true }),
-   deleteLesson: (lessonId: number) => del<{ id: number }>(`/lessons/${lessonId}`, { auth: true }),
-
-   uploadModuleMedia: (lessonId: number, moduleId: string | number, file: File, type: 'video' | 'image', order?: number) => {
-     const body = new FormData()
-     body.append('file', file)
-     body.append('type', type)
-     if (order !== undefined) body.append('order', String(order))
-     return post<{ moduleId?: string; lessonId?: number; hlsPlaylistKey?: string; segmentCount?: number; imageKey?: string; sourceUrl?: string; storage: string; videoId?: number }>(`/lessons/${lessonId}/modules/${moduleId}/media/upload`, body, { auth: true })
+   "dependencies": {
+     "@nestjs/common": "^11.1.10",
+     "@nestjs/core": "^11.1.10",
+     "@nestjs/jwt": "^11.0.2",
+     "@nestjs/mapped-types": "^2.1.0",
+     "@nestjs/passport": "^11.0.5",
+     "@nestjs/platform-express": "^11.1.10",
+     "@nestjs/swagger": "^11.2.3",
+     "@prisma/client": "^6.19.1",
+     "@vitejs/plugin-react": "^4.3.4",
+     "autoprefixer": "^10.4.24",
+     "axios": "^1.13.4",
+     "bcrypt": "^6.0.0",
+     "class-transformer": "^0.5.1",
+     "class-validator": "^0.14.3",
+     "passport": "^0.7.0",
+     "passport-jwt": "^4.0.1",
+     "postcss": "^8.5.6",
+     "react-router-dom": "^7.13.0",
+     "reflect-metadata": "^0.2.2",
+     "rxjs": "^7.8.2",
+     "swagger-ui-express": "^5.0.1",
+     "tailwindcss": "^3.4.17",
+     "typescript": "^5.6.3",
+-    "vite": "^6.4.1"
++    "vite": "^6.4.1",
++    "mysql2": "^3.15.2"
    },
- }
-diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx
-index 9c231bf45807c91e543d2f8d28b026a9d1e7f806..9d617a96b9abdb690416fde8fa4f326aa29501a0 100644
---- a/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx
-+++ b/ayanavita-fontend/src/pages/admin/courseTabs/CoursesTab.tsx
-@@ -14,56 +14,64 @@ type Props = {
-   totalPages: number
-   totalItems: number
-   onChangeFilters: (patch: { selectedTopicId?: number | 'all'; searchTerm?: string }) => void
-   onChangePage: (page: number) => void
-   onCourseCreated: () => Promise<void> | void
- }
-
- type CourseInnerTab = 'list' | 'detail'
-
- export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searchTerm, page, totalPages, totalItems, onChangeFilters, onChangePage, onCourseCreated }: Props) {
-   const courseTableColumnWidths = ['4%', '17%', '13%', '8%', '7%', '7%', '5%', '5%', '10%', '10%', '8%', '6%']
-   const [openCreateModal, setOpenCreateModal] = useState(false)
-   const [activeTab, setActiveTab] = useState<CourseInnerTab>('list')
-   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
-   const [selectedCourse, setSelectedCourse] = useState<CourseDetailAdmin | null>(null)
-   const [loadingDetail, setLoadingDetail] = useState(false)
-
-   const displayTopicName = (topic: CourseTopic) => {
-     if (lang === 'de') return topic.translations?.de?.name || topic.name
-     if (lang === 'en') return topic.translations?.['en']?.name || topic.name
-     return topic.translations?.vi?.name || topic.name
+   "prisma": {
+     "seed": "ts-node prisma/seed.ts",
+     "schema": "prisma/schema.prisma"
    }
-
-   useEffect(() => {
-     if (activeTab !== 'detail' || !selectedCourseId) return
--    setLoadingDetail(true)
--    adminCoursesApi.getCourseDetail(selectedCourseId, lang)
--      .then((detail) => setSelectedCourse(detail))
--      .finally(() => setLoadingDetail(false))
-+    void refreshSelectedCourse()
-   }, [activeTab, selectedCourseId, lang])
-
-+  const refreshSelectedCourse = async () => {
-+    if (!selectedCourseId) return
-+    setLoadingDetail(true)
-+    try {
-+      const detail = await adminCoursesApi.getCourseDetail(selectedCourseId, lang)
-+      setSelectedCourse(detail)
-+    } finally {
-+      setLoadingDetail(false)
-+    }
+ }
+diff --git a/backend/ayanavitabackend/app/api/scripts/bootstrap-db.js b/backend/ayanavitabackend/app/api/scripts/bootstrap-db.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..09d2fcb18cc9b9b3a0224d52120b080513de9323
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/scripts/bootstrap-db.js
+@@ -0,0 +1,83 @@
++const mysql = require('mysql2/promise')
++
++function parseConnection(urlString) {
++  const url = new URL(urlString)
++  const database = url.pathname.replace(/^\//, '')
++
++  if (!database) {
++    throw new Error(`DATABASE_URL thiếu tên database: ${urlString}`)
 +  }
 +
-   return (
-     <section className='admin-card admin-card-glow admin-course-management-card'>
-       <div className='admin-row' style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-         <h3 className='admin-card-title'><i className='fa-solid fa-graduation-cap' /> {text.coursesTab}</h3>
-         <button className='admin-btn admin-btn-save' type='button' onClick={() => setOpenCreateModal(true)}>
-           <i className='fa-solid fa-circle-plus' /> {lang === 'vi' ? 'Thêm khóa học mới' : lang === 'en' ? 'Add new course' : 'Neuen Kurs hinzufügen'}
-         </button>
-       </div>
-
-       <div className='admin-tabs' style={{ marginBottom: 10 }}>
-         <button className={`admin-tab ${activeTab === 'list' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('list')}>
-           <i className='fa-solid fa-table-list' /> {lang === 'vi' ? 'Danh sách' : lang === 'en' ? 'List' : 'Liste'}
-         </button>
-         <button className={`admin-tab ${activeTab === 'detail' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('detail')} disabled={!selectedCourseId}>
-           <i className='fa-solid fa-eye' /> {lang === 'vi' ? 'Chi tiết' : lang === 'en' ? 'Details' : 'Details'}
-         </button>
-       </div>
-
-       <hr style={{ marginBottom: 20 }}/>
-
-       {activeTab === 'list' && (
-         <>
-           <div className='admin-row' style={{ gap: 16, marginBottom: 12, flexWrap: 'wrap' }}>
-             <label className='admin-field' style={{ marginBottom: 0, minWidth: 220 }}>
-               <span className='admin-label'>{text.filterByTopic}</span>
-@@ -132,33 +140,42 @@ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searc
-                         }}
-                       >
-                         <i className='fa-solid fa-eye' />
-                       </button>
-                     </td>
-                   </tr>
-                 ))}
-               </tbody>
-             </table>
-           </div>
-
-           <div className='admin-row' style={{ justifyContent: 'space-between', marginTop: 12 }}>
-             <span>{text.pageLabel} {Math.min(page, totalPages)} / {totalPages} • {text.totalCoursesLabel} {totalItems}</span>
-             <div className='admin-row'>
-               <button className='admin-btn admin-btn-ghost' type='button' disabled={page <= 1} onClick={() => onChangePage(Math.max(1, page - 1))}>{text.prevPage}</button>
-               <button className='admin-btn admin-btn-ghost' type='button' disabled={page >= totalPages} onClick={() => onChangePage(Math.min(totalPages, page + 1))}>{text.nextPage}</button>
-             </div>
-           </div>
-         </>
-       )}
-
-       {activeTab === 'detail' && (
-         <>
-           {!selectedCourseId && <p className='admin-helper'>{lang === 'vi' ? 'Vui lòng chọn khóa học ở tab danh sách.' : lang === 'en' ? 'Please select a course from list tab.' : 'Bitte wählen Sie einen Kurs aus der Liste.'}</p>}
-           {loadingDetail && <p className='admin-helper'>{text.loading}</p>}
--          {!loadingDetail && selectedCourse && <CourseDetailTabs course={selectedCourse} lang={lang} text={text} topics={topics} />}
-+          {!loadingDetail && selectedCourse && <CourseDetailTabs
-+            course={selectedCourse}
-+            lang={lang}
-+            text={text}
-+            topics={topics}
-+            onCourseUpdated={async () => {
-+              await onCourseCreated()
-+              await refreshSelectedCourse()
-+            }}
-+          />}
-         </>
-       )}
-
-       <CreateCourseModal open={openCreateModal} lang={lang} topics={topics} onClose={() => setOpenCreateModal(false)} onCreated={onCourseCreated} />
-     </section>
-   )
- }
-diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx
-index 27a7f94a49143d78f815b56efd223d29b37dfc11..acf996d30c6a8d24732d1ec190f7ff53531b837e 100644
---- a/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx
-+++ b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx
-@@ -1,194 +1,507 @@
--import { type CourseDetailAdmin, type CourseTopic } from '../../../../api/adminCourses.api'
-+import { useMemo, useState } from 'react'
-+import { adminCoursesApi, type CourseDetailAdmin, type CourseTopic } from '../../../../api/adminCourses.api'
-+import { AlertJs } from '../../../../utils/alertJs'
-+import { autoTranslateFromVietnamese } from '../../tabs/i18nForm'
-
- type Props = {
-   course: CourseDetailAdmin
-   lang: 'vi' | 'en' | 'de'
-   text: Record<string, string>
-   topics: CourseTopic[]
-+  onUpdated: () => Promise<void> | void
- }
-
--type InfoItem = {
--  key: string
--  label: string
--  value: string | number
--  icon: string
--  fullWidth?: boolean
-+type AdminLang = 'vi' | 'en' | 'de'
-+type I18nText = Record<AdminLang, string>
-+type I18nStringArray = Record<AdminLang, string[]>
-+
-+type EditForm = {
-+  topicId?: number
-+  title: I18nText
-+  shortDescription: I18nText
-+  description: I18nText
-+  price: string
-+  published: boolean
-+  thumbnailFile?: File | null
-+  objectives: I18nStringArray
-+  targetAudience: I18nStringArray
-+  benefits: I18nStringArray
- }
-
- type CourseTranslationItem = {
-   locale: string
-   title?: string
-   shortDescription?: string
-   description?: string
- }
-
- type CourseContentTranslationItem = {
-   locale: string
-   objectives?: string[]
-   targetAudience?: string[]
-   benefits?: string[]
- }
-
--export function CourseDetailInfoTab({ course, lang, text, topics }: Props) {
-+const emptyI18n = (): I18nText => ({ vi: '', en: '', de: '' })
-+const emptyI18nArray = (): I18nStringArray => ({ vi: [''], en: [''], de: [''] })
-+
-+const slugify = (input: string) =>
-+  input
-+    .toLowerCase()
-+    .normalize('NFD')
-+    .replace(/[\u0300-\u036f]/g, '')
-+    .replace(/[^a-z0-9\s-]/g, '')
-+    .trim()
-+    .replace(/\s+/g, '-')
-+
-+const normalizeTranslations = (value: CourseDetailAdmin['translations']): CourseTranslationItem[] => {
-+  if (!value) return []
-+  if (Array.isArray(value)) return value as CourseTranslationItem[]
-+  return Object.entries(value).map(([locale, item]) => ({ locale, ...item }))
-+}
-+
-+const normalizeContentTranslations = (value: CourseDetailAdmin['contentTranslations']): CourseContentTranslationItem[] => {
-+  if (!value) return []
-+  if (Array.isArray(value)) return value as CourseContentTranslationItem[]
-+  return Object.entries(value).map(([locale, item]) => ({ locale, ...item }))
-+}
-+
-+const getCurrentImageName = (thumbnail?: string | null) => {
-+  if (!thumbnail) return ''
-+  try {
-+    const parsed = new URL(thumbnail)
-+    const parts = parsed.pathname.split('/').filter(Boolean)
-+    return decodeURIComponent(parts[parts.length - 1] || '')
-+  } catch {
-+    const parts = thumbnail.split('/').filter(Boolean)
-+    return decodeURIComponent(parts[parts.length - 1] || '')
++  return {
++    host: url.hostname,
++    port: Number(url.port || 3306),
++    user: decodeURIComponent(url.username),
++    password: decodeURIComponent(url.password),
++    database,
 +  }
 +}
 +
-+const i18n = {
-+  vi: {
-+    edit: 'Chỉnh sửa',
-+    editTitle: 'Chỉnh sửa khóa học',
-+    cancel: 'Hủy',
-+    save: 'Lưu thay đổi',
-+    saving: 'Đang lưu...',
-+    topic: 'Chủ đề *',
-+    slug: 'Slug',
-+    title: 'Tiêu đề *',
-+    shortDescription: 'Mô tả ngắn',
-+    description: 'Mô tả chi tiết',
-+    thumbnail: 'Thumbnail (upload ảnh)',
-+    currentFile: 'Ảnh hiện tại',
-+    noImage: 'Chưa có ảnh',
-+    chooseFile: 'Ảnh mới',
-+    price: 'Giá',
-+    published: 'Xuất bản',
-+    publishLocked: 'Chỉ bật khi có ít nhất 1 bài học và 1 video.',
-+    objective: 'Mục tiêu',
-+    audience: 'Đối tượng',
-+    benefits: 'Lợi ích',
-+    addItem: 'Thêm dòng',
-+    remove: 'Xóa',
-+    missingInfo: 'Thiếu thông tin',
-+    topicRequired: 'Vui lòng chọn chủ đề cho khóa học.',
-+    titleRequired: 'Vui lòng nhập tiêu đề tiếng Việt cho khóa học.',
-+    invalidPriceTitle: 'Giá không hợp lệ',
-+    invalidPriceBody: 'Giá phải là số hợp lệ và lớn hơn hoặc bằng 0.',
-+    updateSuccessTitle: 'Cập nhật thành công',
-+    updateSuccessBody: 'Khóa học đã được cập nhật.',
-+    translations: 'Nội dung ngôn ngữ hiện tại',
-+  },
-+  en: {
-+    edit: 'Edit',
-+    editTitle: 'Edit course',
-+    cancel: 'Cancel',
-+    save: 'Save changes',
-+    saving: 'Saving...',
-+    topic: 'Topic *',
-+    slug: 'Slug',
-+    title: 'Title *',
-+    shortDescription: 'Short description',
-+    description: 'Description',
-+    thumbnail: 'Thumbnail (upload image)',
-+    currentFile: 'Current image',
-+    noImage: 'No image yet',
-+    chooseFile: 'New image',
-+    price: 'Price',
-+    published: 'Published',
-+    publishLocked: 'Can only enable after at least 1 lesson and 1 video.',
-+    objective: 'Objectives',
-+    audience: 'Target audience',
-+    benefits: 'Benefits',
-+    addItem: 'Add row',
-+    remove: 'Remove',
-+    missingInfo: 'Missing information',
-+    topicRequired: 'Please choose a topic.',
-+    titleRequired: 'Please input Vietnamese title.',
-+    invalidPriceTitle: 'Invalid price',
-+    invalidPriceBody: 'Price must be a valid number greater than or equal to 0.',
-+    updateSuccessTitle: 'Updated',
-+    updateSuccessBody: 'Course updated successfully.',
-+    translations: 'Current language content',
-+  },
-+  de: {
-+    edit: 'Bearbeiten',
-+    editTitle: 'Kurs bearbeiten',
-+    cancel: 'Abbrechen',
-+    save: 'Speichern',
-+    saving: 'Wird gespeichert...',
-+    topic: 'Thema *',
-+    slug: 'Slug',
-+    title: 'Titel *',
-+    shortDescription: 'Kurzbeschreibung',
-+    description: 'Beschreibung',
-+    thumbnail: 'Thumbnail (Bild hochladen)',
-+    currentFile: 'Aktuelles Bild',
-+    noImage: 'Noch kein Bild',
-+    chooseFile: 'Neues Bild',
-+    price: 'Preis',
-+    published: 'Veröffentlicht',
-+    publishLocked: 'Nur aktivierbar mit mindestens 1 Lektion und 1 Video.',
-+    objective: 'Ziele',
-+    audience: 'Zielgruppe',
-+    benefits: 'Vorteile',
-+    addItem: 'Zeile hinzufügen',
-+    remove: 'Löschen',
-+    missingInfo: 'Fehlende Informationen',
-+    topicRequired: 'Bitte Thema wählen.',
-+    titleRequired: 'Bitte vietnamesischen Titel eingeben.',
-+    invalidPriceTitle: 'Ungültiger Preis',
-+    invalidPriceBody: 'Preis muss eine gültige Zahl ≥ 0 sein.',
-+    updateSuccessTitle: 'Aktualisiert',
-+    updateSuccessBody: 'Kurs erfolgreich aktualisiert.',
-+    translations: 'Inhalt der aktuellen Sprache',
-+  },
-+} as const
-+
-+const createEditForm = (course: CourseDetailAdmin): EditForm => {
-+  const form: EditForm = {
-+    topicId: course.topicId ?? undefined,
-+    title: emptyI18n(),
-+    shortDescription: emptyI18n(),
-+    description: emptyI18n(),
-+    price: String(course.price ?? 0),
-+    published: !!course.published,
-+    thumbnailFile: null,
-+    objectives: emptyI18nArray(),
-+    targetAudience: emptyI18nArray(),
-+    benefits: emptyI18nArray(),
-+  }
-+
-+  form.title.vi = course.title || ''
-+  form.shortDescription.vi = course.shortDescription || ''
-+  form.description.vi = course.description || ''
-+  form.objectives.vi = course.objectives?.length ? [...course.objectives] : ['']
-+  form.targetAudience.vi = course.targetAudience?.length ? [...course.targetAudience] : ['']
-+  form.benefits.vi = course.benefits?.length ? [...course.benefits] : ['']
-+
-+  normalizeTranslations(course.translations).forEach((translation) => {
-+    if (translation.locale === 'vi' || translation.locale === 'en' || translation.locale === 'de') {
-+      form.title[translation.locale] = translation.title || form.title[translation.locale]
-+      form.shortDescription[translation.locale] = translation.shortDescription || form.shortDescription[translation.locale]
-+      form.description[translation.locale] = translation.description || form.description[translation.locale]
-+    }
-+  })
-+
-+  normalizeContentTranslations(course.contentTranslations).forEach((translation) => {
-+    if (translation.locale === 'vi' || translation.locale === 'en' || translation.locale === 'de') {
-+      form.objectives[translation.locale] = translation.objectives?.length ? [...translation.objectives] : form.objectives[translation.locale]
-+      form.targetAudience[translation.locale] = translation.targetAudience?.length ? [...translation.targetAudience] : form.targetAudience[translation.locale]
-+      form.benefits[translation.locale] = translation.benefits?.length ? [...translation.benefits] : form.benefits[translation.locale]
-+    }
-+  })
-+
-+  return form
++function escapeIdentifier(value) {
++  return String(value).replace(/`/g, '``')
 +}
 +
-+export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated }: Props) {
-+  const [editing, setEditing] = useState(false)
-+  const [inputLang, setInputLang] = useState<AdminLang>('vi')
-+  const [submitting, setSubmitting] = useState(false)
-+  const [form, setForm] = useState<EditForm>(() => createEditForm(course))
++function escapeSqlString(value) {
++  return String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
++}
 +
-+  const t = i18n[lang]
-+  const canPublish = (course._count?.lessons ?? 0) > 0 && (course.videoCount ?? 0) > 0
-+  const currentImageName = getCurrentImageName(course.thumbnail)
++function getAdminCredentials(config) {
++  const rootPassword = process.env.MYSQL_ROOT_PASSWORD
 +
-   const displayTopicName = (topic: CourseTopic) => {
-     if (lang === 'de') return topic.translations?.de?.name || topic.name
-     if (lang === 'en') return topic.translations?.en?.name || topic.name
-     return topic.translations?.vi?.name || topic.name
-   }
-
--  const normalizeTranslations = (value: CourseDetailAdmin['translations']): CourseTranslationItem[] => {
--    if (!value) return []
--    if (Array.isArray(value)) return value as CourseTranslationItem[]
--    return Object.entries(value).map(([locale, item]) => ({ locale, ...item }))
-+  const localizedTitle = (() => {
-+    const tr = normalizeTranslations(course.translations).find((item) => item.locale === lang)
-+    return tr?.title || course.title || '--'
-+  })()
-+  const localizedShortDescription = (() => {
-+    const tr = normalizeTranslations(course.translations).find((item) => item.locale === lang)
-+    return tr?.shortDescription || course.shortDescription || '--'
-+  })()
-+
-+  const startEdit = () => {
-+    setForm(createEditForm(course))
-+    setInputLang('vi')
-+    setEditing(true)
-+  }
-+
-+  const slug = useMemo(() => slugify(form.title.vi || ''), [form.title.vi])
-+
-+  const translateVietnameseToOthers = async (value: string, updater: (en: string, de: string) => void) => {
-+    const [en, de] = await Promise.all([
-+      autoTranslateFromVietnamese(value, 'en').catch(() => ''),
-+      autoTranslateFromVietnamese(value, 'de').catch(() => ''),
-+    ])
-+    updater(en || '', de || '')
-+  }
-+
-+  const updateI18nField = (field: 'title' | 'shortDescription' | 'description', value: string) => {
-+    setForm((prev) => ({ ...prev, [field]: { ...prev[field], [inputLang]: value } }))
-+    if (inputLang === 'vi' && value.trim()) {
-+      void translateVietnameseToOthers(value, (en, de) => {
-+        setForm((prev) => ({
-+          ...prev,
-+          [field]: {
-+            ...prev[field],
-+            en: prev[field].en?.trim() ? prev[field].en : en,
-+            de: prev[field].de?.trim() ? prev[field].de : de,
-+          },
-+        }))
-+      })
-+    }
-+  }
-+
-+  const updateI18nListItem = (field: 'objectives' | 'targetAudience' | 'benefits', index: number, value: string) => {
-+    setForm((prev) => {
-+      const list = [...prev[field][inputLang]]
-+      list[index] = value
-+      return { ...prev, [field]: { ...prev[field], [inputLang]: list } }
-+    })
-+  }
-+
-+  const addI18nListItem = (field: 'objectives' | 'targetAudience' | 'benefits') => {
-+    setForm((prev) => ({ ...prev, [field]: { ...prev[field], [inputLang]: [...prev[field][inputLang], ''] } }))
-+  }
-+
-+  const removeI18nListItem = (field: 'objectives' | 'targetAudience' | 'benefits', index: number) => {
-+    setForm((prev) => {
-+      const list = [...prev[field][inputLang]]
-+      list.splice(index, 1)
-+      return { ...prev, [field]: { ...prev[field], [inputLang]: list.length ? list : [''] } }
-+    })
-+  }
-+
-+  const submitUpdate = async () => {
-+    if (!form.topicId) {
-+      await AlertJs.error(t.missingInfo, t.topicRequired)
-+      return
-+    }
-+    if (!form.title.vi.trim()) {
-+      await AlertJs.error(t.missingInfo, t.titleRequired)
-+      return
-+    }
-+    if (Number.isNaN(Number(form.price)) || Number(form.price) < 0) {
-+      await AlertJs.error(t.invalidPriceTitle, t.invalidPriceBody)
-+      return
-+    }
-+
-+    try {
-+      setSubmitting(true)
-+      const payload = new FormData()
-+      payload.append('topicId', String(form.topicId))
-+      payload.append('slug', slug)
-+      payload.append('title', form.title.vi.trim())
-+      payload.append('shortDescription', form.shortDescription.vi.trim())
-+      payload.append('description', form.description.vi.trim())
-+      payload.append('price', String(Number(form.price)))
-+      payload.append('published', String(canPublish ? form.published : false))
-+      payload.append('objectives', JSON.stringify(form.objectives.vi.filter((v) => v.trim())))
-+      payload.append('targetAudience', JSON.stringify(form.targetAudience.vi.filter((v) => v.trim())))
-+      payload.append('benefits', JSON.stringify(form.benefits.vi.filter((v) => v.trim())))
-+      payload.append('translations', JSON.stringify({
-+        vi: { title: form.title.vi.trim(), shortDescription: form.shortDescription.vi.trim(), description: form.description.vi.trim() },
-+        en: { title: form.title.en.trim(), shortDescription: form.shortDescription.en.trim(), description: form.description.en.trim() },
-+        de: { title: form.title.de.trim(), shortDescription: form.shortDescription.de.trim(), description: form.description.de.trim() },
-+      }))
-+      payload.append('contentTranslations', JSON.stringify({
-+        vi: {
-+          objectives: form.objectives.vi.filter((v) => v.trim()),
-+          targetAudience: form.targetAudience.vi.filter((v) => v.trim()),
-+          benefits: form.benefits.vi.filter((v) => v.trim()),
-+        },
-+        en: {
-+          objectives: form.objectives.en.filter((v) => v.trim()),
-+          targetAudience: form.targetAudience.en.filter((v) => v.trim()),
-+          benefits: form.benefits.en.filter((v) => v.trim()),
-+        },
-+        de: {
-+          objectives: form.objectives.de.filter((v) => v.trim()),
-+          targetAudience: form.targetAudience.de.filter((v) => v.trim()),
-+          benefits: form.benefits.de.filter((v) => v.trim()),
-+        },
-+      }))
-+      if (form.thumbnailFile) payload.append('thumbnail', form.thumbnailFile)
-+
-+      await adminCoursesApi.updateCourse(course.id, payload)
-+      await onUpdated()
-+      await AlertJs.success(t.updateSuccessTitle, t.updateSuccessBody)
-+      setEditing(false)
-+    } finally {
-+      setSubmitting(false)
-+    }
-   }
-
--  const normalizeContentTranslations = (value: CourseDetailAdmin['contentTranslations']): CourseContentTranslationItem[] => {
--    if (!value) return []
--    if (Array.isArray(value)) return value as CourseContentTranslationItem[]
--    return Object.entries(value).map(([locale, item]) => ({ locale, ...item }))
-+  if (editing) {
-+    return (
-+      <div className='admin-row' style={{ gap: 12, flexWrap: 'wrap' }}>
-+        <div className='admin-row' style={{ width: '100%', justifyContent: 'space-between' }}>
-+          <h4 style={{ margin: 0 }}><i className='fa-solid fa-pen-to-square' /> {t.editTitle}</h4>
-+          <div className='admin-row' style={{ gap: 8 }}>
-+            {(['vi', 'en', 'de'] as AdminLang[]).map((code) => (
-+              <button key={code} type='button' className={`admin-btn ${inputLang === code ? 'admin-btn-primary' : 'admin-btn-ghost'}`} onClick={() => setInputLang(code)}>{code.toUpperCase()}</button>
-+            ))}
-+            <button type='button' className='admin-btn admin-btn-ghost' onClick={() => setEditing(false)} disabled={submitting}>{t.cancel}</button>
-+            <button type='button' className='admin-btn admin-btn-save' onClick={submitUpdate} disabled={submitting}>{submitting ? t.saving : t.save}</button>
-+          </div>
-+        </div>
-+
-+        <label className='admin-field' style={{ flex: '1 1 300px' }}><span className='admin-label'>{t.topic}</span><select className='admin-input' value={form.topicId || ''} onChange={(e) => setForm((prev) => ({ ...prev, topicId: Number(e.target.value) || undefined }))}><option value=''>--</option>{topics.map((item) => <option key={item.id} value={item.id}>{displayTopicName(item)}</option>)}</select></label>
-+        <label className='admin-field' style={{ flex: '1 1 300px' }}><span className='admin-label'>{t.slug}</span><input className='admin-input' disabled value={slug} /></label>
-+        <label className='admin-field' style={{ flex: '1 1 300px' }}><span className='admin-label'>{t.title}</span><input className='admin-input' value={form.title[inputLang]} onChange={(e) => updateI18nField('title', e.target.value)} /></label>
-+        <label className='admin-field' style={{ flex: '1 1 300px' }}><span className='admin-label'>{t.shortDescription}</span><input className='admin-input' value={form.shortDescription[inputLang]} onChange={(e) => updateI18nField('shortDescription', e.target.value)} /></label>
-+        <label className='admin-field' style={{ flex: '1 1 100%' }}><span className='admin-label'>{t.description}</span><textarea className='admin-input' rows={2} value={form.description[inputLang]} onChange={(e) => updateI18nField('description', e.target.value)} /></label>
-+
-+        <div className='admin-field' style={{ flex: '1 1 320px' }}>
-+          <span className='admin-label'>{t.thumbnail}</span>
-+          <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>
-+            {t.currentFile}: <b>{form.thumbnailFile?.name || currentImageName || t.noImage}</b>
-+          </div>
-+          <input type='file' accept='image/*' onChange={(e) => setForm((prev) => ({ ...prev, thumbnailFile: e.target.files?.[0] || null }))} />
-+        </div>
-+
-+        <label className='admin-field' style={{ flex: '0 0 220px' }}><span className='admin-label'>{t.price}</span><input type='number' min={0} className='admin-input' value={form.price} onChange={(e) => setForm((prev) => ({ ...prev, price: e.target.value }))} /></label>
-+
-+        <label className='admin-field' style={{ flex: '0 0 280px' }}>
-+          <span className='admin-label'>{t.published}</span>
-+          <div className='create-course-switch' style={{ marginTop: 4 }}>
-+            <button
-+              type='button'
-+              className={`create-course-toggle ${form.published ? 'is-on' : ''}`}
-+              aria-pressed={form.published}
-+              onClick={() => canPublish && setForm((prev) => ({ ...prev, published: !prev.published }))}
-+              disabled={!canPublish}
-+            >
-+              <span className='create-course-toggle-thumb' />
-+            </button>
-+            {!canPublish ? <span className='create-course-note'>{t.publishLocked}</span> : null}
-+          </div>
-+        </label>
-+
-+        <div className='admin-row' style={{ width: '100%', gap: 12, alignItems: 'stretch' }}>
-+          {([
-+            ['objectives', t.objective],
-+            ['targetAudience', t.audience],
-+            ['benefits', t.benefits],
-+          ] as const).map(([field, label]) => (
-+            <div key={field} className='admin-field admin-card' style={{ flex: '1 1 320px', marginBottom: 0 }}>
-+              <span className='admin-label'>{label}</span>
-+              {form[field][inputLang].map((item, index) => (
-+                <div className='admin-row' key={`${field}-${index}`} style={{ gap: 8, marginBottom: 8 }}>
-+                  <input className='admin-input' value={item} onChange={(e) => updateI18nListItem(field, index, e.target.value)} />
-+                  <button type='button' className='admin-btn admin-btn-danger' onClick={() => removeI18nListItem(field, index)}><i className='fa-solid fa-trash' /> {t.remove}</button>
-+                </div>
-+              ))}
-+              <button type='button' className='admin-btn admin-btn-ghost' onClick={() => addI18nListItem(field)}><i className='fa-solid fa-plus' /> {t.addItem}</button>
-+            </div>
-+          ))}
-+        </div>
-+      </div>
-+    )
-   }
-
-   const topic = topics.find((item) => item.id === course.topicId)
--  const translations = normalizeTranslations(course.translations)
--  const contentTranslations = normalizeContentTranslations(course.contentTranslations)
--
--  const infoItems: InfoItem[] = [
--    { key: 'id', label: 'ID', value: course.id || '--', icon: 'fa-hashtag' },
--    { key: 'topicId', label: 'Topic ID', value: course.topicId ?? '--', icon: 'fa-fingerprint' },
--    { key: 'topic', label: text.topicCol, value: topic ? displayTopicName(topic) : text.unassigned, icon: 'fa-folder-tree' },
--    { key: 'slug', label: 'Slug', value: course.slug || '--', icon: 'fa-link' },
--    { key: 'description', label: 'Description', value: course.description || '--', icon: 'fa-paragraph', fullWidth: true },
--    { key: 'price', label: text.priceCol, value: `${(course.price || 0).toLocaleString('vi-VN')}đ`, icon: 'fa-money-bill-wave' },
--    { key: 'rating', label: text.ratingCol, value: `${course.ratingAvg ?? 0} (${course.ratingCount ?? 0})`, icon: 'fa-star' },
--    { key: 'enrollment', label: text.enrollmentCol, value: course.enrollmentCount ?? 0, icon: 'fa-user-graduate' },
--    { key: 'lesson', label: text.lessonCol, value: course._count?.lessons ?? 0, icon: 'fa-book-open' },
--    { key: 'video', label: text.videoCountCol, value: course.videoCount ?? 0, icon: 'fa-video' },
--    {
--      key: 'createdAt',
--      label: text.createdAtCol,
--      value: course.createdAt ? new Date(course.createdAt).toLocaleString('vi-VN') : '--',
--      icon: 'fa-clock',
--    },
--    {
--      key: 'updatedAt',
--      label: text.updatedAtCol,
--      value: course.updatedAt ? new Date(course.updatedAt).toLocaleString('vi-VN') : '--',
--      icon: 'fa-rotate',
--    },
--  ]
-+  const currentContent = normalizeContentTranslations(course.contentTranslations).find((item) => item.locale === lang)
-
-   return (
-     <div className='admin-row' style={{ gap: 14, flexWrap: 'wrap', alignItems: 'stretch' }}>
-+      <div style={{ flex: '1 1 100%', display: 'flex', justifyContent: 'flex-end' }}>
-+        <button type='button' className='admin-btn admin-btn-ghost' onClick={startEdit}>
-+          <i className='fa-solid fa-pen' /> {t.edit}
-+        </button>
-+      </div>
-       <div style={{ flex: '1 1 100%', borderBottom: '1px dashed rgba(148, 163, 184, 0.35)', paddingBottom: 12 }}>
-         <div className='admin-row' style={{ gap: 12, alignItems: 'flex-start', flexWrap: 'nowrap' }}>
-           {course.thumbnail ? (
-             <img
-               src={course.thumbnail}
-               alt={course.title}
-               style={{ width: 250, height: 150, objectFit: 'cover', borderRadius: 8, border: '1px solid rgba(148, 163, 184, 0.35)', flexShrink: 0 }}
-             />
-           ) : (
--            <div
--              style={{
--                width: 250,
--                height: 150,
--                borderRadius: 8,
--                border: '1px dashed rgba(148, 163, 184, 0.5)',
--                display: 'flex',
--                alignItems: 'center',
--                justifyContent: 'center',
--                color: '#94a3b8',
--                fontSize: 12,
--                flexShrink: 0,
--              }}
--            >
--              No image
--            </div>
-+            <div style={{ width: 250, height: 150, borderRadius: 8, border: '1px dashed rgba(148, 163, 184, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 12, flexShrink: 0 }}>{t.noImage}</div>
-           )}
-           <div style={{ minWidth: 0 }}>
--            <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 4 }}>
--              <i className='fa-solid fa-heading' style={{ width: 16, color: '#22d3ee' }} />
--              <span style={{ fontSize: 13, color: '#94a3b8' }}>{text.titleCol}</span>
--            </div>
--            <div style={{ fontWeight: 800, fontSize: 26, lineHeight: 1.25, marginBottom: 8, color: '#22c55e' }}>{course.title || '--'}</div>
--            <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 4 }}>
--              <i className='fa-solid fa-align-left' style={{ width: 16, color: '#22d3ee' }} />
--              <span style={{ fontSize: 13, color: '#94a3b8' }}>Short description</span>
--            </div>
--            <div style={{ fontWeight: 600, fontSize: 15, lineHeight: 1.4, wordBreak: 'break-word' }}>{course.shortDescription || '--'}</div>
-+            <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 4 }}><i className='fa-solid fa-heading' style={{ width: 16, color: '#22d3ee' }} /><span style={{ fontSize: 13, color: '#94a3b8' }}>{text.titleCol}</span></div>
-+            <div style={{ fontWeight: 800, fontSize: 26, lineHeight: 1.25, marginBottom: 8, color: '#22c55e' }}>{localizedTitle}</div>
-+            <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 4 }}><i className='fa-solid fa-align-left' style={{ width: 16, color: '#22d3ee' }} /><span style={{ fontSize: 13, color: '#94a3b8' }}>{t.shortDescription}</span></div>
-+            <div style={{ fontWeight: 600, fontSize: 15, lineHeight: 1.4, wordBreak: 'break-word' }}>{localizedShortDescription}</div>
-           </div>
-         </div>
-       </div>
-
--      {infoItems.map((item) => (
--        <div
--          key={item.key}
--          style={{
--            flex: item.fullWidth ? '1 1 100%' : '1 1 320px',
--            minWidth: item.fullWidth ? '100%' : 280,
--            borderBottom: '1px dashed rgba(148, 163, 184, 0.35)',
--            paddingBottom: 10,
--          }}
--        >
-+      {[
-+        ['ID', course.id || '--', 'fa-hashtag'],
-+        ['Topic', topic ? displayTopicName(topic) : text.unassigned, 'fa-folder-tree'],
-+        ['Slug', course.slug || '--', 'fa-link'],
-+        [text.priceCol, `${(course.price || 0).toLocaleString('vi-VN')}đ`, 'fa-money-bill-wave'],
-+        [text.ratingCol, `${course.ratingAvg ?? 0} (${course.ratingCount ?? 0})`, 'fa-star'],
-+        [text.enrollmentCol, course.enrollmentCount ?? 0, 'fa-user-graduate'],
-+        [text.lessonCol, course._count?.lessons ?? 0, 'fa-book-open'],
-+        [text.videoCountCol, course.videoCount ?? 0, 'fa-video'],
-+        [text.statusCol, course.published ? text.publishedStatus : text.draftStatus, 'fa-circle-check'],
-+      ].map(([label, value, icon]) => (
-+        <div key={String(label)} style={{ flex: '1 1 260px', minWidth: 240, borderBottom: '1px dashed rgba(148, 163, 184, 0.35)', paddingBottom: 10 }}>
-           <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 4 }}>
--            <i className={`fa-solid ${item.icon}`} style={{ width: 16, color: '#22d3ee' }} />
--            <span style={{ fontSize: 13, color: '#94a3b8' }}>{item.label}</span>
-+            <i className={`fa-solid ${icon}`} style={{ width: 16, color: '#22d3ee' }} />
-+            <span style={{ fontSize: 13, color: '#94a3b8' }}>{label}</span>
-           </div>
--          <div style={{ fontWeight: 600, fontSize: 16, lineHeight: 1.4, wordBreak: 'break-word' }}>{item.value}</div>
-+          <div style={{ fontWeight: 600, fontSize: 16, lineHeight: 1.4, wordBreak: 'break-word' }}>{String(value)}</div>
-         </div>
-       ))}
-
--      <div style={{ flex: '1 1 320px', minWidth: 280, borderBottom: '1px dashed rgba(148, 163, 184, 0.35)', paddingBottom: 10 }}>
--        <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 4 }}>
--          <i className='fa-solid fa-circle-check' style={{ width: 16, color: '#22d3ee' }} />
--          <span style={{ fontSize: 13, color: '#94a3b8' }}>{text.statusCol}</span>
--        </div>
--        <div style={{ fontWeight: 600, fontSize: 16, lineHeight: 1.4 }}>
--          {course.published ? text.publishedStatus : text.draftStatus}
--        </div>
--      </div>
--
-       <div style={{ flex: '1 1 100%', borderBottom: '1px dashed rgba(148, 163, 184, 0.35)', paddingBottom: 10 }}>
-         <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 8 }}>
-           <i className='fa-solid fa-language' style={{ width: 16, color: '#22d3ee' }} />
--          <span style={{ fontSize: 13, color: '#94a3b8' }}>Translations</span>
-+          <span style={{ fontSize: 13, color: '#94a3b8' }}>{t.translations}</span>
-         </div>
--        {translations.length ? (
--          <div className='admin-row' style={{ gap: 12, flexWrap: 'wrap' }}>
--            {translations.map((translation) => (
--              <div key={translation.locale} style={{ flex: '1 1 300px', minWidth: 280 }}>
--                <div style={{ fontWeight: 700, marginBottom: 4 }}>{translation.locale.toUpperCase()}</div>
--                <div style={{ fontSize: 14, lineHeight: 1.5 }}><b>Title:</b> {translation.title || '--'}</div>
--                <div style={{ fontSize: 14, lineHeight: 1.5 }}><b>Short:</b> {translation.shortDescription || '--'}</div>
--                <div style={{ fontSize: 14, lineHeight: 1.5 }}><b>Description:</b> {translation.description || '--'}</div>
--              </div>
--            ))}
--          </div>
--        ) : (
--          <div style={{ fontWeight: 600 }}>--</div>
--        )}
--      </div>
-
--      <div style={{ flex: '1 1 100%', borderBottom: '1px dashed rgba(148, 163, 184, 0.35)', paddingBottom: 10 }}>
--        <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 8 }}>
--          <i className='fa-solid fa-list-check' style={{ width: 16, color: '#22d3ee' }} />
--          <span style={{ fontSize: 13, color: '#94a3b8' }}>Content translations</span>
-+        <div style={{ marginBottom: 12 }}>
-+          <div style={{ fontWeight: 700, marginBottom: 6 }}>{t.description}</div>
-+          <div style={{ lineHeight: 1.5 }}>{course.description || '--'}</div>
-+        </div>
-+
-+        <div className='admin-row' style={{ gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-+          {([
-+            [t.objective, currentContent?.objectives || course.objectives || []],
-+            [t.audience, currentContent?.targetAudience || course.targetAudience || []],
-+            [t.benefits, currentContent?.benefits || course.benefits || []],
-+          ] as const).map(([label, items]) => (
-+            <div key={label} style={{ flex: '1 1 320px', minWidth: 280 }}>
-+              <div style={{ fontWeight: 700, marginBottom: 6 }}>{label}</div>
-+              {items.length ? (
-+                <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.55 }}>
-+                  {items.map((item, idx) => <li key={`${label}-${idx}`}>{item}</li>)}
-+                </ul>
-+              ) : (
-+                <div>--</div>
-+              )}
-+            </div>
-+          ))}
-         </div>
--        {contentTranslations.length ? (
--          <div className='admin-row' style={{ gap: 12, flexWrap: 'wrap' }}>
--            {contentTranslations.map((translation) => (
--              <div key={translation.locale} style={{ flex: '1 1 300px', minWidth: 280 }}>
--                <div style={{ fontWeight: 700, marginBottom: 4 }}>{translation.locale.toUpperCase()}</div>
--                <div style={{ fontSize: 14, lineHeight: 1.5 }}><b>Objectives:</b> {translation.objectives?.join(' • ') || '--'}</div>
--                <div style={{ fontSize: 14, lineHeight: 1.5 }}><b>Target:</b> {translation.targetAudience?.join(' • ') || '--'}</div>
--                <div style={{ fontSize: 14, lineHeight: 1.5 }}><b>Benefits:</b> {translation.benefits?.join(' • ') || '--'}</div>
--              </div>
--            ))}
--          </div>
--        ) : (
--          <div style={{ fontWeight: 600 }}>--</div>
--        )}
-       </div>
-     </div>
-   )
- }
-diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx
-index 57fd69885bbae655b63d2ca4d480b5ca19c0995b..fdca5ad86d362ca59053425e4374bfc1abc82d98 100644
---- a/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx
-+++ b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx
-@@ -1,64 +1,65 @@
- import { useMemo, useState } from 'react'
- import { type CourseDetailAdmin, type CourseTopic } from '../../../../api/adminCourses.api'
- import { CourseDetailInfoTab } from './CourseDetailInfoTab'
-
- type Props = {
-   course: CourseDetailAdmin
-   lang: 'vi' | 'en' | 'de'
-   text: Record<string, string>
-   topics: CourseTopic[]
-+  onCourseUpdated: () => Promise<void> | void
- }
-
- type DetailTabKey = 'info' | 'content'
-
--export function CourseDetailTabs({ course, lang, text, topics }: Props) {
-+export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated }: Props) {
-   const [activeTab, setActiveTab] = useState<DetailTabKey>('info')
-
-   const localizedContent = useMemo(() => ({
-     objectives: course.objectives || [],
-     targetAudience: course.targetAudience || [],
-     benefits: course.benefits || [],
-   }), [course])
-
-   return (
-     <section>
-       <div className='admin-tabs' style={{ marginBottom: 10 }}>
-         <button className={`admin-tab ${activeTab === 'info' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('info')}>
-           <i className='fa-solid fa-circle-info' />{' '}
-           {lang === 'vi'
-               ? 'Thông tin khóa học'
-               : lang === 'en'
-                   ? 'Course Information'
-                   : 'Kursinformationen'}
-         </button>
-         <button className={`admin-tab ${activeTab === 'content' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('content')}>
-           <i className='fa-solid fa-list-check' /> {lang === 'vi' ? 'Nội dung mở rộng' : lang === 'en' ? 'Extended content' : 'Erweiterte Inhalte'}
-         </button>
-       </div>
-
--      {activeTab === 'info' && <CourseDetailInfoTab course={course} text={text} lang={lang} topics={topics} />}
-+      {activeTab === 'info' && <CourseDetailInfoTab course={course} text={text} lang={lang} topics={topics} onUpdated={onCourseUpdated} />}
-
-       {activeTab === 'content' && (
-         <div className='admin-row' style={{ alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-           <div className='admin-card' style={{ flex: 1, minWidth: 240 }}>
-             <h4>Objectives</h4>
-             <ul>
-               {localizedContent.objectives.length ? localizedContent.objectives.map((item, idx) => <li key={`${item}-${idx}`}>{item}</li>) : <li>--</li>}
-             </ul>
-           </div>
-           <div className='admin-card' style={{ flex: 1, minWidth: 240 }}>
-             <h4>Target audience</h4>
-             <ul>
-               {localizedContent.targetAudience.length ? localizedContent.targetAudience.map((item, idx) => <li key={`${item}-${idx}`}>{item}</li>) : <li>--</li>}
-             </ul>
-           </div>
-           <div className='admin-card' style={{ flex: 1, minWidth: 240 }}>
-             <h4>Benefits</h4>
-             <ul>
-               {localizedContent.benefits.length ? localizedContent.benefits.map((item, idx) => <li key={`${item}-${idx}`}>{item}</li>) : <li>--</li>}
-             </ul>
-           </div>
-         </div>
-       )}
-     </section>
-   )
-diff --git a/backend/ayanavitabackend/app/api/src/courses/courses-media.service.ts b/backend/ayanavitabackend/app/api/src/courses/courses-media.service.ts
-index e381393a3fe0bc6f43f5697bdc7b1dd0785daaa0..a28457205b6bacbb3406480b66f6555ee53b590b 100644
---- a/backend/ayanavitabackend/app/api/src/courses/courses-media.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/courses/courses-media.service.ts
-@@ -65,41 +65,121 @@ export class CoursesMediaService {
-     const signature = createHmac('sha256', kSigning).update(stringToSign, 'utf8').digest('hex')
-
-     const authorization = `AWS4-HMAC-SHA256 Credential=${this.s3AccessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`
-     const url = `${this.s3Endpoint.replace(/\/$/, '')}/${this.s3Bucket}/${key}`
-
-     const headers: Record<string, string> = {
-       Authorization: authorization,
-       'x-amz-date': amzDate,
-       'x-amz-content-sha256': payloadHash,
-       'content-type': contentType,
-       'x-amz-acl': acl,
-     }
-
-     const res = await fetch(url, {
-       method: 'PUT',
-       headers,
-       body: new Uint8Array(file.buffer),
-     })
-
-     if (!res.ok) {
-       const text = await res.text()
-       throw new BadRequestException(`Upload thumbnail failed: ${res.status} ${text}`)
-     }
-   }
-
-+
-+  private async signedS3Delete(key: string) {
-+    const endpointHost = new URL(this.s3Endpoint).host
-+    const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '')
-+    const dateStamp = amzDate.slice(0, 8)
-+    const payloadHash = createHash('sha256').update('').digest('hex')
-+
-+    const signingHeaders: Record<string, string> = {
-+      host: endpointHost,
-+      'x-amz-content-sha256': payloadHash,
-+      'x-amz-date': amzDate,
-+    }
-+
-+    const sortedHeaderKeys = Object.keys(signingHeaders).sort()
-+    const canonicalHeaders = sortedHeaderKeys.map((k) => `${k}:${signingHeaders[k]}`).join('\n') + '\n'
-+    const signedHeaders = sortedHeaderKeys.join(';')
-+
-+    const canonicalRequest = [
-+      'DELETE',
-+      `/${this.s3Bucket}/${key}`,
-+      '',
-+      canonicalHeaders,
-+      signedHeaders,
-+      payloadHash,
-+    ].join('\n')
-+
-+    const credentialScope = `${dateStamp}/${this.s3Region}/s3/aws4_request`
-+    const stringToSign = [
-+      'AWS4-HMAC-SHA256',
-+      amzDate,
-+      credentialScope,
-+      createHash('sha256').update(canonicalRequest).digest('hex'),
-+    ].join('\n')
-+
-+    const kDate = this.hmac(`AWS4${this.s3SecretKey}`, dateStamp)
-+    const kRegion = this.hmac(kDate, this.s3Region)
-+    const kService = this.hmac(kRegion, 's3')
-+    const kSigning = this.hmac(kService, 'aws4_request')
-+    const signature = createHmac('sha256', kSigning).update(stringToSign, 'utf8').digest('hex')
-+
-+    const authorization = `AWS4-HMAC-SHA256 Credential=${this.s3AccessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`
-+    const url = `${this.s3Endpoint.replace(/\/$/, '')}/${this.s3Bucket}/${key}`
-+
-+    const res = await fetch(url, {
-+      method: 'DELETE',
-+      headers: {
-+        Authorization: authorization,
-+        'x-amz-date': amzDate,
-+        'x-amz-content-sha256': payloadHash,
-+      },
-+    })
-+
-+    if (!res.ok && res.status !== 404) {
-+      const text = await res.text()
-+      throw new BadRequestException(`Delete thumbnail failed: ${res.status} ${text}`)
-+    }
-+  }
-+
-+  private resolveObjectKeyFromUrl(urlOrKey: string) {
-+    const value = (urlOrKey || '').trim()
-+    if (!value) return ''
-+    if (!value.startsWith('http://') && !value.startsWith('https://')) return value.replace(/^\/+/, '')
-+
-+    try {
-+      const parsed = new URL(value)
-+      const path = parsed.pathname.replace(/^\/+/, '')
-+      const bucketPrefix = `${this.s3Bucket}/`
-+      if (path.startsWith(bucketPrefix)) return path.slice(bucketPrefix.length)
-+      return ''
-+    } catch {
-+      return ''
-+    }
-+  }
-+
-+  async deleteThumbnailByUrl(urlOrKey: string) {
-+    const key = this.resolveObjectKeyFromUrl(urlOrKey)
-+    if (!key) return
-+    await this.signedS3Delete(key)
-+  }
-+
-   async uploadThumbnail(file: { buffer: Buffer; mimetype?: string; originalname?: string; size?: number }) {
-     if (!file?.buffer) throw new BadRequestException('File is required')
-
-     const safeExt = extname(file.originalname || '').slice(0, 10) || '.jpg'
-     const key = `sourse/courses/thumbnails/${Date.now()}-${Math.random().toString(36).slice(2)}${safeExt}`
-
-     await this.signedS3Put(key, file)
-
-     return {
-       key,
-       url: this.publicCloudUrl(key),
-       mimeType: file.mimetype || 'image/jpeg',
-       size: file.size ?? 0,
-     }
-   }
- }
-diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-index b1764380443c430d2496233ee04465aa9e294415..c3bacee8b703309dccdae201d0e494c569513fe4 100644
---- a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-+++ b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-@@ -90,36 +90,37 @@ export class CoursesController {
-     @Param('lessonId', ParseIntPipe) lessonId: number,
-   ) {
-     return this.courses.getLessonDetail(user, courseId, lessonId)
-   }
-
-   @UseGuards(AccessTokenGuard, RolesGuard)
-   @Roles('ADMIN')
-   @Post('thumbnail/upload')
-   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
-   uploadThumbnail(@UploadedFile() file?: any) {
-     if (!file) return { message: 'Missing thumbnail file' }
-     return this.courses.uploadThumbnail(file)
-   }
-
-   @UseGuards(AccessTokenGuard, RolesGuard)
-   @Roles('ADMIN')
-   @Post()
-   @UseInterceptors(FileInterceptor('thumbnail', { storage: memoryStorage() }))
-   create(@Body() rawData: any, @UploadedFile() thumbnail?: any) {
-     return this.courses.create(parseMultipartData(rawData) as CreateCourseDto, thumbnail)
-   }
-
-   @UseGuards(AccessTokenGuard, RolesGuard)
-   @Roles('ADMIN')
-   @Patch(':id')
--  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCourseDto) {
--    return this.courses.update(id, dto)
-+  @UseInterceptors(FileInterceptor('thumbnail', { storage: memoryStorage() }))
-+  update(@Param('id', ParseIntPipe) id: number, @Body() rawData: any, @UploadedFile() thumbnail?: any) {
-+    return this.courses.update(id, parseMultipartData(rawData) as UpdateCourseDto, thumbnail)
-   }
-
-   @UseGuards(AccessTokenGuard, RolesGuard)
-   @Roles('ADMIN')
-   @Delete(':id')
-   remove(@Param('id', ParseIntPipe) id: number) {
-     return this.courses.remove(id)
-   }
- }
-diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-index 72a90fcfd5ec8b856ddf0a830b8d8ab39f70ca11..a157db6c884d19c4d8b1b1a25c921c05d3aee518 100644
---- a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-@@ -37,50 +37,66 @@ export class CoursesService {
-     enrollmentCount: true,
-     createdAt: true,
-     updatedAt: true,
-     _count: { select: { lessons: true } },
-   } as const
-
-   private resolveCourseLocale(lang?: string): Locale {
-     const activeLang = (lang || 'vi').toLowerCase()
-     if (activeLang === 'en-us' || activeLang === 'en') return 'en'
-     if (activeLang === 'de') return 'de'
-     return 'vi'
-   }
-
-   private normalizeLocalizedList(value: unknown): MultiLingualStringList {
-     const empty: MultiLingualStringList = { vi: [], en: [], de: [] }
-     if (Array.isArray(value)) return { ...empty, vi: value.filter((item): item is string => typeof item === 'string') }
-     if (!value || typeof value !== 'object') return empty
-     const input = value as Record<string, unknown>
-     return {
-       vi: Array.isArray(input.vi) ? input.vi.filter((item): item is string => typeof item === 'string') : [],
-       en: Array.isArray(input.en) ? input.en.filter((item): item is string => typeof item === 'string') : [],
-       de: Array.isArray(input.de) ? input.de.filter((item): item is string => typeof item === 'string') : [],
-     }
-   }
-
-+
-+  private hydratePrimaryContent(dto: Partial<CreateCourseDto>): Partial<CreateCourseDto> {
-+    const objectivesByLocale = this.normalizeLocalizedList(dto.objectives)
-+    const targetAudienceByLocale = this.normalizeLocalizedList(dto.targetAudience)
-+    const benefitsByLocale = this.normalizeLocalizedList(dto.benefits)
-+
-+    const viContent = dto.contentTranslations?.vi
-+
++  if (rootPassword) {
 +    return {
-+      ...dto,
-+      objectives: (dto.objectives !== undefined ? objectivesByLocale.vi : (viContent?.objectives || objectivesByLocale.vi)) as any,
-+      targetAudience: (dto.targetAudience !== undefined ? targetAudienceByLocale.vi : (viContent?.targetAudience || targetAudienceByLocale.vi)) as any,
-+      benefits: (dto.benefits !== undefined ? benefitsByLocale.vi : (viContent?.benefits || benefitsByLocale.vi)) as any,
++      user: process.env.MYSQL_ROOT_USER || 'root',
++      password: rootPassword,
 +    }
 +  }
 +
-   private buildCreateCoursePayload(dto: CreateCourseDto & { title: string }): Prisma.CourseUncheckedCreateInput {
-     return {
-       title: dto.title,
-       slug: dto.slug,
-       ...(dto.description !== undefined ? { description: dto.description } : {}),
-       ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
-       ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
-       ...(dto.price !== undefined ? { price: dto.price } : {}),
-       ...(dto.published !== undefined ? { published: dto.published } : {}),
-       ...(dto.topicId !== undefined ? { topicId: dto.topicId } : {}),
-       ...(dto.objectives !== undefined ? { objectives: dto.objectives as any } : {}),
-       ...(dto.targetAudience !== undefined ? { targetAudience: dto.targetAudience as any } : {}),
-       ...(dto.benefits !== undefined ? { benefits: dto.benefits as any } : {}),
-       ...(dto.ratingAvg !== undefined ? { ratingAvg: dto.ratingAvg } : {}),
-       ...(dto.ratingCount !== undefined ? { ratingCount: dto.ratingCount } : {}),
-       ...(dto.enrollmentCount !== undefined ? { enrollmentCount: dto.enrollmentCount } : {}),
-     }
-   }
-
-   private buildUpdateCoursePayload(dto: UpdateCourseDto): Prisma.CourseUncheckedUpdateInput {
-     return {
-       ...(dto.title !== undefined ? { title: dto.title } : {}),
-       ...(dto.slug !== undefined ? { slug: dto.slug } : {}),
-       ...(dto.description !== undefined ? { description: dto.description } : {}),
-       ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
-@@ -160,94 +176,140 @@ export class CoursesService {
-     const tt = (c as any).topic?.translations?.find((x: any) => x.locale === courseLocale) || (c as any).topic?.translations?.find((x: any) => x.locale === 'vi')
-
-     const videoRows = await this.prisma.$queryRaw<Array<{ videoCount: bigint | number }>>`
-       SELECT COUNT(v.id) as videoCount
-       FROM LessonVideo v
-       INNER JOIN LessonModule m ON m.id = v.moduleId
-       INNER JOIN Lesson l ON l.id = m.lessonId
-       WHERE l.courseId = ${id}
-     `
-
-     return {
-       ...c,
-       title: tr?.title || c.title,
-       shortDescription: tr?.shortDescription || c.shortDescription,
-       description: tr?.description || c.description,
-       objectives: ct?.objectives || c.objectives,
-       targetAudience: ct?.targetAudience || c.targetAudience,
-       benefits: ct?.benefits || c.benefits,
-       topic: (c as any).topic ? { id: (c as any).topic.id, name: tt?.name || (c as any).topic.name } : null,
-       videoCount: Number(videoRows[0]?.videoCount || 0),
-     }
-   }
-
-   async create(dto: CreateCourseDto, thumbnailFile?: { buffer: Buffer; mimetype?: string }) {
-     if (!dto.title?.trim()) throw new BadRequestException('Title is required')
-+    const normalizedDto = this.hydratePrimaryContent(dto) as CreateCourseDto
-     try {
--      const thumbnailUrl = thumbnailFile ? (await this.courseMedia.uploadThumbnail(thumbnailFile)).url : dto.thumbnail
--      const created = await this.prisma.course.create({ data: this.buildCreateCoursePayload({ ...dto, title: dto.title.trim(), thumbnail: thumbnailUrl }), select: this.baseCourseSelect })
--      await this.syncCourseTranslations(created.id, dto)
-+      const thumbnailUrl = thumbnailFile ? (await this.courseMedia.uploadThumbnail(thumbnailFile)).url : normalizedDto.thumbnail
-+      const created = await this.prisma.course.create({ data: this.buildCreateCoursePayload({ ...normalizedDto, title: normalizedDto.title!.trim(), thumbnail: thumbnailUrl }), select: this.baseCourseSelect })
-+      await this.syncCourseTranslations(created.id, normalizedDto)
-       return created
-     } catch (e) {
-       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException('Slug already exists')
-       throw e
-     }
-   }
-
--  async update(id: number, dto: UpdateCourseDto) { await this.ensureCourseExists(id); const updated = await this.prisma.course.update({ where: { id }, data: this.buildUpdateCoursePayload(dto), select: this.baseCourseSelect }); await this.syncCourseTranslations(id, dto); return updated }
--  async remove(id: number) { await this.ensureCourseExists(id); return this.prisma.course.delete({ where: { id }, select: { id: true } }) }
-+  async update(id: number, dto: UpdateCourseDto, thumbnailFile?: { buffer: Buffer; mimetype?: string; originalname?: string }) {
-+    const normalizedDto = this.hydratePrimaryContent(dto) as UpdateCourseDto
-+    const existing = await this.prisma.course.findUnique({ where: { id }, select: { id: true, thumbnail: true } })
-+    if (!existing) throw new NotFoundException('Course not found')
++  return {
++    user: config.user,
++    password: config.password,
++  }
++}
 +
-+    let nextThumbnail = normalizedDto.thumbnail
-+    if (thumbnailFile) {
-+      const uploaded = await this.courseMedia.uploadThumbnail(thumbnailFile)
-+      nextThumbnail = uploaded.url
-+      if (existing.thumbnail) {
-+        await this.courseMedia.deleteThumbnailByUrl(existing.thumbnail)
-+      }
-+    }
-+
-+    const updated = await this.prisma.course.update({
-+      where: { id },
-+      data: this.buildUpdateCoursePayload({ ...normalizedDto, ...(nextThumbnail !== undefined ? { thumbnail: nextThumbnail } : {}) }),
-+      select: this.baseCourseSelect,
-+    })
-+    await this.syncCourseTranslations(id, normalizedDto)
-+    return updated
++async function ensureDatabase(urlString, label) {
++  if (!urlString) {
++    return
 +  }
 +
-+  async remove(id: number) {
-+    const existing = await this.prisma.course.findUnique({ where: { id }, select: { id: true, thumbnail: true } })
-+    if (!existing) throw new NotFoundException('Course not found')
++  const config = parseConnection(urlString)
++  const adminCredentials = getAdminCredentials(config)
 +
-+    if (existing.thumbnail) {
-+      await this.courseMedia.deleteThumbnailByUrl(existing.thumbnail)
-+    }
++  const connection = await mysql.createConnection({
++    host: config.host,
++    port: config.port,
++    user: adminCredentials.user,
++    password: adminCredentials.password,
++    multipleStatements: false,
++  })
 +
-+    return this.prisma.course.delete({ where: { id }, select: { id: true } })
++  try {
++    await connection.query(`CREATE DATABASE IF NOT EXISTS \`${escapeIdentifier(config.database)}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`)
++
++    await connection.query(
++      `GRANT ALL PRIVILEGES ON \`${escapeIdentifier(config.database)}\`.* TO '${escapeSqlString(config.user)}'@'%'`,
++    )
++
++    await connection.query('FLUSH PRIVILEGES')
++
++    console.log(`✅ Đã đảm bảo database cho ${label}: ${config.database} (granted to ${config.user})`)
++  } finally {
++    await connection.end()
 +  }
-
-   async listLessons(user: { sub: number; role: string }, courseId: number) { /* kept */
-     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } }); if (!course) throw new NotFoundException('Course not found'); await this.enrollments.assertEnrolledOrAdmin(user, courseId); if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
-     const lessons = await this.prisma.lesson.findMany({ where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) }, select: { id: true, courseId: true, title: true, slug: true, order: true, published: true, createdAt: true, updatedAt: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] })
-     if (user.role === 'ADMIN') return lessons.map((l) => ({ ...l, locked: false, lockReason: null, progress: null }))
-     const progressRows = await this.prisma.lessonProgress.findMany({ where: { userId: user.sub, lessonId: { in: lessons.map((l) => l.id) } }, select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true } })
-     const progressMap = new Map(progressRows.map((p) => [p.lessonId, p])); let prevCompleted = true
-     return lessons.map((lesson, idx) => { const progress = progressMap.get(lesson.id) ?? null; const locked = idx === 0 ? false : prevCompleted === false; const lockReason = locked ? 'PREV_NOT_COMPLETED' : null; prevCompleted = progress?.status === ProgressStatus.COMPLETED; return { ...lesson, locked, lockReason, progress } })
-   }
-
-   async getLessonDetail(user: { sub: number; role: string }, courseId: number, lessonId: number) { /* kept */
-     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } }); if (!course) throw new NotFoundException('Course not found'); await this.enrollments.assertEnrolledOrAdmin(user, courseId); if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
-     const lesson = await this.prisma.lesson.findFirst({ where: { id: lessonId, courseId }, select: { id: true, courseId: true, title: true, slug: true, content: true, videoUrl: true, order: true, published: true, createdAt: true, updatedAt: true } }); if (!lesson) throw new NotFoundException('Lesson not found')
-     if (user.role !== 'ADMIN' && !lesson.published) throw new NotFoundException('Lesson not found')
-     if (user.role !== 'ADMIN') { const orderedLessons = await this.prisma.lesson.findMany({ where: { courseId, published: true }, select: { id: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] }); const idx = orderedLessons.findIndex((l) => l.id === lessonId); if (idx < 0) throw new NotFoundException('Lesson not found'); if (idx > 0) { const prevLessonId = orderedLessons[idx - 1].id; const prevProgress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId: prevLessonId } }, select: { status: true } }); if (prevProgress?.status !== ProgressStatus.COMPLETED) throw new ForbiddenException('Lesson locked') } }
-     const progress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId } }, select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true } })
-     return { ...lesson, progress: progress ?? null }
-   }
-
--  private async ensureCourseExists(id: number) { if (!(await this.prisma.course.findUnique({ where: { id }, select: { id: true } }))) throw new NotFoundException('Course not found') }
-
-   private async syncCourseTranslations(courseId: number, dto: Partial<CreateCourseDto>) {
-     const locales: Array<'vi' | 'en' | 'de'> = ['vi', 'en', 'de']
-+    const objectivesByLocale = this.normalizeLocalizedList(dto.objectives)
-+    const targetAudienceByLocale = this.normalizeLocalizedList(dto.targetAudience)
-+    const benefitsByLocale = this.normalizeLocalizedList(dto.benefits)
++}
 +
-     await Promise.all(locales.map(async (locale) => {
-       const tr = dto.translations?.[locale]
-       const title = tr?.title || (locale === 'vi' ? dto.title : undefined)
--      if (!title?.trim()) return
--      await this.prisma.courseTranslation.upsert({
--        where: { courseId_locale: { courseId, locale } },
--        update: { title: title.trim(), shortDescription: tr?.shortDescription?.trim() || (locale === 'vi' ? dto.shortDescription?.trim() || null : null), description: tr?.description?.trim() || (locale === 'vi' ? dto.description?.trim() || null : null) },
--        create: { courseId, locale, title: title.trim(), shortDescription: tr?.shortDescription?.trim() || (locale === 'vi' ? dto.shortDescription?.trim() || null : null), description: tr?.description?.trim() || (locale === 'vi' ? dto.description?.trim() || null : null) },
--      })
++async function main() {
++  await ensureDatabase(process.env.DATABASE_URL, 'DATABASE_URL')
++  await ensureDatabase(process.env.SHADOW_DATABASE_URL, 'SHADOW_DATABASE_URL')
++}
 +
-+      if (title?.trim()) {
-+        await this.prisma.courseTranslation.upsert({
-+          where: { courseId_locale: { courseId, locale } },
-+          update: {
-+            title: title.trim(),
-+            shortDescription: tr?.shortDescription?.trim() || (locale === 'vi' ? dto.shortDescription?.trim() || null : null),
-+            description: tr?.description?.trim() || (locale === 'vi' ? dto.description?.trim() || null : null),
-+          },
-+          create: {
-+            courseId,
-+            locale,
-+            title: title.trim(),
-+            shortDescription: tr?.shortDescription?.trim() || (locale === 'vi' ? dto.shortDescription?.trim() || null : null),
-+            description: tr?.description?.trim() || (locale === 'vi' ? dto.description?.trim() || null : null),
-+          },
-+        })
-+      }
++main().catch((error) => {
++  console.error('❌ Không thể bootstrap database:', error)
++  process.exit(1)
++})
+diff --git a/backend/ayanavitabackend/app/api/scripts/setup-prisma.js b/backend/ayanavitabackend/app/api/scripts/setup-prisma.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..9cb8881e5e8255a76d793e0b581bbb55add17cce
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/scripts/setup-prisma.js
+@@ -0,0 +1,47 @@
++const { execSync } = require('node:child_process')
++function run(command, options = {}) {
++  console.log(`\n➡️  ${command}`)
++  execSync(command, {
++    stdio: 'inherit',
++    env: process.env,
++    ...options,
++  })
++}
 +
-       const ct = dto.contentTranslations?.[locale]
--      const objectivesByLocale = this.normalizeLocalizedList(dto.objectives)
--      const targetAudienceByLocale = this.normalizeLocalizedList(dto.targetAudience)
--      const benefitsByLocale = this.normalizeLocalizedList(dto.benefits)
-       if (ct || locale === 'vi') {
-         await this.prisma.courseContentTranslation.upsert({
-           where: { courseId_locale: { courseId, locale } },
-           update: {
-             objectives: (ct?.objectives || objectivesByLocale[locale] || []) as any,
-             targetAudience: (ct?.targetAudience || targetAudienceByLocale[locale] || []) as any,
-             benefits: (ct?.benefits || benefitsByLocale[locale] || []) as any,
-           },
-           create: {
-             courseId,
-             locale,
-             objectives: (ct?.objectives || objectivesByLocale[locale] || []) as any,
-             targetAudience: (ct?.targetAudience || targetAudienceByLocale[locale] || []) as any,
-             benefits: (ct?.benefits || benefitsByLocale[locale] || []) as any,
-           },
-         })
-       }
-     }))
-   }
++async function hasUserTable() {
++  const { PrismaClient } = require('@prisma/client')
++  const prisma = new PrismaClient()
 +
- }
++  try {
++    const rows = await prisma.$queryRawUnsafe("SHOW TABLES LIKE 'User'")
++    return Array.isArray(rows) && rows.length > 0
++  } finally {
++    await prisma.$disconnect()
++  }
++}
++
++async function main() {
++  run('node scripts/bootstrap-db.js')
++  try {
++    run('npx prisma migrate resolve --rolled-back 20260226130000_add_product_images')
++  } catch (error) {
++    console.log('ℹ️ Bỏ qua migrate resolve vì migration này không cần rollback ở môi trường hiện tại.')
++  }
++  run('npx prisma migrate deploy')
++  run('npx prisma generate')
++
++  const userTableExists = await hasUserTable()
++
++  if (!userTableExists) {
++    console.log('⚠️ Không thấy bảng User sau migrate deploy, chạy thêm prisma db push để đồng bộ schema.')
++    run('npx prisma db push')
++    run('npx prisma generate')
++  }
++
++  run('npx prisma db seed')
++}
++
++main().catch((error) => {
++  console.error('\n❌ Prisma setup thất bại:', error)
++  process.exit(1)
++})
+diff --git a/docker-compose.yml b/docker-compose.yml
+index 8af132a326d544adca97394ab67de4a71e4db797..79d3dd0afd01c8d4bf2aef5af79996ebbd749fe3 100644
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -1,62 +1,68 @@
+ services:
+   mysql:
+     image: mysql:8.0
+     container_name: ayanavita-mysql
+     command: --default-authentication-plugin=mysql_native_password
+     environment:
+       MYSQL_ROOT_PASSWORD: rootpassword
+       MYSQL_DATABASE: ayanavita
+       MYSQL_USER: ayanavita
+       MYSQL_PASSWORD: ayanavita_pw
+       TZ: Asia/Ho_Chi_Minh
+     volumes:
+       - mysql_data:/var/lib/mysql
+     ports:
+       - "3306:3306"
+     restart: unless-stopped
++    healthcheck:
++      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpassword"]
++      interval: 5s
++      timeout: 3s
++      retries: 30
+     networks:
+       - aya_net
+
+   # =====================
+   # BACKEND (DEV MODE)
+   # =====================
+   backend:
+     image: node:20-alpine
+     container_name: ayanavita-backend
+     working_dir: /app
+     volumes:
+       - ./backend/ayanavitabackend/app/api:/app
+       - /app/node_modules
+-    command: sh -c "npm install && (npx prisma migrate resolve --rolled-back 20260226130000_add_product_images || true) && npx prisma migrate deploy && npx prisma generate && npx prisma db seed && npm run start:dev"
++    command: sh -c "npm install && npm run start:dev:setup"
+     env_file:
+       - ./backend/ayanavitabackend/app/api/.env
+     environment:
+       NODE_ENV: development
+       PORT: 8090
+     depends_on:
+-      - mysql
++      mysql:
++        condition: service_healthy
+     ports:
+       - "8090:8090"
+     networks:
+       - aya_net
+
+   # =====================
+   # FRONTEND (VITE DEV)
+   # =====================
+   frontend:
+     image: node:20-alpine
+     container_name: ayanavita-frontend
+     working_dir: /app
+     volumes:
+       - ./frontend/landingpageayanavita:/app
+       - /app/node_modules
+     command: sh -c "npm install && npm run dev"
+     environment:
+       NODE_ENV: development
+       CHOKIDAR_USEPOLLING: "true"
+       CHOKIDAR_INTERVAL: "1000"
+     ports:
+       - "5174:5174"
+     networks:
+       - aya_net
+

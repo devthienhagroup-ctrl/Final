@@ -39,6 +39,7 @@ export default function AccountCenter() {
       setError("");
       try {
         const [data, me] = await Promise.all([authApi.profile(), authApi.me()]);
+        
         setAccountEmail(me?.email ?? "");
         setProfile({
           fullName: data?.name ?? "",
@@ -48,7 +49,6 @@ export default function AccountCenter() {
           gender: data?.gender ?? "OTHER",
           address: data?.address ?? "",
         });
-        console.log("Fetched profile:", data);
         setForgotForm((prev) => ({ ...prev, email: "" }));
       } catch (e: any) {
         setError(e?.response?.data?.message || "Không tải được thông tin tài khoản.");

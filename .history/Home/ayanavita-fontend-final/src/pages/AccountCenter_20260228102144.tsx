@@ -48,7 +48,7 @@ export default function AccountCenter() {
           gender: data?.gender ?? "OTHER",
           address: data?.address ?? "",
         });
-        console.log("Fetched profile:", data);
+        console.log
         setForgotForm((prev) => ({ ...prev, email: "" }));
       } catch (e: any) {
         setError(e?.response?.data?.message || "Không tải được thông tin tài khoản.");

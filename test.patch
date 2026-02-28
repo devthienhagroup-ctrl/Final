@@ -1,1696 +1,1151 @@
-diff --git a/ayanavita-fontend/src/hooks/useStudentViewPrefs.ts b/ayanavita-fontend/src/hooks/useStudentViewPrefs.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..84567aeae6b0c292530fed6b998c50f38870fe08
---- /dev/null
-+++ b/ayanavita-fontend/src/hooks/useStudentViewPrefs.ts
-@@ -0,0 +1,35 @@
-+import { useEffect, useState } from "react";
-+
-+export type StudentLang = "vi" | "en" | "de";
-+export type StudentTheme = "light" | "dark";
-+
-+const THEME_KEY = "student-courses-theme-mode";
-+const LANG_KEY = "student-courses-lang";
-+
-+export const studentLanguageMeta: Record<StudentLang, { label: string; flagUrl: string }> = {
-+  vi: { label: "Tiếng Việt", flagUrl: "https://flagcdn.com/w40/vn.png" },
-+  en: { label: "English", flagUrl: "https://flagcdn.com/w40/gb.png" },
-+  de: { label: "Deutsch", flagUrl: "https://flagcdn.com/w40/de.png" },
-+};
-+
-+export function useStudentViewPrefs() {
-+  const [theme, setTheme] = useState<StudentTheme>(() => {
-+    const saved = window.localStorage.getItem(THEME_KEY);
-+    return saved === "dark" ? "dark" : "light";
-+  });
-+
-+  const [lang, setLang] = useState<StudentLang>(() => {
-+    const saved = window.localStorage.getItem(LANG_KEY);
-+    return saved === "en" || saved === "de" ? saved : "vi";
-+  });
-+
-+  useEffect(() => {
-+    window.localStorage.setItem(THEME_KEY, theme);
-+  }, [theme]);
-+
-+  useEffect(() => {
-+    window.localStorage.setItem(LANG_KEY, lang);
-+  }, [lang]);
-+
-+  return { theme, setTheme, lang, setLang };
-+}
-diff --git a/ayanavita-fontend/src/pages/CourseDetailPage.tsx b/ayanavita-fontend/src/pages/CourseDetailPage.tsx
-index 7d59db534a338968a3fbce8fd0f2b814417bff95..4029a63dbe5596f6eb1db890cbfcb48a539b3a96 100644
---- a/ayanavita-fontend/src/pages/CourseDetailPage.tsx
-+++ b/ayanavita-fontend/src/pages/CourseDetailPage.tsx
-@@ -1,435 +1,331 @@
--// src/pages/CourseDetailPage.tsx
- import React, { useEffect, useMemo, useState } from "react";
- import { Link, useNavigate, useParams } from "react-router-dom";
+diff --git a/Home/ayanavita-fontend-final/src/data/courses.data.ts b/Home/ayanavita-fontend-final/src/data/courses.data.ts
+index bd2c6b797633fe9de8987f226392babeb9f9324f..15172d25a916cf999102bd7b7ac4788c2ca26939 100644
+--- a/Home/ayanavita-fontend-final/src/data/courses.data.ts
++++ b/Home/ayanavita-fontend-final/src/data/courses.data.ts
+@@ -1,35 +1,38 @@
+ // src/data/courses.data.ts
+ export type CourseTopic = "technique" | "consult" | "ops" | "product";
+ export type CourseSort = "best" | "new" | "high" | "low";
 
- import { coursesApi, type Course, type Lesson } from "../api/courses.api";
- import { enrollmentsApi } from "../api/enrollments.api";
- import { progressApi, type CourseProgressRes } from "../api/progress.api";
-
- import { LessonsSidebar } from "../components/LessonsSidebar";
- import { buildSequentialRows, pickContinueLessonId } from "../shared/lessons";
- import { useEnrollmentGate } from "../hooks/useEnrollmentGate";
-+import { studentLanguageMeta, useStudentViewPrefs, type StudentLang } from "../hooks/useStudentViewPrefs";
-
- import {
-   AppShell,
-   Badge,
-   Button,
-   Card,
-   Container,
-   Hr,
-   Muted,
-   SubTitle,
-   Title,
-   Tooltip,
-   theme,
- } from "../ui/ui";
-
- import { IconArrowLeft, IconInfo, IconPlay, IconRefresh } from "../ui/icons";
-+import "./StudentCoursesTheme.css";
-
- type LessonView = Lesson & {
-   order?: number | null;
-   published?: boolean;
+ export type Course = {
+   id: string;
+   title: string;
+   topic: CourseTopic;
++  topicName?: string;
++  topicId?: number | null;
+   img: string;
+   desc: string;
++  time?: string;
+   price: number;
+   hours: number;
+   rating: number;
+   students: number;
+   popular: number; // điểm phổ biến demo
+   date: string; // YYYY-MM-DD
  };
 
-+const tx: Record<StudentLang, Record<string, string>> = {
-+  vi: {
-+    courses: "Khoá học",
-+    myCourses: "Khoá học của tôi",
-+    myOrders: "Đơn hàng của tôi",
-+    order: "Mua / Ghi danh",
-+    cancel: "Huỷ ghi danh",
-+    reload: "Tải lại",
-+    loading: "Đang tải…",
-+    loadingSub: "Đang lấy course / lessons / progress.",
-+    continue: "Tiếp tục",
-+    progress: "Tiến độ",
-+    completed: "Hoàn thành",
-+    lockedRule: "Quy tắc mở khoá bài học (Sequential)",
-+    lessonList: "Danh sách bài học",
-+    darkMode: "Chế độ tối",
-+  },
-+  en: {
-+    courses: "Courses",
-+    myCourses: "My Courses",
-+    myOrders: "My Orders",
-+    order: "Order / Enroll",
-+    cancel: "Cancel enrollment",
-+    reload: "Reload",
-+    loading: "Loading…",
-+    loadingSub: "Fetching course / lessons / progress.",
-+    continue: "Continue",
-+    progress: "Progress",
-+    completed: "Completed",
-+    lockedRule: "Lesson unlock rule (Sequential)",
-+    lessonList: "Lesson list",
-+    darkMode: "Dark mode",
-+  },
-+  de: {
-+    courses: "Kurse",
-+    myCourses: "Meine Kurse",
-+    myOrders: "Meine Bestellungen",
-+    order: "Bestellen / Einschreiben",
-+    cancel: "Einschreibung stornieren",
-+    reload: "Neu laden",
-+    loading: "Wird geladen…",
-+    loadingSub: "Kurs / Lektionen / Fortschritt werden geladen.",
-+    continue: "Weiterlernen",
-+    progress: "Fortschritt",
-+    completed: "Abgeschlossen",
-+    lockedRule: "Regel zur Lektionen-Freischaltung (Sequenziell)",
-+    lessonList: "Lektionenliste",
-+    darkMode: "Dunkler Modus",
-+  },
-+};
-+
- function fmtVND(v: number) {
-   try {
-     return v.toLocaleString("vi-VN") + "đ";
-   } catch {
-     return String(v) + "đ";
-   }
+ export const TOPIC_LABEL: Record<CourseTopic, string> = {
+   technique: "Kỹ thuật",
+   consult: "Tư vấn",
+   ops: "Vận hành",
+   product: "Sản phẩm",
+ };
+
+ export function topicLabel(t: string) {
+   return (TOPIC_LABEL as any)[t] || "Khác";
  }
 
- function sortLessons(ls: LessonView[]) {
-   return [...ls].sort((a, b) => {
-     const ao = a.order ?? 0;
-     const bo = b.order ?? 0;
-     if (ao !== bo) return ao - bo;
-     return a.id - b.id;
-   });
+ export const COURSES: Course[] = [
+   {
+     id: "C-101",
+     title: "Kỹ thuật Facial Luxury – chuẩn liệu trình 90 phút",
+     topic: "technique",
+     img: "https://images.unsplash.com/photo-1526948128573-703ee1aeb6fa?auto=format&fit=crop&w=1800&q=80",
+diff --git a/Home/ayanavita-fontend-final/src/pages/CoursesPage.tsx b/Home/ayanavita-fontend-final/src/pages/CoursesPage.tsx
+index 56d20fcd2a4da1985d45bb62ac2aaf683fb37dc5..67bfd42434b02dcfef268d95b919df675663eaac 100644
+--- a/Home/ayanavita-fontend-final/src/pages/CoursesPage.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/CoursesPage.tsx
+@@ -1,66 +1,65 @@
+ // src/pages/CoursesPage.tsx
+ import React, { useEffect, useMemo, useState } from "react";
+ import { Link } from "react-router-dom";
+
+ // NOTE: chỉnh lại path nếu project của bạn đặt http client ở chỗ khác.
+ // Mục tiêu: dùng được mẫu `await http.get(...)` như yêu cầu.
+ import {http} from "../api/http";
+
+ import { COURSES, type Course, type CourseTopic, topicLabel } from "../data/courses.data";
+ import { money } from "../services/booking.utils";
+ import {
+   readCourseCart,
+   addCourseToCart,
+   removeCourseFromCart,
+   clearCourseCart,
+ } from "../services/courseCart.utils";
+
+-type SortRule = "best" | "new" | "high" | "low";
++type ApiTopicOption = { id: number; name: string };
+
+ export type CoursesPageCmsData = {
+   // HERO
+   heroImageSrc: string;
+   heroImageAlt: string;
+   heroChips: { iconClass: string; text: string }[]; // icons can be customized from CMS (colors remain in code)
+   heroTitle: string;
+   heroTitleHighlight: string;
+   heroCartBtn: string;
+   heroProductCartLink: string;
+
+   // FILTER
+   filterKicker: string;
+   filterTitle: string;
+   filterFoundText: string; // use {count}
+   filterResetBtn: string;
+   filterOpenCartBtn: string;
+   filterOpenCartBtnSuffix: string; // use {count}
+   keywordLabel: string;
+   keywordPlaceholder: string;
+   topicLabel: string;
+   topicAllLabel: string;
+-  sortLabel: string;
+   prototypeNote: string;
+
+   // LIST
+   listKicker: string;
+   listTitle: string;
+   listDesc: string;
+   scrollTopBtn: string;
+   listCartBtn: string;
+   listCartBtnSuffix: string; // use {count}
+   viewDetailBtn: string;
+   addBtn: string;
+
+   // EMPTY
+   emptyTitle: string;
+   emptyDesc: string;
+   emptyResetBtn: string;
+
+   // COURSE DETAIL MODAL
+   detailModalKicker: string;
+   detailAddBtn: string;
+   detailCloseAria: string;
+   detailStudentsSuffix: string;
+   detailPriceNote: string;
+
+   // CART MODAL
+@@ -82,98 +81,88 @@ export type CoursesPageCmsData = {
+
+ export const defaultCmsData: CoursesPageCmsData = {
+   heroImageSrc:
+       "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?auto=format&fit=crop&w=2400&q=80",
+   heroImageAlt: "Courses hero",
+   heroChips: [
+     { iconClass: "fa-solid fa-graduation-cap", text: "Academy" },
+     { iconClass: "fa-solid fa-certificate", text: "Chứng chỉ" },
+     { iconClass: "fa-solid fa-video", text: "Video + tài liệu" },
+   ],
+   heroTitle: "Khoá học AYANAVITA chuẩn spa & vận hành",
+   heroTitleHighlight: "chuẩn spa & vận hành",
+   heroCartBtn: "Cart",
+   heroProductCartLink: "Giỏ hàng sản phẩm",
+
+   filterKicker: "Bộ lọc",
+   filterTitle: "Tìm & sắp xếp khoá học",
+   filterFoundText: "Tìm thấy {count} khoá",
+   filterResetBtn: "Reset",
+   filterOpenCartBtn: "Mở cart",
+   filterOpenCartBtnSuffix: "{count}",
+   keywordLabel: "Từ khoá",
+   keywordPlaceholder: "VD: skincare, vận hành, tư vấn...",
+   topicLabel: "Chủ đề",
+   topicAllLabel: "Tất cả",
+-  sortLabel: "Sắp xếp",
+   prototypeNote: "Prototype: “Chi tiết” mở modal, “Thêm” vào cart.",
+
+   listKicker: "Danh sách",
+   listTitle: "Khoá học nổi bật",
+   listDesc: "Chọn khoá để xem chi tiết hoặc thêm vào cart.",
+   scrollTopBtn: "Lên đầu",
+   listCartBtn: "Cart",
+   listCartBtnSuffix: "{count}",
+   viewDetailBtn: "Chi tiết",
+   addBtn: "Thêm",
+
+   emptyTitle: "Không có khoá học phù hợp",
+   emptyDesc: "Thử đổi từ khoá/chủ đề khác.",
+   emptyResetBtn: "Reset",
+
+   detailModalKicker: "Course",
+   detailAddBtn: "Thêm vào cart",
+   detailCloseAria: "close",
+   detailStudentsSuffix: "HV",
+   detailPriceNote: "Giá demo (có thể áp voucher)",
+
+   cartModalKicker: "Cart",
+   cartModalTitle: "Giỏ khoá học (demo)",
+   cartClearBtn: "Xoá",
+   cartCloseAria: "close",
+   cartEmptyTitle: "Cart trống",
+   cartEmptyDesc: "Thêm khoá học để test checkout.",
+   cartSubtotalLabel: "Tạm tính",
+   cartCheckoutBtn: "Checkout (demo)",
+   cartContinueBtn: "Tiếp tục xem",
+
+   alertAddedToCart: "Đã thêm vào cart (demo): {id}",
+   confirmClearCart: "Xoá toàn bộ cart?",
+   alertCheckout: "Checkout (demo). Bạn có thể điều hướng sang trang thanh toán thật.",
+ };
+
+ const HERO_CHIP_COLOR_BY_INDEX = ["text-amber-600", "text-emerald-600", "text-indigo-600"] as const;
+
+-// NOTE: Options hiển thị trong filter thường gắn với dữ liệu DB (topic, sort rule),
+-// nên KHÔNG đưa vào cmsData. CMS chỉ chỉnh nội dung text chung.
+-const SORT_RULE_LABEL: Record<SortRule, string> = {
+-  best: "Phổ biến",
+-  new: "Mới nhất",
+-  high: "Giá cao → thấp",
+-  low: "Giá thấp → cao",
+-};
+-
+ function tpl(text: string, vars: Record<string, string | number>) {
+   let out = text;
+   for (const [k, v] of Object.entries(vars)) out = out.split(`{${k}}`).join(String(v));
+   return out;
  }
 
- export function CourseDetailPage() {
-   const nav = useNavigate();
-   const { id } = useParams();
-   const courseId = Number(id);
-+  const { lang, setLang, theme: uiTheme, setTheme } = useStudentViewPrefs();
-+  const t = tx[lang];
-
-   const gate = useEnrollmentGate(courseId, { adminBypass: false });
-
-   const [course, setCourse] = useState<Course | null>(null);
-   const [lessons, setLessons] = useState<LessonView[]>([]);
-   const [progress, setProgress] = useState<CourseProgressRes | null>(null);
-
-   const [loading, setLoading] = useState(true);
-   const [err, setErr] = useState<string | null>(null);
-   const [info, setInfo] = useState<string | null>(null);
-
-   async function load() {
-     if (!Number.isFinite(courseId) || courseId <= 0) return;
--
-     setLoading(true);
-     setErr(null);
-     setInfo(null);
-
--    // 1) course detail
-     try {
-       const c = await coursesApi.detail(courseId);
-       setCourse(c);
-     } catch (e: any) {
-       setCourse(null);
-       setLessons([]);
-       setProgress(null);
--      setErr(e?.message || "Không tải được course.");
-+      setErr(e?.message || "Cannot load course.");
-       setLoading(false);
-       return;
-     }
-
--    // 2) lessons/progress phụ thuộc gate
-     if (gate.canAccess) {
--      // ACTIVE => lessons đầy đủ + progress
-       try {
-         const ls = await coursesApi.lessons(courseId);
-         setLessons(sortLessons(ls as LessonView[]));
-       } catch (e: any) {
-         setLessons([]);
--        setErr(e?.message || "Không tải được lessons.");
-+        setErr(e?.message || "Cannot load lessons.");
-       }
--
-       try {
-         const p = await progressApi.courseProgress(courseId);
-         setProgress(p);
-       } catch {
-         setProgress(null);
-       }
-     } else {
--      // NOT ACTIVE => chỉ outline (không gọi progress)
-       try {
-         const outline = await coursesApi.lessonsOutline(courseId);
-         setLessons(sortLessons(outline as LessonView[]));
-       } catch (e2: any) {
-         setLessons([]);
--        setErr(e2?.message || "Không tải được lessons outline.");
-+        setErr(e2?.message || "Cannot load lesson outline.");
-       } finally {
-         setProgress(null);
-       }
-     }
--
-     setLoading(false);
-   }
-
--  // Load lần đầu + khi gate.canAccess đổi (PENDING -> ACTIVE sẽ tự reload đúng dữ liệu)
-   useEffect(() => {
-     if (!Number.isFinite(courseId) || courseId <= 0) return;
--    if (gate.loading) return; // chờ gate ổn định để tránh load 2 lần
-+    if (gate.loading) return;
-     load();
--    // eslint-disable-next-line react-hooks/exhaustive-deps
-   }, [courseId, gate.loading, gate.canAccess]);
-
-   async function onOrder() {
-     if (!Number.isFinite(courseId) || courseId <= 0) return;
--
-     setErr(null);
-     setInfo(null);
--
-     try {
-       await enrollmentsApi.order(courseId);
--      setInfo(
--        "Đã tạo order. Trạng thái sẽ về PENDING. Khi admin mark-paid, hệ thống sẽ tự mở khoá (ACTIVE)."
--      );
--
--      // cập nhật gate store (shared toàn app)
-+      setInfo("Order created. Wait for admin paid confirmation to unlock content.");
-       await gate.refresh();
--
--      // nếu đã ACTIVE ngay (trường hợp admin bypass/logic khác) thì load full
--      // còn không thì outline vẫn hiển thị, chờ gate tự lên ACTIVE
-       await load();
-     } catch (e: any) {
-       setErr(e?.message || "Order failed");
-     }
-   }
-
-   async function onCancel() {
-     if (!Number.isFinite(courseId) || courseId <= 0) return;
--
-     setErr(null);
-     setInfo(null);
--
-     try {
-       await enrollmentsApi.cancel(courseId);
--      setInfo("Đã huỷ ghi danh.");
--
-+      setInfo("Enrollment cancelled.");
-       await gate.refresh();
-       await load();
-     } catch (e: any) {
-       setErr(e?.message || "Cancel failed");
-     }
-   }
-
-   function goLesson(lessonId: number) {
-     nav(`/lessons/${lessonId}?courseId=${courseId}`);
-   }
-
--  // Shared sequential rows (single source of truth)
-   const seqRows = useMemo(() => buildSequentialRows(lessons as any, progress as any), [lessons, progress]);
--
--  // Continue chỉ hợp lệ khi ACTIVE (vì cần progress ổn định)
-   const continueLessonId = useMemo(() => {
-     if (!gate.canAccess) return 0;
-     return pickContinueLessonId(seqRows);
-   }, [seqRows, gate.canAccess]);
-
-   const percent = gate.canAccess ? progress?.percent ?? 0 : 0;
-
+ function Stars({ rating }: { rating: number }) {
+   const full = Math.round(rating);
    return (
--    <AppShell>
--      <Container>
--        {/* Top nav + actions */}
--        <div
--          style={{
--            display: "flex",
--            justifyContent: "space-between",
--            gap: 12,
--            flexWrap: "wrap",
--            alignItems: "center",
--            marginBottom: 12,
--          }}
--        >
--          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
--            <Link
--              to="/courses"
--              style={{
--                color: theme.colors.text,
--                textDecoration: "none",
--                display: "inline-flex",
--                gap: 8,
--                alignItems: "center",
--              }}
--            >
--              <IconArrowLeft /> Courses
--            </Link>
--
--            <Link to="/me/courses" style={{ color: theme.colors.text, textDecoration: "none" }}>
--              My Courses
--            </Link>
--
--            <Link to="/me/orders" style={{ color: theme.colors.text, textDecoration: "none" }}>
--              My Orders
--            </Link>
-+    <div className={`student-page student-courses-theme ${uiTheme === "dark" ? "student-courses-theme-dark" : ""}`}>
-+      <div className="student-shell" style={{ marginBottom: 12 }}>
-+        <div className="student-topbar">
-+          <div>
-+            <h2 style={{ margin: 0 }}>{course?.title || t.courses}</h2>
-           </div>
--
--          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
--            <Button tone="primary" onClick={onOrder} disabled={loading}>
--              Mua / Ghi danh
--            </Button>
--
--            <Button tone="danger" variant="ghost" onClick={onCancel} disabled={loading}>
--              Huỷ ghi danh
--            </Button>
--
--            <Button
--              tone="neutral"
--              variant="ghost"
--              onClick={load}
--              disabled={loading}
--              leftIcon={<IconRefresh />}
--            >
--              Reload
--            </Button>
-+          <div className="student-control-group">
-+            <button className="student-theme-toggle" onClick={() => setTheme(uiTheme === "dark" ? "light" : "dark")}>
-+              {t.darkMode}: {uiTheme === "dark" ? "ON" : "OFF"}
-+            </button>
-+            <div className="student-lang-switch">
-+              {(Object.keys(studentLanguageMeta) as StudentLang[]).map((code) => (
-+                <button key={code} className={`student-lang-option ${lang === code ? "active" : ""}`} onClick={() => setLang(code)}>
-+                  <img src={studentLanguageMeta[code].flagUrl} alt={studentLanguageMeta[code].label} />
-+                </button>
-+              ))}
-+            </div>
-           </div>
-         </div>
--
--        {/* Gate banner (thống nhất theo store) */}
--        {!gate.loading && !gate.canAccess && gate.reason && (
--          <Card style={{ marginBottom: 12 }}>
--            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
--              <Badge tone="warning">
--                <IconInfo /> LOCKED
--              </Badge>
--              <div style={{ fontWeight: 800 }}>{gate.reason}</div>
--            </div>
--            <div style={{ marginTop: 10, color: theme.colors.muted, fontSize: 12 }}>
--              Tip: Sau khi bạn tạo order, trạng thái sẽ là <b>PENDING</b>. Khi admin mark-paid, trạng thái sẽ chuyển{" "}
--              <b>ACTIVE</b> và trang này tự reload để mở khoá nội dung.
--            </div>
--          </Card>
--        )}
--
--        {/* Alerts */}
--        {loading && (
--          <Card style={{ marginBottom: 12 }}>
--            <Title>Đang tải…</Title>
--            <SubTitle>Đang lấy course / lessons / progress.</SubTitle>
--          </Card>
--        )}
--
--        {err && (
--          <Card style={{ marginBottom: 12 }}>
--            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
--              <Badge tone="danger">
--                <IconInfo /> ERROR
--              </Badge>
--              <div style={{ fontWeight: 800 }}>{err}</div>
-+      </div>
-+
-+      <AppShell>
-+        <Container>
-+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
-+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-+              <Link to="/courses" style={{ color: theme.colors.text, textDecoration: "none", display: "inline-flex", gap: 8, alignItems: "center" }}>
-+                <IconArrowLeft /> {t.courses}
-+              </Link>
-+              <Link to="/me/courses" style={{ color: theme.colors.text, textDecoration: "none" }}>{t.myCourses}</Link>
-+              <Link to="/me/orders" style={{ color: theme.colors.text, textDecoration: "none" }}>{t.myOrders}</Link>
-             </div>
--          </Card>
--        )}
-
--        {info && (
--          <Card style={{ marginBottom: 12 }}>
--            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
--              <Badge tone="info">
--                <IconInfo /> INFO
--              </Badge>
--              <div style={{ fontWeight: 800 }}>{info}</div>
-+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-+              <Button tone="primary" onClick={onOrder} disabled={loading}>{t.order}</Button>
-+              <Button tone="danger" variant="ghost" onClick={onCancel} disabled={loading}>{t.cancel}</Button>
-+              <Button tone="neutral" variant="ghost" onClick={load} disabled={loading} leftIcon={<IconRefresh />}>{t.reload}</Button>
-             </div>
--          </Card>
--        )}
--
--        {/* Course header */}
--        {course && (
--          <Card style={{ marginBottom: 12 }}>
--            <div
--              style={{
--                display: "flex",
--                justifyContent: "space-between",
--                gap: 14,
--                flexWrap: "wrap",
--                alignItems: "flex-start",
--              }}
--            >
--              <div style={{ minWidth: 280, flex: "1 1 420px" }}>
--                <div style={{ fontSize: 22, fontWeight: 950, letterSpacing: -0.3 }}>
--                  {course.title}
--                </div>
-+          </div>
-
--                <div style={{ marginTop: 8, color: theme.colors.muted, lineHeight: 1.55 }}>
--                  {course.description}
-+          {!gate.loading && !gate.canAccess && gate.reason && (
-+            <Card style={{ marginBottom: 12 }}>
-+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-+                <Badge tone="warning"><IconInfo /> LOCKED</Badge>
-+                <div style={{ fontWeight: 800 }}>{gate.reason}</div>
-+              </div>
-+            </Card>
-+          )}
-+
-+          {loading && <Card style={{ marginBottom: 12 }}><Title>{t.loading}</Title><SubTitle>{t.loadingSub}</SubTitle></Card>}
-+          {err && <Card style={{ marginBottom: 12 }}><div style={{ display: "flex", gap: 10, alignItems: "center" }}><Badge tone="danger"><IconInfo /> ERROR</Badge><div style={{ fontWeight: 800 }}>{err}</div></div></Card>}
-+          {info && <Card style={{ marginBottom: 12 }}><div style={{ display: "flex", gap: 10, alignItems: "center" }}><Badge tone="info"><IconInfo /> INFO</Badge><div style={{ fontWeight: 800 }}>{info}</div></div></Card>}
-+
-+          {course && (
-+            <Card style={{ marginBottom: 12 }}>
-+              <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "flex-start" }}>
-+                <div style={{ minWidth: 280, flex: "1 1 420px" }}>
-+                  <div style={{ fontSize: 22, fontWeight: 950, letterSpacing: -0.3 }}>{course.title}</div>
-+                  <div style={{ marginTop: 8, color: theme.colors.muted, lineHeight: 1.55 }}>{course.description}</div>
-+                  <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-+                    <Badge tone="info">{fmtVND(course.price)}</Badge>
-+                    {course.published ? <Badge tone="success">PUBLISHED</Badge> : <Badge tone="danger">UNPUBLISHED</Badge>}
-+                  </div>
-+                  <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-+                    <Badge tone={gate.canAccess ? "success" : "warning"}>Enrollment: {gate.status}</Badge>
-+                  </div>
-                 </div>
-
--                <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
--                  <Badge tone="info">Giá: {fmtVND(course.price)}</Badge>
--                  {course.published ? (
--                    <Badge tone="success">PUBLISHED</Badge>
-+                <div style={{ minWidth: 280, flex: "0 1 340px" }}>
-+                  <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
-+                    <Tooltip content={<div>Continue from your latest lesson.</div>} disabled={!continueLessonId}>
-+                      <span>
-+                        <Button tone="success" onClick={() => continueLessonId && goLesson(continueLessonId)} disabled={!continueLessonId} leftIcon={<IconPlay />}>
-+                          {t.continue}
-+                        </Button>
-+                      </span>
-+                    </Tooltip>
-+                  </div>
-+                  <Hr />
-+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-+                    <div style={{ fontWeight: 900 }}>{t.progress}</div>
-+                    <div style={{ color: theme.colors.muted, fontSize: 13 }}>{gate.canAccess ? `${percent}%` : "—"}</div>
-+                  </div>
-+                  <div style={{ marginTop: 10, height: 10, borderRadius: 999, background: theme.shadow.soft, overflow: "hidden", border: `1px solid ${theme.colors.border}`, opacity: gate.canAccess ? 1 : 0.45 }}>
-+                    <div style={{ width: `${Math.max(0, Math.min(100, percent))}%`, height: "100%", background: theme.colors.brand }} />
-+                  </div>
-+                  {gate.canAccess && progress ? (
-+                    <Muted><div style={{ marginTop: 10, fontSize: 12 }}>{t.completed}: <b style={{ color: theme.colors.text }}>{progress.completedLessons}/{progress.totalLessons}</b></div></Muted>
-                   ) : (
--                    <Badge tone="danger">UNPUBLISHED</Badge>
-+                    <Muted><div style={{ marginTop: 10, fontSize: 12 }}>Progress only available when enrollment is ACTIVE.</div></Muted>
-                   )}
-                 </div>
--
--                <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
--                  <Badge tone={gate.canAccess ? "success" : "warning"}>
--                    Enrollment: {gate.status}
--                  </Badge>
--                </div>
-               </div>
-+            </Card>
-+          )}
-
--              <div style={{ minWidth: 280, flex: "0 1 340px" }}>
--                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
--                  <Tooltip
--                    content={
--                      <div>
--                        Đi tới bài đang dở:
--                        <br />
--                        ưu tiên <b>IN_PROGRESS</b> mới nhất, sau đó bài đầu tiên chưa completed.
--                        <br />
--                        (Chỉ khả dụng khi enrollment <b>ACTIVE</b>)
--                      </div>
--                    }
--                    disabled={!continueLessonId}
--                  >
--                    <span>
--                      <Button
--                        tone="success"
--                        onClick={() => {
--                          if (!continueLessonId) return;
--                          goLesson(continueLessonId);
--                        }}
--                        disabled={!continueLessonId}
--                        leftIcon={<IconPlay />}
--                      >
--                        Continue
--                      </Button>
--                    </span>
--                  </Tooltip>
--                </div>
--
--                <Hr />
--
--                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
--                  <div style={{ fontWeight: 900 }}>Progress</div>
--                  <div style={{ color: theme.colors.muted, fontSize: 13 }}>
--                    {gate.canAccess ? `${percent}%` : "—"}
--                  </div>
--                </div>
--
--                <div
--                  style={{
--                    marginTop: 10,
--                    height: 10,
--                    borderRadius: 999,
--                    background: theme.shadow.soft,
--                    overflow: "hidden",
--                    border: `1px solid ${theme.colors.border}`,
--                    opacity: gate.canAccess ? 1 : 0.45,
--                  }}
--                >
--                  <div
--                    style={{
--                      width: `${Math.max(0, Math.min(100, percent))}%`,
--                      height: "100%",
--                      background: theme.colors.brand,
--                    }}
--                  />
--                </div>
--
--                {gate.canAccess && progress ? (
--                  <Muted>
--                    <div style={{ marginTop: 10, fontSize: 12 }}>
--                      Hoàn thành:{" "}
--                      <b style={{ color: theme.colors.text }}>
--                        {progress.completedLessons}/{progress.totalLessons}
--                      </b>
--                    </div>
--                  </Muted>
--                ) : (
--                  <Muted>
--                    <div style={{ marginTop: 10, fontSize: 12 }}>
--                      Progress chỉ hiển thị khi enrollment <b>ACTIVE</b>.
--                    </div>
--                  </Muted>
--                )}
--              </div>
-+          <Card style={{ marginBottom: 12 }}>
-+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-+              <div style={{ marginTop: 2 }}><IconInfo /></div>
-+              <div><Title>{t.lockedRule}</Title><SubTitle>Complete previous lesson to unlock next one.</SubTitle></div>
-             </div>
-           </Card>
--        )}
--
--        {/* Rule hint */}
--        <Card style={{ marginBottom: 12 }}>
--          <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
--            <div style={{ marginTop: 2 }}>
--              <IconInfo />
--            </div>
--            <div>
--              <Title>Quy tắc mở khoá bài học (Sequential)</Title>
--              <SubTitle>
--                Bạn phải <b>hoàn thành</b> bài trước để mở bài kế tiếp. Nếu Enrollment chưa{" "}
--                <b>ACTIVE</b>, chỉ hiển thị outline.
--              </SubTitle>
--            </div>
--          </div>
--        </Card>
-
--        {/* Reusable list/sidebar (no duplicated logic) */}
--        <LessonsSidebar
--          title="Danh sách bài học"
--          lessons={lessons as any}
--          progress={progress as any}
--          rows={seqRows}
--          courseId={courseId}
--          primaryLabel="Học"
--          onPrimary={(id2) => goLesson(id2)}
--          secondaryLabel="Chi tiết"
--          secondaryHref={(id2) => `/lessons/${id2}?courseId=${courseId}`}
--          emptyText="Chưa có lesson hoặc bạn chưa có quyền xem danh sách."
--        />
--      </Container>
--    </AppShell>
-+          <LessonsSidebar
-+            title={t.lessonList}
-+            lessons={lessons as any}
-+            progress={progress as any}
-+            rows={seqRows}
-+            courseId={courseId}
-+            primaryLabel={t.continue}
-+            onPrimary={(id2) => goLesson(id2)}
-+            secondaryLabel="Detail"
-+            secondaryHref={(id2) => `/lessons/${id2}?courseId=${courseId}`}
-+            emptyText="No lesson available."
-+          />
-+        </Container>
-+      </AppShell>
-+    </div>
+       <span className="inline-flex items-center gap-1">
+       {Array.from({ length: 5 }).map((_, i) => (
+           <i key={i} className={`fa-solid fa-star ${i < full ? "star" : "text-slate-300"}`} />
+       ))}
+     </span>
    );
  }
-diff --git a/ayanavita-fontend/src/pages/CoursesPage.tsx b/ayanavita-fontend/src/pages/CoursesPage.tsx
-index 4b99adf204d1cf32c1063dbc86736426b9b4ac1e..e3232301f92a65d92d94c6c0bb06273866f1b9a0 100644
---- a/ayanavita-fontend/src/pages/CoursesPage.tsx
-+++ b/ayanavita-fontend/src/pages/CoursesPage.tsx
-@@ -1,78 +1,127 @@
--import React, { useEffect, useState } from "react";
-+import React, { useEffect, useMemo, useState } from "react";
- import { Link } from "react-router-dom";
- import { coursesApi, type Course } from "../api/courses.api";
- import { useAuth } from "../state/auth.store";
-+import { studentLanguageMeta, useStudentViewPrefs, type StudentLang } from "../hooks/useStudentViewPrefs";
-+import "./StudentCoursesTheme.css";
-+
-+const i18n: Record<StudentLang, Record<string, string>> = {
-+  vi: {
-+    title: "Khoá học",
-+    mine: "Khoá học của tôi",
-+    orders: "Đơn hàng của tôi",
-+    adminOrders: "Admin Orders",
-+    adminCourses: "Admin Courses",
-+    logout: "Đăng xuất",
-+    detail: "Xem chi tiết",
-+    price: "Giá",
-+    darkMode: "Chế độ tối",
-+    loadingFail: "Tải khoá học thất bại",
-+    subtitle: "Khám phá thư viện khoá học theo phong cách mới.",
-+  },
-+  en: {
-+    title: "Courses",
-+    mine: "My Courses",
-+    orders: "My Orders",
-+    adminOrders: "Admin Orders",
-+    adminCourses: "Admin Courses",
-+    logout: "Logout",
-+    detail: "View details",
-+    price: "Price",
-+    darkMode: "Dark mode",
-+    loadingFail: "Load courses failed",
-+    subtitle: "Discover the upgraded course catalog experience.",
-+  },
-+  de: {
-+    title: "Kurse",
-+    mine: "Meine Kurse",
-+    orders: "Meine Bestellungen",
-+    adminOrders: "Admin-Bestellungen",
-+    adminCourses: "Admin-Kurse",
-+    logout: "Abmelden",
-+    detail: "Details ansehen",
-+    price: "Preis",
-+    darkMode: "Dunkler Modus",
-+    loadingFail: "Kurse konnten nicht geladen werden",
-+    subtitle: "Entdecke das modernisierte Kursportal.",
-+  },
-+};
 
- export function CoursesPage() {
-   const { logout, user } = useAuth();
-+  const { lang, setLang, theme, setTheme } = useStudentViewPrefs();
-+  const t = i18n[lang];
-   const [items, setItems] = useState<Course[]>([]);
-   const [err, setErr] = useState<string | null>(null);
 
+ function CourseDetailModal({
+                              open,
+                              course,
+                              onClose,
+                              onAdd,
+                              cms,
+                            }: {
+@@ -201,55 +190,55 @@ function CourseDetailModal({
+             <div className="flex gap-2">
+               <button className="btn btn-primary hover:text-purple-800" type="button" onClick={() => onAdd(course.id)}>
+                 <i className="fa-solid fa-cart-plus" /> {cms.detailAddBtn}
+               </button>
+               <button
+                   className="btn h-10 w-10 p-0"
+                   type="button"
+                   onClick={onClose}
+                   aria-label={cms.detailCloseAria}
+               >
+                 <i className="fa-solid fa-xmark" />
+               </button>
+             </div>
+           </div>
+
+           <div className="p-6 grid gap-4">
+             <img
+                 className="w-full h-64 object-cover rounded-3xl ring-1 ring-slate-200"
+                 src={course.img}
+                 alt={course.title}
+             />
+
+             <div className="flex flex-wrap gap-2">
+             <span className="chip">
+               <i className="fa-solid fa-layer-group text-indigo-600" />
+-              {topicLabel(course.topic)}
++              {course.topicName || topicLabel(course.topic)}
+             </span>
+               <span className="chip">
+               <i className="fa-solid fa-clock text-amber-600" />
+-                {course.hours} giờ
++                {course.time || `${course.hours} giờ`}
+             </span>
+               <span className="chip">
+               <i className="fa-solid fa-users text-emerald-600" />
+                 {new Intl.NumberFormat("vi-VN").format(course.students)} {cms.detailStudentsSuffix}
+             </span>
+               <span className="chip">
+               <i className="fa-solid fa-star text-amber-500" />
+                 {course.rating.toFixed(1)}
+             </span>
+             </div>
+
+             <div className="text-slate-700 leading-relaxed">{course.desc}</div>
+
+             <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+               <div className="flex items-center justify-between">
+                 <div className="font-extrabold text-indigo-700">{money(course.price)}</div>
+                 <div className="text-sm text-slate-600">{cms.detailPriceNote}</div>
+               </div>
+             </div>
+           </div>
+         </div>
+       </div>
+   );
+ }
+
+@@ -293,51 +282,51 @@ function CourseCartModal({
+                   className="btn h-10 w-10 p-0"
+                   type="button"
+                   onClick={onClose}
+                   aria-label={cms.cartCloseAria}
+               >
+                 <i className="fa-solid fa-xmark" />
+               </button>
+             </div>
+           </div>
+
+           <div className="p-6">
+             {items.length ? (
+                 <div className="grid gap-3">
+                   {items.map((c) => (
+                       <div key={c.id} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                         <div className="flex items-start justify-between gap-3">
+                           <div className="flex gap-3">
+                             <img
+                                 src={c.img}
+                                 alt={c.title}
+                                 className="h-16 w-24 object-cover rounded-2xl ring-1 ring-slate-200"
+                             />
+                             <div>
+                               <div className="font-extrabold">{c.title}</div>
+                               <div className="text-sm text-slate-600 mt-1">
+-                                {topicLabel(c.topic)} • {money(c.price)}
++                                {c.topicName || topicLabel(c.topic)} • {money(c.price)}
+                               </div>
+                             </div>
+                           </div>
+                           <button className="btn h-10 w-10 p-0" type="button" onClick={() => onRemove(c.id)}>
+                             <i className="fa-solid fa-trash text-rose-600" />
+                           </button>
+                         </div>
+                       </div>
+                   ))}
+                 </div>
+             ) : (
+                 <div className="text-center text-slate-600 py-10">
+                   <div className="text-3xl">
+                     <i className="fa-solid fa-cart-shopping" />
+                   </div>
+                   <div className="mt-2 font-extrabold">{cms.cartEmptyTitle}</div>
+                   <div className="text-sm mt-1">{cms.cartEmptyDesc}</div>
+                 </div>
+             )}
+
+             <div className="mt-6 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 flex items-center justify-between">
+               <div className="text-sm text-slate-600">{cms.cartSubtotalLabel}</div>
+               <div className="font-extrabold text-indigo-700">{money(total)}</div>
+             </div>
+
+@@ -392,109 +381,146 @@ export default function CoursesPage({
+   // Gọi API theo ngôn ngữ và ghi đè dữ liệu lên cmsData
    useEffect(() => {
+     let cancelled = false;
+
      (async () => {
        try {
-         setErr(null);
-         const data = await coursesApi.list();
-         setItems(data);
-       } catch (e: any) {
--        setErr(e?.message || "Load courses failed");
-+        setErr(e?.message || t.loadingFail);
+         const res = await http.get(`/public/pages/courses?lang=${currentLanguage}`);
+         // Hỗ trợ cả kiểu axios ({ data }) lẫn client trả thẳng JSON
+         const remoteCms = res.data.sections[0].data;
+         if (!cancelled && remoteCms && typeof remoteCms === "object") {
+           setCmsDataState((prev) => ({ ...prev, ...remoteCms }));
+         }
+       } catch (err) {
+         // Không phá UI nếu API fail
+         console.error("Fetch courses CMS failed:", err);
        }
      })();
--  }, []);
--
--  return (
--    <div style={{ maxWidth: 960, margin: "24px auto", padding: 16 }}>
--      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
--        <h2>Khoá học</h2>
--
--        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
--          <span>{user?.email}</span>
-+  }, [t.loadingFail]);
 
--          <Link to="/me/courses">Khoá học của tôi</Link>
--          <Link to="/me/orders">Đơn hàng của tôi</Link>
--
--
--          {user?.role === "ADMIN" && <Link to="/admin/orders">Admin Orders</Link>}
--          {user?.role === "ADMIN" && <Link to="/admin/cources">Admin Courses</Link>}
-+  const wrapClass = useMemo(
-+    () => `student-page student-courses-theme ${theme === "dark" ? "student-courses-theme-dark" : ""}`,
-+    [theme]
-+  );
-
--          <button onClick={logout}>Logout</button>
-+  return (
-+    <div className={wrapClass}>
-+      <div className="student-shell">
-+        <div className="student-topbar">
-+          <div>
-+            <h2 style={{ margin: 0 }}>{t.title}</h2>
-+            <div style={{ opacity: 0.9, marginTop: 4 }}>{t.subtitle}</div>
-+          </div>
-+          <div className="student-control-group">
-+            <button className="student-theme-toggle" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-+              {t.darkMode}: {theme === "dark" ? "ON" : "OFF"}
-+            </button>
-+            <div className="student-lang-switch">
-+              {(Object.keys(studentLanguageMeta) as StudentLang[]).map((code) => (
-+                <button
-+                  key={code}
-+                  className={`student-lang-option ${lang === code ? "active" : ""}`}
-+                  onClick={() => setLang(code)}
-+                  title={studentLanguageMeta[code].label}
-+                >
-+                  <img src={studentLanguageMeta[code].flagUrl} alt={studentLanguageMeta[code].label} />
-+                </button>
-+              ))}
-+            </div>
-+          </div>
-         </div>
--      </div>
-
--      {err && (
--        <div style={{ color: "crimson", marginTop: 10 }}>
--          {err}
-+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 12 }}>
-+          <span className="student-muted">{user?.email}</span>
-+          <Link to="/me/courses">{t.mine}</Link>
-+          <Link to="/me/orders">{t.orders}</Link>
-+          {user?.role === "ADMIN" && <Link to="/admin/orders">{t.adminOrders}</Link>}
-+          {user?.role === "ADMIN" && <Link to="/admin/cources">{t.adminCourses}</Link>}
-+          <button onClick={logout}>{t.logout}</button>
-         </div>
--      )}
-
--      <div
--        style={{
--          display: "grid",
--          gridTemplateColumns: "repeat(3, 1fr)",
--          gap: 12,
--          marginTop: 12,
--        }}
--      >
--        {items.map((c: Course) => (
--          <div
--            key={c.id}
--            style={{
--              border: "1px solid #ddd",
--              borderRadius: 12,
--              padding: 12,
--            }}
--          >
--            <div style={{ fontWeight: 700 }}>{c.title}</div>
--            <div style={{ opacity: 0.8, marginTop: 6 }}>{c.description}</div>
--            <div style={{ marginTop: 8 }}>
--              Giá: {c.price.toLocaleString("vi-VN")}đ
--            </div>
--            <div style={{ marginTop: 10 }}>
--              <Link to={`/courses/${c.id}`}>Xem chi tiết</Link>
-+        {err && <div style={{ color: "crimson", marginTop: 10 }}>{err}</div>}
-+
-+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginTop: 12 }}>
-+          {items.map((c: Course) => (
-+            <div key={c.id} className="student-card">
-+              <div style={{ fontWeight: 800 }}>{c.title}</div>
-+              <div className="student-muted" style={{ marginTop: 6 }}>{c.description}</div>
-+              <div style={{ marginTop: 8 }}>{t.price}: {c.price.toLocaleString("vi-VN")}đ</div>
-+              <div style={{ marginTop: 10 }}>
-+                <Link to={`/courses/${c.id}`}>{t.detail}</Link>
-+              </div>
-             </div>
--          </div>
--        ))}
-+          ))}
-+        </div>
-       </div>
-     </div>
-   );
- }
-diff --git a/ayanavita-fontend/src/pages/LessonDetailPage.tsx b/ayanavita-fontend/src/pages/LessonDetailPage.tsx
-index ae854cd0c769153f6c25f46d9891589727a1f1ec..06354bdcef924718c4604874e5f992106bfc5707 100644
---- a/ayanavita-fontend/src/pages/LessonDetailPage.tsx
-+++ b/ayanavita-fontend/src/pages/LessonDetailPage.tsx
-@@ -1,78 +1,93 @@
- import React, { useEffect, useMemo, useState } from "react";
- import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
- import { coursesApi, type Lesson } from "../api/courses.api";
- import { lessonsApi, type LessonDetail, type LessonVideoItem } from "../api/lessons.api";
- import { progressApi, type CourseProgressRes } from "../api/progress.api";
- import { useAuth } from "../state/auth.store";
-+import { studentLanguageMeta, useStudentViewPrefs, type StudentLang } from "../hooks/useStudentViewPrefs";
-+import "./StudentCoursesTheme.css";
-
--const t = {
-+const t: Record<StudentLang, Record<string, string>> = {
-   vi: {
-     myLearning: "Trang học viên",
-+    subtitle: "Theo dõi bài học theo giao diện mới đồng bộ toàn bộ trang khoá học.",
-     user: "Học viên",
-     course: "Khóa học",
-     progress: "Tiến độ",
-     lessonList: "Danh sách bài học",
-     completeModule: "Hoàn thành module",
-     watched: "Đã xem hết",
-+    loading: "Đang tải...",
-+    emptyModule: "Bài học chưa có module/video.",
-+    backMyCourses: "Khoá học của tôi",
-+    darkMode: "Chế độ tối",
-   },
-   en: {
-     myLearning: "Student Learning",
-+    subtitle: "Track each lesson with the new course-wide visual style.",
-     user: "User",
-     course: "Course",
-     progress: "Progress",
-     lessonList: "Lesson list",
-     completeModule: "Complete module",
-     watched: "Watched",
-+    loading: "Loading...",
-+    emptyModule: "No module/video in this lesson yet.",
-+    backMyCourses: "My Courses",
-+    darkMode: "Dark mode",
-   },
-   de: {
-     myLearning: "Lernseite",
-+    subtitle: "Lernfortschritt im neuen, einheitlichen Kurs-Design verfolgen.",
-     user: "Benutzer",
-     course: "Kurs",
-     progress: "Fortschritt",
-     lessonList: "Lektionen",
-     completeModule: "Modul abschließen",
-     watched: "Angesehen",
-+    loading: "Laden...",
-+    emptyModule: "Diese Lektion hat noch keine Module/Videos.",
-+    backMyCourses: "Meine Kurse",
-+    darkMode: "Dunkler Modus",
-   },
--} as const;
--
--type Lang = keyof typeof t;
-+};
-
- type OutlineLesson = Lesson & {
-   localizedTitle?: string;
-   progress?: { status?: string; percent?: number } | null;
- };
-
- export function LessonDetailPage() {
-   const { id } = useParams();
-   const lessonId = Number(id || 0);
-   const [sp] = useSearchParams();
-   const courseId = Number(sp.get("courseId") || 0);
-   const nav = useNavigate();
-   const { user } = useAuth();
-+  const { lang, setLang, theme, setTheme } = useStudentViewPrefs();
-
--  const [lang, setLang] = useState<Lang>("vi");
-   const [loading, setLoading] = useState(true);
-   const [err, setErr] = useState<string | null>(null);
-
-   const [courseTitle, setCourseTitle] = useState("");
-   const [outline, setOutline] = useState<OutlineLesson[]>([]);
-   const [progress, setProgress] = useState<CourseProgressRes | null>(null);
-   const [lesson, setLesson] = useState<LessonDetail | null>(null);
-
-   const tx = t[lang];
-
-   const doneLessons = useMemo(() => {
-     const set = new Set<number>();
-     outline.forEach((l) => {
-       if (l.progress?.status === "COMPLETED" || (l.progress?.percent || 0) >= 100) set.add(l.id);
-     });
-     if (progress?.items) {
-       progress.items.forEach((x) => {
-         if (x.status === "COMPLETED") set.add(x.lessonId);
-       });
-     }
-     return set;
-   }, [outline, progress]);
-
-   async function loadAll(targetLessonId = lessonId) {
-     if (!courseId || !targetLessonId) return;
-@@ -92,105 +107,123 @@ export function LessonDetailPage() {
-     } catch (e: any) {
-       setErr(e?.message || "Không tải được dữ liệu bài học");
-     } finally {
-       setLoading(false);
-     }
-   }
-
-   useEffect(() => {
-     void loadAll();
-     // eslint-disable-next-line react-hooks/exhaustive-deps
-   }, [lessonId, courseId, lang]);
-
-   async function handleVideoDone(video: LessonVideoItem) {
-     if (!lesson) return;
-     await progressApi.updateVideoProgress(lesson.id, video.id, video.durationSec || 0, true);
-     await loadAll(lesson.id);
-   }
-
-   async function handleModuleDone(moduleId: number) {
-     if (!lesson) return;
-     await progressApi.completeModule(lesson.id, moduleId);
-     await loadAll(lesson.id);
-   }
-
-   return (
--    <div style={{ maxWidth: 1200, margin: "20px auto", padding: 16 }}>
--      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
--        <h2>{tx.myLearning}</h2>
--        <div style={{ display: "flex", gap: 10 }}>
--          <Link to="/me/courses">/me/courses</Link>
--          <select value={lang} onChange={(e) => setLang(e.target.value as Lang)}>
--            <option value="vi">VI</option>
--            <option value="en">EN</option>
--            <option value="de">DE</option>
--          </select>
-+    <div className={`student-page student-courses-theme ${theme === "dark" ? "student-courses-theme-dark" : ""}`}>
-+      <div className="student-shell">
-+        <div className="student-topbar">
-+          <div>
-+            <h2 style={{ margin: 0 }}>{tx.myLearning}</h2>
-+            <div style={{ marginTop: 4, opacity: 0.9 }}>{tx.subtitle}</div>
-+          </div>
-+          <div className="student-control-group">
-+            <button className="student-theme-toggle" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-+              {tx.darkMode}: {theme === "dark" ? "ON" : "OFF"}
-+            </button>
-+            <div className="student-lang-switch">
-+              {(Object.keys(studentLanguageMeta) as StudentLang[]).map((code) => (
-+                <button
-+                  key={code}
-+                  className={`student-lang-option ${lang === code ? "active" : ""}`}
-+                  onClick={() => setLang(code)}
-+                  title={studentLanguageMeta[code].label}
-+                >
-+                  <img src={studentLanguageMeta[code].flagUrl} alt={studentLanguageMeta[code].label} />
-+                </button>
-+              ))}
-+            </div>
-+          </div>
-         </div>
--      </div>
-
--      <div style={{ marginBottom: 12, opacity: 0.9 }}>
--        <div>{tx.user}: <b>{user?.name || user?.email || "-"}</b></div>
--        <div>{tx.course}: <b>{courseTitle || "-"}</b></div>
--      </div>
-+        <div className="student-lesson-links">
-+          <Link to="/me/courses">{tx.backMyCourses}</Link>
-+        </div>
-
--      <div style={{ height: 10, borderRadius: 999, background: "#ececec", overflow: "hidden" }}>
--        <div style={{ height: "100%", background: "#111", width: `${progress?.percent || 0}%` }} />
--      </div>
--      <div style={{ margin: "6px 0 12px" }}>{tx.progress}: <b>{progress?.percent || 0}%</b></div>
--
--      {loading && <div>Loading...</div>}
--      {err && <div style={{ color: "crimson" }}>{err}</div>}
--
--      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14 }}>
--        <div style={{ border: "1px solid #ddd", borderRadius: 12, padding: 12 }}>
--          <h3>{lesson?.localizedTitle || lesson?.title || `Lesson #${lessonId}`}</h3>
--          {!lesson?.modules?.length && <div style={{ opacity: 0.7 }}>Lesson chưa có module/video.</div>}
--
--          {lesson?.modules?.map((m) => (
--            <div key={m.id} style={{ marginTop: 10, border: "1px solid #eee", borderRadius: 10, padding: 10 }}>
--              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
--                <div>
--                  <b>{m.localizedTitle || m.title}</b>
--                  <div style={{ fontSize: 12, opacity: 0.8 }}>{m.progress?.percent || 0}%</div>
--                </div>
--                <button onClick={() => void handleModuleDone(m.id)}>{tx.completeModule}</button>
--              </div>
-+        <div className="student-card" style={{ marginBottom: 12 }}>
-+          <div className="student-muted">{tx.user}: <b style={{ color: "var(--st-text)" }}>{user?.name || user?.email || "-"}</b></div>
-+          <div className="student-muted">{tx.course}: <b style={{ color: "var(--st-text)" }}>{courseTitle || "-"}</b></div>
-
--              {m.videos?.map((v) => (
--                <div key={v.id} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, marginTop: 8, alignItems: "center" }}>
-+          <div className="student-progress-track">
-+            <div className="student-progress-fill" style={{ width: `${progress?.percent || 0}%` }} />
-+          </div>
-+          <div style={{ marginTop: 8 }}>{tx.progress}: <b>{progress?.percent || 0}%</b></div>
-+        </div>
-+
-+        {loading && <div className="student-card">{tx.loading}</div>}
-+        {err && <div className="student-card" style={{ color: "crimson" }}>{err}</div>}
-+
-+        <div className="student-lesson-layout">
-+          <div className="student-card">
-+            <h3 style={{ marginTop: 0 }}>{lesson?.localizedTitle || lesson?.title || `Lesson #${lessonId}`}</h3>
-+            {!lesson?.modules?.length && <div className="student-muted">{tx.emptyModule}</div>}
-+
-+            {lesson?.modules?.map((m) => (
-+              <div key={m.id} className="student-module-card">
-+                <div className="student-module-head">
-                   <div>
--                    <div>{v.localizedTitle || v.title}</div>
--                    {!!v.playbackUrl && (
--                      <video
--                        controls
--                        src={v.playbackUrl}
--                        style={{ width: "100%", marginTop: 6, borderRadius: 8 }}
--                        onEnded={() => void handleVideoDone(v)}
--                      />
--                    )}
-+                    <b>{m.localizedTitle || m.title}</b>
-+                    <div className="student-muted" style={{ fontSize: 12 }}>{m.progress?.percent || 0}%</div>
-                   </div>
--                  <button onClick={() => void handleVideoDone(v)}>
--                    {tx.watched} {v.progress?.completed ? "✓" : ""}
--                  </button>
-+                  <button onClick={() => void handleModuleDone(m.id)}>{tx.completeModule}</button>
-                 </div>
--              ))}
--            </div>
--          ))}
--        </div>
-
--        <div style={{ border: "1px solid #ddd", borderRadius: 12, padding: 12 }}>
--          <h3>{tx.lessonList}</h3>
--          {outline.map((l) => (
--            <button
--              key={l.id}
--              style={{ width: "100%", textAlign: "left", marginBottom: 8, border: "1px solid #eee", borderRadius: 8, padding: 8, background: l.id === lessonId ? "#f6f3ff" : "#fff" }}
--              onClick={() => nav(`/lessons/${l.id}?courseId=${courseId}`)}
--            >
--              <span style={{ marginRight: 6 }}>▾</span>
--              <span>{doneLessons.has(l.id) ? "✅" : "⬜"} {l.localizedTitle || l.title}</span>
--            </button>
--          ))}
-+                {m.videos?.map((v) => (
-+                  <div key={v.id} className="student-video-row">
-+                    <div>
-+                      <div>{v.localizedTitle || v.title}</div>
-+                      {!!v.playbackUrl && (
-+                        <video
-+                          controls
-+                          src={v.playbackUrl}
-+                          className="student-video-player"
-+                          onEnded={() => void handleVideoDone(v)}
-+                        />
-+                      )}
-+                    </div>
-+                    <button onClick={() => void handleVideoDone(v)}>
-+                      {tx.watched} {v.progress?.completed ? "✓" : ""}
-+                    </button>
-+                  </div>
-+                ))}
-+              </div>
-+            ))}
-+          </div>
-+
-+          <div className="student-card">
-+            <h3 style={{ marginTop: 0 }}>{tx.lessonList}</h3>
-+            {outline.map((l) => (
-+              <button
-+                key={l.id}
-+                className={`student-lesson-item ${l.id === lessonId ? "active" : ""}`}
-+                onClick={() => nav(`/lessons/${l.id}?courseId=${courseId}`)}
-+              >
-+                <span>{doneLessons.has(l.id) ? "✅" : "⬜"}</span>
-+                <span>{l.localizedTitle || l.title}</span>
-+              </button>
-+            ))}
-+          </div>
-         </div>
-       </div>
-     </div>
-   );
- }
-diff --git a/ayanavita-fontend/src/pages/MyCoursesPage.tsx b/ayanavita-fontend/src/pages/MyCoursesPage.tsx
-index cf02b2874a44053a2a7cf3616ecf8ccc6487a35e..626c31ac03791d86b54d9b8473bb07deb9a1b25a 100644
---- a/ayanavita-fontend/src/pages/MyCoursesPage.tsx
-+++ b/ayanavita-fontend/src/pages/MyCoursesPage.tsx
-@@ -1,292 +1,255 @@
- import React, { useEffect, useMemo, useState } from "react";
- import { Link, useNavigate } from "react-router-dom";
- import { enrollmentsApi, type MyCourse } from "../api/enrollments.api";
- import { coursesApi, type Lesson } from "../api/courses.api";
- import { progressApi, type CourseProgressRes } from "../api/progress.api";
-+import { studentLanguageMeta, useStudentViewPrefs, type StudentLang } from "../hooks/useStudentViewPrefs";
-+import "./StudentCoursesTheme.css";
-+
-+const i18n: Record<StudentLang, Record<string, string>> = {
-+  vi: {
-+    title: "Khoá học của tôi",
-+    subtitle: "Theo dõi tiến độ học tập với giao diện nâng cấp.",
-+    courses: "Khoá học",
-+    orders: "Đơn hàng",
-+    reload: "Tải lại",
-+    loading: "Đang tải...",
-+    progress: "Tiến độ",
-+    price: "Giá",
-+    completed: "Hoàn thành",
-+    detail: "Xem chi tiết",
-+    continue: "Tiếp tục",
-+    cancel: "Huỷ",
-+    noCourse: "Bạn chưa ghi danh khoá học nào.",
-+    darkMode: "Chế độ tối",
-+  },
-+  en: {
-+    title: "My Courses",
-+    subtitle: "Track your learning progress in the upgraded layout.",
-+    courses: "Courses",
-+    orders: "Orders",
-+    reload: "Reload",
-+    loading: "Loading...",
-+    progress: "Progress",
-+    price: "Price",
-+    completed: "Completed",
-+    detail: "View details",
-+    continue: "Continue",
-+    cancel: "Cancel",
-+    noCourse: "You have not enrolled in any course.",
-+    darkMode: "Dark mode",
-+  },
-+  de: {
-+    title: "Meine Kurse",
-+    subtitle: "Verfolge deinen Lernfortschritt im neuen Layout.",
-+    courses: "Kurse",
-+    orders: "Bestellungen",
-+    reload: "Neu laden",
-+    loading: "Laden...",
-+    progress: "Fortschritt",
-+    price: "Preis",
-+    completed: "Abgeschlossen",
-+    detail: "Details",
-+    continue: "Weiterlernen",
-+    cancel: "Stornieren",
-+    noCourse: "Du bist in keinem Kurs eingeschrieben.",
-+    darkMode: "Dunkler Modus",
-+  },
-+};
-
- function StatusBadge({ status }: { status: MyCourse["status"] }) {
-   const style: React.CSSProperties = useMemo(() => {
-     const base: React.CSSProperties = {
-       display: "inline-block",
-       padding: "4px 10px",
-       borderRadius: 999,
-       fontSize: 12,
-       fontWeight: 700,
-       border: "1px solid #ddd",
-       background: "#fff",
-+      color: "#0f172a",
+     return () => {
+       cancelled = true;
      };
-     if (status === "ACTIVE") return { ...base, borderColor: "#2ecc71" };
-     if (status === "PENDING") return { ...base, borderColor: "#f1c40f" };
-     return { ...base, borderColor: "#e74c3c" };
-   }, [status]);
+   }, [currentLanguage]);
 
-   return <span style={style}>{status}</span>;
- }
+   const cms = useMemo(() => ({ ...defaultCmsData, ...(cmsDataState || {}) }), [cmsDataState]);
+   const [q, setQ] = useState("");
+-  const [topic, setTopic] = useState<"all" | CourseTopic>("all");
+-  const [sort, setSort] = useState<SortRule>("best");
++  const [topic, setTopic] = useState<"all" | number>("all");
++  const [page, setPage] = useState(1);
++  const [pageSize, setPageSize] = useState(8);
++  const [totalCourses, setTotalCourses] = useState(0);
++  const [courses, setCourses] = useState<Course[]>(COURSES);
++  const [topicOptions, setTopicOptions] = useState<ApiTopicOption[]>([]);
 
--function ProgressBar({ percent }: { percent: number }) {
-+function ProgressBar({ percent, label }: { percent: number; label: string }) {
-   const p = Math.max(0, Math.min(100, percent || 0));
-   return (
-     <div style={{ marginTop: 10 }}>
--      <div
--        style={{
--          display: "flex",
--          justifyContent: "space-between",
--          fontSize: 12,
--          opacity: 0.8,
--        }}
--      >
--        <span>Tiến độ</span>
-+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, opacity: 0.8 }}>
-+        <span>{label}</span>
-         <span>{p.toFixed(0)}%</span>
-       </div>
--      <div
--        style={{
--          height: 10,
--          borderRadius: 999,
--          background: "#eee",
--          overflow: "hidden",
--          marginTop: 6,
--        }}
--      >
-+      <div style={{ height: 10, borderRadius: 999, background: "#eee", overflow: "hidden", marginTop: 6 }}>
-         <div style={{ width: `${p}%`, height: "100%", background: "#111" }} />
-       </div>
-     </div>
-   );
- }
+   const [detailId, setDetailId] = useState<string | null>(null);
+   const [cartOpen, setCartOpen] = useState(false);
 
--// sort lessons ổn định theo (order, id)
- function sortLessons(ls: Lesson[]) {
-   return [...ls].sort((a, b) => {
-     const ao = a.order ?? 0;
-     const bo = b.order ?? 0;
-     if (ao !== bo) return ao - bo;
-     return a.id - b.id;
-   });
- }
+   const [cartIds, setCartIds] = useState<string[]>(() => readCourseCart());
 
- export function MyCoursesPage() {
-   const nav = useNavigate();
-+  const { lang, setLang, theme, setTheme } = useStudentViewPrefs();
-+  const t = i18n[lang];
-   const [items, setItems] = useState<MyCourse[]>([]);
-   const [loading, setLoading] = useState(true);
-   const [err, setErr] = useState<string | null>(null);
-   const [info, setInfo] = useState<string | null>(null);
--
--  // map courseId -> progress
-   const [progressMap, setProgressMap] = useState<Record<number, CourseProgressRes>>({});
+-  const filtered = useMemo(() => {
+-    const qq = q.trim().toLowerCase();
++  useEffect(() => {
++    let cancelled = false;
 
-   async function load() {
-     setLoading(true);
-     setErr(null);
-     setInfo(null);
-     try {
-       const data = await enrollmentsApi.myCourses();
-       setItems(data);
--
--      // tải progress cho các course ACTIVE
--      const activeCourseIds = data
--        .filter((d) => d.status === "ACTIVE")
--        .map((d) => d.courseId);
--
-+      const activeCourseIds = data.filter((d) => d.status === "ACTIVE").map((d) => d.courseId);
-       const results = await Promise.allSettled(
--        activeCourseIds.map(async (cid) => {
--          const p = await progressApi.courseProgress(cid);
--          return { cid, p };
--        })
-+        activeCourseIds.map(async (cid) => ({ cid, p: await progressApi.courseProgress(cid) }))
-       );
--
-       const next: Record<number, CourseProgressRes> = {};
--      for (const r of results) {
--        if (r.status === "fulfilled") next[r.value.cid] = r.value.p;
--      }
-+      for (const r of results) if (r.status === "fulfilled") next[r.value.cid] = r.value.p;
-       setProgressMap(next);
-     } catch (e: any) {
-       setErr(e?.message || "Load my courses failed");
-     } finally {
-       setLoading(false);
-     }
-   }
-
--  useEffect(() => {
--    load();
--  }, []);
-+  useEffect(() => { load(); }, []);
-
-   async function onCancel(courseId: number) {
-     setErr(null);
-     setInfo(null);
-     try {
-       await enrollmentsApi.cancel(courseId);
--      setInfo(`Đã huỷ ghi danh course #${courseId}.`);
-+      setInfo(`Course #${courseId} cancelled.`);
-       await load();
-     } catch (e: any) {
-       setErr(e?.message || "Cancel failed");
-     }
-   }
-
--  // chọn lessonId để Continue theo progress
-   function pickContinueLessonId(courseId: number, lessons: Lesson[]): number {
-     const sorted = sortLessons(lessons);
-     if (sorted.length === 0) return 0;
--
-     const prog = progressMap[courseId];
-     const pItems = prog?.items ?? [];
--
--    // map lessonId -> { status, updatedAt }
-     const byLesson: Record<number, { status: string; updatedAt?: string | undefined }> = {};
--    for (const it of pItems) {
--      byLesson[it.lessonId] = { status: it.status, updatedAt: it.updatedAt };
--    }
--
--    // 1) ưu tiên IN_PROGRESS mới nhất
--    const inProgress = pItems
--      .filter((it) => it.status === "IN_PROGRESS")
--      .sort((a, b) => {
--        const at = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
--        const bt = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
--        return bt - at;
--      });
-+    for (const it of pItems) byLesson[it.lessonId] = { status: it.status, updatedAt: it.updatedAt };
-
--    if (inProgress.length) {
--      const candId = inProgress[0].lessonId;
--      if (sorted.some((l) => l.id === candId)) return candId;
--    }
--
--    // 2) lesson đầu tiên chưa COMPLETED
--    for (const l of sorted) {
--      const st = byLesson[l.id]?.status;
--      if (st !== "COMPLETED") return l.id;
--    }
-+    const inProgress = pItems.filter((it) => it.status === "IN_PROGRESS").sort((a, b) => {
-+      const at = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-+      const bt = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-+      return bt - at;
-+    });
-+    if (inProgress.length && sorted.some((l) => l.id === inProgress[0].lessonId)) return inProgress[0].lessonId;
-
--    // 3) tất cả completed -> vào bài cuối
-+    for (const l of sorted) if (byLesson[l.id]?.status !== "COMPLETED") return l.id;
-     return sorted[sorted.length - 1].id;
-   }
-
-   async function onContinue(courseId: number) {
-     setErr(null);
-     setInfo(null);
--
-     try {
--      // Backend sẽ 403 nếu Enrollment chưa ACTIVE
-       const lessons = await coursesApi.lessons(courseId);
-       if (!lessons || lessons.length === 0) {
--        setInfo("Khoá học chưa có bài học nào.");
-+        setInfo("Course has no lesson yet.");
-         return;
+-    let list = COURSES.filter((c) => {
+-      if (topic !== "all" && c.topic !== topic) return false;
+-      if (qq) {
+-        const hay = (c.title + " " + c.desc).toLowerCase();
+-        if (!hay.includes(qq)) return false;
++    (async () => {
++      try {
++        const [coursesRes, topicsRes] = await Promise.all([
++          http.get("/courses", {
++            params: {
++              lang: currentLanguage,
++              page,
++              pageSize,
++              search: q.trim() || undefined,
++              topicId: topic === "all" ? undefined : topic,
++            },
++          }),
++          http.get("/courses/topics", { params: { lang: currentLanguage } }),
++        ]);
++
++        if (cancelled) return;
++
++        const items = Array.isArray(coursesRes.data?.items) ? coursesRes.data.items : [];
++        const mapped: Course[] = items.map((item: any) => ({
++          id: String(item.id),
++          title: item.title || "",
++          topic: "ops" as CourseTopic,
++          img: item.thumbnail || cms.heroImageSrc,
++          desc: item.shortDescription || item.description || "",
++          price: Number(item.price || 0),
++          hours: Number(item.time || 0),
++          rating: Number(item.ratingAvg || 0),
++          students: Number(item.enrollmentCount || 0),
++          popular: 0,
++          date: item.createdAt || "",
++          time: item.time || "",
++          topicName: item.topic?.name || topicLabel("ops"),
++          topicId: item.topic?.id || null,
++        } as Course));
++
++        setCourses(mapped);
++        setTotalCourses(Number(coursesRes.data?.total || 0));
++        setTopicOptions(Array.isArray(topicsRes.data) ? topicsRes.data : []);
++      } catch (err) {
++        console.error("Fetch courses failed:", err);
        }
--
-       const lessonId = pickContinueLessonId(courseId, lessons);
-       if (!lessonId) {
--        setInfo("Không xác định được bài học để tiếp tục.");
-+        setInfo("Unable to determine continue lesson.");
-         return;
-       }
--
-       nav(`/lessons/${lessonId}?courseId=${courseId}`);
-     } catch (e: any) {
--      setErr(
--        e?.message ||
--          "Không thể tiếp tục học (có thể Enrollment chưa ACTIVE nên bị chặn 403)."
--      );
-+      setErr(e?.message || "Unable to continue");
-     }
+-      return true;
+-    });
++    })();
+
+-    if (sort === "new") list = [...list].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+-    if (sort === "high") list = [...list].sort((a, b) => (b.price || 0) - (a.price || 0));
+-    if (sort === "low") list = [...list].sort((a, b) => (a.price || 0) - (b.price || 0));
+-    if (sort === "best") list = [...list].sort((a, b) => (b.popular || 0) - (a.popular || 0));
++    return () => {
++      cancelled = true;
++    };
++  }, [cms.heroImageSrc, currentLanguage, page, pageSize, q, topic]);
+
+-    return list;
+-  }, [q, topic, sort]);
++  const totalPages = Math.max(1, Math.ceil(totalCourses / pageSize));
+
+   const selectedCourse = useMemo(() => {
+     if (!detailId) return null;
+-    return COURSES.find((c) => c.id === detailId) || null;
+-  }, [detailId]);
++    return courses.find((c) => c.id === detailId) || null;
++  }, [courses, detailId]);
+
+   const cartItems = useMemo(() => {
+     const set = new Set(cartIds.map((x) => x.toUpperCase()));
+-    return COURSES.filter((c) => set.has(c.id));
+-  }, [cartIds]);
++    return courses.filter((c) => set.has(c.id.toUpperCase()));
++  }, [cartIds, courses]);
+
+   function addToCart(id: string) {
+     const next = addCourseToCart(id);
+     setCartIds(next);
+     window.alert(tpl(cms.alertAddedToCart, { id }));
+   }
+
+   function removeFromCart(id: string) {
+     const next = removeCourseFromCart(id);
+     setCartIds(next);
+   }
+
+   function clearCart() {
+     if (!window.confirm(cms.confirmClearCart)) return;
+     const next = clearCourseCart();
+     setCartIds(next);
+   }
+
+   function reset() {
+     setQ("");
+     setTopic("all");
+-    setSort("best");
++    setPage(1);
    }
 
    return (
--    <div style={{ maxWidth: 1000, margin: "24px auto", padding: 16 }}>
--      <div
--        style={{
--          display: "flex",
--          justifyContent: "space-between",
--          alignItems: "center",
--        }}
--      >
--        <h2>Khoá học của tôi</h2>
--        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
--          <Link to="/courses">Khoá học</Link>
--          <Link to="/me/orders">My Orders</Link>
--          <button onClick={load}>Reload</button>
-+    <div className={`student-page student-courses-theme ${theme === "dark" ? "student-courses-theme-dark" : ""}`}>
-+      <div className="student-shell">
-+        <div className="student-topbar">
-+          <div>
-+            <h2 style={{ margin: 0 }}>{t.title}</h2>
-+            <div style={{ opacity: 0.9, marginTop: 4 }}>{t.subtitle}</div>
-+          </div>
-+          <div className="student-control-group">
-+            <button className="student-theme-toggle" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-+              {t.darkMode}: {theme === "dark" ? "ON" : "OFF"}
-+            </button>
-+            <div className="student-lang-switch">
-+              {(Object.keys(studentLanguageMeta) as StudentLang[]).map((code) => (
-+                <button key={code} className={`student-lang-option ${lang === code ? "active" : ""}`} onClick={() => setLang(code)}>
-+                  <img src={studentLanguageMeta[code].flagUrl} alt={studentLanguageMeta[code].label} />
-+                </button>
-+              ))}
-+            </div>
-+          </div>
-         </div>
--      </div>
--
--      {loading && <div style={{ padding: 12 }}>Loading...</div>}
--      {err && <div style={{ padding: 12, color: "crimson" }}>{err}</div>}
--      {info && <div style={{ padding: 12 }}>{info}</div>}
+       <div className="text-slate-900">
+         {/*<SiteHeader />*/}
 
--      {!loading && items.length === 0 && (
--        <div style={{ padding: 12, opacity: 0.8 }}>
--          Bạn chưa ghi danh khoá học nào. Vào{" "}
--          <Link to="/courses">Khoá học</Link> để mua/ghi danh.
-+        <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
-+          <Link to="/courses">{t.courses}</Link>
-+          <Link to="/me/orders">{t.orders}</Link>
-+          <button onClick={load}>{t.reload}</button>
-         </div>
--      )}
--
--      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
--        {items.map((enr) => {
--          const prog = progressMap[enr.courseId];
--          const percent =
--            prog?.percent ??
--            (prog
--              ? Math.round(
--                  (prog.completedLessons / Math.max(1, prog.totalLessons)) * 100
--                )
--              : 0);
--
--          return (
--            <div
--              key={enr.id}
--              style={{
--                border: "1px solid #e5e7eb",
--                borderRadius: 14,
--                padding: 14,
--                background: "#fff",
--              }}
--            >
--              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
--                <div style={{ fontWeight: 800 }}>{enr.course.title}</div>
--                <StatusBadge status={enr.status} />
--              </div>
--
--              <div style={{ marginTop: 8, opacity: 0.8 }}>
--                Giá: {enr.course.price.toLocaleString("vi-VN")}đ
--              </div>
--
--              {enr.status === "ACTIVE" && prog && (
--                <>
--                  <ProgressBar percent={percent} />
--                  <div style={{ marginTop: 8, fontSize: 12, opacity: 0.75 }}>
--                    Hoàn thành: {prog.completedLessons}/{prog.totalLessons} bài
--                  </div>
--                </>
--              )}
--
--              <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
--                <Link to={`/courses/${enr.courseId}`}>Xem chi tiết</Link>
+         <main className="pb-12">
+           {/* HERO full width */}
+           <section className="relative">
+             <img
+                 className="h-64 md:h-80 w-full object-cover"
+                 alt={cms.heroImageAlt}
+                 src={cms.heroImageSrc}
+             />
+             <div className="absolute inset-0 bg-gradient-to-r from-slate-950/75 to-indigo-700/25" />
 
--                <button
--                  onClick={() => onContinue(enr.courseId)}
--                  disabled={enr.status !== "ACTIVE"}
--                  title={
--                    enr.status !== "ACTIVE"
--                      ? "Chỉ học được khi Enrollment ACTIVE"
--                      : "Tiếp tục học đúng bài đang dở"
--                  }
--                >
--                  Continue
--                </button>
--
--                <button
--                  onClick={() => onCancel(enr.courseId)}
--                  disabled={enr.status !== "ACTIVE" && enr.status !== "PENDING"}
--                  title="Huỷ ghi danh"
--                >
--                  Cancel
--                </button>
--              </div>
--
--              {enr.status !== "ACTIVE" && (
--                <div style={{ marginTop: 10, fontSize: 12, opacity: 0.75 }}>
--                  Ghi chú: Nếu bạn vừa tạo order, cần Admin mark-paid để kích hoạt
--                  (ACTIVE) trước khi xem bài học.
-+        {loading && <div style={{ padding: 12 }}>{t.loading}</div>}
-+        {err && <div style={{ padding: 12, color: "crimson" }}>{err}</div>}
-+        {info && <div style={{ padding: 12 }}>{info}</div>}
-+
-+        {!loading && items.length === 0 && (
-+          <div style={{ padding: 12 }} className="student-muted">
-+            {t.noCourse} <Link to="/courses">{t.courses}</Link>
-+          </div>
-+        )}
-+
-+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
-+          {items.map((enr) => {
-+            const prog = progressMap[enr.courseId];
-+            const percent = prog?.percent ?? (prog ? Math.round((prog.completedLessons / Math.max(1, prog.totalLessons)) * 100) : 0);
-+            return (
-+              <div key={enr.id} className="student-card">
-+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-+                  <div style={{ fontWeight: 800 }}>{enr.course.title}</div>
-+                  <StatusBadge status={enr.status} />
+             <div className="absolute inset-0">
+               <div className="max-w-7xl mx-auto h-full px-4 py-8 flex flex-col justify-end">
+                 <div className="flex flex-wrap gap-2">
+                   {(cms.heroChips || []).slice(0, 3).map((chip, idx) => (
+                       <span key={idx} className="chip">
+                     <i className={`${chip.iconClass} ${HERO_CHIP_COLOR_BY_INDEX[idx] || ""}`} /> {chip.text}
+                   </span>
+                   ))}
                  </div>
--              )}
--            </div>
--          );
--        })}
-+                <div style={{ marginTop: 8 }} className="student-muted">{t.price}: {enr.course.price.toLocaleString("vi-VN")}đ</div>
-+                {enr.status === "ACTIVE" && prog && (
-+                  <>
-+                    <ProgressBar percent={percent} label={t.progress} />
-+                    <div style={{ marginTop: 8, fontSize: 12 }} className="student-muted">{t.completed}: {prog.completedLessons}/{prog.totalLessons}</div>
-+                  </>
+@@ -506,186 +532,200 @@ export default function CoursesPage({
+
+                 <div className="mt-4 flex flex-wrap gap-2">
+                   <button className="btn btn-accent" type="button" onClick={() => setCartOpen(true)}>
+                     <i className="fa-solid fa-cart-shopping" />
+                     {cms.heroCartBtn}
+                     <span className="chip ml-1">{cartIds.length}</span>
+                   </button>
+                   <Link className="btn btn-primary hover:text-purple-800" to="/cart">
+                     <i className="fa-solid fa-bag-shopping" />
+                     {cms.heroProductCartLink}
+                   </Link>
+                 </div>
+               </div>
+             </div>
+           </section>
+
+           {/* FILTER BAR ngang (trên) */}
+           <section className="px-4 -mt-6">
+             <div className="max-w-7xl mx-auto">
+               <div className="card p-4 md:p-5">
+                 <div className="flex items-center justify-between gap-3 flex-wrap">
+                   <div>
+                     <div className="text-xs font-extrabold text-slate-500">{cms.filterKicker}</div>
+                     <div className="text-lg md:text-xl font-extrabold">{cms.filterTitle}</div>
+                     <div className="mt-1 text-sm text-slate-600">
+-                      {tpl(cms.filterFoundText, { count: filtered.length })}
++                      {tpl(cms.filterFoundText, { count: totalCourses })}
+                     </div>
+                   </div>
+
+                   <div className="flex gap-2 flex-wrap">
+                     <button className="btn" type="button" onClick={reset} aria-label="reset">
+                       <i className="fa-solid fa-rotate-left" /> {cms.filterResetBtn}
+                     </button>
+                     <button className="btn btn-primary hover:text-purple-800" type="button" onClick={() => setCartOpen(true)}>
+                       <i className="fa-solid fa-cart-shopping" /> {cms.filterOpenCartBtn}{" "}
+                       <span className="chip ml-1">{tpl(cms.filterOpenCartBtnSuffix, { count: cartIds.length })}</span>
+                     </button>
+                   </div>
+                 </div>
+
+                 <div className="mt-4 grid gap-3 md:grid-cols-12">
+                   {/* Search */}
+                   <div className="md:col-span-6">
+                     <label className="text-sm font-extrabold text-slate-700">{cms.keywordLabel}</label>
+                     <input
+                         className="field mt-2"
+                         placeholder={cms.keywordPlaceholder}
+                         value={q}
+-                        onChange={(e) => setQ(e.target.value)}
++                        onChange={(e) => {
++                          setQ(e.target.value);
++                          setPage(1);
++                        }}
+                     />
+                   </div>
+
+                   {/* Topic */}
+                   <div className="md:col-span-3">
+                     <label className="text-sm font-extrabold text-slate-700">{cms.topicLabel}</label>
+-                    <select className="field mt-2" value={topic} onChange={(e) => setTopic(e.target.value as any)}>
++                    <select className="field mt-2" value={String(topic)} onChange={(e) => {
++                      const nextValue = e.target.value === "all" ? "all" : Number(e.target.value);
++                      setTopic(nextValue);
++                      setPage(1);
++                    }}>
+                       <option value="all">{cms.topicAllLabel}</option>
+-                      <option value="technique">{topicLabel("technique")}</option>
+-                      <option value="consult">{topicLabel("consult")}</option>
+-                      <option value="ops">{topicLabel("ops")}</option>
+-                      <option value="product">{topicLabel("product")}</option>
++                      {topicOptions.map((item) => (
++                        <option key={item.id} value={item.id}>{item.name}</option>
++                      ))}
+                     </select>
+                   </div>
+
+-                  {/* Sort */}
+                   <div className="md:col-span-3">
+-                    <label className="text-sm font-extrabold text-slate-700">{cms.sortLabel}</label>
+-                    <select className="field mt-2" value={sort} onChange={(e) => setSort(e.target.value as SortRule)}>
+-                      <option value="best">{SORT_RULE_LABEL.best}</option>
+-                      <option value="new">{SORT_RULE_LABEL.new}</option>
+-                      <option value="high">{SORT_RULE_LABEL.high}</option>
+-                      <option value="low">{SORT_RULE_LABEL.low}</option>
++                    <label className="text-sm font-extrabold text-slate-700">Mỗi trang</label>
++                    <select className="field mt-2" value={pageSize} onChange={(e) => {
++                      setPageSize(Number(e.target.value));
++                      setPage(1);
++                    }}>
++                      <option value={4}>4</option>
++                      <option value={8}>8</option>
++                      <option value={12}>12</option>
++                      <option value={16}>16</option>
+                     </select>
+                   </div>
+                 </div>
+
+                 <div className="mt-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 text-sm text-slate-700">
+                   {cms.prototypeNote}
+                 </div>
+               </div>
+             </div>
+           </section>
+
+           {/* LIST full trang */}
+           <section className="px-4 mt-6">
+             <div className="max-w-7xl mx-auto">
+               <div className="flex items-end justify-between gap-3 flex-wrap">
+                 <div>
+                   <div className="text-xs font-extrabold text-slate-500">{cms.listKicker}</div>
+                   <div className="text-2xl font-extrabold">{cms.listTitle}</div>
+                   <div className="mt-1 text-slate-600 text-sm">{cms.listDesc}</div>
+                 </div>
+
+                 <div className="flex gap-2">
+                   <button className="btn" type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
+                     <i className="fa-solid fa-arrow-up" /> {cms.scrollTopBtn}
+                   </button>
+                   <button className="btn btn-primary hover:text-purple-800" type="button" onClick={() => setCartOpen(true)}>
+                     <i className="fa-solid fa-cart-shopping" />
+                     {cms.listCartBtn}{" "}
+                     <span className="chip ml-1">{tpl(cms.listCartBtnSuffix, { count: cartIds.length })}</span>
+                   </button>
+                 </div>
+               </div>
+
+-              <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+-                {filtered.map((c) => (
+-                    <article key={c.id} className="card overflow-hidden">
+-                      <div className="relative">
+-                        <img src={c.img} alt={c.title} className="w-full h-44 object-cover" />
+-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/55 to-transparent" />
+-                        <div className="absolute left-4 bottom-4 flex flex-wrap gap-2">
+-                      <span className="chip">
+-                        <i className="fa-solid fa-layer-group text-indigo-600" />
+-                        {topicLabel(c.topic)}
+-                      </span>
+-                          <span className="chip">
+-                        <i className="fa-solid fa-clock text-amber-600" />
+-                            {c.hours}h
+-                      </span>
+-                        </div>
+-                      </div>
+-
+-                      <div className="p-5">
+-                        <div className="font-extrabold">{c.title}</div>
+-
+-                        <div className="mt-2 flex items-center gap-2 text-sm text-slate-600">
+-                          <Stars rating={c.rating} />
+-                          <b>{c.rating.toFixed(1)}</b>
+-                          <span className="muted">• {new Intl.NumberFormat("vi-VN").format(c.students)} HV</span>
+-                        </div>
+-
+-                        <p className="mt-3 text-slate-700 leading-relaxed line-clamp-3">{c.desc}</p>
+-
+-                        <div className="mt-4 flex flex-col gap-2 items-end">
+-                          <div className="font-extrabold text-indigo-700 text-2xl">{money(c.price)}</div>
+-                          <div className="flex gap-2 w-full">
+-                            <button className="btn text-sm w-1/2" type="button" onClick={() => setDetailId(c.id)}>
+-                              <i className="fa-solid fa-eye" /> {cms.viewDetailBtn}
+-                            </button>
+-                            <button className="btn btn-primary text-sm w-1/2 hover:text-purple-800" type="button" onClick={() => addToCart(c.id)}>
+-                              <i className="fa-solid fa-cart-plus" /> {cms.addBtn}
+-                            </button>
+-                          </div>
+-                        </div>
+-                      </div>
+-                    </article>
+-                ))}
+-
+-                {!filtered.length ? (
+-                    <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4 card p-8 text-center text-slate-600">
++              <div className="mt-5 card overflow-x-auto p-4">
++                {courses.length ? (
++                  <table className="w-full min-w-[900px] text-sm">
++                    <thead>
++                      <tr className="border-b border-slate-200 text-left">
++                        <th className="py-3 pr-3">Khóa học</th>
++                        <th className="py-3 pr-3">Chủ đề</th>
++                        <th className="py-3 pr-3">Time</th>
++                        <th className="py-3 pr-3">Đánh giá</th>
++                        <th className="py-3 pr-3">Giá</th>
++                        <th className="py-3 text-right">Thao tác</th>
++                      </tr>
++                    </thead>
++                    <tbody>
++                      {courses.map((c) => (
++                        <tr key={c.id} className="border-b border-slate-100 align-top">
++                          <td className="py-3 pr-3">
++                            <div className="font-extrabold">{c.title}</div>
++                            <div className="text-slate-600 mt-1 line-clamp-2">{c.desc}</div>
++                          </td>
++                          <td className="py-3 pr-3">
++                            <span className="chip">{c.topicName || topicLabel(c.topic)}</span>
++                          </td>
++                          <td className="py-3 pr-3">{c.time || "-"}</td>
++                          <td className="py-3 pr-3">
++                            <div className="flex items-center gap-2 text-slate-600">
++                              <Stars rating={c.rating} /> <b>{c.rating.toFixed(1)}</b>
++                            </div>
++                          </td>
++                          <td className="py-3 pr-3 font-extrabold text-indigo-700">{money(c.price)}</td>
++                          <td className="py-3 text-right">
++                            <div className="flex gap-2 justify-end">
++                              <button className="btn text-sm" type="button" onClick={() => setDetailId(c.id)}>
++                                <i className="fa-solid fa-eye" /> {cms.viewDetailBtn}
++                              </button>
++                              <button className="btn btn-primary text-sm hover:text-purple-800" type="button" onClick={() => addToCart(c.id)}>
++                                <i className="fa-solid fa-cart-plus" /> {cms.addBtn}
++                              </button>
++                            </div>
++                          </td>
++                        </tr>
++                      ))}
++                    </tbody>
++                  </table>
++                ) : (
++                    <div className="card p-8 text-center text-slate-600">
+                       <div className="text-4xl">
+                         <i className="fa-solid fa-box-open text-slate-400" />
+                       </div>
+                       <div className="mt-2 text-xl font-extrabold">{cms.emptyTitle}</div>
+                       <div className="mt-2">{cms.emptyDesc}</div>
+                       <button className="btn btn-primary hover:text-purple-800 mt-4" type="button" onClick={reset}>
+                         <i className="fa-solid fa-rotate" /> {cms.emptyResetBtn}
+                       </button>
+                     </div>
+-                ) : null}
 +                )}
-+                <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
-+                  <Link to={`/courses/${enr.courseId}`}>{t.detail}</Link>
-+                  <button onClick={() => onContinue(enr.courseId)} disabled={enr.status !== "ACTIVE"}>{t.continue}</button>
-+                  <button onClick={() => onCancel(enr.courseId)} disabled={enr.status !== "ACTIVE" && enr.status !== "PENDING"}>{t.cancel}</button>
++
++                <div className="mt-4 flex items-center justify-end gap-2">
++                  <button className="btn" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Trước</button>
++                  <span className="text-sm text-slate-600">Trang {page}/{totalPages}</span>
++                  <button className="btn" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Sau</button>
 +                </div>
-+              </div>
-+            );
-+          })}
-+        </div>
+               </div>
+             </div>
+           </section>
+         </main>
+
+         {/*<Footer />*/}
+
+         <CourseDetailModal
+             open={!!detailId}
+             course={selectedCourse}
+             onClose={() => setDetailId(null)}
+             onAdd={(id) => addToCart(id)}
+             cms={cms}
+         />
+
+         <CourseCartModal
+             open={cartOpen}
+             onClose={() => setCartOpen(false)}
+             items={cartItems}
+             onRemove={removeFromCart}
+             onClear={clearCart}
+             cms={cms}
+         />
        </div>
-     </div>
    );
- }
-diff --git a/ayanavita-fontend/src/pages/StudentCoursesTheme.css b/ayanavita-fontend/src/pages/StudentCoursesTheme.css
+diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202602280001_add_course_time/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202602280001_add_course_time/migration.sql
 new file mode 100644
-index 0000000000000000000000000000000000000000..49625dbd4679b9ec283a0a63defba8b5f7805cba
+index 0000000000000000000000000000000000000000..9d442aa3fea9d828c43a0fcfacbf4b473838033f
 --- /dev/null
-+++ b/ayanavita-fontend/src/pages/StudentCoursesTheme.css
-@@ -0,0 +1,142 @@
-+.student-courses-theme {
-+  --st-bg:
-+    radial-gradient(900px 600px at 0% 0%, rgba(20, 184, 166, 0.12), transparent 58%),
-+    radial-gradient(900px 550px at 100% 0%, rgba(59, 130, 246, 0.14), transparent 58%),
-+    linear-gradient(180deg, #f0fdfa, #eff6ff);
-+  --st-card: rgba(255, 255, 255, 0.92);
-+  --st-border: #dbeafe;
-+  --st-text: #0f172a;
-+  --st-muted: #475569;
-+}
-+
-+.student-courses-theme-dark {
-+  --st-bg:
-+    radial-gradient(900px 600px at 0% 0%, rgba(30, 64, 175, 0.22), transparent 58%),
-+    radial-gradient(900px 550px at 100% 0%, rgba(20, 184, 166, 0.18), transparent 58%),
-+    linear-gradient(180deg, #020617, #0f172a);
-+  --st-card: rgba(15, 23, 42, 0.9);
-+  --st-border: #334155;
-+  --st-text: #e2e8f0;
-+  --st-muted: #94a3b8;
-+}
-+
-+.student-page {
-+  min-height: 100vh;
-+  background: var(--st-bg);
-+  color: var(--st-text);
-+  padding: 24px 16px;
-+}
-+
-+.student-shell {
-+  max-width: 1080px;
-+  margin: 0 auto;
-+}
-+
-+.student-topbar {
-+  background: linear-gradient(130deg, #0f766e, #0284c7);
-+  border-radius: 20px;
-+  padding: 18px;
-+  color: #f8fafc;
-+  display: flex;
-+  justify-content: space-between;
-+  gap: 10px;
-+  flex-wrap: wrap;
-+  box-shadow: 0 14px 30px rgba(2, 132, 199, 0.25);
-+}
-+
-+.student-control-group { display: inline-flex; align-items: center; gap: 8px; }
-+.student-theme-toggle { border: none; border-radius: 999px; padding: 8px 12px; font-weight: 700; cursor: pointer; }
-+.student-lang-switch { display: inline-flex; gap: 4px; background: rgba(15,23,42,0.26); border: 1px solid rgba(255,255,255,0.4); border-radius: 999px; padding: 5px; }
-+.student-lang-option { border:none; background:transparent; border-radius:999px; cursor:pointer; width:36px; height:28px; display:flex; align-items:center; justify-content:center; }
-+.student-lang-option.active { background: rgba(255,255,255,0.92); }
-+.student-lang-option img { width:22px; height:14px; border-radius:2px; }
-+
-+.student-card {
-+  border: 1px solid var(--st-border);
-+  border-radius: 14px;
-+  padding: 14px;
-+  background: var(--st-card);
-+}
-+
-+.student-muted { color: var(--st-muted); }
-+
-+.student-lesson-links {
-+  display: flex;
-+  gap: 10px;
-+  margin: 12px 0;
-+}
-+
-+.student-progress-track {
-+  margin-top: 10px;
-+  height: 10px;
-+  border-radius: 999px;
-+  background: color-mix(in srgb, var(--st-border) 64%, #ffffff 36%);
-+  overflow: hidden;
-+}
-+
-+.student-progress-fill {
-+  height: 100%;
-+  background: linear-gradient(135deg, #0f766e, #0284c7);
-+}
-+
-+.student-lesson-layout {
-+  display: grid;
-+  grid-template-columns: 2fr 1fr;
-+  gap: 14px;
-+}
-+
-+.student-module-card {
-+  margin-top: 10px;
-+  border: 1px solid var(--st-border);
-+  border-radius: 12px;
-+  padding: 12px;
-+}
-+
-+.student-module-head {
-+  display: flex;
-+  justify-content: space-between;
-+  gap: 10px;
-+  align-items: center;
-+}
-+
-+.student-video-row {
-+  display: grid;
-+  grid-template-columns: 1fr auto;
-+  gap: 10px;
-+  margin-top: 10px;
-+  align-items: center;
-+}
-+
-+.student-video-player {
-+  width: 100%;
-+  margin-top: 6px;
-+  border-radius: 10px;
-+}
-+
-+.student-lesson-item {
-+  width: 100%;
-+  text-align: left;
-+  margin-bottom: 8px;
-+  border: 1px solid var(--st-border);
-+  border-radius: 10px;
-+  padding: 10px;
-+  background: transparent;
-+  color: var(--st-text);
-+  display: flex;
-+  gap: 8px;
-+  align-items: center;
-+  cursor: pointer;
-+}
-+
-+.student-lesson-item.active {
-+  background: color-mix(in srgb, #14b8a6 24%, var(--st-card) 76%);
-+}
-+
-+@media (max-width: 1024px) {
-+  .student-lesson-layout {
-+    grid-template-columns: 1fr;
++++ b/backend/ayanavitabackend/app/api/prisma/migrations/202602280001_add_course_time/migration.sql
+@@ -0,0 +1,2 @@
++ALTER TABLE `Course`
++  ADD COLUMN `time` VARCHAR(120) NULL;
+diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+index 2cbbc59ef7caa50c88b4c60151879a49d132c060..32ad02bc7a77df1c3200943500cc57961f9dd89d 100644
+--- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
++++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+@@ -226,50 +226,51 @@ model ServiceReview {
+   customerName String? @db.VarChar(255)
+   createdAt  DateTime @default(now())
+   updatedAt  DateTime @updatedAt
+
+   service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+   user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+   @@index([serviceId])
+ }
+
+
+ model RegistrationOtp {
+   id        Int      @id @default(autoincrement())
+   email     String   @unique
+   code      String   @db.VarChar(6)
+   expiresAt DateTime
+   usedAt    DateTime?
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
+ }
+
+ model Course {
+   id                  Int      @id @default(autoincrement())
+   topicId             Int?
+   title               String
++  time                String?  @db.VarChar(120)
+   shortDescription    String?  @db.VarChar(500)
+   slug                String   @unique
+   description         String?
+   thumbnail           String?
+   price               Int      @default(0)
+   published           Boolean  @default(false)
+   objectives          Json?
+   targetAudience      Json?
+   benefits            Json?
+   ratingAvg           Float    @default(0)
+   ratingCount         Int      @default(0)
+   enrollmentCount     Int      @default(0)
+   createdAt           DateTime @default(now())
+   updatedAt           DateTime @updatedAt
+
+   lessons     Lesson[]
+   enrollments Enrollment[]
+   accesses    CourseAccess[]
+   topic       CourseTopic? @relation(fields: [topicId], references: [id], onDelete: Restrict)
+   translations CourseTranslation[]
+   contentTranslations CourseContentTranslation[]
+
+   // ✅ ADD
+   orderItems OrderItem[] // <— opposite for OrderItem.course
+
+diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
+index f36449d19cf9527030a0ebfc415722f310a1cb54..db39f4b4c1d51e48ffdbcaf36e0cd397e9e9947f 100644
+--- a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
+@@ -49,50 +49,56 @@ const parseMultipartData = (input: Record<string, any>) => {
+     }
+   }
+   return data
+ }
+
+ @Controller('courses')
+ export class CoursesController {
+   constructor(private readonly courses: CoursesService) {}
+
+   @UseGuards(AccessTokenGuard)
+   @Get(':id/lessons-outline')
+   lessonsOutline(
+     @CurrentUser() user: JwtUser,
+     @Param('id', ParseIntPipe) id: number,
+     @Query('lang') lang?: string,
+   ) {
+     return this.courses.lessonsOutline(user, id, lang)
+   }
+
+   @Get()
+   @UseGuards(OptionalAccessTokenGuard)
+   findAll(@CurrentUser() user: JwtUser | null, @Query() query: CourseQueryDto) {
+     return this.courses.findAll(query, user)
+   }
+
++  @Get('topics')
++  @UseGuards(OptionalAccessTokenGuard)
++  listTopics(@CurrentUser() user: JwtUser | null, @Query('lang') lang?: string) {
++    return this.courses.listTopics(lang, user)
 +  }
-+  .student-video-row {
-+    grid-template-columns: 1fr;
++
+   @UseGuards(AccessTokenGuard)
+   @Get(':id')
+   findOne(@Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
+     return this.courses.findOne(id, lang)
+   }
+
+   @UseGuards(AccessTokenGuard)
+   @Get(':id/lessons')
+   listLessons(@CurrentUser() user: any, @Param('id', ParseIntPipe) id: number) {
+     return this.courses.listLessons(user, id)
+   }
+
+   @UseGuards(AccessTokenGuard)
+   @Get(':id/lessons/:lessonId')
+   getLesson(
+     @CurrentUser() user: any,
+     @Param('id', ParseIntPipe) courseId: number,
+     @Param('lessonId', ParseIntPipe) lessonId: number,
+   ) {
+     return this.courses.getLessonDetail(user, courseId, lessonId)
+   }
+
+   @UseGuards(AccessTokenGuard, RolesGuard)
+   @Roles('ADMIN')
+   @Post('thumbnail/upload')
+diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
+index a6f10af0d407833c238e08a0186395c09cb98ec4..f40a924e01934cfa314feded1479b860a923c830 100644
+--- a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
++++ b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
+@@ -1,50 +1,51 @@
+ import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+ import { PrismaService } from '../prisma/prisma.service'
+ import { EnrollmentsService } from '../enrollments/enrollments.service'
+ import { CreateCourseDto } from './dto/create-course.dto'
+ import { UpdateCourseDto } from './dto/update-course.dto'
+ import { Prisma, ProgressStatus } from '@prisma/client'
+ import { CourseQueryDto } from './dto/course-query.dto'
+ import { CoursesMediaService } from './courses-media.service'
+
+ type JwtUser = { sub: number; role: string }
+ type Locale = 'vi' | 'en' | 'de'
+ type MultiLingualStringList = Record<Locale, string[]>
+
+ @Injectable()
+ export class CoursesService {
+   constructor(
+     private readonly prisma: PrismaService,
+     private readonly enrollments: EnrollmentsService,
+     private readonly courseMedia: CoursesMediaService,
+   ) {}
+
+   private readonly baseCourseSelect = {
+     id: true,
+     topicId: true,
+     title: true,
++    time: true,
+     shortDescription: true,
+     slug: true,
+     description: true,
+     thumbnail: true,
+     price: true,
+     published: true,
+     objectives: true,
+     targetAudience: true,
+     benefits: true,
+     ratingAvg: true,
+     ratingCount: true,
+     enrollmentCount: true,
+     createdAt: true,
+     updatedAt: true,
+     _count: { select: { lessons: true } },
+   } as const
+
+   private resolveCourseLocale(lang?: string): Locale {
+     const activeLang = (lang || 'vi').toLowerCase()
+     if (activeLang === 'en-us' || activeLang === 'en') return 'en'
+     if (activeLang === 'de') return 'de'
+     return 'vi'
+   }
+
+   private normalizeLocalizedList(value: unknown): MultiLingualStringList {
+@@ -59,69 +60,71 @@ export class CoursesService {
+     }
+   }
+
+
+   private hydratePrimaryContent(dto: Partial<CreateCourseDto>): Partial<CreateCourseDto> {
+     const objectivesByLocale = this.normalizeLocalizedList(dto.objectives)
+     const targetAudienceByLocale = this.normalizeLocalizedList(dto.targetAudience)
+     const benefitsByLocale = this.normalizeLocalizedList(dto.benefits)
+
+     const viContent = dto.contentTranslations?.vi
+
+     return {
+       ...dto,
+       objectives: (dto.objectives !== undefined ? objectivesByLocale.vi : (viContent?.objectives || objectivesByLocale.vi)) as any,
+       targetAudience: (dto.targetAudience !== undefined ? targetAudienceByLocale.vi : (viContent?.targetAudience || targetAudienceByLocale.vi)) as any,
+       benefits: (dto.benefits !== undefined ? benefitsByLocale.vi : (viContent?.benefits || benefitsByLocale.vi)) as any,
+     }
+   }
+
+   private buildCreateCoursePayload(dto: CreateCourseDto & { title: string }): Prisma.CourseUncheckedCreateInput {
+     return {
+       title: dto.title,
+       slug: dto.slug,
+       ...(dto.description !== undefined ? { description: dto.description } : {}),
+       ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
++      ...(dto.time !== undefined ? { time: dto.time } : {}),
+       ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
+       ...(dto.price !== undefined ? { price: dto.price } : {}),
+       ...(dto.published !== undefined ? { published: dto.published } : {}),
+       ...(dto.topicId !== undefined ? { topicId: dto.topicId } : {}),
+       ...(dto.objectives !== undefined ? { objectives: dto.objectives as any } : {}),
+       ...(dto.targetAudience !== undefined ? { targetAudience: dto.targetAudience as any } : {}),
+       ...(dto.benefits !== undefined ? { benefits: dto.benefits as any } : {}),
+       ...(dto.ratingAvg !== undefined ? { ratingAvg: dto.ratingAvg } : {}),
+       ...(dto.ratingCount !== undefined ? { ratingCount: dto.ratingCount } : {}),
+       ...(dto.enrollmentCount !== undefined ? { enrollmentCount: dto.enrollmentCount } : {}),
+     }
+   }
+
+   private buildUpdateCoursePayload(dto: UpdateCourseDto): Prisma.CourseUncheckedUpdateInput {
+     return {
+       ...(dto.title !== undefined ? { title: dto.title } : {}),
+       ...(dto.slug !== undefined ? { slug: dto.slug } : {}),
+       ...(dto.description !== undefined ? { description: dto.description } : {}),
+       ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
++      ...(dto.time !== undefined ? { time: dto.time } : {}),
+       ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
+       ...(dto.price !== undefined ? { price: dto.price } : {}),
+       ...(dto.published !== undefined ? { published: dto.published } : {}),
+       ...(dto.topicId !== undefined ? { topicId: dto.topicId } : {}),
+       ...(dto.objectives !== undefined ? { objectives: dto.objectives as any } : {}),
+       ...(dto.targetAudience !== undefined ? { targetAudience: dto.targetAudience as any } : {}),
+       ...(dto.benefits !== undefined ? { benefits: dto.benefits as any } : {}),
+       ...(dto.ratingAvg !== undefined ? { ratingAvg: dto.ratingAvg } : {}),
+       ...(dto.ratingCount !== undefined ? { ratingCount: dto.ratingCount } : {}),
+       ...(dto.enrollmentCount !== undefined ? { enrollmentCount: dto.enrollmentCount } : {}),
+     }
+   }
+
+   async lessonsOutline(user: JwtUser, courseId: number, lang?: string) {
+     const lessonLocale = this.resolveCourseLocale(lang)
+     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } })
+     if (!course) throw new NotFoundException('Course not found')
+     if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
+     const lessons = await this.prisma.lesson.findMany({
+       where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) },
+       select: {
+         id: true,
+         courseId: true,
+         title: true,
+         slug: true,
+@@ -162,50 +165,82 @@ export class CoursesService {
+         where,
+         select: {
+           ...this.baseCourseSelect,
+           translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, title: true, shortDescription: true, description: true, objectives: true, targetAudience: true, benefits: true } },
+           contentTranslations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, objectives: true, targetAudience: true, benefits: true } },
+           topic: { select: { id: true, name: true, translations: { where: { locale: { in: [topicLocale, 'vi'] } }, select: { locale: true, name: true } } } },
+         },
+         skip: (page - 1) * pageSize, take: pageSize, orderBy: { id: 'desc' },
+       }),
+       this.prisma.course.count({ where }),
+     ])
+     const courseIds = rows.map((r) => r.id)
+     if (!courseIds.length) return { items: [], total, page, pageSize }
+     const videoRows = await this.prisma.$queryRaw<Array<{ courseId: number; videoCount: bigint | number }>>`SELECT l.courseId as courseId, COUNT(v.id) as videoCount FROM LessonVideo v INNER JOIN LessonModule m ON m.id = v.moduleId INNER JOIN Lesson l ON l.id = m.lessonId WHERE l.courseId IN (${Prisma.join(courseIds)}) GROUP BY l.courseId`
+     const videoCountMap = new Map(videoRows.map((r) => [Number(r.courseId), Number(r.videoCount)]))
+     const items = rows.map((row: any) => {
+       const tr = row.translations?.find((x: any) => x.locale === courseLocale) || row.translations?.find((x: any) => x.locale === 'vi')
+       const ct = row.translations?.find((x: any) => x.locale === courseLocale) || row.translations?.find((x: any) => x.locale === 'vi')
+       const legacyCt = row.contentTranslations?.find((x: any) => x.locale === courseLocale) || row.contentTranslations?.find((x: any) => x.locale === 'vi')
+       const tt = row.topic?.translations?.find((x: any) => x.locale === topicLocale) || row.topic?.translations?.find((x: any) => x.locale === 'vi')
+       return { ...row, title: tr?.title || row.title, shortDescription: tr?.shortDescription || row.shortDescription, description: tr?.description || row.description, objectives: ct?.objectives || legacyCt?.objectives || row.objectives, targetAudience: ct?.targetAudience || legacyCt?.targetAudience || row.targetAudience, benefits: ct?.benefits || legacyCt?.benefits || row.benefits, topic: row.topic ? { id: row.topic.id, name: tt?.name || row.topic.name } : null, videoCount: videoCountMap.get(row.id) || 0 }
+     })
+     return { items, total, page, pageSize }
+   }
+
++  async listTopics(lang?: string, user?: { sub: number; role: string } | null) {
++    const locale = this.resolveCourseLocale(lang)
++    const topics = await this.prisma.courseTopic.findMany({
++      where: {
++        ...(user?.role === 'ADMIN'
++          ? {}
++          : {
++              courses: {
++                some: { published: true },
++              },
++            }),
++      },
++      select: {
++        id: true,
++        name: true,
++        translations: {
++          where: { locale: { in: [locale, 'vi'] } },
++          select: { locale: true, name: true },
++        },
++      },
++      orderBy: { name: 'asc' },
++    })
++
++    return topics.map((topic: any) => {
++      const translation = topic.translations?.find((item: any) => item.locale === locale) || topic.translations?.find((item: any) => item.locale === 'vi')
++      return {
++        id: topic.id,
++        name: translation?.name || topic.name,
++      }
++    })
 +  }
-+}
++
+
+   async uploadThumbnail(file: { buffer: Buffer }) {
+     return this.courseMedia.uploadThumbnail(file)
+   }
+   async findOne(id: number, lang?: string) {
+     const courseLocale = this.resolveCourseLocale(lang)
+     const c = await this.prisma.course.findUnique({
+       where: { id },
+       select: {
+         ...this.baseCourseSelect,
+         translations: { select: { locale: true, title: true, shortDescription: true, description: true, objectives: true, targetAudience: true, benefits: true } },
+         contentTranslations: { select: { locale: true, objectives: true, targetAudience: true, benefits: true } },
+         topic: { select: { id: true, name: true, translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, name: true } } } },
+       },
+     })
+     if (!c) throw new NotFoundException('Course not found')
+     const tr = (c as any).translations?.find((x: any) => x.locale === courseLocale) || (c as any).translations?.find((x: any) => x.locale === 'vi')
+     const ct = (c as any).translations?.find((x: any) => x.locale === courseLocale) || (c as any).translations?.find((x: any) => x.locale === 'vi')
+     const legacyCt = (c as any).contentTranslations?.find((x: any) => x.locale === courseLocale) || (c as any).contentTranslations?.find((x: any) => x.locale === 'vi')
+     const tt = (c as any).topic?.translations?.find((x: any) => x.locale === courseLocale) || (c as any).topic?.translations?.find((x: any) => x.locale === 'vi')
+
+     const videoRows = await this.prisma.$queryRaw<Array<{ videoCount: bigint | number }>>`
+       SELECT COUNT(v.id) as videoCount
+       FROM LessonVideo v
+       INNER JOIN LessonModule m ON m.id = v.moduleId
+diff --git a/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts b/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts
+index e71ad57f3f3355ea0f33a536965febfd74d84097..553610a6128976e6c010e5d50a041d73a7c37af7 100644
+--- a/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts
++++ b/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts
+@@ -36,50 +36,54 @@ class ContentTranslationDto {
+   objectives?: string[]
+
+   @IsOptional()
+   @IsArray()
+   @IsString({ each: true })
+   targetAudience?: string[]
+
+   @IsOptional()
+   @IsArray()
+   @IsString({ each: true })
+   benefits?: string[]
+ }
+
+ export class CreateCourseDto {
+   @IsString()
+   slug: string
+
+   @IsOptional()
+   @IsString()
+   title?: string
+
+   @IsOptional()
+   @IsString()
+   shortDescription?: string
+
++  @IsOptional()
++  @IsString()
++  time?: string
++
+   @IsOptional()
+   @IsString()
+   description?: string
+
+   @IsOptional()
+   @IsString()
+   thumbnail?: string
+
+   @IsOptional()
+   @IsInt()
+   @Min(0)
+   price?: number
+
+   @IsOptional()
+   @IsBoolean()
+   published?: boolean
+
+   @IsOptional()
+   @IsInt()
+   @Min(1)
+   topicId?: number
+
+   @IsOptional()
+   @IsArray()
+   @IsString({ each: true })

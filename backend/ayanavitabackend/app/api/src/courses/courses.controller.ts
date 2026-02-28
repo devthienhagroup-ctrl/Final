@@ -71,6 +71,12 @@ export class CoursesController {
     return this.courses.findAll(query, user)
   }
 
+  @Get('topics')
+  @UseGuards(OptionalAccessTokenGuard)
+  listTopics(@CurrentUser() user: JwtUser | null, @Query('lang') lang?: string) {
+    return this.courses.listTopics(lang, user)
+  }
+
   @UseGuards(AccessTokenGuard)
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {

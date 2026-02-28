@@ -60,6 +60,10 @@ export class CreateCourseDto {
 
   @IsOptional()
   @IsString()
+  time?: string
+
+  @IsOptional()
+  @IsString()
   description?: string
 
   @IsOptional()

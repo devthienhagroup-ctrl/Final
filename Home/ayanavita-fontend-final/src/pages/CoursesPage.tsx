@@ -15,7 +15,7 @@ import {
   clearCourseCart,
 } from "../services/courseCart.utils";
 
-type SortRule = "best" | "new" | "high" | "low";
+type ApiTopicOption = { id: number; name: string };
 
 export type CoursesPageCmsData = {
   // HERO
@@ -38,7 +38,6 @@ export type CoursesPageCmsData = {
   keywordPlaceholder: string;
   topicLabel: string;
   topicAllLabel: string;
-  sortLabel: string;
   prototypeNote: string;
 
   // LIST
@@ -104,7 +103,6 @@ export const defaultCmsData: CoursesPageCmsData = {
   keywordPlaceholder: "VD: skincare, vận hành, tư vấn...",
   topicLabel: "Chủ đề",
   topicAllLabel: "Tất cả",
-  sortLabel: "Sắp xếp",
   prototypeNote: "Prototype: “Chi tiết” mở modal, “Thêm” vào cart.",
 
   listKicker: "Danh sách",
@@ -142,15 +140,6 @@ export const defaultCmsData: CoursesPageCmsData = {
 };
 
 const HERO_CHIP_COLOR_BY_INDEX = ["text-amber-600", "text-emerald-600", "text-indigo-600"] as const;
-
-// NOTE: Options hiển thị trong filter thường gắn với dữ liệu DB (topic, sort rule),
-// nên KHÔNG đưa vào cmsData. CMS chỉ chỉnh nội dung text chung.
-const SORT_RULE_LABEL: Record<SortRule, string> = {
-  best: "Phổ biến",
-  new: "Mới nhất",
-  high: "Giá cao → thấp",
-  low: "Giá thấp → cao",
-};
 
 function tpl(text: string, vars: Record<string, string | number>) {
   let out = text;
@@ -223,11 +212,11 @@ function CourseDetailModal({
             <div className="flex flex-wrap gap-2">
             <span className="chip">
               <i className="fa-solid fa-layer-group text-indigo-600" />
-              {topicLabel(course.topic)}
+              {course.topicName || topicLabel(course.topic)}
             </span>
               <span className="chip">
               <i className="fa-solid fa-clock text-amber-600" />
-                {course.hours} giờ
+                {course.time || `${course.hours} giờ`}
             </span>
               <span className="chip">
               <i className="fa-solid fa-users text-emerald-600" />
@@ -315,7 +304,7 @@ function CourseCartModal({
                             <div>
                               <div className="font-extrabold">{c.title}</div>
                               <div className="text-sm text-slate-600 mt-1">
-                                {topicLabel(c.topic)} • {money(c.price)}
+                                {c.topicName || topicLabel(c.topic)} • {money(c.price)}
                               </div>
                             </div>
                           </div>
@@ -414,43 +403,80 @@ export default function CoursesPage({
 
   const cms = useMemo(() => ({ ...defaultCmsData, ...(cmsDataState || {}) }), [cmsDataState]);
   const [q, setQ] = useState("");
-  const [topic, setTopic] = useState<"all" | CourseTopic>("all");
-  const [sort, setSort] = useState<SortRule>("best");
+  const [topic, setTopic] = useState<"all" | number>("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
+  const [totalCourses, setTotalCourses] = useState(0);
+  const [courses, setCourses] = useState<Course[]>(COURSES);
+  const [topicOptions, setTopicOptions] = useState<ApiTopicOption[]>([]);
 
   const [detailId, setDetailId] = useState<string | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
 
   const [cartIds, setCartIds] = useState<string[]>(() => readCourseCart());
 
-  const filtered = useMemo(() => {
-    const qq = q.trim().toLowerCase();
+  useEffect(() => {
+    let cancelled = false;
 
-    let list = COURSES.filter((c) => {
-      if (topic !== "all" && c.topic !== topic) return false;
-      if (qq) {
-        const hay = (c.title + " " + c.desc).toLowerCase();
-        if (!hay.includes(qq)) return false;
+    (async () => {
+      try {
+        const [coursesRes, topicsRes] = await Promise.all([
+          http.get("/courses", {
+            params: {
+              lang: currentLanguage,
+              page,
+              pageSize,
+              search: q.trim() || undefined,
+              topicId: topic === "all" ? undefined : topic,
+            },
+          }),
+          http.get("/courses/topics", { params: { lang: currentLanguage } }),
+        ]);
+
+        if (cancelled) return;
+
+        const items = Array.isArray(coursesRes.data?.items) ? coursesRes.data.items : [];
+        const mapped: Course[] = items.map((item: any) => ({
+          id: String(item.id),
+          title: item.title || "",
+          topic: "ops" as CourseTopic,
+          img: item.thumbnail || cms.heroImageSrc,
+          desc: item.shortDescription || item.description || "",
+          price: Number(item.price || 0),
+          hours: Number(item.time || 0),
+          rating: Number(item.ratingAvg || 0),
+          students: Number(item.enrollmentCount || 0),
+          popular: 0,
+          date: item.createdAt || "",
+          time: item.time || "",
+          topicName: item.topic?.name || topicLabel("ops"),
+          topicId: item.topic?.id || null,
+        } as Course));
+
+        setCourses(mapped);
+        setTotalCourses(Number(coursesRes.data?.total || 0));
+        setTopicOptions(Array.isArray(topicsRes.data) ? topicsRes.data : []);
+      } catch (err) {
+        console.error("Fetch courses failed:", err);
       }
-      return true;
-    });
+    })();
 
-    if (sort === "new") list = [...list].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-    if (sort === "high") list = [...list].sort((a, b) => (b.price || 0) - (a.price || 0));
-    if (sort === "low") list = [...list].sort((a, b) => (a.price || 0) - (b.price || 0));
-    if (sort === "best") list = [...list].sort((a, b) => (b.popular || 0) - (a.popular || 0));
+    return () => {
+      cancelled = true;
+    };
+  }, [cms.heroImageSrc, currentLanguage, page, pageSize, q, topic]);
 
-    return list;
-  }, [q, topic, sort]);
+  const totalPages = Math.max(1, Math.ceil(totalCourses / pageSize));
 
   const selectedCourse = useMemo(() => {
     if (!detailId) return null;
-    return COURSES.find((c) => c.id === detailId) || null;
-  }, [detailId]);
+    return courses.find((c) => c.id === detailId) || null;
+  }, [courses, detailId]);
 
   const cartItems = useMemo(() => {
     const set = new Set(cartIds.map((x) => x.toUpperCase()));
-    return COURSES.filter((c) => set.has(c.id));
-  }, [cartIds]);
+    return courses.filter((c) => set.has(c.id.toUpperCase()));
+  }, [cartIds, courses]);
 
   function addToCart(id: string) {
     const next = addCourseToCart(id);
@@ -472,7 +498,7 @@ export default function CoursesPage({
   function reset() {
     setQ("");
     setTopic("all");
-    setSort("best");
+    setPage(1);
   }
 
   return (
@@ -528,7 +554,7 @@ export default function CoursesPage({
                     <div className="text-xs font-extrabold text-slate-500">{cms.filterKicker}</div>
                     <div className="text-lg md:text-xl font-extrabold">{cms.filterTitle}</div>
                     <div className="mt-1 text-sm text-slate-600">
-                      {tpl(cms.filterFoundText, { count: filtered.length })}
+                      {tpl(cms.filterFoundText, { count: totalCourses })}
                     </div>
                   </div>
 
@@ -551,30 +577,38 @@ export default function CoursesPage({
                         className="field mt-2"
                         placeholder={cms.keywordPlaceholder}
                         value={q}
-                        onChange={(e) => setQ(e.target.value)}
+                        onChange={(e) => {
+                          setQ(e.target.value);
+                          setPage(1);
+                        }}
                     />
                   </div>
 
                   {/* Topic */}
                   <div className="md:col-span-3">
                     <label className="text-sm font-extrabold text-slate-700">{cms.topicLabel}</label>
-                    <select className="field mt-2" value={topic} onChange={(e) => setTopic(e.target.value as any)}>
+                    <select className="field mt-2" value={String(topic)} onChange={(e) => {
+                      const nextValue = e.target.value === "all" ? "all" : Number(e.target.value);
+                      setTopic(nextValue);
+                      setPage(1);
+                    }}>
                       <option value="all">{cms.topicAllLabel}</option>
-                      <option value="technique">{topicLabel("technique")}</option>
-                      <option value="consult">{topicLabel("consult")}</option>
-                      <option value="ops">{topicLabel("ops")}</option>
-                      <option value="product">{topicLabel("product")}</option>
+                      {topicOptions.map((item) => (
+                        <option key={item.id} value={item.id}>{item.name}</option>
+                      ))}
                     </select>
                   </div>
 
-                  {/* Sort */}
                   <div className="md:col-span-3">
-                    <label className="text-sm font-extrabold text-slate-700">{cms.sortLabel}</label>
-                    <select className="field mt-2" value={sort} onChange={(e) => setSort(e.target.value as SortRule)}>
-                      <option value="best">{SORT_RULE_LABEL.best}</option>
-                      <option value="new">{SORT_RULE_LABEL.new}</option>
-                      <option value="high">{SORT_RULE_LABEL.high}</option>
-                      <option value="low">{SORT_RULE_LABEL.low}</option>
+                    <label className="text-sm font-extrabold text-slate-700">Mỗi trang</label>
+                    <select className="field mt-2" value={pageSize} onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setPage(1);
+                    }}>
+                      <option value={4}>4</option>
+                      <option value={8}>8</option>
+                      <option value={12}>12</option>
+                      <option value={16}>16</option>
                     </select>
                   </div>
                 </div>
@@ -608,52 +642,52 @@ export default function CoursesPage({
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {filtered.map((c) => (
-                    <article key={c.id} className="card overflow-hidden">
-                      <div className="relative">
-                        <img src={c.img} alt={c.title} className="w-full h-44 object-cover" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/55 to-transparent" />
-                        <div className="absolute left-4 bottom-4 flex flex-wrap gap-2">
-                      <span className="chip">
-                        <i className="fa-solid fa-layer-group text-indigo-600" />
-                        {topicLabel(c.topic)}
-                      </span>
-                          <span className="chip">
-                        <i className="fa-solid fa-clock text-amber-600" />
-                            {c.hours}h
-                      </span>
-                        </div>
-                      </div>
-
-                      <div className="p-5">
-                        <div className="font-extrabold">{c.title}</div>
-
-                        <div className="mt-2 flex items-center gap-2 text-sm text-slate-600">
-                          <Stars rating={c.rating} />
-                          <b>{c.rating.toFixed(1)}</b>
-                          <span className="muted">• {new Intl.NumberFormat("vi-VN").format(c.students)} HV</span>
-                        </div>
-
-                        <p className="mt-3 text-slate-700 leading-relaxed line-clamp-3">{c.desc}</p>
-
-                        <div className="mt-4 flex flex-col gap-2 items-end">
-                          <div className="font-extrabold text-indigo-700 text-2xl">{money(c.price)}</div>
-                          <div className="flex gap-2 w-full">
-                            <button className="btn text-sm w-1/2" type="button" onClick={() => setDetailId(c.id)}>
-                              <i className="fa-solid fa-eye" /> {cms.viewDetailBtn}
-                            </button>
-                            <button className="btn btn-primary text-sm w-1/2 hover:text-purple-800" type="button" onClick={() => addToCart(c.id)}>
-                              <i className="fa-solid fa-cart-plus" /> {cms.addBtn}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </article>
-                ))}
-
-                {!filtered.length ? (
-                    <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4 card p-8 text-center text-slate-600">
+              <div className="mt-5 card overflow-x-auto p-4">
+                {courses.length ? (
+                  <table className="w-full min-w-[900px] text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-left">
+                        <th className="py-3 pr-3">Khóa học</th>
+                        <th className="py-3 pr-3">Chủ đề</th>
+                        <th className="py-3 pr-3">Time</th>
+                        <th className="py-3 pr-3">Đánh giá</th>
+                        <th className="py-3 pr-3">Giá</th>
+                        <th className="py-3 text-right">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {courses.map((c) => (
+                        <tr key={c.id} className="border-b border-slate-100 align-top">
+                          <td className="py-3 pr-3">
+                            <div className="font-extrabold">{c.title}</div>
+                            <div className="text-slate-600 mt-1 line-clamp-2">{c.desc}</div>
+                          </td>
+                          <td className="py-3 pr-3">
+                            <span className="chip">{c.topicName || topicLabel(c.topic)}</span>
+                          </td>
+                          <td className="py-3 pr-3">{c.time || "-"}</td>
+                          <td className="py-3 pr-3">
+                            <div className="flex items-center gap-2 text-slate-600">
+                              <Stars rating={c.rating} /> <b>{c.rating.toFixed(1)}</b>
+                            </div>
+                          </td>
+                          <td className="py-3 pr-3 font-extrabold text-indigo-700">{money(c.price)}</td>
+                          <td className="py-3 text-right">
+                            <div className="flex gap-2 justify-end">
+                              <button className="btn text-sm" type="button" onClick={() => setDetailId(c.id)}>
+                                <i className="fa-solid fa-eye" /> {cms.viewDetailBtn}
+                              </button>
+                              <button className="btn btn-primary text-sm hover:text-purple-800" type="button" onClick={() => addToCart(c.id)}>
+                                <i className="fa-solid fa-cart-plus" /> {cms.addBtn}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                    <div className="card p-8 text-center text-slate-600">
                       <div className="text-4xl">
                         <i className="fa-solid fa-box-open text-slate-400" />
                       </div>
@@ -663,7 +697,13 @@ export default function CoursesPage({
                         <i className="fa-solid fa-rotate" /> {cms.emptyResetBtn}
                       </button>
                     </div>
-                ) : null}
+                )}
+
+                <div className="mt-4 flex items-center justify-end gap-2">
+                  <button className="btn" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Trước</button>
+                  <span className="text-sm text-slate-600">Trang {page}/{totalPages}</span>
+                  <button className="btn" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Sau</button>
+                </div>
               </div>
             </div>
           </section>

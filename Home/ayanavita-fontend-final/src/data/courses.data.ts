@@ -6,8 +6,11 @@ export type Course = {
   id: string;
   title: string;
   topic: CourseTopic;
+  topicName?: string;
+  topicId?: number | null;
   img: string;
   desc: string;
+  time?: string;
   price: number;
   hours: number;
   rating: number;

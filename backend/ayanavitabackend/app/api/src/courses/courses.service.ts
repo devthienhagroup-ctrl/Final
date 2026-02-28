@@ -23,6 +23,7 @@ export class CoursesService {
     id: true,
     topicId: true,
     title: true,
+    time: true,
     shortDescription: true,
     slug: true,
     description: true,
@@ -81,6 +82,7 @@ export class CoursesService {
       slug: dto.slug,
       ...(dto.description !== undefined ? { description: dto.description } : {}),
       ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
+      ...(dto.time !== undefined ? { time: dto.time } : {}),
       ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
       ...(dto.price !== undefined ? { price: dto.price } : {}),
       ...(dto.published !== undefined ? { published: dto.published } : {}),
@@ -100,6 +102,7 @@ export class CoursesService {
       ...(dto.slug !== undefined ? { slug: dto.slug } : {}),
       ...(dto.description !== undefined ? { description: dto.description } : {}),
       ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
+      ...(dto.time !== undefined ? { time: dto.time } : {}),
       ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
       ...(dto.price !== undefined ? { price: dto.price } : {}),
       ...(dto.published !== undefined ? { published: dto.published } : {}),
@@ -182,6 +185,38 @@ export class CoursesService {
       return { ...row, title: tr?.title || row.title, shortDescription: tr?.shortDescription || row.shortDescription, description: tr?.description || row.description, objectives: ct?.objectives || legacyCt?.objectives || row.objectives, targetAudience: ct?.targetAudience || legacyCt?.targetAudience || row.targetAudience, benefits: ct?.benefits || legacyCt?.benefits || row.benefits, topic: row.topic ? { id: row.topic.id, name: tt?.name || row.topic.name } : null, videoCount: videoCountMap.get(row.id) || 0 }
     })
     return { items, total, page, pageSize }
+  }
+
+  async listTopics(lang?: string, user?: { sub: number; role: string } | null) {
+    const locale = this.resolveCourseLocale(lang)
+    const topics = await this.prisma.courseTopic.findMany({
+      where: {
+        ...(user?.role === 'ADMIN'
+          ? {}
+          : {
+              courses: {
+                some: { published: true },
+              },
+            }),
+      },
+      select: {
+        id: true,
+        name: true,
+        translations: {
+          where: { locale: { in: [locale, 'vi'] } },
+          select: { locale: true, name: true },
+        },
+      },
+      orderBy: { name: 'asc' },
+    })
+
+    return topics.map((topic: any) => {
+      const translation = topic.translations?.find((item: any) => item.locale === locale) || topic.translations?.find((item: any) => item.locale === 'vi')
+      return {
+        id: topic.id,
+        name: translation?.name || topic.name,
+      }
+    })
   }
 
 

@@ -1,0 +1,2 @@
+ALTER TABLE `Course`
+  ADD COLUMN `time` VARCHAR(120) NULL;

@@ -1679,14 +1679,14 @@ export function ReviewsAdminPage() {
               <span className="ar-badge-mini"><span className="ar-spark" /> Media & Anon</span>
             </div>
           </div>
-          {/* <div className="ar-card ar-stat">
+          <div className="ar-card ar-stat">
             <div className="ar-stat-bg" />
             <p className="ar-label">Lượt đánh giá hữu ích</p>
             <div className="ar-row">
               <p className="ar-value">{stats.helpfulTotal}</p>
               <span className="ar-badge-mini"><span className="ar-spark" /> TB {stats.helpfulAvg.toFixed(1)}/review</span>
             </div>
-          </div> */}
+          </div>
 
           {/* Top sản phẩm bị đánh giá tệ */}
           <div className="ar-card ar-panel" style={{ gridColumn: "span 7" }}>
@@ -2083,14 +2083,14 @@ export function ReviewsAdminPage() {
               </div>
 
               {/* Ghi chú nội bộ */}
-              {/* <div className="ar-section">
+              <div className="ar-section">
                 <h5><i className="fas fa-sticky-note" /> Ghi chú nội bộ</h5>
                 <textarea className="ar-note" value={selected.staffNote} onChange={(e) => setSelected(prev => prev ? { ...prev, staffNote: e.target.value } : prev)} placeholder="Nhập ghi chú..." />
                 <button className="ar-btn primary" onClick={() => updateStaffNote(selected.id, selected.staffNote)}><i className="fas fa-save" /> Lưu ghi chú</button>
-              </div> */}
+              </div>
 
               {/* Lịch sử kiểm duyệt */}
-              {/* <div className="ar-section">
+              <div className="ar-section">
                 <h5><i className="fas fa-history" /> Lịch sử kiểm duyệt</h5>
                 {selected.logs.slice().reverse().map((lg, idx) => (
                   <div className="ar-log" key={idx}>
@@ -2108,7 +2108,7 @@ export function ReviewsAdminPage() {
                     </div>
                   </div>
                 ))}
-              </div> */}
+              </div>
             </>
           )}
         </div>

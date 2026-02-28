@@ -2090,7 +2090,7 @@ export function ReviewsAdminPage() {
               </div> */}
 
               {/* Lịch sử kiểm duyệt */}
-              {/* <div className="ar-section">
+              <div className="ar-section">
                 <h5><i className="fas fa-history" /> Lịch sử kiểm duyệt</h5>
                 {selected.logs.slice().reverse().map((lg, idx) => (
                   <div className="ar-log" key={idx}>
@@ -2108,7 +2108,7 @@ export function ReviewsAdminPage() {
                     </div>
                   </div>
                 ))}
-              </div> */}
+              </div>
             </>
           )}
         </div>

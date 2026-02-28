@@ -18,16 +18,14 @@ export type LessonVideoPayload = {
   translations?: Record<string, { title: string; shortDescription?: string; description?: string }>
   sourceUrl?: string
   durationSec?: number
-  order?: number
-  published?: boolean
+  stt: number
 }
 
 export type LessonModulePayload = {
   title: string
   description?: string
   translations?: Record<string, { title: string; shortDescription?: string; description?: string }>
-  order?: number
-  published?: boolean
+  stt: number
   videos?: LessonVideoPayload[]
 }
 
@@ -37,10 +35,8 @@ export type LessonPayload = {
   description?: string
   translations?: Record<string, { title: string; description?: string }>
   content?: string
-  videoUrl?: string
   modules?: LessonModulePayload[]
-  order?: number
-  published?: boolean
+  stt: number
 }
 
 export type LessonVideoAdmin = LessonVideoPayload & { id: number; hlsPlaylistKey?: string }
@@ -54,8 +50,7 @@ export type LessonAdmin = {
   description?: string
   translations?: Record<string, { title: string; description?: string }>
   content?: string
-  order?: number
-  published: boolean
+  stt: number
   createdAt?: string
   updatedAt?: string
 }
@@ -150,17 +145,22 @@ export const adminCoursesApi = {
     return get<CourseDetailAdmin>(`/courses/${id}${suffix}`, { auth: true })
   },
 
-  listCourseLessons: (courseId: number) => get<LessonAdmin[]>(`/courses/${courseId}/lessons-outline`, { auth: true }),
+  listCourseLessons: (courseId: number, lang?: string) => {
+    const qs = new URLSearchParams()
+    if (lang) qs.set('lang', lang)
+    const suffix = qs.toString() ? `?${qs.toString()}` : ''
+    return get<LessonAdmin[]>(`/courses/${courseId}/lessons-outline${suffix}`, { auth: true })
+  },
   getLessonDetail: (lessonId: number) => get<LessonDetailAdmin>(`/lessons/${lessonId}`, { auth: true }),
   createLesson: (courseId: number, body: LessonPayload) => post<LessonAdmin>(`/courses/${courseId}/lessons`, body, { auth: true }),
   updateLesson: (lessonId: number, body: Partial<LessonPayload>) => patch<LessonAdmin>(`/lessons/${lessonId}`, body, { auth: true }),
   deleteLesson: (lessonId: number) => del<{ id: number }>(`/lessons/${lessonId}`, { auth: true }),
 
-  uploadModuleMedia: (lessonId: number, moduleId: string | number, file: File, type: 'video' | 'image', order?: number) => {
+  uploadModuleMedia: (lessonId: number, moduleId: string | number, file: File, type: 'video' | 'image', stt?: number) => {
     const body = new FormData()
     body.append('file', file)
     body.append('type', type)
-    if (order !== undefined) body.append('order', String(order))
+    if (stt !== undefined) body.append('stt', String(stt))
     return post<{ moduleId?: string; lessonId?: number; hlsPlaylistKey?: string; segmentCount?: number; imageKey?: string; sourceUrl?: string; storage: string; videoId?: number }>(`/lessons/${lessonId}/modules/${moduleId}/media/upload`, body, { auth: true })
   },
 }

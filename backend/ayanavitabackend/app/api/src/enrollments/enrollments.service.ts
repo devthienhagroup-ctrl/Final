@@ -149,7 +149,6 @@ export class EnrollmentsService {
       where: {
         userId,
         status: 'COMPLETED',
-        ...(isAdmin ? {} : { lesson: { published: true } }),
       },
       select: {
         lesson: { select: { courseId: true } },
@@ -167,7 +166,6 @@ export class EnrollmentsService {
       by: ['courseId'],
       where: {
         courseId: { in: courseIds },
-        ...(isAdmin ? {} : { published: true }),
       },
       _count: { _all: true },
     })

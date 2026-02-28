@@ -345,9 +345,7 @@ model Lesson {
   slug            String
   description     String?
   content         String?          @db.LongText
-  videoUrl        String?
-  order           Int              @default(0)
-  published       Boolean          @default(false)
+  stt             Int              @default(0)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   course          Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -356,7 +354,7 @@ model Lesson {
   translations    LessonTranslation[]
 
   @@unique([courseId, slug])
-  @@index([courseId, order])
+  @@index([courseId, stt])
 }
 
 model LessonModule {
@@ -364,8 +362,7 @@ model LessonModule {
   lessonId        Int
   title           String
   description     String?
-  order           Int          @default(0)
-  published       Boolean      @default(true)
+  stt             Int          @default(0)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -373,7 +370,7 @@ model LessonModule {
   videos LessonVideo[]
   translations LessonModuleTranslation[]
 
-  @@index([lessonId, order])
+  @@index([lessonId, stt])
 }
 
 model LessonVideo {
@@ -384,7 +381,7 @@ model LessonVideo {
   sourceUrl       String?
   hlsPlaylistKey  String?
   durationSec     Int          @default(0)
-  order           Int          @default(0)
+  stt             Int          @default(0)
   published       Boolean      @default(true)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
@@ -394,7 +391,7 @@ model LessonVideo {
   module LessonModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   translations LessonVideoTranslation[]
 
-  @@index([moduleId, order])
+  @@index([moduleId, stt])
 }
 
 

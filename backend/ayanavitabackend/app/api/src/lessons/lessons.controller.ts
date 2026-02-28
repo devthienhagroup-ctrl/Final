@@ -57,16 +57,16 @@ export class LessonsController {
     @Param('moduleId') moduleId: string,
     @UploadedFile() file?: any,
     @Body('type') type?: string,
-    @Body('order') order?: string,
+    @Body('stt') stt?: string,
   ) {
     if (!file) return { message: 'Missing media file' }
-    const parsedOrder = Number(order)
+    const parsedStt = Number(stt)
     return this.lessons.uploadModuleMedia(
       lessonId,
       moduleId,
       type === 'image' ? 'image' : 'video',
       file,
-      Number.isFinite(parsedOrder) ? parsedOrder : undefined,
+      Number.isFinite(parsedStt) ? parsedStt : undefined,
     )
   }
 

@@ -376,12 +376,6 @@ export default function ReviewsCenterPage() {
   const [submitting, setSubmitting] = useState(false);
   const isLoggedIn = !!localStorage.getItem("aya_access_token");
 
-  // ✅ Safety net: đánh giá sản phẩm thì không được ẩn danh
-  useEffect(() => {
-    if (fCat === "product" && fAnonymous) setFAnonymous(false);
-  }, [fCat, fAnonymous]);
-
-
   async function fetchPublicReviews() {
     const res = await http.get<PublicReviewApi[]>("/reviews");
     const normalized = (res.data || []).map(mapPublicReview);
@@ -519,9 +513,7 @@ export default function ReviewsCenterPage() {
       payload.append("stars", String(pickedStars));
       payload.append("comment", text);
       payload.append("customerName", name);
-      // ✅ Force: sản phẩm không được ẩn danh
-      const anon = fCat === "product" ? false : fAnonymous;
-      payload.append("anonymous", String(anon));
+      payload.append("anonymous", String(fAnonymous));
 
       if (fCat === "service") {
         if (!fServiceId) throw new Error("Vui lòng chọn dịch vụ.");
@@ -1017,14 +1009,7 @@ setModalOpen(false);
                         <div>
                           <div className="text-sm font-extrabold text-slate-700">{cmsData.modal.fields.categoryLabel}</div>
                           <div className="mt-2">
-                            <Select
-                              value={fCat}
-                              onChange={(v) => {
-                                const next = v as any;
-                                if (next === "product") setFAnonymous(false);
-                                setFCat(next);
-                              }}
-                            >
+                            <Select value={fCat} onChange={(v) => setFCat(v as any)}>
                               <option value="service">{cmsData.modal.fields.categoryOptions[0]}</option>
                               <option value="product">{cmsData.modal.fields.categoryOptions[1]}</option>
                             </Select>
@@ -1110,12 +1095,7 @@ setModalOpen(false);
                           {cmsData.modal.fields.verifiedLabel}
                         </label>
                         <label className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-extrabold">
-                          <input
-                            type="checkbox"
-                            checked={fCat === "product" ? false : fAnonymous}
-                            disabled={fCat === "product"}
-                            onChange={(e) => setFAnonymous(e.target.checked)}
-                          />
+                          <input type="checkbox" checked={fAnonymous} disabled={fCat === "product"} onChange={(e) => setFAnonymous(e.target.checked)} />
                           {cmsData.modal.fields.anonymousLabel}
                         </label>
                       </div>

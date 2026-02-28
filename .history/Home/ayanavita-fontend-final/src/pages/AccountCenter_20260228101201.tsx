@@ -50,7 +50,7 @@ export default function AccountCenter() {
       setError("");
       try {
         const data = await authApi.profile();
-        console.log("Fetched profile:", data);
+        console
         setProfile({
           fullName: data?.name ?? "",
           phone: data?.phone ?? "",

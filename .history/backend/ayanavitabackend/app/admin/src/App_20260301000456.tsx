@@ -36,6 +36,7 @@ export default function App() {
           <Route path="cms/pages/:slug" element={<CmsEditPage />} />
           <Route path="catalog/products" element={<ProductAdminListPage />} />
           <Route path="catalog/products/:productId" element={<ProductAdminDetailPage />} />
+          <Route path="catalog/crud" element={<CatalogCrudPage />} />
           <Route path="orders" element={<OrderAdminPage />} />
           <Route path="reviews" element={<ReviewsAdminPage />} />
         </Route>

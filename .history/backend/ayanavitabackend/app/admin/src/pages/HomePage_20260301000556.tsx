@@ -10,9 +10,9 @@ const menuItems = [
     icon: "✦",
   },
   {
-    title: "Reviews",
-    desc: "Theo dõi các đánh giá sản phẩm / dịch vụ của khách hàng.",
-    to: "/reviews",
+    title: "Leads",
+    desc: "Theo dõi book/talk submissions với bảng dữ liệu rõ ràng và lọc nhanh.",
+    to: "/leads",
     icon: "★",
   },
   {

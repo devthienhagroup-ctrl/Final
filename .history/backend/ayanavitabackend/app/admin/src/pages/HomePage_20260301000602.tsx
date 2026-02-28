@@ -11,8 +11,8 @@ const menuItems = [
   },
   {
     title: "Reviews",
-    desc: "Theo dõi các đánh giá sản phẩm / dịch vụ của khách hàng.",
-    to: "/reviews",
+    desc: "Theo dõi book/talk submissions với bảng dữ liệu rõ ràng và lọc nhanh.",
+    to: "/leads",
     icon: "★",
   },
   {

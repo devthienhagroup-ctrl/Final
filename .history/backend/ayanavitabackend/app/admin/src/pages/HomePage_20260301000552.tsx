@@ -10,12 +10,6 @@ const menuItems = [
     icon: "✦",
   },
   {
-    title: "Reviews",
-    desc: "Theo dõi các đánh giá sản phẩm / dịch vụ của khách hàng.",
-    to: "/reviews",
-    icon: "★",
-  },
-  {
     title: "Products",
     desc: "Danh sách sản phẩm đa ngôn ngữ, chỉnh sửa thông tin và trạng thái.",
     to: "/catalog/products",

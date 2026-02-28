@@ -33,6 +33,7 @@ export function Layout() {
             <NavItem to="/" label="Trang chủ" />
             <NavItem to="/cms/pages" label="CMS Pages" />
             <NavItem to="/catalog/products" label="Quản lý sản phẩm" />
+            <NavItem to="/catalog/crud" label="Catalog CRUD" />
             <NavItem to="/orders" label="Quản lý đơn hàng" />
             <NavItem to="/reviews" label="Quản lý đánh giá" />
           </div>

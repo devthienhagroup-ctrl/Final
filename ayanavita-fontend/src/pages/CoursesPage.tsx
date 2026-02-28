@@ -2,7 +2,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { coursesApi, type Course } from "../api/courses.api";
 import { useAuth } from "../state/auth.store";
-import { studentLanguageMeta, useStudentViewPrefs, type StudentLang } from "../hooks/useStudentViewPrefs";
+import {
+  studentLanguageMeta,
+  useStudentViewPrefs,
+  type StudentLang,
+} from "../hooks/useStudentViewPrefs";
 import "./StudentCoursesTheme.css";
 
 const i18n: Record<StudentLang, Record<string, string>> = {
@@ -67,8 +71,9 @@ export function CoursesPage() {
   }, [t.loadingFail]);
 
   const wrapClass = useMemo(
-    () => `student-page student-courses-theme ${theme === "dark" ? "student-courses-theme-dark" : ""}`,
-    [theme]
+    () =>
+      `student-page student-courses-theme ${theme === "dark" ? "student-courses-theme-dark" : ""}`,
+    [theme],
   );
 
   return (
@@ -80,41 +85,74 @@ export function CoursesPage() {
             <div style={{ opacity: 0.9, marginTop: 4 }}>{t.subtitle}</div>
           </div>
           <div className="student-control-group">
-            <button className="student-theme-toggle" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+            <button
+              className="student-theme-toggle"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            >
               {t.darkMode}: {theme === "dark" ? "ON" : "OFF"}
             </button>
+            <button className="student-theme-toggle" onClick={logout}>
+              {t.logout}
+            </button>
             <div className="student-lang-switch">
-              {(Object.keys(studentLanguageMeta) as StudentLang[]).map((code) => (
-                <button
-                  key={code}
-                  className={`student-lang-option ${lang === code ? "active" : ""}`}
-                  onClick={() => setLang(code)}
-                  title={studentLanguageMeta[code].label}
-                >
-                  <img src={studentLanguageMeta[code].flagUrl} alt={studentLanguageMeta[code].label} />
-                </button>
-              ))}
+              {(Object.keys(studentLanguageMeta) as StudentLang[]).map(
+                (code) => (
+                  <button
+                    key={code}
+                    className={`student-lang-option ${lang === code ? "active" : ""}`}
+                    onClick={() => setLang(code)}
+                    title={studentLanguageMeta[code].label}
+                  >
+                    <img
+                      src={studentLanguageMeta[code].flagUrl}
+                      alt={studentLanguageMeta[code].label}
+                    />
+                  </button>
+                ),
+              )}
             </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 12 }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            alignItems: "center",
+            flexWrap: "wrap",
+            marginTop: 12,
+          }}
+        >
           <span className="student-muted">{user?.email}</span>
           <Link to="/me/courses">{t.mine}</Link>
           <Link to="/me/orders">{t.orders}</Link>
-          {user?.role === "ADMIN" && <Link to="/admin/orders">{t.adminOrders}</Link>}
-          {user?.role === "ADMIN" && <Link to="/admin/cources">{t.adminCourses}</Link>}
-          <button onClick={logout}>{t.logout}</button>
+          {user?.role === "ADMIN" && (
+            <Link to="/admin/orders">{t.adminOrders}</Link>
+          )}
+          {user?.role === "ADMIN" && (
+            <Link to="/admin/cources">{t.adminCourses}</Link>
+          )}
         </div>
 
         {err && <div style={{ color: "crimson", marginTop: 10 }}>{err}</div>}
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginTop: 12 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 12,
+            marginTop: 12,
+          }}
+        >
           {items.map((c: Course) => (
             <div key={c.id} className="student-card">
               <div style={{ fontWeight: 800 }}>{c.title}</div>
-              <div className="student-muted" style={{ marginTop: 6 }}>{c.description}</div>
-              <div style={{ marginTop: 8 }}>{t.price}: {c.price.toLocaleString("vi-VN")}đ</div>
+              <div className="student-muted" style={{ marginTop: 6 }}>
+                {c.description}
+              </div>
+              <div style={{ marginTop: 8 }}>
+                {t.price}: {c.price.toLocaleString("vi-VN")}đ
+              </div>
               <div style={{ marginTop: 10 }}>
                 <Link to={`/courses/${c.id}`}>{t.detail}</Link>
               </div>

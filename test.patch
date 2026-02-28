@@ -1,946 +1,2720 @@
-diff --git a/ayanavita-fontend/src/api/auditLogs.api.ts b/ayanavita-fontend/src/api/auditLogs.api.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..850a3b5d324ca5e7206836658196fa00b6b98e99
---- /dev/null
-+++ b/ayanavita-fontend/src/api/auditLogs.api.ts
-@@ -0,0 +1,47 @@
-+import { get } from './http'
+diff --git a/ayanavita-fontend/src/pages/CoursesPage.tsx b/ayanavita-fontend/src/pages/CoursesPage.tsx
+index e3232301f92a65d92d94c6c0bb06273866f1b9a0..e8e3d919b3a606db9e351876c955acab481ed2c8 100644
+--- a/ayanavita-fontend/src/pages/CoursesPage.tsx
++++ b/ayanavita-fontend/src/pages/CoursesPage.tsx
+@@ -1,30 +1,34 @@
+ import React, { useEffect, useMemo, useState } from "react";
+ import { Link } from "react-router-dom";
+ import { coursesApi, type Course } from "../api/courses.api";
+ import { useAuth } from "../state/auth.store";
+-import { studentLanguageMeta, useStudentViewPrefs, type StudentLang } from "../hooks/useStudentViewPrefs";
++import {
++  studentLanguageMeta,
++  useStudentViewPrefs,
++  type StudentLang,
++} from "../hooks/useStudentViewPrefs";
+ import "./StudentCoursesTheme.css";
+
+ const i18n: Record<StudentLang, Record<string, string>> = {
+   vi: {
+     title: "Khoá học",
+     mine: "Khoá học của tôi",
+     orders: "Đơn hàng của tôi",
+     adminOrders: "Admin Orders",
+     adminCourses: "Admin Courses",
+     logout: "Đăng xuất",
+     detail: "Xem chi tiết",
+     price: "Giá",
+     darkMode: "Chế độ tối",
+     loadingFail: "Tải khoá học thất bại",
+     subtitle: "Khám phá thư viện khoá học theo phong cách mới.",
+   },
+   en: {
+     title: "Courses",
+     mine: "My Courses",
+     orders: "My Orders",
+     adminOrders: "Admin Orders",
+     adminCourses: "Admin Courses",
+     logout: "Logout",
+     detail: "View details",
+     price: "Price",
+@@ -45,83 +49,117 @@ const i18n: Record<StudentLang, Record<string, string>> = {
+     loadingFail: "Kurse konnten nicht geladen werden",
+     subtitle: "Entdecke das modernisierte Kursportal.",
+   },
+ };
+
+ export function CoursesPage() {
+   const { logout, user } = useAuth();
+   const { lang, setLang, theme, setTheme } = useStudentViewPrefs();
+   const t = i18n[lang];
+   const [items, setItems] = useState<Course[]>([]);
+   const [err, setErr] = useState<string | null>(null);
+
+   useEffect(() => {
+     (async () => {
+       try {
+         setErr(null);
+         const data = await coursesApi.list();
+         setItems(data);
+       } catch (e: any) {
+         setErr(e?.message || t.loadingFail);
+       }
+     })();
+   }, [t.loadingFail]);
+
+   const wrapClass = useMemo(
+-    () => `student-page student-courses-theme ${theme === "dark" ? "student-courses-theme-dark" : ""}`,
+-    [theme]
++    () =>
++      `student-page student-courses-theme ${theme === "dark" ? "student-courses-theme-dark" : ""}`,
++    [theme],
+   );
+
+   return (
+     <div className={wrapClass}>
+       <div className="student-shell">
+         <div className="student-topbar">
+           <div>
+             <h2 style={{ margin: 0 }}>{t.title}</h2>
+             <div style={{ opacity: 0.9, marginTop: 4 }}>{t.subtitle}</div>
+           </div>
+           <div className="student-control-group">
+-            <button className="student-theme-toggle" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
++            <button
++              className="student-theme-toggle"
++              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
++            >
+               {t.darkMode}: {theme === "dark" ? "ON" : "OFF"}
+             </button>
++            <button className="student-theme-toggle" onClick={logout}>
++              {t.logout}
++            </button>
+             <div className="student-lang-switch">
+-              {(Object.keys(studentLanguageMeta) as StudentLang[]).map((code) => (
+-                <button
+-                  key={code}
+-                  className={`student-lang-option ${lang === code ? "active" : ""}`}
+-                  onClick={() => setLang(code)}
+-                  title={studentLanguageMeta[code].label}
+-                >
+-                  <img src={studentLanguageMeta[code].flagUrl} alt={studentLanguageMeta[code].label} />
+-                </button>
+-              ))}
++              {(Object.keys(studentLanguageMeta) as StudentLang[]).map(
++                (code) => (
++                  <button
++                    key={code}
++                    className={`student-lang-option ${lang === code ? "active" : ""}`}
++                    onClick={() => setLang(code)}
++                    title={studentLanguageMeta[code].label}
++                  >
++                    <img
++                      src={studentLanguageMeta[code].flagUrl}
++                      alt={studentLanguageMeta[code].label}
++                    />
++                  </button>
++                ),
++              )}
+             </div>
+           </div>
+         </div>
+
+-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 12 }}>
++        <div
++          style={{
++            display: "flex",
++            gap: 10,
++            alignItems: "center",
++            flexWrap: "wrap",
++            marginTop: 12,
++          }}
++        >
+           <span className="student-muted">{user?.email}</span>
+           <Link to="/me/courses">{t.mine}</Link>
+           <Link to="/me/orders">{t.orders}</Link>
+-          {user?.role === "ADMIN" && <Link to="/admin/orders">{t.adminOrders}</Link>}
+-          {user?.role === "ADMIN" && <Link to="/admin/cources">{t.adminCourses}</Link>}
+-          <button onClick={logout}>{t.logout}</button>
++          {user?.role === "ADMIN" && (
++            <Link to="/admin/orders">{t.adminOrders}</Link>
++          )}
++          {user?.role === "ADMIN" && (
++            <Link to="/admin/cources">{t.adminCourses}</Link>
++          )}
+         </div>
+
+         {err && <div style={{ color: "crimson", marginTop: 10 }}>{err}</div>}
+
+-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginTop: 12 }}>
++        <div
++          style={{
++            display: "grid",
++            gridTemplateColumns: "repeat(3, 1fr)",
++            gap: 12,
++            marginTop: 12,
++          }}
++        >
+           {items.map((c: Course) => (
+             <div key={c.id} className="student-card">
+               <div style={{ fontWeight: 800 }}>{c.title}</div>
+-              <div className="student-muted" style={{ marginTop: 6 }}>{c.description}</div>
+-              <div style={{ marginTop: 8 }}>{t.price}: {c.price.toLocaleString("vi-VN")}đ</div>
++              <div className="student-muted" style={{ marginTop: 6 }}>
++                {c.description}
++              </div>
++              <div style={{ marginTop: 8 }}>
++                {t.price}: {c.price.toLocaleString("vi-VN")}đ
++              </div>
+               <div style={{ marginTop: 10 }}>
+                 <Link to={`/courses/${c.id}`}>{t.detail}</Link>
+               </div>
+             </div>
+           ))}
+         </div>
+       </div>
+     </div>
+   );
+ }
+diff --git a/ayanavita-fontend/src/pages/LoginPage.tsx b/ayanavita-fontend/src/pages/LoginPage.tsx
+index 8def6add0e2849611569e16ed1e013360325583e..b8b6732b8559350537f7d2179f21b1e7250f9fac 100644
+--- a/ayanavita-fontend/src/pages/LoginPage.tsx
++++ b/ayanavita-fontend/src/pages/LoginPage.tsx
+@@ -1,144 +1,148 @@
+ // src/pages/LoginPage.tsx
+ import React, { useMemo, useState } from "react";
+ import { Link, useLocation, useNavigate } from "react-router-dom";
+ import { ApiError } from "../api/http";
+ import { useAuth } from "../state/auth.store";
+ import { AppShell, Button, Card, Hr, Muted, SubTitle, Title } from "../ui/ui";
+
+ export default function LoginPage() {
+   const nav = useNavigate();
+   const loc = useLocation() as any;
+
+   const { login, status } = useAuth();
+   const from = useMemo(() => loc?.state?.from || "/courses", [loc]);
+
+   const [email, setEmail] = useState("");
+   const [password, setPassword] = useState("");
+   const [err, setErr] = useState<string | null>(null);
+
+   const busy = status === "loading";
+
++  const inputStyle: React.CSSProperties = {
++    height: 44,
++    borderRadius: 12,
++    border: "1px solid rgba(148,163,184,.28)",
++    background: "rgba(15,23,42,.78)",
++    color: "rgba(255,255,255,.94)",
++    padding: "0 12px",
++    outline: "none",
++  };
 +
-+export type AuditLogAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'SELECT' | 'UPSERT'
-+
-+export type AuditLogItem = {
-+  id: number
-+  userId: number | null
-+  email: string | null
-+  actorName: string | null
-+  role: string | null
-+  ipAddress: string | null
-+  method: string | null
-+  endpoint: string | null
-+  tableName: string
-+  action: AuditLogAction
-+  queryPayload: unknown
-+  createdAt: string
-+}
-+
-+export type AuditLogListResponse = {
-+  page: number
-+  limit: number
-+  total: number
-+  items: AuditLogItem[]
-+}
-+
-+export const auditLogsApi = {
-+  list(params?: {
-+    page?: number
-+    limit?: number
-+    tableName?: string
-+    action?: string
-+    role?: string
-+    q?: string
-+  }) {
-+    const query = new URLSearchParams()
-+    if (params?.page) query.set('page', String(params.page))
-+    if (params?.limit) query.set('limit', String(params.limit))
-+    if (params?.tableName) query.set('tableName', params.tableName)
-+    if (params?.action) query.set('action', params.action)
-+    if (params?.role) query.set('role', params.role)
-+    if (params?.q) query.set('q', params.q)
-+
-+    const suffix = query.toString()
-+    return get<AuditLogListResponse>(`/audit-logs${suffix ? `?${suffix}` : ''}`)
-+  },
-+}
-diff --git a/ayanavita-fontend/src/pages/admin/AdminAuditLogsPage.css b/ayanavita-fontend/src/pages/admin/AdminAuditLogsPage.css
-new file mode 100644
-index 0000000000000000000000000000000000000000..64edb4c60062ed1ac67156aeaf346a26d50030a8
---- /dev/null
-+++ b/ayanavita-fontend/src/pages/admin/AdminAuditLogsPage.css
-@@ -0,0 +1,57 @@
-+.audit-toolbar {
-+  display: grid;
-+  gap: 12px;
-+}
-+
-+.audit-filters {
-+  display: grid;
-+  grid-template-columns: repeat(5, minmax(120px, 1fr));
-+  gap: 8px;
-+}
-+
-+.audit-table-wrap {
-+  overflow: auto;
-+}
-+
-+.audit-table {
-+  width: 100%;
-+  border-collapse: collapse;
-+  min-width: 1100px;
-+}
-+
-+.audit-table th,
-+.audit-table td {
-+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-+  padding: 10px;
-+  text-align: left;
-+  vertical-align: top;
-+}
-+
-+.audit-table pre {
-+  margin: 0;
-+  max-width: 360px;
-+  max-height: 160px;
-+  overflow: auto;
-+  white-space: pre-wrap;
-+  font-size: 12px;
-+}
-+
-+.audit-action {
-+  padding: 4px 8px;
-+  border-radius: 999px;
-+  font-size: 12px;
-+  font-weight: 700;
-+}
-+
-+.audit-select { background: rgba(59, 130, 246, 0.2); }
-+.audit-create { background: rgba(34, 197, 94, 0.2); }
-+.audit-update { background: rgba(234, 179, 8, 0.2); }
-+.audit-delete { background: rgba(239, 68, 68, 0.2); }
-+.audit-upsert { background: rgba(168, 85, 247, 0.2); }
-+
-+.audit-pagination {
-+  display: flex;
-+  justify-content: space-between;
-+  align-items: center;
-+  margin-top: 12px;
-+}
-diff --git a/ayanavita-fontend/src/pages/admin/AdminAuditLogsPage.tsx b/ayanavita-fontend/src/pages/admin/AdminAuditLogsPage.tsx
-new file mode 100644
-index 0000000000000000000000000000000000000000..bca92a1940c36fd8ca25761b338a745a21fde03d
---- /dev/null
-+++ b/ayanavita-fontend/src/pages/admin/AdminAuditLogsPage.tsx
-@@ -0,0 +1,134 @@
-+import { useEffect, useMemo, useState } from 'react'
-+import { Link } from 'react-router-dom'
-+import { auditLogsApi, type AuditLogItem } from '../../api/auditLogs.api'
-+import './AdminSpaPage.css'
-+import './AdminAuditLogsPage.css'
-+
-+export default function AdminAuditLogsPage() {
-+  const [items, setItems] = useState<AuditLogItem[]>([])
-+  const [loading, setLoading] = useState(false)
-+  const [error, setError] = useState<string | null>(null)
-+
-+  const [page, setPage] = useState(1)
-+  const [limit] = useState(25)
-+  const [total, setTotal] = useState(0)
-+
-+  const [action, setAction] = useState('')
-+  const [tableName, setTableName] = useState('')
-+  const [role, setRole] = useState('')
-+  const [q, setQ] = useState('')
-+
-+  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit])
-+
-+  async function load(nextPage = page) {
-+    setLoading(true)
-+    setError(null)
-+    try {
-+      const data = await auditLogsApi.list({
-+        page: nextPage,
-+        limit,
-+        action: action || undefined,
-+        tableName: tableName || undefined,
-+        role: role || undefined,
-+        q: q.trim() || undefined,
-+      })
-+      setItems(data.items)
-+      setTotal(data.total)
-+      setPage(data.page)
-+    } catch (e: any) {
-+      setError(e?.message || 'Không tải được audit log')
-+    } finally {
-+      setLoading(false)
-+    }
-+  }
-+
-+  useEffect(() => {
-+    load(1)
-+    // eslint-disable-next-line react-hooks/exhaustive-deps
-+  }, [action, tableName, role])
-+
-+  return (
-+    <div className="admin-page">
-+      <header className="admin-header">
-+        <div>
-+          <p className="admin-header-kicker">ADMIN / AUDIT LOGS</p>
-+          <h1>Nhật ký thao tác dữ liệu</h1>
-+          <p>Theo dõi ai thao tác gì, lúc nào, IP nào, role nào trên tất cả bảng.</p>
+   async function onSubmit(e: React.FormEvent) {
+     e.preventDefault();
+     setErr(null);
+     try {
+       await login(email.trim(), password);
+       nav(from, { replace: true });
+     } catch (e: any) {
+       if (e instanceof ApiError) setErr(`(${e.status}) ${e.message}`);
+       else setErr(String(e?.message || "Login failed"));
+     }
+   }
+
+   return (
+-    <AppShell
+-      title={
+-        <>
+-          <Title>Đăng nhập AYANAVITA</Title>
+-          <SubTitle>Vui lòng đăng nhập để truy cập khoá học và bài học.</SubTitle>
+-        </>
+-      }
+-      actions={
+-        <Button
+-          tone="neutral"
+-          variant="ghost"
+-          onClick={() => {
+-            setEmail("");
+-            setPassword("");
+-            setErr(null);
+-          }}
+-        >
+-          Xoá form
+-        </Button>
+-      }
++    <div
++      style={{
++        minHeight: "100vh",
++        background:
++          "radial-gradient(1100px 650px at 0% 0%, rgba(124,58,237,.24), transparent 55%), radial-gradient(950px 580px at 100% 8%, rgba(56,189,248,.16), transparent 55%), linear-gradient(180deg, #020617 0%, #0b1220 55%, #111827 100%)",
++      }}
+     >
+-      <div style={{ padding: "18px 0" }}>
+-        <Card style={{ maxWidth: 520 }}>
+-          <form onSubmit={onSubmit}>
+-            <div style={{ display: "grid", gap: 12 }}>
+-              <label style={{ display: "grid", gap: 6 }}>
+-                <Muted>Email</Muted>
+-                <input
+-                  value={email}
+-                  onChange={(e) => setEmail(e.target.value)}
+-                  placeholder="email@domain.com"
+-                  autoComplete="email"
+-                  style={{
+-                    height: 42,
+-                    borderRadius: 12,
+-                    border: "1px solid rgba(148,163,184,.22)",
+-                    background: "rgba(2,6,23,.35) !important",
+-                    color: "rgba(255,255,255,.92)",
+-                    padding: "0 12px",
+-                    outline: "none",
+-                  }}
+-                />
+-              </label>
++      <AppShell
++        title={
++          <>
++            <Title>Đăng nhập AYANAVITA</Title>
++            <SubTitle>
++              Vui lòng đăng nhập để truy cập khoá học và bài học.
++            </SubTitle>
++          </>
++        }
++        actions={
++          <Button
++            tone="neutral"
++            variant="ghost"
++            onClick={() => {
++              setEmail("");
++              setPassword("");
++              setErr(null);
++            }}
++          >
++            Xoá form
++          </Button>
++        }
++      >
++        <div style={{ padding: "18px 0" }}>
++          <Card style={{ maxWidth: 520 }}>
++            <form onSubmit={onSubmit}>
++              <div style={{ display: "grid", gap: 12 }}>
++                <label style={{ display: "grid", gap: 6 }}>
++                  <Muted>Email</Muted>
++                  <input
++                    value={email}
++                    onChange={(e) => setEmail(e.target.value)}
++                    placeholder="email@domain.com"
++                    autoComplete="email"
++                    style={inputStyle}
++                  />
++                </label>
+
+-              <label style={{ display: "grid", gap: 6 }}>
+-                <Muted>Mật khẩu</Muted>
+-                <input
+-                  type="password"
+-                  value={password}
+-                  onChange={(e) => setPassword(e.target.value)}
+-                  placeholder="••••••"
+-                  autoComplete="current-password"
+-                  style={{
+-                    height: 42,
+-                    borderRadius: 12,
+-                    border: "1px solid rgba(148,163,184,.22)",
+-                    background: "rgba(2,6,23,.35)",
+-                    color: "rgba(255,255,255,.92)",
+-                    padding: "0 12px",
+-                    outline: "none",
+-                  }}
+-                />
+-              </label>
++                <label style={{ display: "grid", gap: 6 }}>
++                  <Muted>Mật khẩu</Muted>
++                  <input
++                    type="password"
++                    value={password}
++                    onChange={(e) => setPassword(e.target.value)}
++                    placeholder="••••••"
++                    autoComplete="current-password"
++                    style={inputStyle}
++                  />
++                </label>
+
+-              {err ? (
+-                <div
+-                  style={{
+-                    border: "1px solid rgba(239,68,68,.35)",
+-                    background: "rgba(239,68,68,.08)",
+-                    padding: "10px 12px",
+-                    borderRadius: 12,
+-                    fontSize: 13,
+-                  }}
+-                >
+-                  {err}
+-                </div>
+-              ) : null}
++                {err ? (
++                  <div
++                    style={{
++                      border: "1px solid rgba(239,68,68,.35)",
++                      background: "rgba(239,68,68,.08)",
++                      padding: "10px 12px",
++                      borderRadius: 12,
++                      fontSize: 13,
++                    }}
++                  >
++                    {err}
++                  </div>
++                ) : null}
+
+-              <Hr />
++                <Hr />
+
+-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+-                <Button type="submit" disabled={busy}>
+-                  {busy ? "Đang đăng nhập…" : "Đăng nhập"}
+-                </Button>
++                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
++                  <Button type="submit" disabled={busy}>
++                    {busy ? "Đang đăng nhập…" : "Đăng nhập"}
++                  </Button>
+
+-                <Button
+-                  type="button"
+-                  tone="neutral"
+-                  variant="ghost"
+-                  onClick={() => nav(from, { replace: true })}
+-                  title="Đi tới trang mục tiêu (nếu đã đăng nhập)"
+-                >
+-                  Tiếp tục
+-                </Button>
+-              </div>
++                  <Button
++                    type="button"
++                    tone="neutral"
++                    variant="ghost"
++                    onClick={() => nav(from, { replace: true })}
++                    title="Đi tới trang mục tiêu (nếu đã đăng nhập)"
++                  >
++                    Tiếp tục
++                  </Button>
++                </div>
+
+-              <div style={{ display: "grid", gap: 6 }}>
+-                <Muted>
+-                  Chưa có tài khoản? <Link to="/register">Đăng ký</Link>
+-                </Muted>
+-                <Muted>
+-                  Token lưu tại <b>localStorage.accessToken</b>
+-                </Muted>
++                <div style={{ display: "grid", gap: 6 }}>
++                  <Muted>
++                    Chưa có tài khoản? <Link to="/register">Đăng ký</Link>
++                  </Muted>
++                  <Muted>
++                    Token lưu tại <b>localStorage.accessToken</b>
++                  </Muted>
++                </div>
+               </div>
+-            </div>
+-          </form>
+-        </Card>
+-      </div>
+-    </AppShell>
++            </form>
++          </Card>
 +        </div>
-+      </header>
-+
-+      <section className="admin-card admin-card-glow audit-toolbar">
-+        <div className="orders-links">
-+          <Link className="admin-btn admin-btn-ghost" to="/admin/orders">Orders</Link>
-+          <Link className="admin-btn admin-btn-ghost" to="/admin/spa">Admin Spa</Link>
-+          <button className="admin-btn admin-btn-primary" onClick={() => load(1)} disabled={loading}>Reload</button>
-+        </div>
-+
-+        <div className="audit-filters">
-+          <input className="admin-input" placeholder="Table name" value={tableName} onChange={(e) => setTableName(e.target.value)} />
-+          <select className="admin-input" value={action} onChange={(e) => setAction(e.target.value)}>
-+            <option value="">All action</option>
-+            <option value="SELECT">SELECT</option>
-+            <option value="CREATE">CREATE</option>
-+            <option value="UPDATE">UPDATE</option>
-+            <option value="DELETE">DELETE</option>
-+            <option value="UPSERT">UPSERT</option>
-+          </select>
-+          <input className="admin-input" placeholder="Role" value={role} onChange={(e) => setRole(e.target.value)} />
-+          <input className="admin-input" placeholder="Search email/name/ip/endpoint" value={q} onChange={(e) => setQ(e.target.value)} />
-+          <button className="admin-btn admin-btn-save" onClick={() => load(1)} disabled={loading}>Filter</button>
-+        </div>
-+      </section>
-+
-+      {error ? <div className="orders-state orders-error">{error}</div> : null}
-+      {loading ? <div className="orders-state">Loading...</div> : null}
-+
-+      <section className="admin-card audit-table-wrap">
-+        <table className="audit-table">
-+          <thead>
-+            <tr>
-+              <th>Time</th>
-+              <th>User</th>
-+              <th>Role</th>
-+              <th>IP</th>
-+              <th>Action</th>
-+              <th>Table</th>
-+              <th>Endpoint</th>
-+              <th>Payload</th>
-+            </tr>
-+          </thead>
-+          <tbody>
-+            {items.map((item) => (
-+              <tr key={item.id}>
-+                <td>{new Date(item.createdAt).toLocaleString()}</td>
-+                <td>
-+                  <div>{item.actorName || '-'}</div>
-+                  <small>{item.email || '-'}</small>
-+                </td>
-+                <td>{item.role || '-'}</td>
-+                <td>{item.ipAddress || '-'}</td>
-+                <td><span className={`audit-action audit-${item.action.toLowerCase()}`}>{item.action}</span></td>
-+                <td>{item.tableName}</td>
-+                <td>{item.method} {item.endpoint}</td>
-+                <td>
-+                  <pre>{JSON.stringify(item.queryPayload, null, 2)}</pre>
-+                </td>
-+              </tr>
-+            ))}
-+            {!items.length && !loading ? (
-+              <tr>
-+                <td colSpan={8}>Không có dữ liệu log</td>
-+              </tr>
-+            ) : null}
-+          </tbody>
-+        </table>
-+      </section>
-+
-+      <section className="audit-pagination">
-+        <button className="admin-btn admin-btn-ghost" disabled={page <= 1 || loading} onClick={() => load(page - 1)}>Prev</button>
-+        <span>Page {page} / {totalPages} · Total {total}</span>
-+        <button className="admin-btn admin-btn-ghost" disabled={page >= totalPages || loading} onClick={() => load(page + 1)}>Next</button>
-+      </section>
++      </AppShell>
 +    </div>
-+  )
-+}
-diff --git a/ayanavita-fontend/src/pages/admin/AdminOrdersPage.tsx b/ayanavita-fontend/src/pages/admin/AdminOrdersPage.tsx
-index 83a00c81cb3487bb20fe463d35524f16d93aa292..d57e35397a72ba64ce1d42c5e9e4a89b58d8f0a6 100644
---- a/ayanavita-fontend/src/pages/admin/AdminOrdersPage.tsx
-+++ b/ayanavita-fontend/src/pages/admin/AdminOrdersPage.tsx
-@@ -135,50 +135,54 @@ export function AdminOrdersPage() {
-         <article className="overview-card">
-           <span>Đã thanh toán</span>
-           <strong>{stats.paid}</strong>
-           <small>PAID</small>
-           <i className="fa-solid fa-circle-check overview-icon" aria-hidden="true" />
+   );
+ }
+diff --git a/ayanavita-fontend/src/pages/admin/AdminCoursesPage.tsx b/ayanavita-fontend/src/pages/admin/AdminCoursesPage.tsx
+index 6d6329d0ae304dd26eabca839f3baf45e75f73e3..1463bf047d590aaf66f79cf54bbb991eba8c82ca 100644
+--- a/ayanavita-fontend/src/pages/admin/AdminCoursesPage.tsx
++++ b/ayanavita-fontend/src/pages/admin/AdminCoursesPage.tsx
+@@ -1,486 +1,577 @@
+-import { useEffect, useMemo, useState } from 'react'
+-import { adminCoursesApi, type CourseAdmin, type CourseTopic } from '../../api/adminCourses.api'
+-import { AlertJs } from '../../utils/alertJs'
+-import { CoursesTab } from './courseTabs/CoursesTab'
+-import { TopicsTab } from './courseTabs/TopicsTab'
+-import './AdminSpaPage.css'
+-import './AdminCoursesPage.css'
+-
+-type TabKey = 'topics' | 'courses'
+-type ThemeMode = 'light' | 'dark'
+-type AdminLang = 'vi' | 'en' | 'de'
+-type TopicI18nForm = Record<AdminLang, { name: string; description: string }>
+-
+-const THEME_STORAGE_KEY = 'admin-courses-theme-mode'
+-const LANG_STORAGE_KEY = 'admin-courses-lang'
++import { useEffect, useMemo, useState } from "react";
++import {
++  adminCoursesApi,
++  type CourseAdmin,
++  type CourseTopic,
++} from "../../api/adminCourses.api";
++import { AlertJs } from "../../utils/alertJs";
++import { CoursesTab } from "./courseTabs/CoursesTab";
++import { TopicsTab } from "./courseTabs/TopicsTab";
++import "./AdminSpaPage.css";
++import "./AdminCoursesPage.css";
++import { useAuth } from "../../state/auth.store";
++
++type TabKey = "topics" | "courses";
++type ThemeMode = "light" | "dark";
++type AdminLang = "vi" | "en" | "de";
++type TopicI18nForm = Record<AdminLang, { name: string; description: string }>;
++
++const THEME_STORAGE_KEY = "admin-courses-theme-mode";
++const LANG_STORAGE_KEY = "admin-courses-lang";
+
+ const emptyTopicForm = (): TopicI18nForm => ({
+-  vi: { name: '', description: '' },
+-  'en': { name: '', description: '' },
+-  de: { name: '', description: '' },
+-})
++  vi: { name: "", description: "" },
++  en: { name: "", description: "" },
++  de: { name: "", description: "" },
++});
+
+ const uiText: Record<AdminLang, Record<string, string>> = {
+   vi: {
+-    kicker: 'TRUNG TÂM QUẢN TRỊ KHÓA HỌC',
+-    title: 'Quản trị chủ đề & danh mục khóa học',
+-    subtitle: 'Giao diện đồng bộ với quản trị dịch vụ, hỗ trợ nhập liệu đa ngôn ngữ và hiển thị theo ngôn ngữ quản trị.',
+-    darkMode: 'Dark mode',
+-    topicCount: 'Chủ đề khóa học',
+-    topicCountDesc: 'Danh mục chủ đề hiện có',
+-    courseCount: 'Tổng khóa học',
+-    courseCountDesc: 'Khoá học đang quản lý',
+-    publishedCount: 'Đã xuất bản',
+-    publishedCountDesc: 'Khoá học trạng thái Published',
+-    draftCount: 'Bản nháp',
+-    draftCountDesc: 'Khoá học trạng thái Draft',
+-    topicsTab: 'Chủ đề khóa học',
+-    coursesTab: 'Khoá học hiện có',
+-    loading: 'Đang tải dữ liệu...',
+-    topicForm: 'Form chủ đề khóa học',
+-    topicName: 'Tên chủ đề',
+-    topicSub: 'Vui lòng nhập nội dung bằng tiếng Việt làm mặc định. Hệ thống sẽ tự động gợi ý bản dịch tiếng Anh và Đức. Vui lòng kiểm tra kỹ bản dịch trước khi lưu.',
+-    topicNamePlaceholder: 'Nhập tên chủ đề',
+-    topicDescription: 'Mô tả ngắn',
+-    topicDescriptionPlaceholder: 'Mô tả tuỳ chọn',
+-    updateTopic: 'Cập nhật chủ đề',
+-    createTopic: 'Tạo chủ đề',
+-    cancelEdit: 'Huỷ chỉnh sửa',
+-    topicList: 'Danh sách chủ đề',
+-    courseCountCol: 'Số khoá học',
+-    actions: 'Thao tác',
+-    editTopic: 'Sửa chủ đề',
+-    deleteTopic: 'Xoá chủ đề',
+-    validateName: 'Vui lòng nhập tên chủ đề cho ngôn ngữ hiện tại',
+-    updateSuccess: 'Đã cập nhật chủ đề',
+-    createSuccess: 'Đã tạo chủ đề mới',
+-    deleteSuccess: 'Đã xóa chủ đề thành công',
+-    loadFailed: 'Không thể tải dữ liệu quản trị khóa học',
+-    saveFailed: 'Lưu chủ đề thất bại',
+-    deleteFailed: 'Không thể xóa chủ đề',
+-    displayMode: 'Chế độ hiển thị',
+-    filterByTopic: 'Lọc theo chủ đề',
+-    allTopics: 'Tất cả chủ đề',
+-    searchByCourseName: 'Tìm theo tên khóa học',
+-    searchPlaceholder: 'Nhập tên khóa học...',
+-    titleCol: 'Tiêu đề',
+-    topicCol: 'Chủ đề',
+-    priceCol: 'Giá',
+-    ratingCol: 'Rating',
+-    enrollmentCol: 'Đăng ký',
+-    lessonCol: 'Bài học',
+-    videoCountCol: 'Video',
+-    createdAtCol: 'Tạo lúc',
+-    updatedAtCol: 'Sửa lúc',
+-    statusCol: 'Trạng thái',
+-    unassigned: 'Chưa gán',
+-    publishedStatus: 'Published',
+-    draftStatus: 'Draft',
+-    pageLabel: 'Trang',
+-    totalCoursesLabel: 'Tổng khóa học',
+-    prevPage: 'Trước',
+-    nextPage: 'Sau',
++    kicker: "TRUNG TÂM QUẢN TRỊ KHÓA HỌC",
++    title: "Quản trị chủ đề & danh mục khóa học",
++    subtitle:
++      "Giao diện đồng bộ với quản trị dịch vụ, hỗ trợ nhập liệu đa ngôn ngữ và hiển thị theo ngôn ngữ quản trị.",
++    darkMode: "Dark mode",
++    topicCount: "Chủ đề khóa học",
++    topicCountDesc: "Danh mục chủ đề hiện có",
++    courseCount: "Tổng khóa học",
++    courseCountDesc: "Khoá học đang quản lý",
++    publishedCount: "Đã xuất bản",
++    publishedCountDesc: "Khoá học trạng thái Published",
++    draftCount: "Bản nháp",
++    draftCountDesc: "Khoá học trạng thái Draft",
++    topicsTab: "Chủ đề khóa học",
++    coursesTab: "Khoá học hiện có",
++    loading: "Đang tải dữ liệu...",
++    topicForm: "Form chủ đề khóa học",
++    topicName: "Tên chủ đề",
++    topicSub:
++      "Vui lòng nhập nội dung bằng tiếng Việt làm mặc định. Hệ thống sẽ tự động gợi ý bản dịch tiếng Anh và Đức. Vui lòng kiểm tra kỹ bản dịch trước khi lưu.",
++    topicNamePlaceholder: "Nhập tên chủ đề",
++    topicDescription: "Mô tả ngắn",
++    topicDescriptionPlaceholder: "Mô tả tuỳ chọn",
++    updateTopic: "Cập nhật chủ đề",
++    createTopic: "Tạo chủ đề",
++    cancelEdit: "Huỷ chỉnh sửa",
++    topicList: "Danh sách chủ đề",
++    courseCountCol: "Số khoá học",
++    actions: "Thao tác",
++    editTopic: "Sửa chủ đề",
++    deleteTopic: "Xoá chủ đề",
++    validateName: "Vui lòng nhập tên chủ đề cho ngôn ngữ hiện tại",
++    updateSuccess: "Đã cập nhật chủ đề",
++    createSuccess: "Đã tạo chủ đề mới",
++    deleteSuccess: "Đã xóa chủ đề thành công",
++    loadFailed: "Không thể tải dữ liệu quản trị khóa học",
++    saveFailed: "Lưu chủ đề thất bại",
++    deleteFailed: "Không thể xóa chủ đề",
++    displayMode: "Chế độ hiển thị",
++    filterByTopic: "Lọc theo chủ đề",
++    allTopics: "Tất cả chủ đề",
++    searchByCourseName: "Tìm theo tên khóa học",
++    searchPlaceholder: "Nhập tên khóa học...",
++    titleCol: "Tiêu đề",
++    topicCol: "Chủ đề",
++    priceCol: "Giá",
++    ratingCol: "Rating",
++    enrollmentCol: "Đăng ký",
++    lessonCol: "Bài học",
++    videoCountCol: "Video",
++    createdAtCol: "Tạo lúc",
++    updatedAtCol: "Sửa lúc",
++    statusCol: "Trạng thái",
++    unassigned: "Chưa gán",
++    publishedStatus: "Published",
++    draftStatus: "Draft",
++    pageLabel: "Trang",
++    totalCoursesLabel: "Tổng khóa học",
++    prevPage: "Trước",
++    nextPage: "Sau",
++    logout: "Đăng xuất",
+   },
+-  'en': {
+-    kicker: 'COURSE ADMIN CENTER',
+-    title: 'Manage course topics & categories',
+-    subtitle: 'Service-admin style interface with multilingual input and language-based display for operators.',
+-    darkMode: 'Dark mode',
+-    topicCount: 'Course topics',
+-    topicCountDesc: 'Existing topic groups',
+-    courseCount: 'Total courses',
+-    courseCountDesc: 'Courses under management',
+-    publishedCount: 'Published',
+-    publishedCountDesc: 'Courses in Published status',
+-    draftCount: 'Draft',
+-    draftCountDesc: 'Courses in Draft status',
+-    topicsTab: 'Course topics',
+-    coursesTab: 'Current courses',
+-    loading: 'Loading data...',
+-    topicForm: 'Course topic form',
+-    topicName: 'Topic name',
+-    topicSub: 'Please enter content in Vietnamese by default. The system will automatically suggest English and German translations. Please review the translations carefully before saving.',
+-    topicNamePlaceholder: 'Enter topic name',
+-    topicDescription: 'Short description',
+-    topicDescriptionPlaceholder: 'Optional description',
+-    updateTopic: 'Update topic',
+-    createTopic: 'Create topic',
+-    cancelEdit: 'Cancel edit',
+-    topicList: 'Topic list',
+-    courseCountCol: 'Course count',
+-    actions: 'Actions',
+-    editTopic: 'Edit topic',
+-    deleteTopic: 'Delete topic',
+-    validateName: 'Please enter topic name for active language',
+-    updateSuccess: 'Topic updated',
+-    createSuccess: 'Topic created',
+-    deleteSuccess: 'Topic deleted successfully',
+-    loadFailed: 'Unable to load course admin data',
+-    saveFailed: 'Failed to save topic',
+-    deleteFailed: 'Unable to delete topic',
+-    displayMode: 'Display mode',
+-    filterByTopic: 'Filter by topic',
+-    allTopics: 'All topics',
+-    searchByCourseName: 'Search by course name',
+-    searchPlaceholder: 'Enter course name...',
+-    titleCol: 'Title',
+-    topicCol: 'Topic',
+-    priceCol: 'Price',
+-    ratingCol: 'Rating',
+-    enrollmentCol: 'Enrollments',
+-    lessonCol: 'Lessons',
+-    videoCountCol: 'Videos',
+-    createdAtCol: 'Created at',
+-    updatedAtCol: 'Updated at',
+-    statusCol: 'Status',
+-    unassigned: 'Unassigned',
+-    publishedStatus: 'Published',
+-    draftStatus: 'Draft',
+-    pageLabel: 'Page',
+-    totalCoursesLabel: 'Total courses',
+-    prevPage: 'Prev',
+-    nextPage: 'Next',
++  en: {
++    kicker: "COURSE ADMIN CENTER",
++    title: "Manage course topics & categories",
++    subtitle:
++      "Service-admin style interface with multilingual input and language-based display for operators.",
++    darkMode: "Dark mode",
++    topicCount: "Course topics",
++    topicCountDesc: "Existing topic groups",
++    courseCount: "Total courses",
++    courseCountDesc: "Courses under management",
++    publishedCount: "Published",
++    publishedCountDesc: "Courses in Published status",
++    draftCount: "Draft",
++    draftCountDesc: "Courses in Draft status",
++    topicsTab: "Course topics",
++    coursesTab: "Current courses",
++    loading: "Loading data...",
++    topicForm: "Course topic form",
++    topicName: "Topic name",
++    topicSub:
++      "Please enter content in Vietnamese by default. The system will automatically suggest English and German translations. Please review the translations carefully before saving.",
++    topicNamePlaceholder: "Enter topic name",
++    topicDescription: "Short description",
++    topicDescriptionPlaceholder: "Optional description",
++    updateTopic: "Update topic",
++    createTopic: "Create topic",
++    cancelEdit: "Cancel edit",
++    topicList: "Topic list",
++    courseCountCol: "Course count",
++    actions: "Actions",
++    editTopic: "Edit topic",
++    deleteTopic: "Delete topic",
++    validateName: "Please enter topic name for active language",
++    updateSuccess: "Topic updated",
++    createSuccess: "Topic created",
++    deleteSuccess: "Topic deleted successfully",
++    loadFailed: "Unable to load course admin data",
++    saveFailed: "Failed to save topic",
++    deleteFailed: "Unable to delete topic",
++    displayMode: "Display mode",
++    filterByTopic: "Filter by topic",
++    allTopics: "All topics",
++    searchByCourseName: "Search by course name",
++    searchPlaceholder: "Enter course name...",
++    titleCol: "Title",
++    topicCol: "Topic",
++    priceCol: "Price",
++    ratingCol: "Rating",
++    enrollmentCol: "Enrollments",
++    lessonCol: "Lessons",
++    videoCountCol: "Videos",
++    createdAtCol: "Created at",
++    updatedAtCol: "Updated at",
++    statusCol: "Status",
++    unassigned: "Unassigned",
++    publishedStatus: "Published",
++    draftStatus: "Draft",
++    pageLabel: "Page",
++    totalCoursesLabel: "Total courses",
++    prevPage: "Prev",
++    nextPage: "Next",
++    logout: "Logout",
+   },
+   de: {
+-    kicker: 'KURS-ADMIN-ZENTRUM',
+-    title: 'Kursthemen & Kategorien verwalten',
+-    subtitle: 'Service-Management-Stil mit mehrsprachiger Eingabe und sprachabhängiger Anzeige für Admins.',
+-    darkMode: 'Dark mode',
+-    topicCount: 'Kursthemen',
+-    topicCountDesc: 'Vorhandene Themengruppen',
+-    courseCount: 'Gesamte Kurse',
+-    courseCountDesc: 'Verwaltete Kurse',
+-    publishedCount: 'Veröffentlicht',
+-    publishedCountDesc: 'Kurse im Status Published',
+-    draftCount: 'Entwurf',
+-    draftCountDesc: 'Kurse im Status Draft',
+-    topicsTab: 'Kursthemen',
+-    coursesTab: 'Aktuelle Kurse',
+-    loading: 'Daten werden geladen...',
+-    topicForm: 'Kursthema-Formular',
+-    topicName: 'Themenname',
+-    topicSub: 'Bitte geben Sie den Inhalt standardmäßig auf Vietnamesisch ein. Das System schlägt automatisch englische und deutsche Übersetzungen vor. Bitte überprüfen Sie die Übersetzungen sorgfältig, bevor Sie speichern.',
+-    topicNamePlaceholder: 'Themenname eingeben',
+-    topicDescription: 'Kurzbeschreibung',
+-    topicDescriptionPlaceholder: 'Optionale Beschreibung',
+-    updateTopic: 'Thema aktualisieren',
+-    createTopic: 'Thema erstellen',
+-    cancelEdit: 'Bearbeitung abbrechen',
+-    topicList: 'Themenliste',
+-    courseCountCol: 'Kursanzahl',
+-    actions: 'Aktionen',
+-    editTopic: 'Thema bearbeiten',
+-    deleteTopic: 'Thema löschen',
+-    validateName: 'Bitte Themenname für aktive Sprache eingeben',
+-    updateSuccess: 'Thema wurde aktualisiert',
+-    createSuccess: 'Thema wurde erstellt',
+-    deleteSuccess: 'Thema erfolgreich gelöscht',
+-    loadFailed: 'Kursverwaltungsdaten konnten nicht geladen werden',
+-    saveFailed: 'Thema konnte nicht gespeichert werden',
+-    deleteFailed: 'Thema konnte nicht gelöscht werden',
+-    displayMode: 'Anzeigemodus',
+-    filterByTopic: 'Nach Thema filtern',
+-    allTopics: 'Alle Themen',
+-    searchByCourseName: 'Nach Kursname suchen',
+-    searchPlaceholder: 'Kursname eingeben...',
+-    titleCol: 'Titel',
+-    topicCol: 'Thema',
+-    priceCol: 'Preis',
+-    ratingCol: 'Bewertung',
+-    enrollmentCol: 'Anmeldungen',
+-    lessonCol: 'Lektionen',
+-    videoCountCol: 'Videos',
+-    createdAtCol: 'Erstellt am',
+-    updatedAtCol: 'Aktualisiert am',
+-    statusCol: 'Status',
+-    unassigned: 'Nicht zugeordnet',
+-    publishedStatus: 'Published',
+-    draftStatus: 'Draft',
+-    pageLabel: 'Seite',
+-    totalCoursesLabel: 'Gesamtkurse',
+-    prevPage: 'Zurück',
+-    nextPage: 'Weiter',
++    kicker: "KURS-ADMIN-ZENTRUM",
++    title: "Kursthemen & Kategorien verwalten",
++    subtitle:
++      "Service-Management-Stil mit mehrsprachiger Eingabe und sprachabhängiger Anzeige für Admins.",
++    darkMode: "Dark mode",
++    topicCount: "Kursthemen",
++    topicCountDesc: "Vorhandene Themengruppen",
++    courseCount: "Gesamte Kurse",
++    courseCountDesc: "Verwaltete Kurse",
++    publishedCount: "Veröffentlicht",
++    publishedCountDesc: "Kurse im Status Published",
++    draftCount: "Entwurf",
++    draftCountDesc: "Kurse im Status Draft",
++    topicsTab: "Kursthemen",
++    coursesTab: "Aktuelle Kurse",
++    loading: "Daten werden geladen...",
++    topicForm: "Kursthema-Formular",
++    topicName: "Themenname",
++    topicSub:
++      "Bitte geben Sie den Inhalt standardmäßig auf Vietnamesisch ein. Das System schlägt automatisch englische und deutsche Übersetzungen vor. Bitte überprüfen Sie die Übersetzungen sorgfältig, bevor Sie speichern.",
++    topicNamePlaceholder: "Themenname eingeben",
++    topicDescription: "Kurzbeschreibung",
++    topicDescriptionPlaceholder: "Optionale Beschreibung",
++    updateTopic: "Thema aktualisieren",
++    createTopic: "Thema erstellen",
++    cancelEdit: "Bearbeitung abbrechen",
++    topicList: "Themenliste",
++    courseCountCol: "Kursanzahl",
++    actions: "Aktionen",
++    editTopic: "Thema bearbeiten",
++    deleteTopic: "Thema löschen",
++    validateName: "Bitte Themenname für aktive Sprache eingeben",
++    updateSuccess: "Thema wurde aktualisiert",
++    createSuccess: "Thema wurde erstellt",
++    deleteSuccess: "Thema erfolgreich gelöscht",
++    loadFailed: "Kursverwaltungsdaten konnten nicht geladen werden",
++    saveFailed: "Thema konnte nicht gespeichert werden",
++    deleteFailed: "Thema konnte nicht gelöscht werden",
++    displayMode: "Anzeigemodus",
++    filterByTopic: "Nach Thema filtern",
++    allTopics: "Alle Themen",
++    searchByCourseName: "Nach Kursname suchen",
++    searchPlaceholder: "Kursname eingeben...",
++    titleCol: "Titel",
++    topicCol: "Thema",
++    priceCol: "Preis",
++    ratingCol: "Bewertung",
++    enrollmentCol: "Anmeldungen",
++    lessonCol: "Lektionen",
++    videoCountCol: "Videos",
++    createdAtCol: "Erstellt am",
++    updatedAtCol: "Aktualisiert am",
++    statusCol: "Status",
++    unassigned: "Nicht zugeordnet",
++    publishedStatus: "Published",
++    draftStatus: "Draft",
++    pageLabel: "Seite",
++    totalCoursesLabel: "Gesamtkurse",
++    prevPage: "Zurück",
++    nextPage: "Weiter",
++    logout: "Abmelden",
+   },
+-}
+-
+-const languageMeta: Record<AdminLang, { label: string; code: string; flagUrl: string }> = {
+-  'en': { label: 'English (US)', code: 'en', flagUrl: 'https://flagcdn.com/w40/gb.png' },
+-  de: { label: 'Deutsch', code: 'de', flagUrl: 'https://flagcdn.com/w40/de.png' },
+-  vi: { label: 'Tiếng Việt', code: 'vi', flagUrl: 'https://flagcdn.com/w40/vn.png' },
+-}
++};
++
++const languageMeta: Record<
++  AdminLang,
++  { label: string; code: string; flagUrl: string }
++> = {
++  en: {
++    label: "English (US)",
++    code: "en",
++    flagUrl: "https://flagcdn.com/w40/gb.png",
++  },
++  de: {
++    label: "Deutsch",
++    code: "de",
++    flagUrl: "https://flagcdn.com/w40/de.png",
++  },
++  vi: {
++    label: "Tiếng Việt",
++    code: "vi",
++    flagUrl: "https://flagcdn.com/w40/vn.png",
++  },
++};
+
+ const toTopicForm = (topic?: CourseTopic | null): TopicI18nForm => ({
+   vi: {
+-    name: topic?.translations?.vi?.name || topic?.name || '',
+-    description: topic?.translations?.vi?.description || topic?.description || '',
++    name: topic?.translations?.vi?.name || topic?.name || "",
++    description:
++      topic?.translations?.vi?.description || topic?.description || "",
+   },
+-  'en': {
+-    name: topic?.translations?.['en']?.name || topic?.name || '',
+-    description: topic?.translations?.['en']?.description || topic?.description || '',
++  en: {
++    name: topic?.translations?.["en"]?.name || topic?.name || "",
++    description:
++      topic?.translations?.["en"]?.description || topic?.description || "",
+   },
+   de: {
+-    name: topic?.translations?.de?.name || topic?.name || '',
+-    description: topic?.translations?.de?.description || topic?.description || '',
++    name: topic?.translations?.de?.name || topic?.name || "",
++    description:
++      topic?.translations?.de?.description || topic?.description || "",
+   },
+-})
++});
+
+ export default function AdminCoursesPage() {
+-  const [tab, setTab] = useState<TabKey>('topics')
+-  const [topics, setTopics] = useState<CourseTopic[]>([])
+-  const [courses, setCourses] = useState<CourseAdmin[]>([])
+-  const [coursesTotal, setCoursesTotal] = useState(0)
+-  const [coursePage, setCoursePage] = useState(1)
+-  const [coursePageSize] = useState(8)
+-  const [selectedTopicId, setSelectedTopicId] = useState<number | 'all'>('all')
+-  const [searchTerm, setSearchTerm] = useState('')
+-  const [topicForm, setTopicForm] = useState<TopicI18nForm>(() => emptyTopicForm())
+-  const [editingId, setEditingId] = useState<number | null>(null)
+-  const [loading, setLoading] = useState(false)
++  const [tab, setTab] = useState<TabKey>("topics");
++  const [topics, setTopics] = useState<CourseTopic[]>([]);
++  const [courses, setCourses] = useState<CourseAdmin[]>([]);
++  const [coursesTotal, setCoursesTotal] = useState(0);
++  const [coursePage, setCoursePage] = useState(1);
++  const [coursePageSize] = useState(8);
++  const [selectedTopicId, setSelectedTopicId] = useState<number | "all">("all");
++  const [searchTerm, setSearchTerm] = useState("");
++  const [topicForm, setTopicForm] = useState<TopicI18nForm>(() =>
++    emptyTopicForm(),
++  );
++  const [editingId, setEditingId] = useState<number | null>(null);
++  const [loading, setLoading] = useState(false);
+   const [theme, setTheme] = useState<ThemeMode>(() => {
+-    const saved = window.localStorage.getItem(THEME_STORAGE_KEY)
+-    return saved === 'dark' ? 'dark' : 'light'
+-  })
++    const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
++    return saved === "dark" ? "dark" : "light";
++  });
+   const [lang, setLang] = useState<AdminLang>(() => {
+-    const saved = window.localStorage.getItem(LANG_STORAGE_KEY)
+-    return saved === 'en' || saved === 'de' ? saved : 'vi'
+-  })
++    const saved = window.localStorage.getItem(LANG_STORAGE_KEY);
++    return saved === "en" || saved === "de" ? saved : "vi";
++  });
+
+-  const t = uiText[lang]
++  const t = uiText[lang];
++  const { logout } = useAuth();
+
+   const loadTopics = async () => {
+-    setLoading(true)
++    setLoading(true);
+     try {
+-      const topicItems = await adminCoursesApi.listTopics()
+-      setTopics(topicItems)
++      const topicItems = await adminCoursesApi.listTopics();
++      setTopics(topicItems);
+     } catch (e: any) {
+-      AlertJs.error(e?.message || t.loadFailed)
++      AlertJs.error(e?.message || t.loadFailed);
+     } finally {
+-      setLoading(false)
++      setLoading(false);
+     }
+-  }
++  };
+
+   const loadCourses = async () => {
+     try {
+       const courseResp = await adminCoursesApi.listCourses({
+-        topicId: selectedTopicId === 'all' ? undefined : selectedTopicId,
++        topicId: selectedTopicId === "all" ? undefined : selectedTopicId,
+         search: searchTerm,
+         page: coursePage,
+         pageSize: coursePageSize,
+         lang,
+-      })
+-      setCourses(courseResp.items)
+-      setCoursesTotal(courseResp.total)
++      });
++      setCourses(courseResp.items);
++      setCoursesTotal(courseResp.total);
+     } catch (e: any) {
+-      AlertJs.error(e?.message || t.loadFailed)
++      AlertJs.error(e?.message || t.loadFailed);
+     }
+-  }
++  };
+
+   useEffect(() => {
+-    void loadTopics()
++    void loadTopics();
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+-  }, [])
++  }, []);
+
+   useEffect(() => {
+-    void loadCourses()
++    void loadCourses();
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+-  }, [lang, selectedTopicId, searchTerm, coursePage, coursePageSize])
++  }, [lang, selectedTopicId, searchTerm, coursePage, coursePageSize]);
+
+   useEffect(() => {
+-    window.localStorage.setItem(THEME_STORAGE_KEY, theme)
+-  }, [theme])
++    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
++  }, [theme]);
+
+   useEffect(() => {
+-    window.localStorage.setItem(LANG_STORAGE_KEY, lang)
+-  }, [lang])
++    window.localStorage.setItem(LANG_STORAGE_KEY, lang);
++  }, [lang]);
+
+   const resetForm = () => {
+-    setTopicForm(emptyTopicForm())
+-    setEditingId(null)
+-  }
++    setTopicForm(emptyTopicForm());
++    setEditingId(null);
++  };
+
+   const coursesByTopic = useMemo(() => {
+-    const map: Record<number, number> = {}
++    const map: Record<number, number> = {};
+     courses.forEach((course) => {
+-      if (course.topicId) map[course.topicId] = (map[course.topicId] || 0) + 1
+-    })
+-    return map
+-  }, [courses])
+-
+-  const setTopicField = (activeLang: AdminLang, field: 'name' | 'description', value: string) => {
++      if (course.topicId) map[course.topicId] = (map[course.topicId] || 0) + 1;
++    });
++    return map;
++  }, [courses]);
++
++  const setTopicField = (
++    activeLang: AdminLang,
++    field: "name" | "description",
++    value: string,
++  ) => {
+     setTopicForm((prev) => ({
+       ...prev,
+       [activeLang]: {
+         ...prev[activeLang],
+         [field]: value,
+       },
+-    }))
+-  }
++    }));
++  };
+
+   const saveTopic = async () => {
+-    const fallbackName = topicForm.vi.name || topicForm['en'].name || topicForm.de.name
++    const fallbackName =
++      topicForm.vi.name || topicForm["en"].name || topicForm.de.name;
+     if (!fallbackName.trim()) {
+-      AlertJs.error(t.validateName)
+-      return
++      AlertJs.error(t.validateName);
++      return;
+     }
+
+     const payload = {
+       name: fallbackName.trim(),
+-      description: (topicForm.vi.description || topicForm['en'].description || topicForm.de.description || '').trim() || undefined,
++      description:
++        (
++          topicForm.vi.description ||
++          topicForm["en"].description ||
++          topicForm.de.description ||
++          ""
++        ).trim() || undefined,
+       translations: {
+-        vi: { name: topicForm.vi.name.trim(), description: topicForm.vi.description.trim() },
+-        'en': { name: topicForm['en'].name.trim(), description: topicForm['en'].description.trim() },
+-        de: { name: topicForm.de.name.trim(), description: topicForm.de.description.trim() },
++        vi: {
++          name: topicForm.vi.name.trim(),
++          description: topicForm.vi.description.trim(),
++        },
++        en: {
++          name: topicForm["en"].name.trim(),
++          description: topicForm["en"].description.trim(),
++        },
++        de: {
++          name: topicForm.de.name.trim(),
++          description: topicForm.de.description.trim(),
++        },
+       },
+-    }
++    };
+
+     try {
+       if (editingId) {
+-        await adminCoursesApi.updateTopic(editingId, payload)
+-        AlertJs.success(t.updateSuccess)
++        await adminCoursesApi.updateTopic(editingId, payload);
++        AlertJs.success(t.updateSuccess);
+       } else {
+-        await adminCoursesApi.createTopic(payload)
+-        AlertJs.success(t.createSuccess)
++        await adminCoursesApi.createTopic(payload);
++        AlertJs.success(t.createSuccess);
+       }
+-      resetForm()
+-      await loadTopics()
++      resetForm();
++      await loadTopics();
+     } catch (e: any) {
+-      AlertJs.error(e?.message || t.saveFailed)
++      AlertJs.error(e?.message || t.saveFailed);
+     }
+-  }
++  };
+
+   const deleteTopic = async (topic: CourseTopic) => {
+     try {
+-      await adminCoursesApi.deleteTopic(topic.id)
+-      AlertJs.success(t.deleteSuccess)
+-      await loadTopics()
++      await adminCoursesApi.deleteTopic(topic.id);
++      AlertJs.success(t.deleteSuccess);
++      await loadTopics();
+     } catch (e: any) {
+-      AlertJs.error(e?.message || t.deleteFailed)
++      AlertJs.error(e?.message || t.deleteFailed);
+     }
+-  }
++  };
+
+   const startEditTopic = (topic: CourseTopic) => {
+-    setEditingId(topic.id)
+-    setTopicForm(toTopicForm(topic))
+-  }
+-
+-
+-
++    setEditingId(topic.id);
++    setTopicForm(toTopicForm(topic));
++  };
+
+   return (
+-    <main className={`admin-page admin-courses-theme ${theme === 'dark' ? 'admin-courses-theme-dark' : ''}`}>
+-      <section className='admin-header'>
++    <main
++      className={`admin-page admin-courses-theme ${theme === "dark" ? "admin-courses-theme-dark" : ""}`}
++    >
++      <section className="admin-header">
+         <div>
+-          <p className='admin-header-kicker'>{t.kicker}</p>
++          <p className="admin-header-kicker">{t.kicker}</p>
+           <h1>{t.title}</h1>
+           <p>{t.subtitle}</p>
+         </div>
+
+-        <div className='admin-courses-theme-switch' role='group' aria-label='Display settings'>
+-          <span className='admin-courses-theme-switch-label'>{t.darkMode}</span>
++        <div
++          className="admin-courses-theme-switch"
++          role="group"
++          aria-label="Display settings"
++        >
++          <span className="admin-courses-theme-switch-label">{t.darkMode}</span>
+           <button
+-            type='button'
+-            className={`admin-courses-theme-toggle ${theme === 'dark' ? 'active' : ''}`}
+-            onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+-            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+-            aria-pressed={theme === 'dark'}
++            type="button"
++            className={`admin-courses-theme-toggle ${theme === "dark" ? "active" : ""}`}
++            onClick={() =>
++              setTheme((prev) => (prev === "dark" ? "light" : "dark"))
++            }
++            aria-label={
++              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
++            }
++            aria-pressed={theme === "dark"}
+           >
+-            <span className='admin-courses-theme-toggle-thumb' />
++            <span className="admin-courses-theme-toggle-thumb" />
+           </button>
+
+-          <div className='admin-lang-switch' role='group' aria-label={t.displayMode}>
+-            {(['en', 'de', 'vi'] as AdminLang[]).map((code) => {
+-              const item = languageMeta[code]
+-              const active = lang === code
++          <button
++            type="button"
++            className="admin-btn admin-btn-danger"
++            onClick={logout}
++          >
++            <i className="fa-solid fa-right-from-bracket" /> {t.logout}
++          </button>
++
++          <div
++            className="admin-lang-switch"
++            role="group"
++            aria-label={t.displayMode}
++          >
++            {(["en", "de", "vi"] as AdminLang[]).map((code) => {
++              const item = languageMeta[code];
++              const active = lang === code;
+               return (
+                 <button
+                   key={code}
+-                  type='button'
+-                  className={`admin-lang-option ${active ? 'active' : ''}`}
++                  type="button"
++                  className={`admin-lang-option ${active ? "active" : ""}`}
+                   onClick={() => setLang(code)}
+                   aria-pressed={active}
+                   title={item.label}
+                   aria-label={item.label}
+                 >
+-                  <img src={item.flagUrl} alt={item.label} loading='lazy' />
++                  <img src={item.flagUrl} alt={item.label} loading="lazy" />
+                 </button>
+-              )
++              );
+             })}
+           </div>
+         </div>
+       </section>
+
+-      <section className='admin-overview'>
+-        <article className='overview-card'>
+-          <span><i className='fa-solid fa-layer-group' /> {t.topicCount}</span>
++      <section className="admin-overview">
++        <article className="overview-card">
++          <span>
++            <i className="fa-solid fa-layer-group" /> {t.topicCount}
++          </span>
+           <strong>{topics.length}</strong>
+           <small>{t.topicCountDesc}</small>
          </article>
-         <article className="overview-card">
-           <span>Doanh thu</span>
-           <strong>{fmtVND(stats.revenue)}</strong>
-           <small>Chỉ tính đơn đã thanh toán</small>
-           <i className="fa-solid fa-money-bill-wave overview-icon" aria-hidden="true" />
+-        <article className='overview-card'>
+-          <span><i className='fa-solid fa-book-open-reader' /> {t.courseCount}</span>
++        <article className="overview-card">
++          <span>
++            <i className="fa-solid fa-book-open-reader" /> {t.courseCount}
++          </span>
+           <strong>{coursesTotal}</strong>
+           <small>{t.courseCountDesc}</small>
+         </article>
+-        <article className='overview-card'>
+-          <span><i className='fa-solid fa-circle-check' /> {t.publishedCount}</span>
++        <article className="overview-card">
++          <span>
++            <i className="fa-solid fa-circle-check" /> {t.publishedCount}
++          </span>
+           <strong>{courses.filter((course) => course.published).length}</strong>
+           <small>{t.publishedCountDesc}</small>
+         </article>
+-        <article className='overview-card'>
+-          <span><i className='fa-solid fa-pen-to-square' /> {t.draftCount}</span>
+-          <strong>{courses.filter((course) => !course.published).length}</strong>
++        <article className="overview-card">
++          <span>
++            <i className="fa-solid fa-pen-to-square" /> {t.draftCount}
++          </span>
++          <strong>
++            {courses.filter((course) => !course.published).length}
++          </strong>
+           <small>{t.draftCountDesc}</small>
          </article>
        </section>
 
-       <section className="admin-card admin-card-glow">
-         <div className="orders-toolbar">
-           <div className="orders-links">
-             <Link className="admin-btn admin-btn-ghost" to="/courses">
-               <i className="fa-solid fa-graduation-cap" aria-hidden="true" />
-               Courses
-             </Link>
-             <Link className="admin-btn admin-btn-ghost" to="/admin/spa">
-               <i className="fa-solid fa-spa" aria-hidden="true" />
-               Admin Spa
-             </Link>
-+            <Link className="admin-btn admin-btn-ghost" to="/admin/audit-logs">
-+              <i className="fa-solid fa-file-shield" aria-hidden="true" />
-+              Audit Logs
-+            </Link>
-             <button className="admin-btn admin-btn-primary" onClick={() => load()} disabled={loading}>
-               <i className="fa-solid fa-rotate" aria-hidden="true" />
-               Reload
+-      <section className='admin-tabs'>
+-        <button className={`admin-tab ${tab === 'topics' ? 'active' : ''}`} onClick={() => setTab('topics')}>
+-          <i className='fa-solid fa-tags' /> {t.topicsTab}
++      <section className="admin-tabs">
++        <button
++          className={`admin-tab ${tab === "topics" ? "active" : ""}`}
++          onClick={() => setTab("topics")}
++        >
++          <i className="fa-solid fa-tags" /> {t.topicsTab}
+         </button>
+-        <button className={`admin-tab ${tab === 'courses' ? 'active' : ''}`} onClick={() => setTab('courses')}>
+-          <i className='fa-solid fa-graduation-cap' /> {t.coursesTab}
++        <button
++          className={`admin-tab ${tab === "courses" ? "active" : ""}`}
++          onClick={() => setTab("courses")}
++        >
++          <i className="fa-solid fa-graduation-cap" /> {t.coursesTab}
+         </button>
+       </section>
+
+-      {loading && <p className='admin-helper'>{t.loading}</p>}
++      {loading && <p className="admin-helper">{t.loading}</p>}
+
+-      {!loading && tab === 'topics' && (
++      {!loading && tab === "topics" && (
+         <TopicsTab
+           topics={topics}
+           coursesByTopic={coursesByTopic}
+           topicForm={topicForm}
+           editingId={editingId}
+           displayLang={lang}
+           text={{ ...t, courseCount: t.courseCountCol }}
+           setTopicField={setTopicField}
+           onSave={saveTopic}
+           onReset={resetForm}
+           onEdit={startEditTopic}
+           onDelete={(topic) => {
+-            void deleteTopic(topic)
++            void deleteTopic(topic);
+           }}
+         />
+       )}
+
+-      {!loading && tab === 'courses' && (
++      {!loading && tab === "courses" && (
+         <CoursesTab
+           courses={courses}
+           topics={topics}
+           text={t}
+           lang={lang}
+           selectedTopicId={selectedTopicId}
+           searchTerm={searchTerm}
+           page={coursePage}
+           totalPages={Math.max(1, Math.ceil(coursesTotal / coursePageSize))}
+           totalItems={coursesTotal}
+           onChangeFilters={(patch) => {
+-            if (patch.selectedTopicId !== undefined) setSelectedTopicId(patch.selectedTopicId)
+-            if (patch.searchTerm !== undefined) setSearchTerm(patch.searchTerm)
+-            setCoursePage(1)
++            if (patch.selectedTopicId !== undefined)
++              setSelectedTopicId(patch.selectedTopicId);
++            if (patch.searchTerm !== undefined) setSearchTerm(patch.searchTerm);
++            setCoursePage(1);
+           }}
+           onChangePage={(nextPage) => setCoursePage(nextPage)}
+           onCourseCreated={loadCourses}
+         />
+       )}
+     </main>
+-  )
++  );
+ }
+diff --git a/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx b/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
+index 48d462ebea25fe6493d059e0abbf142503559e0a..a71bcf370723a4cf88ec0f1800c84f4cb5966ff0 100644
+--- a/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
++++ b/ayanavita-fontend/src/pages/admin/AdminSpaPage.tsx
+@@ -1,397 +1,1076 @@
+-import { useEffect, useMemo, useState } from 'react'
+-import { spaAdminApi, type Appointment, type Branch, type ServiceCategory, type SpaService, type Specialist } from '../../api/spaAdmin.api'
+-import { AlertJs } from '../../utils/alertJs'
+-import './AdminSpaPage.css'
+-import { BranchesTab } from './tabs/BranchesTab'
+-import { CategoriesTab } from './tabs/CategoriesTab'
+-import { ServicesTab } from './tabs/ServicesTab'
+-import { SpecialistsTab } from './tabs/SpecialistsTab'
+-import { AppointmentsTab } from './tabs/AppointmentsTab'
+-import type { BranchForm, CategoryForm, ServiceForm, SpecialistForm } from './tabs/types'
+-import { useAuth } from '../../state/auth.store'
++import { useEffect, useMemo, useState } from "react";
++import {
++  spaAdminApi,
++  type Appointment,
++  type Branch,
++  type ServiceCategory,
++  type SpaService,
++  type Specialist,
++} from "../../api/spaAdmin.api";
++import { AlertJs } from "../../utils/alertJs";
++import "./AdminSpaPage.css";
++import { BranchesTab } from "./tabs/BranchesTab";
++import { CategoriesTab } from "./tabs/CategoriesTab";
++import { ServicesTab } from "./tabs/ServicesTab";
++import { SpecialistsTab } from "./tabs/SpecialistsTab";
++import { AppointmentsTab } from "./tabs/AppointmentsTab";
++import type {
++  BranchForm,
++  CategoryForm,
++  ServiceForm,
++  SpecialistForm,
++} from "./tabs/types";
++import { useAuth } from "../../state/auth.store";
+
+-type TabKey = 'branches' | 'categories' | 'services' | 'specialists' | 'appointments'
+-type AdminLang = 'vi' | 'en' | 'de'
+-type AdminTheme = 'light' | 'dark'
++type TabKey =
++  | "branches"
++  | "categories"
++  | "services"
++  | "specialists"
++  | "appointments";
++type AdminLang = "vi" | "en" | "de";
++type AdminTheme = "light" | "dark";
+
+-const LANG_STORAGE_KEY = 'lang-admin'
+-const THEME_STORAGE_KEY = 'theme-admin'
++const LANG_STORAGE_KEY = "lang-admin";
++const THEME_STORAGE_KEY = "theme-admin";
+
+ const uiText: Record<AdminLang, Record<string, string>> = {
+-  'vi': {
+-    kicker: 'TRUNG TÂM VẬN HÀNH DỊCH VỤ',
+-    staffTitle: 'Lịch hẹn chuyên viên',
+-    adminTitle: 'Bảng điều khiển quản trị dịch vụ',
+-    staffDesc: 'Bạn chỉ xem các lịch hẹn được phân công và cập nhật khách có đến hay không.',
+-    adminDesc: 'Bảng điều khiển chuẩn hoá vận hành theo phong cách hiện đại, rõ dữ liệu, dễ thao tác.',
+-    branches: 'Chi nhánh',
+-    services: 'Dịch vụ',
+-    specialists: 'Chuyên viên',
+-    appointments: 'Lịch hẹn',
+-    active: 'Đang hoạt động',
+-    serviceCatalog: 'Servie catalog',
+-    specialistCapacity: 'Đủ năng lực vận hành',
+-    synced: 'Đã đồng bộ hệ thống',
+-    serviceCategories: 'Danh mục dịch vụ',
+-    assignedAppointments: 'Lịch hẹn phụ trách',
+-    loading: 'Đang tải dữ liệu...',
+-    specialistRole: 'Chuyên viên',
+-    themeLight: 'Sáng',
+-    themeDark: 'Tối',
+-    themeSwitch: 'Chuyển giao diện',
++  vi: {
++    kicker: "TRUNG TÂM VẬN HÀNH DỊCH VỤ",
++    staffTitle: "Lịch hẹn chuyên viên",
++    adminTitle: "Bảng điều khiển quản trị dịch vụ",
++    staffDesc:
++      "Bạn chỉ xem các lịch hẹn được phân công và cập nhật khách có đến hay không.",
++    adminDesc:
++      "Bảng điều khiển chuẩn hoá vận hành theo phong cách hiện đại, rõ dữ liệu, dễ thao tác.",
++    branches: "Chi nhánh",
++    services: "Dịch vụ",
++    specialists: "Chuyên viên",
++    appointments: "Lịch hẹn",
++    active: "Đang hoạt động",
++    serviceCatalog: "Servie catalog",
++    specialistCapacity: "Đủ năng lực vận hành",
++    synced: "Đã đồng bộ hệ thống",
++    serviceCategories: "Danh mục dịch vụ",
++    assignedAppointments: "Lịch hẹn phụ trách",
++    loading: "Đang tải dữ liệu...",
++    specialistRole: "Chuyên viên",
++    themeLight: "Sáng",
++    themeDark: "Tối",
++    themeSwitch: "Chuyển giao diện",
++    logout: "Đăng xuất",
+   },
+-  'en': {
+-    kicker: 'SERVIE OPERATIONS HUB',
+-    staffTitle: 'Specialist appointments',
+-    adminTitle: 'Servie Admin Dashboard',
+-    staffDesc: 'You can only view assigned appointments and update customer attendance.',
+-    adminDesc: 'A modern operations dashboard with standardized data and fast workflows.',
+-    branches: 'Branches',
+-    services: 'Services',
+-    specialists: 'Specialists',
+-    appointments: 'Appointments',
+-    active: 'Active',
+-    serviceCatalog: 'Servie catalog',
+-    specialistCapacity: 'Operational capacity ready',
+-    synced: 'Synced to system',
+-    serviceCategories: 'Service categories',
+-    assignedAppointments: 'Assigned appointments',
+-    loading: 'Loading data...',
+-    specialistRole: 'Specialist',
+-    themeLight: 'Light',
+-    themeDark: 'Dark',
+-    themeSwitch: 'Theme switch',
++  en: {
++    kicker: "SERVIE OPERATIONS HUB",
++    staffTitle: "Specialist appointments",
++    adminTitle: "Servie Admin Dashboard",
++    staffDesc:
++      "You can only view assigned appointments and update customer attendance.",
++    adminDesc:
++      "A modern operations dashboard with standardized data and fast workflows.",
++    branches: "Branches",
++    services: "Services",
++    specialists: "Specialists",
++    appointments: "Appointments",
++    active: "Active",
++    serviceCatalog: "Servie catalog",
++    specialistCapacity: "Operational capacity ready",
++    synced: "Synced to system",
++    serviceCategories: "Service categories",
++    assignedAppointments: "Assigned appointments",
++    loading: "Loading data...",
++    specialistRole: "Specialist",
++    themeLight: "Light",
++    themeDark: "Dark",
++    themeSwitch: "Theme switch",
++    logout: "Logout",
+   },
+-  'de': {
+-    kicker: 'SERVIE BETRIEBSZENTRUM',
+-    staffTitle: 'Termine für Spezialisten',
+-    adminTitle: 'Servie-Adminübersicht',
+-    staffDesc: 'Sie sehen nur zugewiesene Termine und aktualisieren die Kundenanwesenheit.',
+-    adminDesc: 'Ein modernes Betriebs-Dashboard mit standardisierten Daten und schnellen Abläufen.',
+-    branches: 'Filialen',
+-    services: 'Leistungen',
+-    specialists: 'Spezialisten',
+-    appointments: 'Termine',
+-    active: 'Aktiv',
+-    serviceCatalog: 'Servie-Katalog',
+-    specialistCapacity: 'Betriebsbereit',
+-    synced: 'Mit System synchronisiert',
+-    serviceCategories: 'Leistungskategorien',
+-    assignedAppointments: 'Zugewiesene Termine',
+-    loading: 'Daten werden geladen...',
+-    specialistRole: 'Spezialist',
+-    themeLight: 'Hell',
+-    themeDark: 'Dunkel',
+-    themeSwitch: 'Design umschalten',
++  de: {
++    kicker: "SERVIE BETRIEBSZENTRUM",
++    staffTitle: "Termine für Spezialisten",
++    adminTitle: "Servie-Adminübersicht",
++    staffDesc:
++      "Sie sehen nur zugewiesene Termine und aktualisieren die Kundenanwesenheit.",
++    adminDesc:
++      "Ein modernes Betriebs-Dashboard mit standardisierten Daten und schnellen Abläufen.",
++    branches: "Filialen",
++    services: "Leistungen",
++    specialists: "Spezialisten",
++    appointments: "Termine",
++    active: "Aktiv",
++    serviceCatalog: "Servie-Katalog",
++    specialistCapacity: "Betriebsbereit",
++    synced: "Mit System synchronisiert",
++    serviceCategories: "Leistungskategorien",
++    assignedAppointments: "Zugewiesene Termine",
++    loading: "Daten werden geladen...",
++    specialistRole: "Spezialist",
++    themeLight: "Hell",
++    themeDark: "Dunkel",
++    themeSwitch: "Design umschalten",
++    logout: "Abmelden",
+   },
+-}
++};
+
+-const defaultServiceForm: ServiceForm = { name: '', description: '', categoryId: 0, goals: '', suitableFor: '', process: '', durationMin: 60, price: 0, tag: 'Spa', branchIds: [], isActive: true, translations: { 'en': { name: '', description: '', goals: '', suitableFor: '', process: '', tag: 'Spa' }, vi: { name: '', description: '', goals: '', suitableFor: '', process: '', tag: 'Spa' }, de: { name: '', description: '', goals: '', suitableFor: '', process: '', tag: 'Spa' } } }
+-const defaultCategoryForm: CategoryForm = { name: '', translations: { 'en': { name: '' }, vi: { name: '' }, de: { name: '' } } }
+-const defaultSpecialistForm: SpecialistForm = { name: '', email: '', level: 'SENIOR', bio: '', branchId: 0, serviceIds: [], translations: { 'en': { name: '', bio: '' }, vi: { name: '', bio: '' }, de: { name: '', bio: '' } } }
+-const defaultBranchForm: BranchForm = { code: '', name: '', address: '', phone: '', isActive: true, translations: { 'en': { name: '', address: '' }, vi: { name: '', address: '' }, de: { name: '', address: '' } } }
++const defaultServiceForm: ServiceForm = {
++  name: "",
++  description: "",
++  categoryId: 0,
++  goals: "",
++  suitableFor: "",
++  process: "",
++  durationMin: 60,
++  price: 0,
++  tag: "Spa",
++  branchIds: [],
++  isActive: true,
++  translations: {
++    en: {
++      name: "",
++      description: "",
++      goals: "",
++      suitableFor: "",
++      process: "",
++      tag: "Spa",
++    },
++    vi: {
++      name: "",
++      description: "",
++      goals: "",
++      suitableFor: "",
++      process: "",
++      tag: "Spa",
++    },
++    de: {
++      name: "",
++      description: "",
++      goals: "",
++      suitableFor: "",
++      process: "",
++      tag: "Spa",
++    },
++  },
++};
++const defaultCategoryForm: CategoryForm = {
++  name: "",
++  translations: { en: { name: "" }, vi: { name: "" }, de: { name: "" } },
++};
++const defaultSpecialistForm: SpecialistForm = {
++  name: "",
++  email: "",
++  level: "SENIOR",
++  bio: "",
++  branchId: 0,
++  serviceIds: [],
++  translations: {
++    en: { name: "", bio: "" },
++    vi: { name: "", bio: "" },
++    de: { name: "", bio: "" },
++  },
++};
++const defaultBranchForm: BranchForm = {
++  code: "",
++  name: "",
++  address: "",
++  phone: "",
++  isActive: true,
++  translations: {
++    en: { name: "", address: "" },
++    vi: { name: "", address: "" },
++    de: { name: "", address: "" },
++  },
++};
+
+-const ensureCategoryTranslations = (category: ServiceCategory): NonNullable<CategoryForm['translations']> => ({
+-  'en': { name: category.translations?.['en']?.name || category.name || '' },
+-  vi: { name: category.translations?.vi?.name || category.name || '' },
+-  de: { name: category.translations?.de?.name || category.name || '' },
+-})
++const ensureCategoryTranslations = (
++  category: ServiceCategory,
++): NonNullable<CategoryForm["translations"]> => ({
++  en: { name: category.translations?.["en"]?.name || category.name || "" },
++  vi: { name: category.translations?.vi?.name || category.name || "" },
++  de: { name: category.translations?.de?.name || category.name || "" },
++});
+
+-const ensureBranchTranslations = (branch: Branch): NonNullable<BranchForm['translations']> => ({
+-  'en': {
+-    name: branch.translations?.['en']?.name || branch.name || '',
+-    address: branch.translations?.['en']?.address || branch.address || '',
++const ensureBranchTranslations = (
++  branch: Branch,
++): NonNullable<BranchForm["translations"]> => ({
++  en: {
++    name: branch.translations?.["en"]?.name || branch.name || "",
++    address: branch.translations?.["en"]?.address || branch.address || "",
+   },
+   vi: {
+-    name: branch.translations?.vi?.name || branch.name || '',
+-    address: branch.translations?.vi?.address || branch.address || '',
++    name: branch.translations?.vi?.name || branch.name || "",
++    address: branch.translations?.vi?.address || branch.address || "",
+   },
+   de: {
+-    name: branch.translations?.de?.name || branch.name || '',
+-    address: branch.translations?.de?.address || branch.address || '',
++    name: branch.translations?.de?.name || branch.name || "",
++    address: branch.translations?.de?.address || branch.address || "",
+   },
+-})
++});
+
+-const ensureSpecialistTranslations = (specialist: Specialist): NonNullable<SpecialistForm['translations']> => ({
+-  'en': {
+-    name: specialist.translations?.['en']?.name || specialist.name || '',
+-    bio: specialist.translations?.['en']?.bio || specialist.bio || '',
++const ensureSpecialistTranslations = (
++  specialist: Specialist,
++): NonNullable<SpecialistForm["translations"]> => ({
++  en: {
++    name: specialist.translations?.["en"]?.name || specialist.name || "",
++    bio: specialist.translations?.["en"]?.bio || specialist.bio || "",
+   },
+   vi: {
+-    name: specialist.translations?.vi?.name || specialist.name || '',
+-    bio: specialist.translations?.vi?.bio || specialist.bio || '',
++    name: specialist.translations?.vi?.name || specialist.name || "",
++    bio: specialist.translations?.vi?.bio || specialist.bio || "",
+   },
+   de: {
+-    name: specialist.translations?.de?.name || specialist.name || '',
+-    bio: specialist.translations?.de?.bio || specialist.bio || '',
++    name: specialist.translations?.de?.name || specialist.name || "",
++    bio: specialist.translations?.de?.bio || specialist.bio || "",
+   },
+-})
++});
+
+-const ensureServiceTranslations = (service: SpaService): NonNullable<ServiceForm['translations']> => {
+-  const toText = (items?: string[]) => items?.join(', ') || ''
++const ensureServiceTranslations = (
++  service: SpaService,
++): NonNullable<ServiceForm["translations"]> => {
++  const toText = (items?: string[]) => items?.join(", ") || "";
+   return {
+-    'en': {
+-      name: service.translations?.['en']?.name || service.name || '',
+-      description: service.translations?.['en']?.description || service.description || '',
+-      goals: toText(service.translations?.['en']?.goals) || toText(service.goals),
+-      suitableFor: toText(service.translations?.['en']?.suitableFor) || toText(service.suitableFor),
+-      process: toText(service.translations?.['en']?.process) || toText(service.process),
+-      tag: service.translations?.['en']?.tag || service.tag || 'Spa',
++    en: {
++      name: service.translations?.["en"]?.name || service.name || "",
++      description:
++        service.translations?.["en"]?.description || service.description || "",
++      goals:
++        toText(service.translations?.["en"]?.goals) || toText(service.goals),
++      suitableFor:
++        toText(service.translations?.["en"]?.suitableFor) ||
++        toText(service.suitableFor),
++      process:
++        toText(service.translations?.["en"]?.process) ||
++        toText(service.process),
++      tag: service.translations?.["en"]?.tag || service.tag || "Spa",
+     },
+     vi: {
+-      name: service.translations?.vi?.name || service.name || '',
+-      description: service.translations?.vi?.description || service.description || '',
++      name: service.translations?.vi?.name || service.name || "",
++      description:
++        service.translations?.vi?.description || service.description || "",
+       goals: toText(service.translations?.vi?.goals) || toText(service.goals),
+-      suitableFor: toText(service.translations?.vi?.suitableFor) || toText(service.suitableFor),
+-      process: toText(service.translations?.vi?.process) || toText(service.process),
+-      tag: service.translations?.vi?.tag || service.tag || 'Spa',
++      suitableFor:
++        toText(service.translations?.vi?.suitableFor) ||
++        toText(service.suitableFor),
++      process:
++        toText(service.translations?.vi?.process) || toText(service.process),
++      tag: service.translations?.vi?.tag || service.tag || "Spa",
+     },
+     de: {
+-      name: service.translations?.de?.name || service.name || '',
+-      description: service.translations?.de?.description || service.description || '',
++      name: service.translations?.de?.name || service.name || "",
++      description:
++        service.translations?.de?.description || service.description || "",
+       goals: toText(service.translations?.de?.goals) || toText(service.goals),
+-      suitableFor: toText(service.translations?.de?.suitableFor) || toText(service.suitableFor),
+-      process: toText(service.translations?.de?.process) || toText(service.process),
+-      tag: service.translations?.de?.tag || service.tag || 'Spa',
++      suitableFor:
++        toText(service.translations?.de?.suitableFor) ||
++        toText(service.suitableFor),
++      process:
++        toText(service.translations?.de?.process) || toText(service.process),
++      tag: service.translations?.de?.tag || service.tag || "Spa",
+     },
+-  }
+-}
++  };
++};
+
+ const normalizeBranchCode = (name: string) => {
+-  const base = name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '')
+-  return base || 'BRANCH'
+-}
++  const base = name
++    .normalize("NFD")
++    .replace(/[̀-ͯ]/g, "")
++    .replace(/đ/gi, "d")
++    .toUpperCase()
++    .replace(/[^A-Z0-9]+/g, "_")
++    .replace(/^_+|_+$/g, "");
++  return base || "BRANCH";
++};
+
+ const isValidPhoneNumber = (phone: string) => {
+-  const cleaned = phone.trim()
+-  if (!cleaned) return true
+-  if (!/^\+?[\d\s().-]+$/.test(cleaned)) return false
+-  const digitsCount = cleaned.replace(/\D/g, '').length
+-  return digitsCount >= 6 && digitsCount <= 20
+-}
++  const cleaned = phone.trim();
++  if (!cleaned) return true;
++  if (!/^\+?[\d\s().-]+$/.test(cleaned)) return false;
++  const digitsCount = cleaned.replace(/\D/g, "").length;
++  return digitsCount >= 6 && digitsCount <= 20;
++};
+
+ const getVietnameseError = (error: unknown, fallback: string) => {
+-  if (typeof error === 'object' && error && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
+-    const message = (error as { message: string }).message
+-    if (message.includes('Unique constraint')) return 'Dữ liệu bị trùng. Vui lòng kiểm tra lại mã hoặc tên.'
+-    return message
++  if (
++    typeof error === "object" &&
++    error &&
++    "message" in error &&
++    typeof (error as { message?: unknown }).message === "string"
++  ) {
++    const message = (error as { message: string }).message;
++    if (message.includes("Unique constraint"))
++      return "Dữ liệu bị trùng. Vui lòng kiểm tra lại mã hoặc tên.";
++    return message;
+   }
+-  return fallback
+-}
++  return fallback;
++};
+
+ export default function AdminSpaPage() {
+-  const { user } = useAuth()
+-  const isStaff = user?.role === 'STAFF'
+-  const [tab, setTab] = useState<TabKey>(isStaff ? 'appointments' : 'branches')
+-  const [loading, setLoading] = useState(false)
+-  const [branches, setBranches] = useState<Branch[]>([])
+-  const [services, setServices] = useState<SpaService[]>([])
+-  const [servicePageItems, setServicePageItems] = useState<SpaService[]>([])
+-  const [serviceSearchKeyword, setServiceSearchKeyword] = useState('')
+-  const [servicePage, setServicePage] = useState(1)
+-  const [servicePageSize, setServicePageSize] = useState(10)
+-  const [serviceTotal, setServiceTotal] = useState(0)
+-  const [serviceTotalPages, setServiceTotalPages] = useState(1)
+-  const [categories, setCategories] = useState<ServiceCategory[]>([])
+-  const [specialists, setSpecialists] = useState<Specialist[]>([])
+-  const [appointments, setAppointments] = useState<Appointment[]>([])
+-  const [selectedImage, setSelectedImage] = useState<File | null>(null)
++  const { user, logout } = useAuth();
++  const isStaff = user?.role === "STAFF";
++  const [tab, setTab] = useState<TabKey>(isStaff ? "appointments" : "branches");
++  const [loading, setLoading] = useState(false);
++  const [branches, setBranches] = useState<Branch[]>([]);
++  const [services, setServices] = useState<SpaService[]>([]);
++  const [servicePageItems, setServicePageItems] = useState<SpaService[]>([]);
++  const [serviceSearchKeyword, setServiceSearchKeyword] = useState("");
++  const [servicePage, setServicePage] = useState(1);
++  const [servicePageSize, setServicePageSize] = useState(10);
++  const [serviceTotal, setServiceTotal] = useState(0);
++  const [serviceTotalPages, setServiceTotalPages] = useState(1);
++  const [categories, setCategories] = useState<ServiceCategory[]>([]);
++  const [specialists, setSpecialists] = useState<Specialist[]>([]);
++  const [appointments, setAppointments] = useState<Appointment[]>([]);
++  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+   const [lang, setLang] = useState<AdminLang>(() => {
+-    const saved = window.localStorage.getItem(LANG_STORAGE_KEY)
+-    return saved === 'vi' || saved === 'en' || saved === 'de' ? saved : 'vi'
+-  })
+-
++    const saved = window.localStorage.getItem(LANG_STORAGE_KEY);
++    return saved === "vi" || saved === "en" || saved === "de" ? saved : "vi";
++  });
+
+   const [theme, setTheme] = useState<AdminTheme>(() => {
+-    const saved = window.localStorage.getItem(THEME_STORAGE_KEY)
+-    return saved === 'dark' ? 'dark' : 'light'
+-  })
+-  const [branchForm, setBranchForm] = useState<BranchForm>(defaultBranchForm)
+-  const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
+-  const [serviceForm, setServiceForm] = useState<ServiceForm>(defaultServiceForm)
+-  const [editingService, setEditingService] = useState<SpaService | null>(null)
+-  const [categoryForm, setCategoryForm] = useState<CategoryForm>(defaultCategoryForm)
+-  const [editingCategory, setEditingCategory] = useState<ServiceCategory | null>(null)
+-  const [specialistForm, setSpecialistForm] = useState<SpecialistForm>(defaultSpecialistForm)
+-  const [editingSpecialist, setEditingSpecialist] = useState<Specialist | null>(null)
++    const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
++    return saved === "dark" ? "dark" : "light";
++  });
++  const [branchForm, setBranchForm] = useState<BranchForm>(defaultBranchForm);
++  const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
++  const [serviceForm, setServiceForm] =
++    useState<ServiceForm>(defaultServiceForm);
++  const [editingService, setEditingService] = useState<SpaService | null>(null);
++  const [categoryForm, setCategoryForm] =
++    useState<CategoryForm>(defaultCategoryForm);
++  const [editingCategory, setEditingCategory] =
++    useState<ServiceCategory | null>(null);
++  const [specialistForm, setSpecialistForm] = useState<SpecialistForm>(
++    defaultSpecialistForm,
++  );
++  const [editingSpecialist, setEditingSpecialist] = useState<Specialist | null>(
++    null,
++  );
+
+-  const activeBranches = useMemo(() => branches.filter((item) => item.isActive), [branches])
++  const activeBranches = useMemo(
++    () => branches.filter((item) => item.isActive),
++    [branches],
++  );
+   const displayName = useMemo(() => {
+-    if (!user?.email) return 'Admin User'
+-    const baseName = user.email.split('@')[0]?.replace(/[._-]+/g, ' ').trim()
+-    return baseName ? baseName.replace(/\b\w/g, (char) => char.toUpperCase()) : user.email
+-  }, [user?.email])
+-  const roleLabel = user?.role === 'ADMIN' ? 'Administrator' : user?.role === 'STAFF' ? uiText[lang].specialistRole : user?.role ?? 'User'
+-  const avatarLetter = (displayName[0] || 'A').toUpperCase()
+-  const t = uiText[lang]
++    if (!user?.email) return "Admin User";
++    const baseName = user.email
++      .split("@")[0]
++      ?.replace(/[._-]+/g, " ")
++      .trim();
++    return baseName
++      ? baseName.replace(/\b\w/g, (char) => char.toUpperCase())
++      : user.email;
++  }, [user?.email]);
++  const roleLabel =
++    user?.role === "ADMIN"
++      ? "Administrator"
++      : user?.role === "STAFF"
++        ? uiText[lang].specialistRole
++        : (user?.role ?? "User");
++  const avatarLetter = (displayName[0] || "A").toUpperCase();
++  const t = uiText[lang];
+
+   useEffect(() => {
+-    window.localStorage.setItem(LANG_STORAGE_KEY, lang)
+-  }, [lang])
++    window.localStorage.setItem(LANG_STORAGE_KEY, lang);
++  }, [lang]);
+
+   useEffect(() => {
+-    window.localStorage.setItem(THEME_STORAGE_KEY, theme)
+-  }, [theme])
++    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
++  }, [theme]);
+
+-  const loadServices = async (params?: { page?: number; q?: string; pageSize?: number }) => {
+-    const response = await spaAdminApi.services({ q: params?.q ?? serviceSearchKeyword, page: params?.page ?? servicePage, pageSize: params?.pageSize ?? servicePageSize, includeInactive: true, lang })
+-    setServicePageItems(response.items)
+-    setServiceTotal(response.total)
+-    setServiceTotalPages(response.totalPages)
+-    setServicePage(response.page)
+-    setServicePageSize(response.pageSize)
+-  }
++  const loadServices = async (params?: {
++    page?: number;
++    q?: string;
++    pageSize?: number;
++  }) => {
++    const response = await spaAdminApi.services({
++      q: params?.q ?? serviceSearchKeyword,
++      page: params?.page ?? servicePage,
++      pageSize: params?.pageSize ?? servicePageSize,
++      includeInactive: true,
++      lang,
++    });
++    setServicePageItems(response.items);
++    setServiceTotal(response.total);
++    setServiceTotalPages(response.totalPages);
++    setServicePage(response.page);
++    setServicePageSize(response.pageSize);
++  };
+
+   const loadAll = async () => {
+-    setLoading(true)
++    setLoading(true);
+     try {
+       const [b, c, sAll, s, sp, a] = await Promise.all([
+         spaAdminApi.branches({ includeInactive: true, lang }),
+         spaAdminApi.serviceCategories(lang),
+-        spaAdminApi.services({ page: 1, pageSize: 100, includeInactive: true, lang }),
+-        spaAdminApi.services({ q: serviceSearchKeyword, page: servicePage, pageSize: servicePageSize, includeInactive: true, lang }),
++        spaAdminApi.services({
++          page: 1,
++          pageSize: 100,
++          includeInactive: true,
++          lang,
++        }),
++        spaAdminApi.services({
++          q: serviceSearchKeyword,
++          page: servicePage,
++          pageSize: servicePageSize,
++          includeInactive: true,
++          lang,
++        }),
+         spaAdminApi.specialists({ lang }),
+         spaAdminApi.appointments(),
+-      ])
+-      setBranches(b)
+-      setCategories(c)
+-      setServices(sAll.items)
+-      setServicePageItems(s.items)
+-      setServiceTotal(s.total)
+-      setServicePage(s.page)
+-      setServicePageSize(s.pageSize)
+-      setServiceTotalPages(s.totalPages)
+-      setSpecialists(sp)
+-      setAppointments(a)
++      ]);
++      setBranches(b);
++      setCategories(c);
++      setServices(sAll.items);
++      setServicePageItems(s.items);
++      setServiceTotal(s.total);
++      setServicePage(s.page);
++      setServicePageSize(s.pageSize);
++      setServiceTotalPages(s.totalPages);
++      setSpecialists(sp);
++      setAppointments(a);
+     } catch (error) {
+-      await AlertJs.error('Không thể tải dữ liệu', getVietnameseError(error, 'Hệ thống tạm thời gián đoạn, vui lòng thử lại.'))
++      await AlertJs.error(
++        "Không thể tải dữ liệu",
++        getVietnameseError(
++          error,
++          "Hệ thống tạm thời gián đoạn, vui lòng thử lại.",
++        ),
++      );
+     } finally {
+-      setLoading(false)
++      setLoading(false);
+     }
+-  }
++  };
+
+-  useEffect(() => { void loadAll() }, [lang])
+   useEffect(() => {
+-    if (isStaff) return
+-    const timer = window.setTimeout(() => { void loadServices({ page: 1 }) }, 300)
+-    return () => window.clearTimeout(timer)
+-  }, [serviceSearchKeyword, servicePageSize, isStaff, lang])
++    void loadAll();
++  }, [lang]);
++  useEffect(() => {
++    if (isStaff) return;
++    const timer = window.setTimeout(() => {
++      void loadServices({ page: 1 });
++    }, 300);
++    return () => window.clearTimeout(timer);
++  }, [serviceSearchKeyword, servicePageSize, isStaff, lang]);
+
+   const saveBranch = async () => {
+-    const normalizedName = (branchForm.name || '').trim()
+-    const normalizedAddress = (branchForm.address || '').trim()
+-    const normalizedPhone = (branchForm.phone || '').trim()
+-    const generatedCode = normalizeBranchCode(normalizedName)
+-    if (!normalizedName || normalizedName.length < 2) return AlertJs.error('Tên chi nhánh chưa hợp lệ', 'Tên chi nhánh cần có ít nhất 2 ký tự.')
+-    if (!normalizedAddress) return AlertJs.error('Thiếu địa chỉ', 'Vui lòng nhập địa chỉ chi nhánh.')
+-    if (!isValidPhoneNumber(normalizedPhone)) return AlertJs.error('Số điện thoại chưa hợp lệ', 'Vui lòng nhập đúng định dạng số điện thoại quốc tế (không giới hạn quốc gia).')
++    const normalizedName = (branchForm.name || "").trim();
++    const normalizedAddress = (branchForm.address || "").trim();
++    const normalizedPhone = (branchForm.phone || "").trim();
++    const generatedCode = normalizeBranchCode(normalizedName);
++    if (!normalizedName || normalizedName.length < 2)
++      return AlertJs.error(
++        "Tên chi nhánh chưa hợp lệ",
++        "Tên chi nhánh cần có ít nhất 2 ký tự.",
++      );
++    if (!normalizedAddress)
++      return AlertJs.error("Thiếu địa chỉ", "Vui lòng nhập địa chỉ chi nhánh.");
++    if (!isValidPhoneNumber(normalizedPhone))
++      return AlertJs.error(
++        "Số điện thoại chưa hợp lệ",
++        "Vui lòng nhập đúng định dạng số điện thoại quốc tế (không giới hạn quốc gia).",
++      );
+
+-    const payload: BranchForm = { ...branchForm, code: generatedCode, name: normalizedName, address: normalizedAddress, phone: normalizedPhone }
++    const payload: BranchForm = {
++      ...branchForm,
++      code: generatedCode,
++      name: normalizedName,
++      address: normalizedAddress,
++      phone: normalizedPhone,
++    };
+     try {
+-      if (editingBranch) await spaAdminApi.updateBranch(editingBranch.id, payload)
+-      else await spaAdminApi.createBranch(payload)
+-      setEditingBranch(null)
+-      setBranchForm(defaultBranchForm)
+-      await loadAll()
+-      await AlertJs.success('Đã lưu chi nhánh thành công', `Mã chi nhánh: ${generatedCode}. Dữ liệu đã được đồng bộ lên hệ thống.`)
++      if (editingBranch)
++        await spaAdminApi.updateBranch(editingBranch.id, payload);
++      else await spaAdminApi.createBranch(payload);
++      setEditingBranch(null);
++      setBranchForm(defaultBranchForm);
++      await loadAll();
++      await AlertJs.success(
++        "Đã lưu chi nhánh thành công",
++        `Mã chi nhánh: ${generatedCode}. Dữ liệu đã được đồng bộ lên hệ thống.`,
++      );
+     } catch (error) {
+-      await AlertJs.error('Lưu chi nhánh thất bại', getVietnameseError(error, 'Vui lòng kiểm tra lại thông tin chi nhánh.'))
++      await AlertJs.error(
++        "Lưu chi nhánh thất bại",
++        getVietnameseError(error, "Vui lòng kiểm tra lại thông tin chi nhánh."),
++      );
+     }
+-  }
++  };
+
+   return (
+-    <main className='admin-page' data-theme={theme}>
+-      <header className='admin-header'>
++    <main className="admin-page" data-theme={theme}>
++      <header className="admin-header">
+         <div>
+-          <p className='admin-header-kicker'>{t.kicker}</p>
++          <p className="admin-header-kicker">{t.kicker}</p>
+           <h1>{isStaff ? t.staffTitle : t.adminTitle}</h1>
+           <p>{isStaff ? t.staffDesc : t.adminDesc}</p>
+         </div>
+-        <div className='admin-header-side'>
+-          <div className='admin-lang-switch' role='group' aria-label='Admin language switch'>
+-            <button type='button' className={`admin-lang-option ${lang === 'en' ? 'active' : ''}`} onClick={() => setLang('en')} aria-label='English (US)'>
+-              <img src='https://flagcdn.com/w40/us.png' alt='USA flag' loading='lazy' />
++        <div className="admin-header-side">
++          <div
++            className="admin-lang-switch"
++            role="group"
++            aria-label="Admin language switch"
++          >
++            <button
++              type="button"
++              className={`admin-lang-option ${lang === "en" ? "active" : ""}`}
++              onClick={() => setLang("en")}
++              aria-label="English (US)"
++            >
++              <img
++                src="https://flagcdn.com/w40/us.png"
++                alt="USA flag"
++                loading="lazy"
++              />
+             </button>
+-            <button type='button' className={`admin-lang-option ${lang === 'de' ? 'active' : ''}`} onClick={() => setLang('de')} aria-label='Deutsch'>
+-              <img src='https://flagcdn.com/w40/de.png' alt='Germany flag' loading='lazy' />
++            <button
++              type="button"
++              className={`admin-lang-option ${lang === "de" ? "active" : ""}`}
++              onClick={() => setLang("de")}
++              aria-label="Deutsch"
++            >
++              <img
++                src="https://flagcdn.com/w40/de.png"
++                alt="Germany flag"
++                loading="lazy"
++              />
+             </button>
+-            <button type='button' className={`admin-lang-option ${lang === 'vi' ? 'active' : ''}`} onClick={() => setLang('vi')} aria-label='Tiếng Việt'>
+-              <img src='https://flagcdn.com/w40/vn.png' alt='Vietnam flag' loading='lazy' />
++            <button
++              type="button"
++              className={`admin-lang-option ${lang === "vi" ? "active" : ""}`}
++              onClick={() => setLang("vi")}
++              aria-label="Tiếng Việt"
++            >
++              <img
++                src="https://flagcdn.com/w40/vn.png"
++                alt="Vietnam flag"
++                loading="lazy"
++              />
              </button>
            </div>
+-          <label className='admin-theme-toggle' aria-label={t.themeSwitch}>
++          <label className="admin-theme-toggle" aria-label={t.themeSwitch}>
+             <input
+-              type='checkbox'
+-              checked={theme === 'dark'}
+-              onChange={(e) => setTheme(e.target.checked ? 'dark' : 'light')}
++              type="checkbox"
++              checked={theme === "dark"}
++              onChange={(e) => setTheme(e.target.checked ? "dark" : "light")}
+             />
+-            <span className='admin-theme-slider' />
+-            <span className='admin-theme-label'>{theme === 'dark' ? t.themeDark : t.themeLight}</span>
++            <span className="admin-theme-slider" />
++            <span className="admin-theme-label">
++              {theme === "dark" ? t.themeDark : t.themeLight}
++            </span>
+           </label>
+-          <div className='admin-user-badge' aria-label='Thông tin tài khoản đăng nhập'>
+-          <div className='admin-user-avatar'>{avatarLetter}</div>
+-          <div className='admin-user-meta'><strong>{displayName}</strong><span>{roleLabel}</span></div>
++          <button
++            type="button"
++            className="admin-btn admin-btn-danger"
++            onClick={logout}
++          >
++            <i className="fa-solid fa-right-from-bracket" /> {t.logout}
++          </button>
++          <div
++            className="admin-user-badge"
++            aria-label="Thông tin tài khoản đăng nhập"
++          >
++            <div className="admin-user-avatar">{avatarLetter}</div>
++            <div className="admin-user-meta">
++              <strong>{displayName}</strong>
++              <span>{roleLabel}</span>
++            </div>
+           </div>
+         </div>
+       </header>
 
-           <div className="orders-filters">
-             <label className="admin-field">
-               <span className="admin-label">Status</span>
-               <select className="admin-input orders-select" value={status} onChange={(e) => setStatus(e.target.value as OrderStatus | "ALL")}>
-                 <option value="ALL">ALL</option>
-                 <option value="PENDING">PENDING</option>
-                 <option value="PAID">PAID</option>
-                 <option value="CANCELLED">CANCELLED</option>
-               </select>
-             </label>
+       {!isStaff && (
+         <>
+-          <section className='admin-overview'>
+-            <article className='overview-card'><span>{t.branches}</span><strong>{branches.length}</strong><small>{t.active}: {activeBranches.length}</small><i className='overview-icon fa-solid fa-building' /></article>
+-            <article className='overview-card'><span>{t.services}</span><strong>{services.length}</strong><small>{t.serviceCatalog}</small><i className='overview-icon fa-solid fa-spa' /></article>
+-            <article className='overview-card'><span>{t.specialists}</span><strong>{specialists.length}</strong><small>{t.specialistCapacity}</small><i className='overview-icon fa-solid fa-user-nurse' /></article>
+-            <article className='overview-card'><span>{t.appointments}</span><strong>{appointments.length}</strong><small>{t.synced}</small><i className='overview-icon fa-solid fa-calendar-check' /></article>
++          <section className="admin-overview">
++            <article className="overview-card">
++              <span>{t.branches}</span>
++              <strong>{branches.length}</strong>
++              <small>
++                {t.active}: {activeBranches.length}
++              </small>
++              <i className="overview-icon fa-solid fa-building" />
++            </article>
++            <article className="overview-card">
++              <span>{t.services}</span>
++              <strong>{services.length}</strong>
++              <small>{t.serviceCatalog}</small>
++              <i className="overview-icon fa-solid fa-spa" />
++            </article>
++            <article className="overview-card">
++              <span>{t.specialists}</span>
++              <strong>{specialists.length}</strong>
++              <small>{t.specialistCapacity}</small>
++              <i className="overview-icon fa-solid fa-user-nurse" />
++            </article>
++            <article className="overview-card">
++              <span>{t.appointments}</span>
++              <strong>{appointments.length}</strong>
++              <small>{t.synced}</small>
++              <i className="overview-icon fa-solid fa-calendar-check" />
++            </article>
+           </section>
 
-             <label className="admin-field orders-search-field">
-               <span className="admin-label">Search</span>
-               <input
-                 className="admin-input"
-                 value={q}
-                 onChange={(e) => setQ(e.target.value)}
-                 placeholder="code / email / courseTitle / id"
-               />
-diff --git a/ayanavita-fontend/src/routes/AppRoutes.tsx b/ayanavita-fontend/src/routes/AppRoutes.tsx
-index 87fb10f04e2be93b6709708ddb6fe6e097f2d81d..2b35c2bdfcf7464647c16765cac483680081b880 100644
---- a/ayanavita-fontend/src/routes/AppRoutes.tsx
-+++ b/ayanavita-fontend/src/routes/AppRoutes.tsx
-@@ -1,43 +1,44 @@
- import React from "react";
- import { Navigate, Route, Routes } from "react-router-dom";
+-          <nav className='admin-tabs'>
+-            <button className={`admin-tab ${tab === 'branches' ? 'active' : ''}`} onClick={() => setTab('branches')}><i className='fa-solid fa-building-circle-check' />{t.branches} ({branches.length})</button>
+-            <button className={`admin-tab ${tab === 'categories' ? 'active' : ''}`} onClick={() => setTab('categories')}><i className='fa-solid fa-layer-group' />{t.serviceCategories} ({categories.length})</button>
+-            <button className={`admin-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => setTab('services')}><i className='fa-solid fa-leaf' />{t.services} ({serviceTotal})</button>
+-            <button className={`admin-tab ${tab === 'specialists' ? 'active' : ''}`} onClick={() => setTab('specialists')}><i className='fa-solid fa-people-group' />{t.specialists}</button>
+-            <button className={`admin-tab ${tab === 'appointments' ? 'active' : ''}`} onClick={() => setTab('appointments')}><i className='fa-solid fa-calendar-days' />{t.appointments}</button>
++          <nav className="admin-tabs">
++            <button
++              className={`admin-tab ${tab === "branches" ? "active" : ""}`}
++              onClick={() => setTab("branches")}
++            >
++              <i className="fa-solid fa-building-circle-check" />
++              {t.branches} ({branches.length})
++            </button>
++            <button
++              className={`admin-tab ${tab === "categories" ? "active" : ""}`}
++              onClick={() => setTab("categories")}
++            >
++              <i className="fa-solid fa-layer-group" />
++              {t.serviceCategories} ({categories.length})
++            </button>
++            <button
++              className={`admin-tab ${tab === "services" ? "active" : ""}`}
++              onClick={() => setTab("services")}
++            >
++              <i className="fa-solid fa-leaf" />
++              {t.services} ({serviceTotal})
++            </button>
++            <button
++              className={`admin-tab ${tab === "specialists" ? "active" : ""}`}
++              onClick={() => setTab("specialists")}
++            >
++              <i className="fa-solid fa-people-group" />
++              {t.specialists}
++            </button>
++            <button
++              className={`admin-tab ${tab === "appointments" ? "active" : ""}`}
++              onClick={() => setTab("appointments")}
++            >
++              <i className="fa-solid fa-calendar-days" />
++              {t.appointments}
++            </button>
+           </nav>
+         </>
+       )}
 
- import { RequireAuth } from "../components/RequireAuth";
- import { RequireRole } from "../auth/RequireRole";
+-      {isStaff && <nav className='admin-tabs'><button className='admin-tab active'><i className='fa-solid fa-calendar-days' />{t.assignedAppointments}</button></nav>}
+-      {loading && <section className='admin-card'>{t.loading}</section>}
++      {isStaff && (
++        <nav className="admin-tabs">
++          <button className="admin-tab active">
++            <i className="fa-solid fa-calendar-days" />
++            {t.assignedAppointments}
++          </button>
++        </nav>
++      )}
++      {loading && <section className="admin-card">{t.loading}</section>}
 
+-      {!isStaff && tab === 'branches' && <BranchesTab lang={lang} loading={loading} branches={branches} branchForm={branchForm} editingBranch={editingBranch} onBranchFormChange={(next) => { const nextName = next.name ?? branchForm.name ?? ''; setBranchForm({ ...next, code: normalizeBranchCode(nextName) }) }} onSaveBranch={saveBranch} onEditBranch={(branch) => { setEditingBranch(branch); setBranchForm({ ...branch, translations: ensureBranchTranslations(branch) }) }} onDeleteBranch={async (branch) => { try { const response = await spaAdminApi.deleteBranch(branch.id); await loadAll(); await AlertJs.success(response?.softDeleted ? 'Không thể xóa cứng' : 'Đã xóa chi nhánh', response?.softDeleted ? 'Chi nhánh đang liên kết dữ liệu nên hệ thống đã chuyển sang trạng thái không hoạt động.' : '') } catch (error) { await AlertJs.error('Xóa chi nhánh thất bại', getVietnameseError(error, 'Không thể xử lý yêu cầu xóa chi nhánh lúc này.')) } }} onCancelEdit={() => { setEditingBranch(null); setBranchForm(defaultBranchForm) }} />}
++      {!isStaff && tab === "branches" && (
++        <BranchesTab
++          lang={lang}
++          loading={loading}
++          branches={branches}
++          branchForm={branchForm}
++          editingBranch={editingBranch}
++          onBranchFormChange={(next) => {
++            const nextName = next.name ?? branchForm.name ?? "";
++            setBranchForm({ ...next, code: normalizeBranchCode(nextName) });
++          }}
++          onSaveBranch={saveBranch}
++          onEditBranch={(branch) => {
++            setEditingBranch(branch);
++            setBranchForm({
++              ...branch,
++              translations: ensureBranchTranslations(branch),
++            });
++          }}
++          onDeleteBranch={async (branch) => {
++            try {
++              const response = await spaAdminApi.deleteBranch(branch.id);
++              await loadAll();
++              await AlertJs.success(
++                response?.softDeleted
++                  ? "Không thể xóa cứng"
++                  : "Đã xóa chi nhánh",
++                response?.softDeleted
++                  ? "Chi nhánh đang liên kết dữ liệu nên hệ thống đã chuyển sang trạng thái không hoạt động."
++                  : "",
++              );
++            } catch (error) {
++              await AlertJs.error(
++                "Xóa chi nhánh thất bại",
++                getVietnameseError(
++                  error,
++                  "Không thể xử lý yêu cầu xóa chi nhánh lúc này.",
++                ),
++              );
++            }
++          }}
++          onCancelEdit={() => {
++            setEditingBranch(null);
++            setBranchForm(defaultBranchForm);
++          }}
++        />
++      )}
 
- import { RegisterPage } from "../pages/RegisterPage";
- import { CoursesPage } from "../pages/CoursesPage";
- import { CourseDetailPage } from "../pages/CourseDetailPage";
- import { LessonPage } from "../pages/LessonPage";
- import { MyCoursesPage } from "../pages/MyCoursesPage";
- import { MyOrdersPage } from "../pages/MyOrdersPage";
- import { LessonDetailPage } from "../pages/LessonDetailPage";
- import { AdminOrdersPage } from "../pages/admin/AdminOrdersPage";
- import AdminSpaPage from "../pages/admin/AdminSpaPage";
- import LoginPage from "../pages/LoginPage";
- import AdminCoursesPage from "../pages/admin/AdminCoursesPage";
-+import AdminAuditLogsPage from "../pages/admin/AdminAuditLogsPage";
+-      {!isStaff && tab === 'categories' && <CategoriesTab lang={lang} loading={loading} categories={categories} categoryForm={categoryForm} editingCategory={editingCategory} onCategoryFormChange={setCategoryForm} onSaveCategory={async () => {
+-        if (!categoryForm.name.trim()) return AlertJs.error('Thiếu dữ liệu', 'Vui lòng nhập tên danh mục.')
+-        try { const categoryPayload = { ...categoryForm, translations: categoryForm.translations }; if (editingCategory) await spaAdminApi.updateServiceCategory(editingCategory.id, categoryPayload); else await spaAdminApi.createServiceCategory(categoryPayload); setEditingCategory(null); setCategoryForm(defaultCategoryForm); await loadAll(); await AlertJs.success('Đã lưu danh mục dịch vụ') } catch (error) { await AlertJs.error('Lưu danh mục thất bại', getVietnameseError(error, 'Vui lòng kiểm tra dữ liệu danh mục.')) }
+-      }} onEditCategory={(category) => { setEditingCategory(category); setCategoryForm({ name: category.name, translations: ensureCategoryTranslations(category) }) }} onDeleteCategory={async (category) => {
+-        if (category.serviceCount > 0) return AlertJs.error('Không thể xóa', 'Danh mục này đang có dịch vụ. Vui lòng chuyển dịch vụ sang danh mục khác trước khi xóa.')
+-        try { await spaAdminApi.deleteServiceCategory(category.id); await loadAll(); await AlertJs.success('Đã xóa danh mục') } catch (error) { await AlertJs.error('Xóa danh mục thất bại', getVietnameseError(error, 'Không thể xóa danh mục vào lúc này.')) }
+-      }} onCancelEdit={() => { setEditingCategory(null); setCategoryForm(defaultCategoryForm) }} />}
++      {!isStaff && tab === "categories" && (
++        <CategoriesTab
++          lang={lang}
++          loading={loading}
++          categories={categories}
++          categoryForm={categoryForm}
++          editingCategory={editingCategory}
++          onCategoryFormChange={setCategoryForm}
++          onSaveCategory={async () => {
++            if (!categoryForm.name.trim())
++              return AlertJs.error(
++                "Thiếu dữ liệu",
++                "Vui lòng nhập tên danh mục.",
++              );
++            try {
++              const categoryPayload = {
++                ...categoryForm,
++                translations: categoryForm.translations,
++              };
++              if (editingCategory)
++                await spaAdminApi.updateServiceCategory(
++                  editingCategory.id,
++                  categoryPayload,
++                );
++              else await spaAdminApi.createServiceCategory(categoryPayload);
++              setEditingCategory(null);
++              setCategoryForm(defaultCategoryForm);
++              await loadAll();
++              await AlertJs.success("Đã lưu danh mục dịch vụ");
++            } catch (error) {
++              await AlertJs.error(
++                "Lưu danh mục thất bại",
++                getVietnameseError(
++                  error,
++                  "Vui lòng kiểm tra dữ liệu danh mục.",
++                ),
++              );
++            }
++          }}
++          onEditCategory={(category) => {
++            setEditingCategory(category);
++            setCategoryForm({
++              name: category.name,
++              translations: ensureCategoryTranslations(category),
++            });
++          }}
++          onDeleteCategory={async (category) => {
++            if (category.serviceCount > 0)
++              return AlertJs.error(
++                "Không thể xóa",
++                "Danh mục này đang có dịch vụ. Vui lòng chuyển dịch vụ sang danh mục khác trước khi xóa.",
++              );
++            try {
++              await spaAdminApi.deleteServiceCategory(category.id);
++              await loadAll();
++              await AlertJs.success("Đã xóa danh mục");
++            } catch (error) {
++              await AlertJs.error(
++                "Xóa danh mục thất bại",
++                getVietnameseError(
++                  error,
++                  "Không thể xóa danh mục vào lúc này.",
++                ),
++              );
++            }
++          }}
++          onCancelEdit={() => {
++            setEditingCategory(null);
++            setCategoryForm(defaultCategoryForm);
++          }}
++        />
++      )}
 
- export function AppRoutes() {
-   return (
-     <Routes>
-       {/* Public */}
-       <Route path="/login" element={<LoginPage />} />
-       <Route path="/register" element={<RegisterPage />} />
-       <Route path="/lessons/:id" element={<LessonDetailPage />} />
+-      {!isStaff && tab === 'services' && <ServicesTab lang={lang} loading={loading} services={servicePageItems} branches={branches} categories={categories} serviceForm={serviceForm} editingService={editingService} selectedImageName={selectedImage?.name || ''} searchKeyword={serviceSearchKeyword} pagination={{ page: servicePage, pageSize: servicePageSize, total: serviceTotal, totalPages: serviceTotalPages }} onSearchKeywordChange={setServiceSearchKeyword} onPageChange={(nextPage) => { void loadServices({ page: nextPage }) }} onPageSizeChange={(size) => { setServicePageSize(size); setServicePage(1) }} onServiceFormChange={setServiceForm} onSelectImage={setSelectedImage} onSaveService={async () => {
+-        if (!serviceForm.categoryId) return AlertJs.error('Thiếu danh mục', 'Vui lòng chọn danh mục cho dịch vụ.')
+-        if (!serviceForm.branchIds.length) return AlertJs.error('Thiếu chi nhánh', 'Vui lòng chọn ít nhất 1 chi nhánh áp dụng dịch vụ.')
+-        const normalizedServiceName = serviceForm.name.trim().toLocaleLowerCase('vi')
+-        const duplicatedService = services.find((service) => service.id !== editingService?.id && service.name.trim().toLocaleLowerCase('vi') === normalizedServiceName)
+-        if (duplicatedService) return AlertJs.error('Tên dịch vụ bị trùng', `Tên dịch vụ "${serviceForm.name.trim()}" đã tồn tại. Vui lòng nhập tên khác.`)
+-        const payload = { ...serviceForm, goals: serviceForm.goals.split(',').map((item) => item.trim()).filter(Boolean), suitableFor: serviceForm.suitableFor.split(',').map((item) => item.trim()).filter(Boolean), process: serviceForm.process.split(',').map((item) => item.trim()).filter(Boolean), branchIds: Array.from(new Set(serviceForm.branchIds)).map(Number).filter((id) => Number.isInteger(id) && id > 0), translations: Object.fromEntries(Object.entries(serviceForm.translations || {}).map(([code, value]) => [code, { ...value, goals: (value?.goals || '').split(',').map((item) => item.trim()).filter(Boolean), suitableFor: (value?.suitableFor || '').split(',').map((item) => item.trim()).filter(Boolean), process: (value?.process || '').split(',').map((item) => item.trim()).filter(Boolean) }])) }
+-        try { if (editingService) await spaAdminApi.updateService(editingService.id, payload, selectedImage); else await spaAdminApi.createService(payload, selectedImage); setEditingService(null); setServiceForm(defaultServiceForm); setSelectedImage(null); await loadAll(); await AlertJs.success('Đã lưu dịch vụ') } catch (error) { await AlertJs.error('Lưu dịch vụ thất bại', getVietnameseError(error, 'Vui lòng kiểm tra lại thông tin dịch vụ.')) }
+-      }} onEditService={(service) => { setEditingService(service); setSelectedImage(null); setServiceForm({ ...defaultServiceForm, ...service, categoryId: service.categoryId || 0, goals: service.goals?.join(', ') || '', suitableFor: service.suitableFor?.join(', ') || '', process: service.process?.join(', ') || '', branchIds: service.branchIds || [], isActive: service.isActive ?? true, translations: ensureServiceTranslations(service) }) }} onDeleteService={async (service) => { try { await spaAdminApi.deleteService(service.id); await loadAll(); await AlertJs.success('Đã xóa dịch vụ') } catch (error) { await AlertJs.error('Xóa dịch vụ thất bại', getVietnameseError(error, 'Dịch vụ đang được sử dụng hoặc có lỗi hệ thống.')) } }} onCancelEdit={() => { setEditingService(null); setServiceForm(defaultServiceForm); setSelectedImage(null) }} />}
++      {!isStaff && tab === "services" && (
++        <ServicesTab
++          lang={lang}
++          loading={loading}
++          services={servicePageItems}
++          branches={branches}
++          categories={categories}
++          serviceForm={serviceForm}
++          editingService={editingService}
++          selectedImageName={selectedImage?.name || ""}
++          searchKeyword={serviceSearchKeyword}
++          pagination={{
++            page: servicePage,
++            pageSize: servicePageSize,
++            total: serviceTotal,
++            totalPages: serviceTotalPages,
++          }}
++          onSearchKeywordChange={setServiceSearchKeyword}
++          onPageChange={(nextPage) => {
++            void loadServices({ page: nextPage });
++          }}
++          onPageSizeChange={(size) => {
++            setServicePageSize(size);
++            setServicePage(1);
++          }}
++          onServiceFormChange={setServiceForm}
++          onSelectImage={setSelectedImage}
++          onSaveService={async () => {
++            if (!serviceForm.categoryId)
++              return AlertJs.error(
++                "Thiếu danh mục",
++                "Vui lòng chọn danh mục cho dịch vụ.",
++              );
++            if (!serviceForm.branchIds.length)
++              return AlertJs.error(
++                "Thiếu chi nhánh",
++                "Vui lòng chọn ít nhất 1 chi nhánh áp dụng dịch vụ.",
++              );
++            const normalizedServiceName = serviceForm.name
++              .trim()
++              .toLocaleLowerCase("vi");
++            const duplicatedService = services.find(
++              (service) =>
++                service.id !== editingService?.id &&
++                service.name.trim().toLocaleLowerCase("vi") ===
++                  normalizedServiceName,
++            );
++            if (duplicatedService)
++              return AlertJs.error(
++                "Tên dịch vụ bị trùng",
++                `Tên dịch vụ "${serviceForm.name.trim()}" đã tồn tại. Vui lòng nhập tên khác.`,
++              );
++            const payload = {
++              ...serviceForm,
++              goals: serviceForm.goals
++                .split(",")
++                .map((item) => item.trim())
++                .filter(Boolean),
++              suitableFor: serviceForm.suitableFor
++                .split(",")
++                .map((item) => item.trim())
++                .filter(Boolean),
++              process: serviceForm.process
++                .split(",")
++                .map((item) => item.trim())
++                .filter(Boolean),
++              branchIds: Array.from(new Set(serviceForm.branchIds))
++                .map(Number)
++                .filter((id) => Number.isInteger(id) && id > 0),
++              translations: Object.fromEntries(
++                Object.entries(serviceForm.translations || {}).map(
++                  ([code, value]) => [
++                    code,
++                    {
++                      ...value,
++                      goals: (value?.goals || "")
++                        .split(",")
++                        .map((item) => item.trim())
++                        .filter(Boolean),
++                      suitableFor: (value?.suitableFor || "")
++                        .split(",")
++                        .map((item) => item.trim())
++                        .filter(Boolean),
++                      process: (value?.process || "")
++                        .split(",")
++                        .map((item) => item.trim())
++                        .filter(Boolean),
++                    },
++                  ],
++                ),
++              ),
++            };
++            try {
++              if (editingService)
++                await spaAdminApi.updateService(
++                  editingService.id,
++                  payload,
++                  selectedImage,
++                );
++              else await spaAdminApi.createService(payload, selectedImage);
++              setEditingService(null);
++              setServiceForm(defaultServiceForm);
++              setSelectedImage(null);
++              await loadAll();
++              await AlertJs.success("Đã lưu dịch vụ");
++            } catch (error) {
++              await AlertJs.error(
++                "Lưu dịch vụ thất bại",
++                getVietnameseError(
++                  error,
++                  "Vui lòng kiểm tra lại thông tin dịch vụ.",
++                ),
++              );
++            }
++          }}
++          onEditService={(service) => {
++            setEditingService(service);
++            setSelectedImage(null);
++            setServiceForm({
++              ...defaultServiceForm,
++              ...service,
++              categoryId: service.categoryId || 0,
++              goals: service.goals?.join(", ") || "",
++              suitableFor: service.suitableFor?.join(", ") || "",
++              process: service.process?.join(", ") || "",
++              branchIds: service.branchIds || [],
++              isActive: service.isActive ?? true,
++              translations: ensureServiceTranslations(service),
++            });
++          }}
++          onDeleteService={async (service) => {
++            try {
++              await spaAdminApi.deleteService(service.id);
++              await loadAll();
++              await AlertJs.success("Đã xóa dịch vụ");
++            } catch (error) {
++              await AlertJs.error(
++                "Xóa dịch vụ thất bại",
++                getVietnameseError(
++                  error,
++                  "Dịch vụ đang được sử dụng hoặc có lỗi hệ thống.",
++                ),
++              );
++            }
++          }}
++          onCancelEdit={() => {
++            setEditingService(null);
++            setServiceForm(defaultServiceForm);
++            setSelectedImage(null);
++          }}
++        />
++      )}
 
-       {/* Default */}
-       <Route path="/" element={<Navigate to="/courses" replace />} />
+-      {!isStaff && tab === 'specialists' && <SpecialistsTab lang={lang} loading={loading} branches={activeBranches} services={services} specialists={specialists} specialistForm={specialistForm} editingSpecialist={editingSpecialist} onSpecialistFormChange={setSpecialistForm} onSaveSpecialist={async () => {
+-        if (!specialistForm.branchId) return AlertJs.error('Thiếu chi nhánh', 'Vui lòng chọn chi nhánh cho chuyên viên.')
+-        if (!specialistForm.email.trim()) return AlertJs.error('Thiếu email', 'Vui lòng nhập email tài khoản cho chuyên viên.')
+-        try { const specialistPayload = { ...specialistForm, translations: specialistForm.translations }; if (editingSpecialist) await spaAdminApi.updateSpecialist(editingSpecialist.id, specialistPayload); else await spaAdminApi.createSpecialist(specialistPayload); setEditingSpecialist(null); setSpecialistForm(defaultSpecialistForm); await loadAll(); await AlertJs.success('Đã lưu chuyên viên') } catch (error) { await AlertJs.error('Lưu chuyên viên thất bại', getVietnameseError(error, 'Thông tin chuyên viên chưa hợp lệ.')) }
+-      }} onEditSpecialist={(specialist) => { setEditingSpecialist(specialist); setSpecialistForm({ name: specialist.name, email: specialist.email, level: specialist.level, bio: specialist.bio || '', branchId: specialist.branchId, serviceIds: specialist.serviceIds || [], translations: ensureSpecialistTranslations(specialist) }) }} onDeleteSpecialist={async (specialist) => { try { await spaAdminApi.deleteSpecialist(specialist.id); await loadAll(); await AlertJs.success('Đã xóa chuyên viên') } catch (error) { await AlertJs.error('Xóa chuyên viên thất bại', getVietnameseError(error, 'Chuyên viên đang có lịch hẹn hoặc liên kết dữ liệu.')) } }} onCancelEdit={() => { setEditingSpecialist(null); setSpecialistForm(defaultSpecialistForm) }} />}
++      {!isStaff && tab === "specialists" && (
++        <SpecialistsTab
++          lang={lang}
++          loading={loading}
++          branches={activeBranches}
++          services={services}
++          specialists={specialists}
++          specialistForm={specialistForm}
++          editingSpecialist={editingSpecialist}
++          onSpecialistFormChange={setSpecialistForm}
++          onSaveSpecialist={async () => {
++            if (!specialistForm.branchId)
++              return AlertJs.error(
++                "Thiếu chi nhánh",
++                "Vui lòng chọn chi nhánh cho chuyên viên.",
++              );
++            if (!specialistForm.email.trim())
++              return AlertJs.error(
++                "Thiếu email",
++                "Vui lòng nhập email tài khoản cho chuyên viên.",
++              );
++            try {
++              const specialistPayload = {
++                ...specialistForm,
++                translations: specialistForm.translations,
++              };
++              if (editingSpecialist)
++                await spaAdminApi.updateSpecialist(
++                  editingSpecialist.id,
++                  specialistPayload,
++                );
++              else await spaAdminApi.createSpecialist(specialistPayload);
++              setEditingSpecialist(null);
++              setSpecialistForm(defaultSpecialistForm);
++              await loadAll();
++              await AlertJs.success("Đã lưu chuyên viên");
++            } catch (error) {
++              await AlertJs.error(
++                "Lưu chuyên viên thất bại",
++                getVietnameseError(error, "Thông tin chuyên viên chưa hợp lệ."),
++              );
++            }
++          }}
++          onEditSpecialist={(specialist) => {
++            setEditingSpecialist(specialist);
++            setSpecialistForm({
++              name: specialist.name,
++              email: specialist.email,
++              level: specialist.level,
++              bio: specialist.bio || "",
++              branchId: specialist.branchId,
++              serviceIds: specialist.serviceIds || [],
++              translations: ensureSpecialistTranslations(specialist),
++            });
++          }}
++          onDeleteSpecialist={async (specialist) => {
++            try {
++              await spaAdminApi.deleteSpecialist(specialist.id);
++              await loadAll();
++              await AlertJs.success("Đã xóa chuyên viên");
++            } catch (error) {
++              await AlertJs.error(
++                "Xóa chuyên viên thất bại",
++                getVietnameseError(
++                  error,
++                  "Chuyên viên đang có lịch hẹn hoặc liên kết dữ liệu.",
++                ),
++              );
++            }
++          }}
++          onCancelEdit={() => {
++            setEditingSpecialist(null);
++            setSpecialistForm(defaultSpecialistForm);
++          }}
++        />
++      )}
 
-       {/* Protected */}
-       <Route
-         path="/courses"
-         element={
-           <RequireAuth>
-             <RequireRole roles={["ADMIN", "USER"]}>
-               <CoursesPage />
-             </RequireRole>
-           </RequireAuth>
-         }
-       />
-       <Route
-         path="/courses/:id"
-@@ -82,41 +83,53 @@ export function AppRoutes() {
-
-       {/* Admin */}
-       <Route
-         path="/admin/orders"
-         element={
-           <RequireAuth>
-             <RequireRole roles={["ADMIN"]}>
-               <AdminOrdersPage />
-             </RequireRole>
-           </RequireAuth>
-         }
-       />
-
-       <Route
-         path="/admin/spa"
-         element={
-           <RequireAuth>
-             <RequireRole roles={["ADMIN", "STAFF"]}>
-               <AdminSpaPage />
-             </RequireRole>
-           </RequireAuth>
-         }
-       />
-
-
-+
-+      <Route
-+        path="/admin/audit-logs"
-+        element={
-+          <RequireAuth>
-+            <RequireRole roles={["ADMIN"]}>
-+              <AdminAuditLogsPage />
-+            </RequireRole>
-+          </RequireAuth>
-+        }
-+      />
-+
-       <Route
-         path="/admin/cources"
-         element={
-           <RequireAuth>
-             <RequireRole roles={["ADMIN"]}>
-               <AdminCoursesPage />
-             </RequireRole>
-           </RequireAuth>
-         }
-       />
-
-       {/* 404 */}
-       <Route path="*" element={<div style={{ padding: 16 }}>404</div>} />
-     </Routes>
-   );
- }
-diff --git a/backend/ayanavitabackend/app/api/src/app.module.ts b/backend/ayanavitabackend/app/api/src/app.module.ts
-index dfd59ff4319fd63136d58bc445154b9cfe98bbd1..5ca7fad9b3eb847865e2c24133b19542aa762063 100644
---- a/backend/ayanavitabackend/app/api/src/app.module.ts
-+++ b/backend/ayanavitabackend/app/api/src/app.module.ts
-@@ -1,40 +1,42 @@
- import { Module } from '@nestjs/common';
-
- import { PrismaModule } from './prisma/prisma.module';
-
- import { AuthModule } from './auth/auth.module';
- import { UsersModule } from './users/users.module';
-
- import { CoursesModule } from './courses/courses.module';
- import { CourseTopicsModule } from './course-topics/course-topics.module';
- import { LessonsModule } from './lessons/lessons.module';
- import { EnrollmentsModule } from './enrollments/enrollments.module';
- import { ProgressModule } from './progress/progress.module';
-
- import { OrdersModule } from './orders/orders.module';
- import { BookingModule } from './booking/booking.module';
-
- import { CmsModule } from './cms/cms.module';
- import { CatalogModule } from './catalog/catalog.module';
-+import { AuditLogsModule } from './audit-logs/audit-logs.module';
-
- @Module({
-   imports: [
-     PrismaModule,
-
-     UsersModule,
-     AuthModule,
-
-     CoursesModule,
-     CourseTopicsModule,
-     LessonsModule,
-     EnrollmentsModule,
-     ProgressModule,
-
-     OrdersModule,
-     BookingModule,
-
-     CmsModule,
-     CatalogModule,
-+    AuditLogsModule,
-   ],
- })
- export class AppModule {}
-\ No newline at end of file
-diff --git a/backend/ayanavitabackend/app/api/src/audit-logs/audit-logs.controller.ts b/backend/ayanavitabackend/app/api/src/audit-logs/audit-logs.controller.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..38c1aa37eccda32d71693cd513b7b212ce4cf0e1
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/audit-logs/audit-logs.controller.ts
-@@ -0,0 +1,31 @@
-+import { Controller, Get, Query, UseGuards } from '@nestjs/common'
-+import { Roles } from '../auth/decorators/roles.decorator'
-+import { AccessTokenGuard } from '../auth/guards/access-token.guard'
-+import { RolesGuard } from '../auth/guards/roles.guard'
-+import { AuditLogsService } from './audit-logs.service'
-+
-+@Controller('audit-logs')
-+@UseGuards(AccessTokenGuard, RolesGuard)
-+@Roles('ADMIN')
-+export class AuditLogsController {
-+  constructor(private readonly auditLogsService: AuditLogsService) {}
-+
-+  @Get()
-+  list(
-+    @Query('page') page = 1,
-+    @Query('limit') limit = 20,
-+    @Query('tableName') tableName?: string,
-+    @Query('action') action?: string,
-+    @Query('role') role?: string,
-+    @Query('q') q?: string,
-+  ) {
-+    return this.auditLogsService.list({
-+      page: Number(page),
-+      limit: Number(limit),
-+      tableName,
-+      action,
-+      role,
-+      q,
-+    })
-+  }
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/audit-logs/audit-logs.module.ts b/backend/ayanavitabackend/app/api/src/audit-logs/audit-logs.module.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..4e0e13630bcf407f6d02c30c80c944995db45ade
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/audit-logs/audit-logs.module.ts
-@@ -0,0 +1,9 @@
-+import { Module } from '@nestjs/common'
-+import { AuditLogsController } from './audit-logs.controller'
-+import { AuditLogsService } from './audit-logs.service'
-+
-+@Module({
-+  controllers: [AuditLogsController],
-+  providers: [AuditLogsService],
-+})
-+export class AuditLogsModule {}
-diff --git a/backend/ayanavitabackend/app/api/src/audit-logs/audit-logs.service.ts b/backend/ayanavitabackend/app/api/src/audit-logs/audit-logs.service.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..aa3b28f193b0d6d776ef3d7fb46e651353274640
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/audit-logs/audit-logs.service.ts
-@@ -0,0 +1,82 @@
-+import { Injectable } from '@nestjs/common'
-+import { PrismaService } from '../prisma/prisma.service'
-+
-+export type AuditLogListQuery = {
-+  page: number
-+  limit: number
-+  tableName?: string
-+  action?: string
-+  role?: string
-+  q?: string
-+}
-+
-+@Injectable()
-+export class AuditLogsService {
-+  constructor(private readonly prisma: PrismaService) {}
-+
-+  async list(query: AuditLogListQuery) {
-+    const page = Math.max(1, Number(query.page || 1))
-+    const limit = Math.min(100, Math.max(1, Number(query.limit || 20)))
-+    const offset = (page - 1) * limit
-+
-+    const where: string[] = ['1=1']
-+    const params: any[] = []
-+
-+    if (query.tableName) {
-+      where.push('table_name = ?')
-+      params.push(query.tableName)
-+    }
-+    if (query.action) {
-+      where.push('action = ?')
-+      params.push(query.action)
-+    }
-+    if (query.role) {
-+      where.push('role = ?')
-+      params.push(query.role)
-+    }
-+    if (query.q) {
-+      where.push('(email LIKE ? OR actor_name LIKE ? OR endpoint LIKE ? OR ip_address LIKE ?)')
-+      const search = `%${query.q}%`
-+      params.push(search, search, search, search)
-+    }
-+
-+    const whereSql = where.join(' AND ')
-+
-+    const items = await this.prisma.$queryRawUnsafe<any[]>(
-+      `
-+      SELECT
-+        id,
-+        user_id AS userId,
-+        email,
-+        actor_name AS actorName,
-+        role,
-+        ip_address AS ipAddress,
-+        method,
-+        endpoint,
-+        table_name AS tableName,
-+        action,
-+        query_payload AS queryPayload,
-+        created_at AS createdAt
-+      FROM audit_logs
-+      WHERE ${whereSql}
-+      ORDER BY created_at DESC
-+      LIMIT ? OFFSET ?
-+      `,
-+      ...params,
-+      limit,
-+      offset,
-+    )
-+
-+    const countRows = await this.prisma.$queryRawUnsafe<any[]>(
-+      `SELECT COUNT(*) AS total FROM audit_logs WHERE ${whereSql}`,
-+      ...params,
-+    )
-+
-+    return {
-+      page,
-+      limit,
-+      total: Number(countRows?.[0]?.total || 0),
-+      items,
-+    }
-+  }
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/common/request-context/request-context.interceptor.ts b/backend/ayanavitabackend/app/api/src/common/request-context/request-context.interceptor.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..7ca4ca95e27358903bdc70eac002ca23772d9c95
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/common/request-context/request-context.interceptor.ts
-@@ -0,0 +1,28 @@
-+import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common'
-+import { Observable } from 'rxjs'
-+import { RequestContextService } from './request-context.service'
-+
-+@Injectable()
-+export class RequestContextInterceptor implements NestInterceptor {
-+  constructor(private readonly requestContext: RequestContextService) {}
-+
-+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-+    const req = context.switchToHttp().getRequest<any>()
-+    const user = req?.user
-+
-+    const ip = (req?.headers?.['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() || req?.ip || null
-+
-+    return this.requestContext.run(
-+      {
-+        userId: typeof user?.sub === 'number' ? user.sub : null,
-+        email: typeof user?.email === 'string' ? user.email : null,
-+        name: typeof user?.name === 'string' ? user.name : null,
-+        role: typeof user?.role === 'string' ? user.role : null,
-+        ip,
-+        method: req?.method ?? 'UNKNOWN',
-+        path: req?.originalUrl || req?.url || '',
-+      },
-+      () => next.handle(),
-+    )
-+  }
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/common/request-context/request-context.module.ts b/backend/ayanavitabackend/app/api/src/common/request-context/request-context.module.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..c2feb68841eb56553f0e29147be2eb85e503c1ed
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/common/request-context/request-context.module.ts
-@@ -0,0 +1,10 @@
-+import { Global, Module } from '@nestjs/common'
-+import { RequestContextInterceptor } from './request-context.interceptor'
-+import { RequestContextService } from './request-context.service'
-+
-+@Global()
-+@Module({
-+  providers: [RequestContextService, RequestContextInterceptor],
-+  exports: [RequestContextService, RequestContextInterceptor],
-+})
-+export class RequestContextModule {}
-diff --git a/backend/ayanavitabackend/app/api/src/common/request-context/request-context.service.ts b/backend/ayanavitabackend/app/api/src/common/request-context/request-context.service.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..997f2d00db42415b8b1ffd2c1f779211342b521a
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/common/request-context/request-context.service.ts
-@@ -0,0 +1,25 @@
-+import { Injectable } from '@nestjs/common'
-+import { AsyncLocalStorage } from 'node:async_hooks'
-+
-+export type RequestActor = {
-+  userId: number | null
-+  email: string | null
-+  name: string | null
-+  role: string | null
-+  ip: string | null
-+  method: string
-+  path: string
-+}
-+
-+@Injectable()
-+export class RequestContextService {
-+  private readonly storage = new AsyncLocalStorage<RequestActor>()
-+
-+  run<T>(actor: RequestActor, callback: () => T): T {
-+    return this.storage.run(actor, callback)
-+  }
-+
-+  getActor(): RequestActor | undefined {
-+    return this.storage.getStore()
-+  }
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/main.ts b/backend/ayanavitabackend/app/api/src/main.ts
-index d70b5de079a6b0b0e04c7a22c78892113c3d5aeb..7e54b9a99b1981d55f9269907100aecdc371c9af 100644
---- a/backend/ayanavitabackend/app/api/src/main.ts
-+++ b/backend/ayanavitabackend/app/api/src/main.ts
-@@ -1,33 +1,34 @@
- import { ValidationPipe } from "@nestjs/common";
- import { NestFactory } from "@nestjs/core";
- import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
- import { join } from "path";
- import * as express from "express";
-
- import { AppModule } from "./app.module";
- import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
-+import { RequestContextInterceptor } from "./common/request-context/request-context.interceptor";
-
- async function bootstrap() {
-   const app = await NestFactory.create(AppModule, {
-     logger: ["log", "error", "warn", "debug", "verbose"],
-   });
-
-   // ✅ CORS – chuẩn cho cả production + admin + dev
-   const allow = new Set<string>([
-     // 🌍 Production main domain
-     "http://ayanavita-germany.com",
-     "https://ayanavita-germany.com",
-
-     // 🔐 Admin subdomain
-     "http://admin.ayanavita.com",
-     "https://admin.ayanavita.com",
-
-     // 🧪 Dev local
-     "http://localhost:5173",
-     "http://127.0.0.1:5173",
-     "http://localhost:5174",
-     "http://127.0.0.1:5174",
-     "http://localhost:5175",
-     "http://127.0.0.1:5175",
-     "http://localhost:5176",
-     "http://127.0.0.1:5176",
-@@ -36,50 +37,52 @@ async function bootstrap() {
-     "http://localhost:5050",
-     "http://127.0.0.1:5050",
-   ]);
-
-   app.enableCors({
-     origin: (origin, callback) => {
-       // Cho phép server-to-server hoặc curl
-       if (!origin) return callback(null, true);
-
-       if (allow.has(origin)) {
-         return callback(null, true);
-       }
-
-       console.error(`❌ CORS blocked for origin: ${origin}`);
-       return callback(new Error(`CORS blocked for origin: ${origin}`), false);
-     },
-     credentials: true,
-     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-     allowedHeaders: ["Content-Type", "Authorization"],
-     optionsSuccessStatus: 204,
-   });
-
-   // ✅ serve temporary uploaded images
-   app.use("/booking-temp-images", express.static(join(process.cwd(), "temp-images")));
-
-+  app.useGlobalInterceptors(app.get(RequestContextInterceptor));
-+
-   // ✅ Global Exception Filter
-   app.useGlobalFilters(new AllExceptionsFilter());
-
-   // ✅ Graceful shutdown
-   app.enableShutdownHooks();
-
-   // ✅ Validation
-   app.useGlobalPipes(
-     new ValidationPipe({
-       whitelist: true,
-       forbidNonWhitelisted: true,
-       transform: true,
-       transformOptions: {
-         enableImplicitConversion: true,
-       },
-     }),
-   );
-
-   // ✅ Swagger
-   const config = new DocumentBuilder()
-     .setTitle("AYANAVITA API")
-     .setDescription("LMS Backend")
-     .setVersion("1.0")
-     .addBearerAuth()
-     .build();
-diff --git a/backend/ayanavitabackend/app/api/src/prisma/prisma.module.ts b/backend/ayanavitabackend/app/api/src/prisma/prisma.module.ts
-index 1edbf95e6a8afb7f49bdcfcc4611bdfccb5960be..215065ef0884742b8b743f6400e29a1f08ba32e8 100644
---- a/backend/ayanavitabackend/app/api/src/prisma/prisma.module.ts
-+++ b/backend/ayanavitabackend/app/api/src/prisma/prisma.module.ts
-@@ -1,9 +1,11 @@
--import { Global, Module } from "@nestjs/common";
--import { PrismaService } from "./prisma.service";
-+import { Global, Module } from '@nestjs/common'
-+import { RequestContextModule } from '../common/request-context/request-context.module'
-+import { PrismaService } from './prisma.service'
-
- @Global()
- @Module({
-+  imports: [RequestContextModule],
-   providers: [PrismaService],
-   exports: [PrismaService],
- })
- export class PrismaModule {}
-diff --git a/backend/ayanavitabackend/app/api/src/prisma/prisma.service.ts b/backend/ayanavitabackend/app/api/src/prisma/prisma.service.ts
-index d86f65db13da288366c6bd719f180d86915dc15b..b09a3e42cd56c9b41aa8b349efe636e66a51065e 100644
---- a/backend/ayanavitabackend/app/api/src/prisma/prisma.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/prisma/prisma.service.ts
-@@ -1,13 +1,140 @@
--import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
--import { PrismaClient } from "@prisma/client";
-+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
-+import { Prisma, PrismaClient } from '@prisma/client'
-+import { RequestContextService } from '../common/request-context/request-context.service'
-+
-+const AUDIT_ACTIONS: Record<string, string> = {
-+  findUnique: 'SELECT',
-+  findUniqueOrThrow: 'SELECT',
-+  findFirst: 'SELECT',
-+  findFirstOrThrow: 'SELECT',
-+  findMany: 'SELECT',
-+  create: 'CREATE',
-+  createMany: 'CREATE',
-+  createManyAndReturn: 'CREATE',
-+  update: 'UPDATE',
-+  updateMany: 'UPDATE',
-+  upsert: 'UPSERT',
-+  delete: 'DELETE',
-+  deleteMany: 'DELETE',
-+  aggregate: 'SELECT',
-+  groupBy: 'SELECT',
-+  count: 'SELECT',
-+}
-
- @Injectable()
- export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
-+  constructor(private readonly requestContext: RequestContextService) {
-+    super()
-+  }
-+
-   async onModuleInit() {
--    await this.$connect();
-+    await this.$connect()
-+    await this.ensureAuditLogTable()
-+
-+    this.$use(async (params, next) => {
-+      const result = await next(params)
-+
-+      if (!params.model || params.model === 'AuditLog') {
-+        return result
-+      }
-+
-+      const action = AUDIT_ACTIONS[params.action]
-+      if (!action) {
-+        return result
-+      }
-+
-+      const actor = this.requestContext.getActor()
-+      const modelName = params.model
-+      const payload = this.safeStringify(params.args)
-+
-+      await this.insertAuditLog({
-+        userId: actor?.userId ?? null,
-+        email: actor?.email ?? null,
-+        name: actor?.name ?? null,
-+        role: actor?.role ?? null,
-+        ipAddress: actor?.ip ?? null,
-+        method: actor?.method ?? null,
-+        endpoint: actor?.path ?? null,
-+        tableName: modelName,
-+        action,
-+        query: payload,
-+      })
-+
-+      return result
-+    })
-+  }
-+
-+  private async ensureAuditLogTable() {
-+    await this.$executeRawUnsafe(`
-+      CREATE TABLE IF NOT EXISTS audit_logs (
-+        id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-+        user_id INT NULL,
-+        email VARCHAR(255) NULL,
-+        actor_name VARCHAR(255) NULL,
-+        role VARCHAR(100) NULL,
-+        ip_address VARCHAR(100) NULL,
-+        method VARCHAR(16) NULL,
-+        endpoint VARCHAR(512) NULL,
-+        table_name VARCHAR(120) NOT NULL,
-+        action VARCHAR(32) NOT NULL,
-+        query_payload JSON NULL,
-+        created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-+        INDEX idx_audit_logs_created_at (created_at),
-+        INDEX idx_audit_logs_table_name (table_name),
-+        INDEX idx_audit_logs_action (action),
-+        INDEX idx_audit_logs_user_id (user_id)
-+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-+    `)
-+  }
-+
-+  private async insertAuditLog(input: {
-+    userId: number | null
-+    email: string | null
-+    name: string | null
-+    role: string | null
-+    ipAddress: string | null
-+    method: string | null
-+    endpoint: string | null
-+    tableName: string
-+    action: string
-+    query: string | null
-+  }) {
-+    try {
-+      await this.$executeRaw(
-+        Prisma.sql`
-+          INSERT INTO audit_logs (
-+            user_id, email, actor_name, role, ip_address, method, endpoint,
-+            table_name, action, query_payload, created_at
-+          ) VALUES (
-+            ${input.userId},
-+            ${input.email},
-+            ${input.name},
-+            ${input.role},
-+            ${input.ipAddress},
-+            ${input.method},
-+            ${input.endpoint},
-+            ${input.tableName},
-+            ${input.action},
-+            CAST(${input.query} AS JSON),
-+            NOW(3)
-+          )
-+        `,
-+      )
-+    } catch {
-+      // noop: không để lỗi audit làm hỏng request nghiệp vụ
-+    }
-+  }
-+
-+  private safeStringify(value: unknown): string | null {
-+    if (value === undefined) return null
-+    try {
-+      return JSON.stringify(value)
-+    } catch {
-+      return JSON.stringify({ note: 'UNSERIALIZABLE_ARGS' })
-+    }
-   }
-
-   async onModuleDestroy() {
--    await this.$disconnect();
-+    await this.$disconnect()
-   }
+-      {(isStaff || tab === 'appointments') && <AppointmentsTab lang={lang} loading={loading} appointments={appointments} specialists={specialists} branches={branches} services={services} isStaff={isStaff} onAssignSpecialist={async (appointment, specialistId) => {
+-        if (isStaff) return
+-        try { await spaAdminApi.updateAppointment(appointment.id, { specialistId }); await loadAll(); await AlertJs.success('Đã gán chuyên viên và gửi email thông báo') } catch (error) { await AlertJs.error('Gán chuyên viên thất bại', getVietnameseError(error, 'Không thể gán chuyên viên vào lịch hẹn này.')) }
+-      }} onUpdateStatus={async (appointment, status) => {
+-        try { await spaAdminApi.updateAppointment(appointment.id, { status }); await loadAll(); await AlertJs.success('Đã cập nhật trạng thái lịch hẹn') } catch (error) { await AlertJs.error('Cập nhật thất bại', getVietnameseError(error, 'Không thể cập nhật trạng thái lịch hẹn.')) }
+-      }} onDeleteAppointment={async (appointment) => {
+-        if (isStaff) return
+-        try { await spaAdminApi.deleteAppointment(appointment.id); await loadAll(); await AlertJs.success('Đã xóa lịch hẹn') } catch (error) { await AlertJs.error('Xóa lịch hẹn thất bại', getVietnameseError(error, 'Không thể xóa lịch hẹn vào lúc này.')) }
+-      }} />}
++      {(isStaff || tab === "appointments") && (
++        <AppointmentsTab
++          lang={lang}
++          loading={loading}
++          appointments={appointments}
++          specialists={specialists}
++          branches={branches}
++          services={services}
++          isStaff={isStaff}
++          onAssignSpecialist={async (appointment, specialistId) => {
++            if (isStaff) return;
++            try {
++              await spaAdminApi.updateAppointment(appointment.id, {
++                specialistId,
++              });
++              await loadAll();
++              await AlertJs.success(
++                "Đã gán chuyên viên và gửi email thông báo",
++              );
++            } catch (error) {
++              await AlertJs.error(
++                "Gán chuyên viên thất bại",
++                getVietnameseError(
++                  error,
++                  "Không thể gán chuyên viên vào lịch hẹn này.",
++                ),
++              );
++            }
++          }}
++          onUpdateStatus={async (appointment, status) => {
++            try {
++              await spaAdminApi.updateAppointment(appointment.id, { status });
++              await loadAll();
++              await AlertJs.success("Đã cập nhật trạng thái lịch hẹn");
++            } catch (error) {
++              await AlertJs.error(
++                "Cập nhật thất bại",
++                getVietnameseError(
++                  error,
++                  "Không thể cập nhật trạng thái lịch hẹn.",
++                ),
++              );
++            }
++          }}
++          onDeleteAppointment={async (appointment) => {
++            if (isStaff) return;
++            try {
++              await spaAdminApi.deleteAppointment(appointment.id);
++              await loadAll();
++              await AlertJs.success("Đã xóa lịch hẹn");
++            } catch (error) {
++              await AlertJs.error(
++                "Xóa lịch hẹn thất bại",
++                getVietnameseError(
++                  error,
++                  "Không thể xóa lịch hẹn vào lúc này.",
++                ),
++              );
++            }
++          }}
++        />
++      )}
+     </main>
+-  )
++  );
  }

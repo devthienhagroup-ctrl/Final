@@ -132,7 +132,6 @@ const PAGE_CSS = `
 @keyframes blog-admin-spin { to { transform: rotate(360deg); } }
 
 .blog-admin .container {
-width: 100%;
   max-width: 1200px;
   margin: 0 auto;
   padding: 18px;

@@ -1,22 +1,14 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
-  adminCleanupViewTrackers,
   adminCreateBlog,
   adminDeleteBlog,
   adminListBlogs,
   adminUpdateBlog,
+  adminUploadCoverImage,
+  clearBlogViewTracking,
   BlogAdminItem,
   BlogStatus,
 } from "../api/blogAdmin.api";
-
-const initialForm = {
-  title: "",
-  summary: "",
-  content: "",
-  tags: "",
-  status: "DRAFT" as BlogStatus,
-  coverImage: "",
-};
 
 const PAGE_CSS = `
 .blog-admin {
@@ -132,7 +124,6 @@ const PAGE_CSS = `
 @keyframes blog-admin-spin { to { transform: rotate(360deg); } }
 
 .blog-admin .container {
-width: 100%;
   max-width: 1200px;
   margin: 0 auto;
   padding: 18px;
@@ -512,9 +503,18 @@ width: 100%;
 }
 `;
 
+const initialForm = {
+  title: "",
+  summary: "",
+  content: "",
+  tags: "",
+  status: "DRAFT" as BlogStatus,
+  coverImage: "",
+};
+
 export function BlogAdminPage() {
   const [items, setItems] = useState<BlogAdminItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -609,55 +609,73 @@ export function BlogAdminPage() {
     setMessage("");
 
     const payload = {
-      title: form.title.trim(),
-      summary: form.summary.trim(),
-      content: form.content.trim(),
+      title: form.title,
+      summary: form.summary,
+      content: form.content,
       tags: form.tags
         .split(",")
-        .map((t) => t.trim())
+        .map((x) => x.trim())
         .filter(Boolean),
       status: form.status,
-      coverImage: form.coverImage.trim() || undefined,
+      coverImage: form.coverImage,
     };
 
     try {
-      if (!payload.title || !payload.content) {
-        throw new Error("Tiêu đề và nội dung là bắt buộc");
-      }
+      let blogId: number | null = null;
 
       if (editing) {
-        await adminUpdateBlog(editing.id, payload, coverImageFile);
-        setMessage("Đã cập nhật bài viết");
+        const updated = await adminUpdateBlog(editing.id, payload);
+        blogId = updated.id;
+        setMessage("Đã cập nhật bài viết.");
       } else {
-        await adminCreateBlog(payload, coverImageFile);
-        setMessage("Đã tạo bài viết mới");
+        const created = await adminCreateBlog(payload);
+        blogId = created.id;
+        setMessage("Đã tạo bài viết mới.");
       }
+
+      if (coverImageFile && blogId) {
+        try {
+          const uploaded = await adminUploadCoverImage(blogId, coverImageFile);
+          if (uploaded.coverImageUrl) {
+            await adminUpdateBlog(blogId, { coverImage: uploaded.coverImageUrl });
+          }
+          setMessage((m) => (m ? m + " Đã upload cover." : "Đã upload cover."));
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "Upload cover thất bại");
+        }
+      }
+
       resetForm();
       await loadData();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Lưu blog thất bại");
+      setError(e instanceof Error ? e.message : "Không thể lưu bài viết");
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (item: BlogAdminItem) => {
-    if (!confirm(`Xóa bài viết "${item.title}"?`)) return;
+    const ok = window.confirm(`Xóa bài "${item.title}"?`);
+    if (!ok) return;
+    setError("");
+    setMessage("");
     try {
       await adminDeleteBlog(item.id);
-      setMessage("Đã xóa bài viết");
+      setMessage("Đã xóa bài viết.");
       await loadData();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Xóa blog thất bại");
+      setError(e instanceof Error ? e.message : "Xóa thất bại");
     }
   };
 
   const runCleanup = async () => {
+    setError("");
+    setMessage("");
     try {
-      await adminCleanupViewTrackers();
-      setMessage("Đã chạy cleanup view tracker");
+      await clearBlogViewTracking();
+      setMessage("Đã clear tracker blog views.");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Không thể cleanup tracker");
+      setError(e instanceof Error ? e.message : "Cleanup thất bại");
     }
   };
 
@@ -725,8 +743,7 @@ export function BlogAdminPage() {
                 <h2>Quản lý bài viết</h2>
                 <p className="hint">Tìm kiếm theo tiêu đề/slug, lọc trạng thái, tạo/sửa bằng drawer bên phải.</p>
               </div>
-              <div className="pill" title="Demo export" onClick={() => setMessage("Export demo: bạn có thể map sang CSV/Excel sau.")}
-              >
+              <div className="pill" title="Demo export" onClick={() => setMessage("Export demo: bạn có thể map sang CSV/Excel sau.")}>
                 <i className="fa-solid fa-file-arrow-down" style={{ opacity: 0.85 }} />
                 <span style={{ fontSize: 13, fontWeight: 700 }}>Export</span>
               </div>
@@ -741,7 +758,10 @@ export function BlogAdminPage() {
                 <p className="label">Tổng bài (theo API)</p>
                 <div className="row">
                   <p className="value">{total}</p>
-                  <span className="badge-mini"><span className="spark" />All</span>
+                  <span className="badge-mini">
+                    <span className="spark" />
+                    All
+                  </span>
                 </div>
               </div>
 
@@ -750,7 +770,10 @@ export function BlogAdminPage() {
                 <p className="label">Bài trên trang hiện tại</p>
                 <div className="row">
                   <p className="value">{items.length}</p>
-                  <span className="badge-mini"><span className="spark" />Page</span>
+                  <span className="badge-mini">
+                    <span className="spark" />
+                    Page
+                  </span>
                 </div>
               </div>
 
@@ -759,7 +782,10 @@ export function BlogAdminPage() {
                 <p className="label">Đã xuất bản (trang hiện tại)</p>
                 <div className="row">
                   <p className="value">{publishedCount}</p>
-                  <span className="badge-mini"><span className="spark" />Published</span>
+                  <span className="badge-mini">
+                    <span className="spark" />
+                    Published
+                  </span>
                 </div>
               </div>
 
@@ -768,15 +794,23 @@ export function BlogAdminPage() {
                 <p className="label">Tổng views (trang hiện tại)</p>
                 <div className="row">
                   <p className="value">{viewSum}</p>
-                  <span className="badge-mini"><span className="spark" />Views</span>
+                  <span className="badge-mini">
+                    <span className="spark" />
+                    Views
+                  </span>
                 </div>
               </div>
             </div>
 
             <div className="card panel">
               <div className="panel-head">
-                <h3><i className="fa-solid fa-filter" style={{ opacity: 0.8 }} /> Bộ lọc</h3>
-                <div className="right"><span>Tip:</span><span>gõ slug hoặc từ khoá trong tiêu đề</span></div>
+                <h3>
+                  <i className="fa-solid fa-filter" style={{ opacity: 0.8 }} /> Bộ lọc
+                </h3>
+                <div className="right">
+                  <span>Tip:</span>
+                  <span>gõ slug hoặc từ khoá trong tiêu đề</span>
+                </div>
               </div>
 
               <div className="filters">
@@ -962,7 +996,9 @@ export function BlogAdminPage() {
             <div className="drawer-body">
               <form onSubmit={submitForm}>
                 <div className="section">
-                  <h5><i className="fa-solid fa-font" style={{ opacity: 0.8 }} /> Thông tin cơ bản</h5>
+                  <h5>
+                    <i className="fa-solid fa-font" style={{ opacity: 0.8 }} /> Thông tin cơ bản
+                  </h5>
 
                   <div style={{ marginBottom: 10 }}>
                     <label>Tiêu đề *</label>
@@ -977,11 +1013,7 @@ export function BlogAdminPage() {
                   <div className="split">
                     <div>
                       <label>Trạng thái</label>
-                      <select
-                        className="input"
-                        value={form.status}
-                        onChange={(e) => setForm((s) => ({ ...s, status: e.target.value as BlogStatus }))}
-                      >
+                      <select className="input" value={form.status} onChange={(e) => setForm((s) => ({ ...s, status: e.target.value as BlogStatus }))}>
                         <option value="DRAFT">Draft</option>
                         <option value="PUBLISHED">Published</option>
                       </select>
@@ -999,7 +1031,9 @@ export function BlogAdminPage() {
                 </div>
 
                 <div className="section">
-                  <h5><i className="fa-solid fa-align-left" style={{ opacity: 0.8 }} /> Nội dung</h5>
+                  <h5>
+                    <i className="fa-solid fa-align-left" style={{ opacity: 0.8 }} /> Nội dung
+                  </h5>
 
                   <div style={{ marginBottom: 10 }}>
                     <label>Tóm tắt</label>
@@ -1024,7 +1058,9 @@ export function BlogAdminPage() {
                 </div>
 
                 <div className="section">
-                  <h5><i className="fa-solid fa-image" style={{ opacity: 0.8 }} /> Cover</h5>
+                  <h5>
+                    <i className="fa-solid fa-image" style={{ opacity: 0.8 }} /> Cover
+                  </h5>
 
                   <div className="split">
                     <div>
@@ -1039,12 +1075,7 @@ export function BlogAdminPage() {
                     </div>
                     <div>
                       <label>Cover image file</label>
-                      <input
-                        className="input"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setCoverImageFile(e.target.files?.[0])}
-                      />
+                      <input className="input" type="file" accept="image/*" onChange={(e) => setCoverImageFile(e.target.files?.[0])} />
                       <div className="sub">Chọn file sẽ gửi multipart theo API hiện tại.</div>
                     </div>
                   </div>

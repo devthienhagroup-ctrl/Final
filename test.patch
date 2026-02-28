@@ -1,129 +1,67 @@
-diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202603120001_drop_product_images/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202603120001_drop_product_images/migration.sql
-new file mode 100644
-index 0000000000000000000000000000000000000000..8ffec890121336ab53eb60b48f1550b858553cda
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/prisma/migrations/202603120001_drop_product_images/migration.sql
-@@ -0,0 +1 @@
-+DROP TABLE IF EXISTS `product_images`;
-diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-index 74fc8a56f3030aaf9805e42d999d93ccc9703be4..de43b39485d513e5b4ca9e8777367e4229c49459 100644
---- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
-+++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-@@ -721,69 +721,54 @@ model CategoryTranslation {
-   name         String @db.VarChar(255)
-   slug         String @db.VarChar(255)
-   description  String? @db.Text
-
-   category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-   language Language @relation(fields: [languageCode], references: [code], onDelete: Restrict)
-
-   @@id([categoryId, languageCode])
-   @@unique([languageCode, slug], map: "uq_category_slug_per_lang")
-   @@map("category_translations")
- }
-
- model CatalogProduct {
-   id         BigInt   @id @default(autoincrement())
-   sku        String   @unique @db.VarChar(64)
-   categoryId BigInt?  @map("category_id")
-   price      Decimal  @default(0) @db.Decimal(18, 2)
-   status     String   @default("active") @db.VarChar(20)
-   createdAt  DateTime @default(now()) @map("created_at")
-   updatedAt  DateTime @updatedAt @map("updated_at")
-
-   category     Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-   translations ProductTranslation[]
-   attributes   ProductAttribute[]
-   ingredients  ProductIngredient[]
--  images       ProductImage[]
-
-   @@map("products")
- }
-
--model ProductImage {
--  id          BigInt   @id @default(autoincrement())
--  productId   BigInt   @map("product_id")
--  imageUrl    String   @map("image_url") @db.VarChar(500)
--  isPrimary   Boolean  @default(false) @map("is_primary")
--  sortOrder   Int      @default(0) @map("sort_order")
--  primaryFlag BigInt?  @unique(map: "ux_one_primary_per_product") @map("primary_flag")
--
--  product CatalogProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
--
--  @@index([productId, sortOrder], map: "idx_product_images_sort")
--  @@map("product_images")
--}
--
- model ProductTranslation {
-   productId         BigInt @map("product_id")
-   languageCode      String @map("language_code") @db.VarChar(10)
-   name              String @db.VarChar(255)
-   slug              String @db.VarChar(255)
-   shortDescription  String? @map("short_description") @db.VarChar(500)
-   description       String? @db.Text
-   guideContent      Json?   @map("guide_content")
-
-   product  CatalogProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
-   language Language       @relation(fields: [languageCode], references: [code], onDelete: Restrict)
-
-   @@id([productId, languageCode])
-   @@unique([languageCode, slug], map: "uq_product_slug_per_lang")
-   @@index([languageCode], map: "idx_product_translation_lang")
-   @@map("product_translations")
- }
-
- model AttributeKey {
-   id        BigInt  @id @default(autoincrement())
-   code      String  @unique @db.VarChar(100)
-   valueType String  @default("text") @map("value_type") @db.VarChar(20)
-   isActive  Boolean @default(true) @map("is_active")
-
-   translations AttributeKeyTranslation[]
 diff --git a/backend/ayanavitabackend/app/api/scripts/prisma-bootstrap.sh b/backend/ayanavitabackend/app/api/scripts/prisma-bootstrap.sh
-old mode 100644
-new mode 100755
-index 8f54f26ff37dd648bad8164403ebda798d31630c..c520ba27cc609ea76d97a8941cf8d73c73064a60
+index c520ba27cc609ea76d97a8941cf8d73c73064a60..6f10b21f81d25c596c9ce30ae8895de0a0f57085 100644
 --- a/backend/ayanavitabackend/app/api/scripts/prisma-bootstrap.sh
 +++ b/backend/ayanavitabackend/app/api/scripts/prisma-bootstrap.sh
-@@ -1,21 +1,43 @@
- #!/bin/sh
- set -eu
-
- echo "Installing dependencies..."
+@@ -5,39 +5,67 @@ echo "Installing dependencies..."
  npm install
 
-+resolve_failed_migration() {
+ resolve_failed_migration() {
+   migration_name="$1"
+
+   set +e
+   output=$(npx prisma migrate resolve --rolled-back "$migration_name" 2>&1)
+   status=$?
+   set -e
+
+   if [ "$status" -eq 0 ]; then
+     echo "Marked failed migration as rolled back: $migration_name"
+     return 0
+   fi
+
+   # P3012 means the migration is not in failed state; this is safe to ignore.
+   if printf '%s' "$output" | grep -q "P3012"; then
+     return 0
+   fi
+
+   echo "$output"
+   echo "Failed to resolve migration state for: $migration_name"
+   return "$status"
+ }
+
++mark_migration_as_applied_if_needed() {
 +  migration_name="$1"
 +
 +  set +e
-+  output=$(npx prisma migrate resolve --rolled-back "$migration_name" 2>&1)
++  output=$(npx prisma migrate resolve --applied "$migration_name" 2>&1)
 +  status=$?
 +  set -e
 +
 +  if [ "$status" -eq 0 ]; then
-+    echo "Marked failed migration as rolled back: $migration_name"
++    echo "Marked migration as applied: $migration_name"
 +    return 0
 +  fi
 +
-+  # P3012 means the migration is not in failed state; this is safe to ignore.
-+  if printf '%s' "$output" | grep -q "P3012"; then
++  # P3008 means the migration is already recorded as applied; this is safe to ignore.
++  if printf '%s' "$output" | grep -q "P3008"; then
 +    return 0
 +  fi
 +
 +  echo "$output"
-+  echo "Failed to resolve migration state for: $migration_name"
++  echo "Failed to mark migration as applied: $migration_name"
 +  return "$status"
 +}
 +
  echo "Resolving known non-critical migration states (if present)..."
--# These commands are idempotent: if the migration is not failed, Prisma returns P3012.
--# We intentionally ignore that case so startup can continue.
--npx prisma migrate resolve --rolled-back 20260226130000_add_product_images || true
--npx prisma migrate resolve --rolled-back 202603150001_add_cart_tables || true
-+resolve_failed_migration 20260226130000_add_product_images
-+resolve_failed_migration 202603110001_lesson_stt_refactor
-+resolve_failed_migration 202603150001_add_cart_tables
+ resolve_failed_migration 20260226130000_add_product_images
+-resolve_failed_migration 202603110001_lesson_stt_refactor
+ resolve_failed_migration 202603150001_add_cart_tables
 
++# 202603110001_lesson_stt_refactor was applied manually and is now a no-op migration.
++# Depending on the database state, Prisma can report it as failed or pending.
++# We first resolve failed state (if any), then mark as applied so deploy can continue safely.
++resolve_failed_migration 202603110001_lesson_stt_refactor
++mark_migration_as_applied_if_needed 202603110001_lesson_stt_refactor
++
  echo "Applying migrations..."
  npx prisma migrate deploy
 
@@ -133,413 +71,3 @@ index 8f54f26ff37dd648bad8164403ebda798d31630c..c520ba27cc609ea76d97a8941cf8d73c
 
  echo "Starting NestJS in watch mode..."
  npm run start:dev
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/dto/product-image.dto.ts b/backend/ayanavitabackend/app/api/src/catalog/dto/product-image.dto.ts
-deleted file mode 100644
-index 590a4e134f8cb4510857b0bf672c33183f66b031..0000000000000000000000000000000000000000
---- a/backend/ayanavitabackend/app/api/src/catalog/dto/product-image.dto.ts
-+++ /dev/null
-@@ -1,39 +0,0 @@
--import { Type } from 'class-transformer'
--import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from 'class-validator'
--
--export class CreateProductImageDto {
--  @IsString()
--  @IsNotEmpty()
--  @MaxLength(500)
--  imageUrl!: string
--
--  @IsOptional()
--  @Type(() => Boolean)
--  @IsBoolean()
--  isPrimary?: boolean
--
--  @IsOptional()
--  @Type(() => Number)
--  @IsInt()
--  @Min(0)
--  sortOrder?: number
--}
--
--export class UpdateProductImageDto {
--  @IsOptional()
--  @IsString()
--  @IsNotEmpty()
--  @MaxLength(500)
--  imageUrl?: string
--
--  @IsOptional()
--  @Type(() => Boolean)
--  @IsBoolean()
--  isPrimary?: boolean
--
--  @IsOptional()
--  @Type(() => Number)
--  @IsInt()
--  @Min(0)
--  sortOrder?: number
--}
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/products.controller.ts b/backend/ayanavitabackend/app/api/src/catalog/products.controller.ts
-index 52c0b674a88d3f0dd5fd396714c1180b2e39b4cc..268cfda2b94e43f51a5a7067e7a39aaaf193f2a0 100644
---- a/backend/ayanavitabackend/app/api/src/catalog/products.controller.ts
-+++ b/backend/ayanavitabackend/app/api/src/catalog/products.controller.ts
-@@ -1,98 +1,52 @@
--import { Body, Controller, Delete, Get, Param, ParseBoolPipe, ParseIntPipe, Patch, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common'
-+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common'
- import { ProductsService } from './products.service'
- import { CreateProductDto, UpdateProductDto } from './dto/product.dto'
- import { ProductQueryDto } from './dto/product-query.dto'
- import { UpsertProductAttributesDto, UpsertProductIngredientsDto } from './dto/product-metadata.dto'
--import { CreateProductImageDto, UpdateProductImageDto } from './dto/product-image.dto'
--import { FileInterceptor } from '@nestjs/platform-express'
--import { ImageUploadService } from '../services/ImageUploadService'
-
- @Controller('catalog/products')
- export class ProductsController {
--  constructor(
--    private readonly service: ProductsService,
--    private readonly imageUploadService: ImageUploadService,
--  ) {}
-+  constructor(private readonly service: ProductsService) {}
-
-   @Get()
-   findAll(@Query() query: ProductQueryDto) {
-     return this.service.findAll(query)
-   }
-
-   @Get(':id')
-   findOne(@Param('id', ParseIntPipe) id: number) {
-     return this.service.findOne(id)
-   }
-
-   @Post()
-   create(@Body() dto: CreateProductDto) {
-     return this.service.create(dto)
-   }
-
-   @Patch(':id')
-   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateProductDto) {
-     return this.service.update(id, dto)
-   }
-
-
-   @Patch(':id/attributes')
-   replaceAttributes(
-     @Param('id', ParseIntPipe) id: number,
-     @Body() dto: UpsertProductAttributesDto,
-   ) {
-     return this.service.replaceAttributes(id, dto)
-   }
-
-   @Patch(':id/ingredients')
-   replaceIngredients(
-     @Param('id', ParseIntPipe) id: number,
-     @Body() dto: UpsertProductIngredientsDto,
-   ) {
-     return this.service.replaceIngredients(id, dto)
-   }
-
--  @Get(':id/images')
--  listImages(@Param('id', ParseIntPipe) id: number) {
--    return this.service.listImages(id)
--  }
--
--  @Post(':id/images')
--  createImage(@Param('id', ParseIntPipe) id: number, @Body() dto: CreateProductImageDto) {
--    return this.service.createImage(id, dto)
--  }
--
--  @Post(':id/images/upload')
--  @UseInterceptors(FileInterceptor('file'))
--  async uploadImage(
--    @Param('id', ParseIntPipe) id: number,
--    @UploadedFile() file: Express.Multer.File,
--    @Body('isPrimary', new ParseBoolPipe({ optional: true })) isPrimary?: boolean,
--    @Body('sortOrder', new ParseIntPipe({ optional: true })) sortOrder?: number,
--  ) {
--    const uploaded = await this.imageUploadService.uploadImage(file)
--    return this.service.createImage(id, { imageUrl: uploaded.url, isPrimary, sortOrder })
--  }
--
--  @Patch(':id/images/:imageId')
--  updateImage(
--    @Param('id', ParseIntPipe) id: number,
--    @Param('imageId', ParseIntPipe) imageId: number,
--    @Body() dto: UpdateProductImageDto,
--  ) {
--    return this.service.updateImage(id, imageId, dto)
--  }
--
--  @Delete(':id/images/:imageId')
--  removeImage(
--    @Param('id', ParseIntPipe) id: number,
--    @Param('imageId', ParseIntPipe) imageId: number,
--  ) {
--    return this.service.removeImage(id, imageId)
--  }
--
--
-   @Delete(':id')
-   remove(@Param('id', ParseIntPipe) id: number) {
-     return this.service.remove(id)
-   }
- }
-diff --git a/backend/ayanavitabackend/app/api/src/catalog/products.service.ts b/backend/ayanavitabackend/app/api/src/catalog/products.service.ts
-index 63c2a0c91b2fab8f20a4ed7abb92f652798537a0..111c37cf7ad15d32df28460cdf7b2954c6b6b352 100644
---- a/backend/ayanavitabackend/app/api/src/catalog/products.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/catalog/products.service.ts
-@@ -1,72 +1,67 @@
- import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
- import { PrismaService } from '../prisma/prisma.service'
- import { CreateProductDto, UpdateProductDto } from './dto/product.dto'
- import { UpsertProductAttributesDto, UpsertProductIngredientsDto } from './dto/product-metadata.dto'
- import { normalizeBigInt } from './utils'
- import { Prisma } from '@prisma/client'
--import { ImageUploadService } from '../services/ImageUploadService'
--import { CreateProductImageDto, UpdateProductImageDto } from './dto/product-image.dto'
- import { ProductQueryDto } from './dto/product-query.dto'
- type JsonValue = string | number | boolean | { [key: string]: JsonValue } | JsonValue[];
- type ProductTranslationCreateManyRow = Prisma.ProductTranslationCreateManyInput
-
- const normalizeSlug = (value: string) => value.trim().toLowerCase().replace(/\s+/g, '-');
-
- const dedupeSlugInPayload = (rows: ProductTranslationCreateManyRow[]): ProductTranslationCreateManyRow[] => {
-   const counters = new Map<string, number>();
-   return rows.map((row) => {
-     const key = `${row.languageCode}::${row.slug}`;
-     const count = counters.get(key) ?? 0;
-     counters.set(key, count + 1);
-     if (count === 0) return row;
-     return { ...row, slug: `${row.slug}-${count + 1}` };
-   });
- };
-
- const toProductTranslationCreateManyData = (
-   productId: number,
-   translations: CreateProductDto['translations'] | UpdateProductDto['translations'],
- ) =>
-   (translations ?? []).map((translation): ProductTranslationCreateManyRow => ({
-     productId: BigInt(productId),
-     languageCode: translation.languageCode,
-     name: translation.name,
-     slug: normalizeSlug(translation.slug || `${translation.languageCode}-${productId}`),
-     shortDescription: translation.shortDescription,
-     description: translation.description,
-     guideContent: translation.guideContent
-       ? (JSON.parse(JSON.stringify(translation.guideContent)) as JsonValue)
-       : null,
-   }))
-
- @Injectable()
- export class ProductsService {
--  constructor(
--    private readonly prisma: PrismaService,
--    private readonly imageUploadService: ImageUploadService,
--  ) {}
-+  constructor(private readonly prisma: PrismaService) {}
-
-   private async makeUniqueTranslationSlugs(
-     tx: Prisma.TransactionClient,
-     rows: ReturnType<typeof toProductTranslationCreateManyData>,
-     productId?: number,
-   ) {
-     const dedupedRows = dedupeSlugInPayload(rows);
-     const output: typeof dedupedRows = [];
-     const usedSlugByLang = new Set<string>();
-
-     const languages = Array.from(new Set(dedupedRows.map((row) => row.languageCode)));
-     if (languages.length) {
-       const existingRows = await tx.productTranslation.findMany({
-         where: {
-           languageCode: { in: languages },
-           ...(productId ? { productId: { not: BigInt(productId) } } : {}),
-         },
-         select: { languageCode: true, slug: true },
-       });
-
-       for (const existing of existingRows) {
-         usedSlugByLang.add(`${existing.languageCode}::${existing.slug}`);
-       }
-     }
-
-@@ -95,76 +90,75 @@ export class ProductsService {
-       ...(query.status ? { status: query.status } : {}),
-       ...(query.categoryId ? { categoryId: BigInt(query.categoryId) } : {}),
-       ...(query.search
-         ? {
-             OR: [
-               { sku: { contains: query.search } },
-               {
-                 translations: {
-                   some: {
-                     OR: [
-                       { name: { contains: query.search } },
-                       { shortDescription: { contains: query.search } },
-                       { description: { contains: query.search } },
-                     ],
-                   },
-                 },
-               },
-             ],
-           }
-         : {}),
-     }
-
-     const [rows, total] = await this.prisma.$transaction([
-       this.prisma.catalogProduct.findMany({
-         where,
--        include: { translations: true, category: true, images: { orderBy: { sortOrder: 'asc' } } },
-+        include: { translations: true, category: true },
-         orderBy: { id: 'desc' },
-         skip,
-         take: pageSize,
-       }),
-       this.prisma.catalogProduct.count({ where }),
-     ])
-
-     return normalizeBigInt({
-       items: rows,
-       page,
-       pageSize,
-       total,
-       totalPages: Math.max(1, Math.ceil(total / pageSize)),
-     })
-   }
-
-   async findOne(id: number) {
-     const row = await this.prisma.catalogProduct.findUnique({
-       where: { id: BigInt(id) },
-       include: {
-         translations: true,
-         category: true,
-         attributes: true,
-         ingredients: true,
--        images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }, { id: 'asc' }] },
-       },
-     })
-     if (!row) throw new NotFoundException('Product not found')
-     return normalizeBigInt(row)
-   }
-
-   async create(dto: CreateProductDto) {
-     const row = await this.prisma.$transaction(async (tx) => {
-       const createdProduct = await tx.catalogProduct.create({
-         data: {
-           sku: dto.sku,
-           categoryId: dto.categoryId ? BigInt(dto.categoryId) : null,
-           price: dto.price,
-           status: dto.status ?? 'active',
-         },
-       })
-
-       const translationRows = await this.makeUniqueTranslationSlugs(
-         tx,
-         toProductTranslationCreateManyData(Number(createdProduct.id), dto.translations),
-       )
-       await tx.productTranslation.createMany({ data: translationRows })
-
-       return tx.catalogProduct.findUniqueOrThrow({
-         where: { id: createdProduct.id },
-@@ -225,102 +219,37 @@ export class ProductsService {
-
-   async replaceIngredients(id: number, dto: UpsertProductIngredientsDto) {
-     await this.findOne(id)
-     const rows = await this.prisma.$transaction(async (tx) => {
-       await tx.productIngredient.deleteMany({ where: { productId: BigInt(id) } })
-       if (dto.items.length) {
-         await tx.productIngredient.createMany({
-           data: dto.items.map((item) => ({
-             productId: BigInt(id),
-             ingredientKeyId: BigInt(item.ingredientKeyId),
-             value: item.value,
-             note: item.note,
-             sortOrder: item.sortOrder ?? 0,
-           })),
-         })
-       }
-       return tx.productIngredient.findMany({ where: { productId: BigInt(id) }, orderBy: { sortOrder: 'asc' } })
-     })
-     return normalizeBigInt(rows)
-   }
-
-   async remove(id: number) {
-     await this.findOne(id)
-
-     try {
--      const row = await this.prisma.$transaction(async (tx) => {
--        const images = await tx.productImage.findMany({ where: { productId: BigInt(id) } })
--
--        for (const image of images) {
--          await this.imageUploadService.deleteImage({ url: image.imageUrl })
--        }
--
--        await tx.productImage.deleteMany({ where: { productId: BigInt(id) } })
--        return tx.catalogProduct.delete({ where: { id: BigInt(id) } })
--      })
-+      const row = await this.prisma.catalogProduct.delete({ where: { id: BigInt(id) } })
-
-       return normalizeBigInt(row)
-     } catch (error) {
-       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
-         throw new ConflictException('Không thể xóa sản phẩm do đang được tham chiếu dữ liệu khác. Vui lòng tắt trạng thái hoạt động trước.')
-       }
-       throw error
-     }
-   }
-
--  async listImages(id: number) {
--    await this.findOne(id)
--    const rows = await this.prisma.productImage.findMany({
--      where: { productId: BigInt(id) },
--      orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }, { id: 'asc' }],
--    })
--    return normalizeBigInt(rows)
--  }
--
--  async createImage(id: number, dto: CreateProductImageDto) {
--    await this.findOne(id)
--    const created = await this.prisma.productImage.create({
--      data: {
--        productId: BigInt(id),
--        imageUrl: dto.imageUrl,
--        isPrimary: dto.isPrimary ?? false,
--        sortOrder: dto.sortOrder ?? 0,
--      },
--    })
--    return normalizeBigInt(created)
--  }
--
--  async updateImage(id: number, imageId: number, dto: UpdateProductImageDto) {
--    await this.findOne(id)
--    const existing = await this.prisma.productImage.findFirst({
--      where: { id: BigInt(imageId), productId: BigInt(id) },
--    })
--    if (!existing) throw new NotFoundException('Product image not found')
--
--    if (dto.imageUrl && dto.imageUrl !== existing.imageUrl) {
--      await this.imageUploadService.deleteImage({ url: existing.imageUrl })
--    }
--
--    const updated = await this.prisma.productImage.update({
--      where: { id: BigInt(imageId) },
--      data: {
--        imageUrl: dto.imageUrl,
--        isPrimary: dto.isPrimary,
--        sortOrder: dto.sortOrder,
--      },
--    })
--
--    return normalizeBigInt(updated)
--  }
--
--  async removeImage(id: number, imageId: number) {
--    await this.findOne(id)
--    const existing = await this.prisma.productImage.findFirst({
--      where: { id: BigInt(imageId), productId: BigInt(id) },
--    })
--    if (!existing) throw new NotFoundException('Product image not found')
--
--    await this.imageUploadService.deleteImage({ url: existing.imageUrl })
--    const deleted = await this.prisma.productImage.delete({ where: { id: BigInt(imageId) } })
--    return normalizeBigInt(deleted)
--  }
- }

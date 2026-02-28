@@ -67,7 +67,7 @@ export default function LoginPage() {
                     height: 42,
                     borderRadius: 12,
                     border: "1px solid rgba(148,163,184,.22)",
-                    background: "rgba(2,6,23,.35)",
+                    background: "rgba(2,6,23,.35) !important",
                     color: "rgba(255,255,255,.92)",
                     padding: "0 12px",
                     outline: "none",

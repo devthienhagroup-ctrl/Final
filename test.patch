@@ -1,482 +1,946 @@
-diff --git a/ayanavita-fontend/src/api/enrollments.api.ts b/ayanavita-fontend/src/api/enrollments.api.ts
-index 042ca04828d9592b82dc97304af643b7b0946559..47d1a67453f8ac6a611a0cb0c6236388e1b06157 100644
---- a/ayanavita-fontend/src/api/enrollments.api.ts
-+++ b/ayanavita-fontend/src/api/enrollments.api.ts
-@@ -1,43 +1,44 @@
- // src/api/enrollments.api.ts
- import { get, post } from "./http";
-
- export type EnrollmentStatus = "ACTIVE" | "CANCELLED" | "PENDING";
-
- export type MyCourse = {
-   id: number; // enrollment id
-   courseId: number;
-   status: EnrollmentStatus;
-   course: {
-     id: number;
-     title: string;
-     thumbnail: string | null;
-     price: number;
-   };
- };
-
- export const enrollmentsApi = {
-   /**
-    * GET /me/courses
-    * Trả danh sách khóa học user đã enroll (kèm status).
-    */
--  myCourses() {
--    return get<MyCourse[]>("/me/courses", { auth: true });
-+  myCourses(lang?: string) {
-+    const query = lang ? `?lang=${encodeURIComponent(lang)}` : "";
-+    return get<MyCourse[]>(`/me/courses${query}`, { auth: true });
-   },
-
-   /**
-    * POST /courses/:id/cancel
-    * Hủy enrollment (thường chuyển CANCELLED).
-    */
-   cancel(courseId: number) {
-     return post<{ ok: boolean }>(`/courses/${courseId}/cancel`, {}, { auth: true });
-   },
-
-   /**
-    * POST /courses/:id/order
-    * Nếu backend của bạn endpoint này tạo order, nên ưu tiên gọi ordersApi.create(courseId)
-    * để lấy đủ thông tin order (id, code, totals...). Hàm này giữ lại để backward-compatible.
-    */
-   order(courseId: number) {
-     return post<{ ok: boolean }>(`/courses/${courseId}/order`, {}, { auth: true });
-   },
- };
-diff --git a/ayanavita-fontend/src/pages/MyCoursesPage.tsx b/ayanavita-fontend/src/pages/MyCoursesPage.tsx
-index c744c06e73e25c2a81f5ddd71315e9f11f04ffb7..0368c95c5fcaab136d6cdcbcabd449c4975e8735 100644
---- a/ayanavita-fontend/src/pages/MyCoursesPage.tsx
-+++ b/ayanavita-fontend/src/pages/MyCoursesPage.tsx
-@@ -82,71 +82,71 @@ function ProgressBar({ percent, label }: { percent: number; label: string }) {
-           <span className="student-progress-value">{p.toFixed(0)}%</span>
-         </div>
-         <div className="student-progress-track">
-           <div className="student-progress-fill" style={{ width: `${p}%` }} />
-         </div>
-       </div>
-   );
- }
-
- export function MyCoursesPage() {
-   const nav = useNavigate();
-   const { lang, setLang, theme, setTheme } = useStudentViewPrefs();
-   const t = i18n[lang];
-
-   const [items, setItems] = useState<MyCourse[]>([]);
-   const [loading, setLoading] = useState(true);
-   const [err, setErr] = useState<string | null>(null);
-   const [info, setInfo] = useState<string | null>(null);
-   const [progressMap, setProgressMap] = useState<Record<number, CourseProgressRes>>({});
-
-   async function load() {
-     setLoading(true);
-     setErr(null);
-     setInfo(null);
-     try {
--      const data = await enrollmentsApi.myCourses();
-+      const data = await enrollmentsApi.myCourses(lang);
-       setItems(data);
-
-       const activeCourseIds = data.filter((d) => d.status === "ACTIVE").map((d) => d.courseId);
-       const results = await Promise.allSettled(
-           activeCourseIds.map(async (cid) => ({ cid, p: await progressApi.courseProgress(cid) }))
-       );
-
-       const next: Record<number, CourseProgressRes> = {};
-       for (const r of results) if (r.status === "fulfilled") next[r.value.cid] = r.value.p;
-       setProgressMap(next);
-     } catch (e: any) {
-       setErr(e?.message || "Load my courses failed");
-     } finally {
-       setLoading(false);
-     }
-   }
-
-   useEffect(() => {
-     load();
--  }, []);
-+  }, [lang]);
-
-   async function onCancel(courseId: number) {
-     setErr(null);
-     setInfo(null);
-     try {
-       await enrollmentsApi.cancel(courseId);
-       setInfo(`Course #${courseId} cancelled.`);
-       await load();
-     } catch (e: any) {
-       setErr(e?.message || "Cancel failed");
-     }
-   }
-
-   async function onContinue(courseId: number) {
-     setErr(null);
-     setInfo(null);
-     try {
-       const lessons = await coursesApi.lessons(courseId);
-       if (!lessons || lessons.length === 0) {
-         setInfo("Course has no lesson yet.");
-         return;
-       }
-
-       const lessonId = sortLessons(lessons)[0]?.id;
-       if (!lessonId) return;
-@@ -221,42 +221,50 @@ export function MyCoursesPage() {
-                       <span className="student-meta-label">{t.price}:</span>
-                       <span className="student-meta-value">
-                     {enr.course.price.toLocaleString("vi-VN")}đ
-                   </span>
-                     </div>
-
-                     {enr.status === "ACTIVE" && prog && (
-                         <>
-                           <ProgressBar percent={percent} label={t.progress} />
-                           <div className="student-mini">
-                             {t.completed}: {prog.completedLessons}/{prog.totalLessons}
-                           </div>
-                         </>
-                     )}
-
-                     <div className="student-card-actions">
-                       <button
-                           type="button"
-                           className="student-btn student-btn-primary"
-                           onClick={() => onContinue(enr.courseId)}
-                           disabled={enr.status !== "ACTIVE"}
-                       >
-                         {t.continue}
-                       </button>
-
-+                      <button
-+                          type="button"
-+                          className="student-btn student-btn-ghost"
-+                          onClick={() => nav(`/courses/${enr.courseId}`)}
-+                      >
-+                        {t.detail}
-+                      </button>
+diff --git a/ayanavita-fontend/src/api/auditLogs.api.ts b/ayanavita-fontend/src/api/auditLogs.api.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..850a3b5d324ca5e7206836658196fa00b6b98e99
+--- /dev/null
++++ b/ayanavita-fontend/src/api/auditLogs.api.ts
+@@ -0,0 +1,47 @@
++import { get } from './http'
 +
-                       <button
-                           type="button"
-                           className="student-btn student-btn-danger"
-                           onClick={() => onCancel(enr.courseId)}
-                           disabled={enr.status !== "ACTIVE" && enr.status !== "PENDING"}
-                       >
-                         {t.cancel}
-                       </button>
-                     </div>
-                   </div>
-               );
-             })}
-           </div>
-         </div>
-       </div>
-   );
- }
-\ No newline at end of file
-diff --git a/backend/ayanavitabackend/app/api/src/enrollments/enrollments.controller.ts b/backend/ayanavitabackend/app/api/src/enrollments/enrollments.controller.ts
-index 5e0172abcf59544ae0749a9e0e95252a151b50ac..2bceb1f55681c26cf9a5dcdf03d101f5e864c725 100644
---- a/backend/ayanavitabackend/app/api/src/enrollments/enrollments.controller.ts
-+++ b/backend/ayanavitabackend/app/api/src/enrollments/enrollments.controller.ts
-@@ -1,42 +1,42 @@
- import { Controller, Get, Param, ParseIntPipe, Post, Query, UseGuards } from '@nestjs/common'
- import { AccessTokenGuard } from '../auth/guards/access-token.guard'
- import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
- import { EnrollmentsService } from './enrollments.service'
- import { CourseAccessStatus } from '@prisma/client'
-
- @UseGuards(AccessTokenGuard)
- @Controller()
- export class EnrollmentsController {
-   constructor(private readonly enrollments: EnrollmentsService) {}
-
-   /**
-    * Danh sách khóa học đã mua + progress
-    */
-   @Get('me/courses')
--  myCourses(@CurrentUser() user: JwtUser) {
--    return this.enrollments.myCoursesWithProgress(user)
-+  myCourses(@CurrentUser() user: JwtUser, @Query('lang') lang?: string) {
-+    return this.enrollments.myCoursesWithProgress(user, lang)
-   }
-   // route mới: GET /me/enrollments?status=ACTIVE|CANCELED|ALL
-   @Get('me/enrollments')
-   myEnrollments(
-     @CurrentUser() user: JwtUser,
-     @Query('status') status?: 'ACTIVE' | 'CANCELED' | 'ALL',
-   ) {
-     // default ACTIVE nếu không truyền
-     const normalized = (status ?? 'ACTIVE').toUpperCase() as 'ACTIVE' | 'CANCELED' | 'ALL'
-
-     if (!['ACTIVE', 'CANCELED', 'ALL'].includes(normalized)) {
-       // tránh 400 quá phức tạp, trả về mặc định ACTIVE
-       return this.enrollments.myEnrollments(user.sub, CourseAccessStatus.ACTIVE)
-     }
-
-     if (normalized === 'ALL') return this.enrollments.myEnrollments(user.sub, 'ALL')
-     return this.enrollments.myEnrollments(user.sub, normalized as CourseAccessStatus)
-   }
-
-
-   /**
-    * Hủy enrollment (soft cancel)
-    */
-   @Post('courses/:id/cancel')
-   cancel(
-diff --git a/backend/ayanavitabackend/app/api/src/enrollments/enrollments.service.ts b/backend/ayanavitabackend/app/api/src/enrollments/enrollments.service.ts
-index d8cf90995483dc766228bd6983604eb6f0694a31..1490686b854c28374cd11bb7a9787d2f1a95d4d1 100644
---- a/backend/ayanavitabackend/app/api/src/enrollments/enrollments.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/enrollments/enrollments.service.ts
-@@ -1,153 +1,180 @@
- import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
- import { CourseAccessStatus, Prisma, Role } from '@prisma/client'
- import { PrismaService } from '../prisma/prisma.service'
-
- type JwtUser = { sub: number; role: Role | string }
-
- @Injectable()
- export class EnrollmentsService {
-   constructor(private readonly prisma: PrismaService) {}
-
-+  private resolveLocale(lang?: string) {
-+    const normalized = (lang || 'vi').toLowerCase()
-+    if (normalized === 'en' || normalized === 'de') return normalized
-+    return 'vi'
++export type AuditLogAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'SELECT' | 'UPSERT'
++
++export type AuditLogItem = {
++  id: number
++  userId: number | null
++  email: string | null
++  actorName: string | null
++  role: string | null
++  ipAddress: string | null
++  method: string | null
++  endpoint: string | null
++  tableName: string
++  action: AuditLogAction
++  queryPayload: unknown
++  createdAt: string
++}
++
++export type AuditLogListResponse = {
++  page: number
++  limit: number
++  total: number
++  items: AuditLogItem[]
++}
++
++export const auditLogsApi = {
++  list(params?: {
++    page?: number
++    limit?: number
++    tableName?: string
++    action?: string
++    role?: string
++    q?: string
++  }) {
++    const query = new URLSearchParams()
++    if (params?.page) query.set('page', String(params.page))
++    if (params?.limit) query.set('limit', String(params.limit))
++    if (params?.tableName) query.set('tableName', params.tableName)
++    if (params?.action) query.set('action', params.action)
++    if (params?.role) query.set('role', params.role)
++    if (params?.q) query.set('q', params.q)
++
++    const suffix = query.toString()
++    return get<AuditLogListResponse>(`/audit-logs${suffix ? `?${suffix}` : ''}`)
++  },
++}
+diff --git a/ayanavita-fontend/src/pages/admin/AdminAuditLogsPage.css b/ayanavita-fontend/src/pages/admin/AdminAuditLogsPage.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..64edb4c60062ed1ac67156aeaf346a26d50030a8
+--- /dev/null
++++ b/ayanavita-fontend/src/pages/admin/AdminAuditLogsPage.css
+@@ -0,0 +1,57 @@
++.audit-toolbar {
++  display: grid;
++  gap: 12px;
++}
++
++.audit-filters {
++  display: grid;
++  grid-template-columns: repeat(5, minmax(120px, 1fr));
++  gap: 8px;
++}
++
++.audit-table-wrap {
++  overflow: auto;
++}
++
++.audit-table {
++  width: 100%;
++  border-collapse: collapse;
++  min-width: 1100px;
++}
++
++.audit-table th,
++.audit-table td {
++  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
++  padding: 10px;
++  text-align: left;
++  vertical-align: top;
++}
++
++.audit-table pre {
++  margin: 0;
++  max-width: 360px;
++  max-height: 160px;
++  overflow: auto;
++  white-space: pre-wrap;
++  font-size: 12px;
++}
++
++.audit-action {
++  padding: 4px 8px;
++  border-radius: 999px;
++  font-size: 12px;
++  font-weight: 700;
++}
++
++.audit-select { background: rgba(59, 130, 246, 0.2); }
++.audit-create { background: rgba(34, 197, 94, 0.2); }
++.audit-update { background: rgba(234, 179, 8, 0.2); }
++.audit-delete { background: rgba(239, 68, 68, 0.2); }
++.audit-upsert { background: rgba(168, 85, 247, 0.2); }
++
++.audit-pagination {
++  display: flex;
++  justify-content: space-between;
++  align-items: center;
++  margin-top: 12px;
++}
+diff --git a/ayanavita-fontend/src/pages/admin/AdminAuditLogsPage.tsx b/ayanavita-fontend/src/pages/admin/AdminAuditLogsPage.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..bca92a1940c36fd8ca25761b338a745a21fde03d
+--- /dev/null
++++ b/ayanavita-fontend/src/pages/admin/AdminAuditLogsPage.tsx
+@@ -0,0 +1,134 @@
++import { useEffect, useMemo, useState } from 'react'
++import { Link } from 'react-router-dom'
++import { auditLogsApi, type AuditLogItem } from '../../api/auditLogs.api'
++import './AdminSpaPage.css'
++import './AdminAuditLogsPage.css'
++
++export default function AdminAuditLogsPage() {
++  const [items, setItems] = useState<AuditLogItem[]>([])
++  const [loading, setLoading] = useState(false)
++  const [error, setError] = useState<string | null>(null)
++
++  const [page, setPage] = useState(1)
++  const [limit] = useState(25)
++  const [total, setTotal] = useState(0)
++
++  const [action, setAction] = useState('')
++  const [tableName, setTableName] = useState('')
++  const [role, setRole] = useState('')
++  const [q, setQ] = useState('')
++
++  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit])
++
++  async function load(nextPage = page) {
++    setLoading(true)
++    setError(null)
++    try {
++      const data = await auditLogsApi.list({
++        page: nextPage,
++        limit,
++        action: action || undefined,
++        tableName: tableName || undefined,
++        role: role || undefined,
++        q: q.trim() || undefined,
++      })
++      setItems(data.items)
++      setTotal(data.total)
++      setPage(data.page)
++    } catch (e: any) {
++      setError(e?.message || 'Không tải được audit log')
++    } finally {
++      setLoading(false)
++    }
 +  }
 +
-   async myEnrollments(userId: number, status?: CourseAccessStatus | 'ALL') {
-     const where: Prisma.CourseAccessWhereInput = {
-       userId,
-       ...(status && status !== 'ALL' ? { status } : {}),
-     }
-
-     return this.prisma.courseAccess.findMany({
-       where,
-       select: {
-         id: true,
-         userId: true,
-         courseId: true,
-         status: true,
-         grantedAt: true,
-         createdAt: true,
-         updatedAt: true,
-         course: {
-           select: {
-             id: true,
-             title: true,
-             slug: true,
-             description: true,
-             thumbnail: true,
-             price: true,
-             published: true,
-             _count: { select: { lessons: true } },
-           },
-         },
-       },
-       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
-     })
-   }
-
-   async grantAccess(userId: number, courseId: number) {
-     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } })
-     if (!course) throw new NotFoundException('Course not found')
-
-     return this.prisma.courseAccess.upsert({
-       where: { userId_courseId: { userId, courseId } },
-       update: { status: CourseAccessStatus.ACTIVE, grantedAt: new Date() },
-       create: { userId, courseId, status: CourseAccessStatus.ACTIVE },
-       select: { id: true, userId: true, courseId: true, status: true, grantedAt: true, updatedAt: true },
-     })
-   }
-
--  myCourses(userId: number) {
-+  myCourses(userId: number, lang?: string) {
-+    const locale = this.resolveLocale(lang)
++  useEffect(() => {
++    load(1)
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [action, tableName, role])
 +
-     return this.prisma.courseAccess.findMany({
-       where: { userId, status: CourseAccessStatus.ACTIVE },
-       select: {
-         id: true,
-         courseId: true,
-         status: true,
-         grantedAt: true,
-         course: {
-           select: {
-             id: true,
-             title: true,
-+            translations: {
-+              where: { locale: { in: [locale, 'vi'] } },
-+              select: {
-+                locale: true,
-+                title: true,
-+                description: true,
-+              },
-+            },
-             slug: true,
-             description: true,
-             thumbnail: true,
-             price: true,
-             published: true,
-             createdAt: true,
-             updatedAt: true,
-             _count: { select: { lessons: true } },
-           },
-         },
-       },
-       orderBy: { grantedAt: 'desc' },
-     })
-   }
++  return (
++    <div className="admin-page">
++      <header className="admin-header">
++        <div>
++          <p className="admin-header-kicker">ADMIN / AUDIT LOGS</p>
++          <h1>Nhật ký thao tác dữ liệu</h1>
++          <p>Theo dõi ai thao tác gì, lúc nào, IP nào, role nào trên tất cả bảng.</p>
++        </div>
++      </header>
++
++      <section className="admin-card admin-card-glow audit-toolbar">
++        <div className="orders-links">
++          <Link className="admin-btn admin-btn-ghost" to="/admin/orders">Orders</Link>
++          <Link className="admin-btn admin-btn-ghost" to="/admin/spa">Admin Spa</Link>
++          <button className="admin-btn admin-btn-primary" onClick={() => load(1)} disabled={loading}>Reload</button>
++        </div>
++
++        <div className="audit-filters">
++          <input className="admin-input" placeholder="Table name" value={tableName} onChange={(e) => setTableName(e.target.value)} />
++          <select className="admin-input" value={action} onChange={(e) => setAction(e.target.value)}>
++            <option value="">All action</option>
++            <option value="SELECT">SELECT</option>
++            <option value="CREATE">CREATE</option>
++            <option value="UPDATE">UPDATE</option>
++            <option value="DELETE">DELETE</option>
++            <option value="UPSERT">UPSERT</option>
++          </select>
++          <input className="admin-input" placeholder="Role" value={role} onChange={(e) => setRole(e.target.value)} />
++          <input className="admin-input" placeholder="Search email/name/ip/endpoint" value={q} onChange={(e) => setQ(e.target.value)} />
++          <button className="admin-btn admin-btn-save" onClick={() => load(1)} disabled={loading}>Filter</button>
++        </div>
++      </section>
++
++      {error ? <div className="orders-state orders-error">{error}</div> : null}
++      {loading ? <div className="orders-state">Loading...</div> : null}
++
++      <section className="admin-card audit-table-wrap">
++        <table className="audit-table">
++          <thead>
++            <tr>
++              <th>Time</th>
++              <th>User</th>
++              <th>Role</th>
++              <th>IP</th>
++              <th>Action</th>
++              <th>Table</th>
++              <th>Endpoint</th>
++              <th>Payload</th>
++            </tr>
++          </thead>
++          <tbody>
++            {items.map((item) => (
++              <tr key={item.id}>
++                <td>{new Date(item.createdAt).toLocaleString()}</td>
++                <td>
++                  <div>{item.actorName || '-'}</div>
++                  <small>{item.email || '-'}</small>
++                </td>
++                <td>{item.role || '-'}</td>
++                <td>{item.ipAddress || '-'}</td>
++                <td><span className={`audit-action audit-${item.action.toLowerCase()}`}>{item.action}</span></td>
++                <td>{item.tableName}</td>
++                <td>{item.method} {item.endpoint}</td>
++                <td>
++                  <pre>{JSON.stringify(item.queryPayload, null, 2)}</pre>
++                </td>
++              </tr>
++            ))}
++            {!items.length && !loading ? (
++              <tr>
++                <td colSpan={8}>Không có dữ liệu log</td>
++              </tr>
++            ) : null}
++          </tbody>
++        </table>
++      </section>
++
++      <section className="audit-pagination">
++        <button className="admin-btn admin-btn-ghost" disabled={page <= 1 || loading} onClick={() => load(page - 1)}>Prev</button>
++        <span>Page {page} / {totalPages} · Total {total}</span>
++        <button className="admin-btn admin-btn-ghost" disabled={page >= totalPages || loading} onClick={() => load(page + 1)}>Next</button>
++      </section>
++    </div>
++  )
++}
+diff --git a/ayanavita-fontend/src/pages/admin/AdminOrdersPage.tsx b/ayanavita-fontend/src/pages/admin/AdminOrdersPage.tsx
+index 83a00c81cb3487bb20fe463d35524f16d93aa292..d57e35397a72ba64ce1d42c5e9e4a89b58d8f0a6 100644
+--- a/ayanavita-fontend/src/pages/admin/AdminOrdersPage.tsx
++++ b/ayanavita-fontend/src/pages/admin/AdminOrdersPage.tsx
+@@ -135,50 +135,54 @@ export function AdminOrdersPage() {
+         <article className="overview-card">
+           <span>Đã thanh toán</span>
+           <strong>{stats.paid}</strong>
+           <small>PAID</small>
+           <i className="fa-solid fa-circle-check overview-icon" aria-hidden="true" />
+         </article>
+         <article className="overview-card">
+           <span>Doanh thu</span>
+           <strong>{fmtVND(stats.revenue)}</strong>
+           <small>Chỉ tính đơn đã thanh toán</small>
+           <i className="fa-solid fa-money-bill-wave overview-icon" aria-hidden="true" />
+         </article>
+       </section>
 
--  async myCoursesWithProgress(user: JwtUser) {
-+  async myCoursesWithProgress(user: JwtUser, lang?: string) {
-     const userId = user.sub
-     const isAdmin = user.role === 'ADMIN'
--    const accesses = await this.myCourses(userId)
-+    const locale = this.resolveLocale(lang)
-+    const accesses = await this.myCourses(userId, locale)
+       <section className="admin-card admin-card-glow">
+         <div className="orders-toolbar">
+           <div className="orders-links">
+             <Link className="admin-btn admin-btn-ghost" to="/courses">
+               <i className="fa-solid fa-graduation-cap" aria-hidden="true" />
+               Courses
+             </Link>
+             <Link className="admin-btn admin-btn-ghost" to="/admin/spa">
+               <i className="fa-solid fa-spa" aria-hidden="true" />
+               Admin Spa
+             </Link>
++            <Link className="admin-btn admin-btn-ghost" to="/admin/audit-logs">
++              <i className="fa-solid fa-file-shield" aria-hidden="true" />
++              Audit Logs
++            </Link>
+             <button className="admin-btn admin-btn-primary" onClick={() => load()} disabled={loading}>
+               <i className="fa-solid fa-rotate" aria-hidden="true" />
+               Reload
+             </button>
+           </div>
 
-     if (accesses.length === 0) return []
+           <div className="orders-filters">
+             <label className="admin-field">
+               <span className="admin-label">Status</span>
+               <select className="admin-input orders-select" value={status} onChange={(e) => setStatus(e.target.value as OrderStatus | "ALL")}>
+                 <option value="ALL">ALL</option>
+                 <option value="PENDING">PENDING</option>
+                 <option value="PAID">PAID</option>
+                 <option value="CANCELLED">CANCELLED</option>
+               </select>
+             </label>
 
-     const completed = await this.prisma.lessonProgress.findMany({
-       where: {
-         userId,
-         status: 'COMPLETED',
-         ...(isAdmin ? {} : { lesson: { published: true } }),
-       },
-       select: {
-         lesson: { select: { courseId: true } },
-       },
-     })
+             <label className="admin-field orders-search-field">
+               <span className="admin-label">Search</span>
+               <input
+                 className="admin-input"
+                 value={q}
+                 onChange={(e) => setQ(e.target.value)}
+                 placeholder="code / email / courseTitle / id"
+               />
+diff --git a/ayanavita-fontend/src/routes/AppRoutes.tsx b/ayanavita-fontend/src/routes/AppRoutes.tsx
+index 87fb10f04e2be93b6709708ddb6fe6e097f2d81d..2b35c2bdfcf7464647c16765cac483680081b880 100644
+--- a/ayanavita-fontend/src/routes/AppRoutes.tsx
++++ b/ayanavita-fontend/src/routes/AppRoutes.tsx
+@@ -1,43 +1,44 @@
+ import React from "react";
+ import { Navigate, Route, Routes } from "react-router-dom";
 
-     const completedCountByCourse = new Map<number, number>()
-     for (const x of completed) {
-       const courseId = x.lesson.courseId
-       completedCountByCourse.set(courseId, (completedCountByCourse.get(courseId) || 0) + 1)
-     }
+ import { RequireAuth } from "../components/RequireAuth";
+ import { RequireRole } from "../auth/RequireRole";
 
-     const courseIds = accesses.map((e) => e.course.id)
-     const totals = await this.prisma.lesson.groupBy({
-       by: ['courseId'],
-       where: {
-         courseId: { in: courseIds },
-         ...(isAdmin ? {} : { published: true }),
-       },
-       _count: { _all: true },
-     })
-     const totalByCourse = new Map<number, number>(totals.map((t) => [t.courseId, t._count._all]))
 
-     return accesses.map((e) => {
-       const totalLessons = totalByCourse.get(e.course.id) || 0
-       const completedLessons = completedCountByCourse.get(e.course.id) || 0
-       const percent = totalLessons === 0 ? 0 : Math.round((completedLessons / totalLessons) * 100)
+ import { RegisterPage } from "../pages/RegisterPage";
+ import { CoursesPage } from "../pages/CoursesPage";
+ import { CourseDetailPage } from "../pages/CourseDetailPage";
+ import { LessonPage } from "../pages/LessonPage";
+ import { MyCoursesPage } from "../pages/MyCoursesPage";
+ import { MyOrdersPage } from "../pages/MyOrdersPage";
+ import { LessonDetailPage } from "../pages/LessonDetailPage";
+ import { AdminOrdersPage } from "../pages/admin/AdminOrdersPage";
+ import AdminSpaPage from "../pages/admin/AdminSpaPage";
+ import LoginPage from "../pages/LoginPage";
+ import AdminCoursesPage from "../pages/admin/AdminCoursesPage";
++import AdminAuditLogsPage from "../pages/admin/AdminAuditLogsPage";
 
-       return {
-         id: e.id,
-         courseId: e.courseId,
-         status: e.status,
-         grantedAt: e.grantedAt,
--        course: e.course,
-+        course: {
-+          ...e.course,
-+          title:
-+            (e.course as any).translations?.find((item: any) => item.locale === locale)?.title ||
-+            (e.course as any).translations?.find((item: any) => item.locale === 'vi')?.title ||
-+            e.course.title,
-+          description:
-+            (e.course as any).translations?.find((item: any) => item.locale === locale)?.description ||
-+            (e.course as any).translations?.find((item: any) => item.locale === 'vi')?.description ||
-+            e.course.description,
-+        },
-         progress: { totalLessons, completedLessons, percent },
+ export function AppRoutes() {
+   return (
+     <Routes>
+       {/* Public */}
+       <Route path="/login" element={<LoginPage />} />
+       <Route path="/register" element={<RegisterPage />} />
+       <Route path="/lessons/:id" element={<LessonDetailPage />} />
+
+       {/* Default */}
+       <Route path="/" element={<Navigate to="/courses" replace />} />
+
+       {/* Protected */}
+       <Route
+         path="/courses"
+         element={
+           <RequireAuth>
+             <RequireRole roles={["ADMIN", "USER"]}>
+               <CoursesPage />
+             </RequireRole>
+           </RequireAuth>
+         }
+       />
+       <Route
+         path="/courses/:id"
+@@ -82,41 +83,53 @@ export function AppRoutes() {
+
+       {/* Admin */}
+       <Route
+         path="/admin/orders"
+         element={
+           <RequireAuth>
+             <RequireRole roles={["ADMIN"]}>
+               <AdminOrdersPage />
+             </RequireRole>
+           </RequireAuth>
+         }
+       />
+
+       <Route
+         path="/admin/spa"
+         element={
+           <RequireAuth>
+             <RequireRole roles={["ADMIN", "STAFF"]}>
+               <AdminSpaPage />
+             </RequireRole>
+           </RequireAuth>
+         }
+       />
+
+
++
++      <Route
++        path="/admin/audit-logs"
++        element={
++          <RequireAuth>
++            <RequireRole roles={["ADMIN"]}>
++              <AdminAuditLogsPage />
++            </RequireRole>
++          </RequireAuth>
++        }
++      />
++
+       <Route
+         path="/admin/cources"
+         element={
+           <RequireAuth>
+             <RequireRole roles={["ADMIN"]}>
+               <AdminCoursesPage />
+             </RequireRole>
+           </RequireAuth>
+         }
+       />
+
+       {/* 404 */}
+       <Route path="*" element={<div style={{ padding: 16 }}>404</div>} />
+     </Routes>
+   );
+ }
+diff --git a/backend/ayanavitabackend/app/api/src/app.module.ts b/backend/ayanavitabackend/app/api/src/app.module.ts
+index dfd59ff4319fd63136d58bc445154b9cfe98bbd1..5ca7fad9b3eb847865e2c24133b19542aa762063 100644
+--- a/backend/ayanavitabackend/app/api/src/app.module.ts
++++ b/backend/ayanavitabackend/app/api/src/app.module.ts
+@@ -1,40 +1,42 @@
+ import { Module } from '@nestjs/common';
+
+ import { PrismaModule } from './prisma/prisma.module';
+
+ import { AuthModule } from './auth/auth.module';
+ import { UsersModule } from './users/users.module';
+
+ import { CoursesModule } from './courses/courses.module';
+ import { CourseTopicsModule } from './course-topics/course-topics.module';
+ import { LessonsModule } from './lessons/lessons.module';
+ import { EnrollmentsModule } from './enrollments/enrollments.module';
+ import { ProgressModule } from './progress/progress.module';
+
+ import { OrdersModule } from './orders/orders.module';
+ import { BookingModule } from './booking/booking.module';
+
+ import { CmsModule } from './cms/cms.module';
+ import { CatalogModule } from './catalog/catalog.module';
++import { AuditLogsModule } from './audit-logs/audit-logs.module';
+
+ @Module({
+   imports: [
+     PrismaModule,
+
+     UsersModule,
+     AuthModule,
+
+     CoursesModule,
+     CourseTopicsModule,
+     LessonsModule,
+     EnrollmentsModule,
+     ProgressModule,
+
+     OrdersModule,
+     BookingModule,
+
+     CmsModule,
+     CatalogModule,
++    AuditLogsModule,
+   ],
+ })
+ export class AppModule {}
+\ No newline at end of file
+diff --git a/backend/ayanavitabackend/app/api/src/audit-logs/audit-logs.controller.ts b/backend/ayanavitabackend/app/api/src/audit-logs/audit-logs.controller.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..38c1aa37eccda32d71693cd513b7b212ce4cf0e1
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/audit-logs/audit-logs.controller.ts
+@@ -0,0 +1,31 @@
++import { Controller, Get, Query, UseGuards } from '@nestjs/common'
++import { Roles } from '../auth/decorators/roles.decorator'
++import { AccessTokenGuard } from '../auth/guards/access-token.guard'
++import { RolesGuard } from '../auth/guards/roles.guard'
++import { AuditLogsService } from './audit-logs.service'
++
++@Controller('audit-logs')
++@UseGuards(AccessTokenGuard, RolesGuard)
++@Roles('ADMIN')
++export class AuditLogsController {
++  constructor(private readonly auditLogsService: AuditLogsService) {}
++
++  @Get()
++  list(
++    @Query('page') page = 1,
++    @Query('limit') limit = 20,
++    @Query('tableName') tableName?: string,
++    @Query('action') action?: string,
++    @Query('role') role?: string,
++    @Query('q') q?: string,
++  ) {
++    return this.auditLogsService.list({
++      page: Number(page),
++      limit: Number(limit),
++      tableName,
++      action,
++      role,
++      q,
++    })
++  }
++}
+diff --git a/backend/ayanavitabackend/app/api/src/audit-logs/audit-logs.module.ts b/backend/ayanavitabackend/app/api/src/audit-logs/audit-logs.module.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..4e0e13630bcf407f6d02c30c80c944995db45ade
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/audit-logs/audit-logs.module.ts
+@@ -0,0 +1,9 @@
++import { Module } from '@nestjs/common'
++import { AuditLogsController } from './audit-logs.controller'
++import { AuditLogsService } from './audit-logs.service'
++
++@Module({
++  controllers: [AuditLogsController],
++  providers: [AuditLogsService],
++})
++export class AuditLogsModule {}
+diff --git a/backend/ayanavitabackend/app/api/src/audit-logs/audit-logs.service.ts b/backend/ayanavitabackend/app/api/src/audit-logs/audit-logs.service.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..aa3b28f193b0d6d776ef3d7fb46e651353274640
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/audit-logs/audit-logs.service.ts
+@@ -0,0 +1,82 @@
++import { Injectable } from '@nestjs/common'
++import { PrismaService } from '../prisma/prisma.service'
++
++export type AuditLogListQuery = {
++  page: number
++  limit: number
++  tableName?: string
++  action?: string
++  role?: string
++  q?: string
++}
++
++@Injectable()
++export class AuditLogsService {
++  constructor(private readonly prisma: PrismaService) {}
++
++  async list(query: AuditLogListQuery) {
++    const page = Math.max(1, Number(query.page || 1))
++    const limit = Math.min(100, Math.max(1, Number(query.limit || 20)))
++    const offset = (page - 1) * limit
++
++    const where: string[] = ['1=1']
++    const params: any[] = []
++
++    if (query.tableName) {
++      where.push('table_name = ?')
++      params.push(query.tableName)
++    }
++    if (query.action) {
++      where.push('action = ?')
++      params.push(query.action)
++    }
++    if (query.role) {
++      where.push('role = ?')
++      params.push(query.role)
++    }
++    if (query.q) {
++      where.push('(email LIKE ? OR actor_name LIKE ? OR endpoint LIKE ? OR ip_address LIKE ?)')
++      const search = `%${query.q}%`
++      params.push(search, search, search, search)
++    }
++
++    const whereSql = where.join(' AND ')
++
++    const items = await this.prisma.$queryRawUnsafe<any[]>(
++      `
++      SELECT
++        id,
++        user_id AS userId,
++        email,
++        actor_name AS actorName,
++        role,
++        ip_address AS ipAddress,
++        method,
++        endpoint,
++        table_name AS tableName,
++        action,
++        query_payload AS queryPayload,
++        created_at AS createdAt
++      FROM audit_logs
++      WHERE ${whereSql}
++      ORDER BY created_at DESC
++      LIMIT ? OFFSET ?
++      `,
++      ...params,
++      limit,
++      offset,
++    )
++
++    const countRows = await this.prisma.$queryRawUnsafe<any[]>(
++      `SELECT COUNT(*) AS total FROM audit_logs WHERE ${whereSql}`,
++      ...params,
++    )
++
++    return {
++      page,
++      limit,
++      total: Number(countRows?.[0]?.total || 0),
++      items,
++    }
++  }
++}
+diff --git a/backend/ayanavitabackend/app/api/src/common/request-context/request-context.interceptor.ts b/backend/ayanavitabackend/app/api/src/common/request-context/request-context.interceptor.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..7ca4ca95e27358903bdc70eac002ca23772d9c95
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/common/request-context/request-context.interceptor.ts
+@@ -0,0 +1,28 @@
++import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common'
++import { Observable } from 'rxjs'
++import { RequestContextService } from './request-context.service'
++
++@Injectable()
++export class RequestContextInterceptor implements NestInterceptor {
++  constructor(private readonly requestContext: RequestContextService) {}
++
++  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
++    const req = context.switchToHttp().getRequest<any>()
++    const user = req?.user
++
++    const ip = (req?.headers?.['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() || req?.ip || null
++
++    return this.requestContext.run(
++      {
++        userId: typeof user?.sub === 'number' ? user.sub : null,
++        email: typeof user?.email === 'string' ? user.email : null,
++        name: typeof user?.name === 'string' ? user.name : null,
++        role: typeof user?.role === 'string' ? user.role : null,
++        ip,
++        method: req?.method ?? 'UNKNOWN',
++        path: req?.originalUrl || req?.url || '',
++      },
++      () => next.handle(),
++    )
++  }
++}
+diff --git a/backend/ayanavitabackend/app/api/src/common/request-context/request-context.module.ts b/backend/ayanavitabackend/app/api/src/common/request-context/request-context.module.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..c2feb68841eb56553f0e29147be2eb85e503c1ed
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/common/request-context/request-context.module.ts
+@@ -0,0 +1,10 @@
++import { Global, Module } from '@nestjs/common'
++import { RequestContextInterceptor } from './request-context.interceptor'
++import { RequestContextService } from './request-context.service'
++
++@Global()
++@Module({
++  providers: [RequestContextService, RequestContextInterceptor],
++  exports: [RequestContextService, RequestContextInterceptor],
++})
++export class RequestContextModule {}
+diff --git a/backend/ayanavitabackend/app/api/src/common/request-context/request-context.service.ts b/backend/ayanavitabackend/app/api/src/common/request-context/request-context.service.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..997f2d00db42415b8b1ffd2c1f779211342b521a
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/common/request-context/request-context.service.ts
+@@ -0,0 +1,25 @@
++import { Injectable } from '@nestjs/common'
++import { AsyncLocalStorage } from 'node:async_hooks'
++
++export type RequestActor = {
++  userId: number | null
++  email: string | null
++  name: string | null
++  role: string | null
++  ip: string | null
++  method: string
++  path: string
++}
++
++@Injectable()
++export class RequestContextService {
++  private readonly storage = new AsyncLocalStorage<RequestActor>()
++
++  run<T>(actor: RequestActor, callback: () => T): T {
++    return this.storage.run(actor, callback)
++  }
++
++  getActor(): RequestActor | undefined {
++    return this.storage.getStore()
++  }
++}
+diff --git a/backend/ayanavitabackend/app/api/src/main.ts b/backend/ayanavitabackend/app/api/src/main.ts
+index d70b5de079a6b0b0e04c7a22c78892113c3d5aeb..7e54b9a99b1981d55f9269907100aecdc371c9af 100644
+--- a/backend/ayanavitabackend/app/api/src/main.ts
++++ b/backend/ayanavitabackend/app/api/src/main.ts
+@@ -1,33 +1,34 @@
+ import { ValidationPipe } from "@nestjs/common";
+ import { NestFactory } from "@nestjs/core";
+ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+ import { join } from "path";
+ import * as express from "express";
+
+ import { AppModule } from "./app.module";
+ import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
++import { RequestContextInterceptor } from "./common/request-context/request-context.interceptor";
+
+ async function bootstrap() {
+   const app = await NestFactory.create(AppModule, {
+     logger: ["log", "error", "warn", "debug", "verbose"],
+   });
+
+   // ✅ CORS – chuẩn cho cả production + admin + dev
+   const allow = new Set<string>([
+     // 🌍 Production main domain
+     "http://ayanavita-germany.com",
+     "https://ayanavita-germany.com",
+
+     // 🔐 Admin subdomain
+     "http://admin.ayanavita.com",
+     "https://admin.ayanavita.com",
+
+     // 🧪 Dev local
+     "http://localhost:5173",
+     "http://127.0.0.1:5173",
+     "http://localhost:5174",
+     "http://127.0.0.1:5174",
+     "http://localhost:5175",
+     "http://127.0.0.1:5175",
+     "http://localhost:5176",
+     "http://127.0.0.1:5176",
+@@ -36,50 +37,52 @@ async function bootstrap() {
+     "http://localhost:5050",
+     "http://127.0.0.1:5050",
+   ]);
+
+   app.enableCors({
+     origin: (origin, callback) => {
+       // Cho phép server-to-server hoặc curl
+       if (!origin) return callback(null, true);
+
+       if (allow.has(origin)) {
+         return callback(null, true);
        }
-     })
-   }
 
-   async cancel(userId: number, courseId: number) {
-     const access = await this.prisma.courseAccess.findUnique({
-       where: { userId_courseId: { userId, courseId } },
-       select: { id: true, status: true },
-     })
-     if (!access) throw new NotFoundException('Course access not found')
+       console.error(`❌ CORS blocked for origin: ${origin}`);
+       return callback(new Error(`CORS blocked for origin: ${origin}`), false);
+     },
+     credentials: true,
+     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+     allowedHeaders: ["Content-Type", "Authorization"],
+     optionsSuccessStatus: 204,
+   });
 
-     return this.prisma.courseAccess.update({
-       where: { userId_courseId: { userId, courseId } },
-       data: { status: CourseAccessStatus.CANCELED },
-       select: { id: true, status: true, updatedAt: true },
-     })
-   }
+   // ✅ serve temporary uploaded images
+   app.use("/booking-temp-images", express.static(join(process.cwd(), "temp-images")));
 
-   async assertEnrolledOrAdmin(user: JwtUser, courseId: number) {
-     if (user.role === 'ADMIN') return
-
-     const e = await this.prisma.courseAccess.findUnique({
-       where: { userId_courseId: { userId: user.sub, courseId } },
-       select: { status: true },
-diff --git a/backend/ayanavitabackend/app/api/src/progress/progress.service.ts b/backend/ayanavitabackend/app/api/src/progress/progress.service.ts
-index 050bcb98e4dff7cd0fcbf540ab01a2546f42a00c..3bb418900d2535ec163c4f99bdf1ee4463d692d9 100644
---- a/backend/ayanavitabackend/app/api/src/progress/progress.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/progress/progress.service.ts
-@@ -56,52 +56,56 @@ export class ProgressService {
-
-     if (prevProgress?.status !== ProgressStatus.COMPLETED) {
-       throw new ForbiddenException('Lesson locked')
-     }
-   }
-
-   private async recalculateLessonProgress(userId: number, lessonId: number) {
-     const lessonVideos = await this.prisma.lessonVideo.findMany({
-       where: { module: { lessonId, published: true }, published: true, mediaType: 'VIDEO' },
-       select: { id: true, durationSec: true },
-     })
-     const totalDurationSec = lessonVideos.reduce((sum, item) => sum + Math.max(0, item.durationSec || 0), 0)
-
-     const videoProgress = await this.prisma.lessonVideoProgress.findMany({
-       where: { userId, lessonId },
-       select: { videoId: true, watchedSec: true, completed: true },
-     })
-
-     const progressMap = new Map(videoProgress.map((item) => [item.videoId, item]))
-     const watchedDurationSec = lessonVideos.reduce((sum, video) => {
-       const row = progressMap.get(video.id)
-       const capped = Math.min(video.durationSec || 0, Math.max(0, row?.watchedSec || 0))
-       return sum + capped
-     }, 0)
-
--    const percent = totalDurationSec <= 0 ? 0 : Math.min(100, Math.round((watchedDurationSec / totalDurationSec) * 100))
--    const isCompleted = totalDurationSec > 0 && percent >= 100
-+    const completedVideos = lessonVideos.filter((video) => progressMap.get(video.id)?.completed).length
-+    const percentByDuration = totalDurationSec <= 0 ? 0 : Math.min(100, Math.round((watchedDurationSec / totalDurationSec) * 100))
-+    const percentByCompletion = lessonVideos.length === 0 ? 0 : Math.min(100, Math.round((completedVideos / lessonVideos.length) * 100))
++  app.useGlobalInterceptors(app.get(RequestContextInterceptor));
 +
-+    const percent = totalDurationSec > 0 ? percentByDuration : percentByCompletion
-+    const isCompleted = lessonVideos.length > 0 && percent >= 100
+   // ✅ Global Exception Filter
+   app.useGlobalFilters(new AllExceptionsFilter());
 
-     const lessonProgress = await this.prisma.lessonProgress.upsert({
-       where: { userId_lessonId: { userId, lessonId } },
-       create: {
-         userId,
-         lessonId,
-         status: isCompleted ? ProgressStatus.COMPLETED : ProgressStatus.IN_PROGRESS,
-         percent,
-         lastPositionSec: watchedDurationSec,
-         lastOpenedAt: new Date(),
-         completedAt: isCompleted ? new Date() : null,
+   // ✅ Graceful shutdown
+   app.enableShutdownHooks();
+
+   // ✅ Validation
+   app.useGlobalPipes(
+     new ValidationPipe({
+       whitelist: true,
+       forbidNonWhitelisted: true,
+       transform: true,
+       transformOptions: {
+         enableImplicitConversion: true,
        },
-       update: {
-         status: isCompleted ? ProgressStatus.COMPLETED : ProgressStatus.IN_PROGRESS,
-         percent,
-         lastPositionSec: watchedDurationSec,
-         lastOpenedAt: new Date(),
-         completedAt: isCompleted ? new Date() : null,
-       },
-       select: {
-         lessonId: true,
-         status: true,
-         percent: true,
-         lastPositionSec: true,
-         lastOpenedAt: true,
+     }),
+   );
+
+   // ✅ Swagger
+   const config = new DocumentBuilder()
+     .setTitle("AYANAVITA API")
+     .setDescription("LMS Backend")
+     .setVersion("1.0")
+     .addBearerAuth()
+     .build();
+diff --git a/backend/ayanavitabackend/app/api/src/prisma/prisma.module.ts b/backend/ayanavitabackend/app/api/src/prisma/prisma.module.ts
+index 1edbf95e6a8afb7f49bdcfcc4611bdfccb5960be..215065ef0884742b8b743f6400e29a1f08ba32e8 100644
+--- a/backend/ayanavitabackend/app/api/src/prisma/prisma.module.ts
++++ b/backend/ayanavitabackend/app/api/src/prisma/prisma.module.ts
+@@ -1,9 +1,11 @@
+-import { Global, Module } from "@nestjs/common";
+-import { PrismaService } from "./prisma.service";
++import { Global, Module } from '@nestjs/common'
++import { RequestContextModule } from '../common/request-context/request-context.module'
++import { PrismaService } from './prisma.service'
+
+ @Global()
+ @Module({
++  imports: [RequestContextModule],
+   providers: [PrismaService],
+   exports: [PrismaService],
+ })
+ export class PrismaModule {}
+diff --git a/backend/ayanavitabackend/app/api/src/prisma/prisma.service.ts b/backend/ayanavitabackend/app/api/src/prisma/prisma.service.ts
+index d86f65db13da288366c6bd719f180d86915dc15b..b09a3e42cd56c9b41aa8b349efe636e66a51065e 100644
+--- a/backend/ayanavitabackend/app/api/src/prisma/prisma.service.ts
++++ b/backend/ayanavitabackend/app/api/src/prisma/prisma.service.ts
+@@ -1,13 +1,140 @@
+-import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+-import { PrismaClient } from "@prisma/client";
++import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
++import { Prisma, PrismaClient } from '@prisma/client'
++import { RequestContextService } from '../common/request-context/request-context.service'
++
++const AUDIT_ACTIONS: Record<string, string> = {
++  findUnique: 'SELECT',
++  findUniqueOrThrow: 'SELECT',
++  findFirst: 'SELECT',
++  findFirstOrThrow: 'SELECT',
++  findMany: 'SELECT',
++  create: 'CREATE',
++  createMany: 'CREATE',
++  createManyAndReturn: 'CREATE',
++  update: 'UPDATE',
++  updateMany: 'UPDATE',
++  upsert: 'UPSERT',
++  delete: 'DELETE',
++  deleteMany: 'DELETE',
++  aggregate: 'SELECT',
++  groupBy: 'SELECT',
++  count: 'SELECT',
++}
+
+ @Injectable()
+ export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
++  constructor(private readonly requestContext: RequestContextService) {
++    super()
++  }
++
+   async onModuleInit() {
+-    await this.$connect();
++    await this.$connect()
++    await this.ensureAuditLogTable()
++
++    this.$use(async (params, next) => {
++      const result = await next(params)
++
++      if (!params.model || params.model === 'AuditLog') {
++        return result
++      }
++
++      const action = AUDIT_ACTIONS[params.action]
++      if (!action) {
++        return result
++      }
++
++      const actor = this.requestContext.getActor()
++      const modelName = params.model
++      const payload = this.safeStringify(params.args)
++
++      await this.insertAuditLog({
++        userId: actor?.userId ?? null,
++        email: actor?.email ?? null,
++        name: actor?.name ?? null,
++        role: actor?.role ?? null,
++        ipAddress: actor?.ip ?? null,
++        method: actor?.method ?? null,
++        endpoint: actor?.path ?? null,
++        tableName: modelName,
++        action,
++        query: payload,
++      })
++
++      return result
++    })
++  }
++
++  private async ensureAuditLogTable() {
++    await this.$executeRawUnsafe(`
++      CREATE TABLE IF NOT EXISTS audit_logs (
++        id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
++        user_id INT NULL,
++        email VARCHAR(255) NULL,
++        actor_name VARCHAR(255) NULL,
++        role VARCHAR(100) NULL,
++        ip_address VARCHAR(100) NULL,
++        method VARCHAR(16) NULL,
++        endpoint VARCHAR(512) NULL,
++        table_name VARCHAR(120) NOT NULL,
++        action VARCHAR(32) NOT NULL,
++        query_payload JSON NULL,
++        created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
++        INDEX idx_audit_logs_created_at (created_at),
++        INDEX idx_audit_logs_table_name (table_name),
++        INDEX idx_audit_logs_action (action),
++        INDEX idx_audit_logs_user_id (user_id)
++      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
++    `)
++  }
++
++  private async insertAuditLog(input: {
++    userId: number | null
++    email: string | null
++    name: string | null
++    role: string | null
++    ipAddress: string | null
++    method: string | null
++    endpoint: string | null
++    tableName: string
++    action: string
++    query: string | null
++  }) {
++    try {
++      await this.$executeRaw(
++        Prisma.sql`
++          INSERT INTO audit_logs (
++            user_id, email, actor_name, role, ip_address, method, endpoint,
++            table_name, action, query_payload, created_at
++          ) VALUES (
++            ${input.userId},
++            ${input.email},
++            ${input.name},
++            ${input.role},
++            ${input.ipAddress},
++            ${input.method},
++            ${input.endpoint},
++            ${input.tableName},
++            ${input.action},
++            CAST(${input.query} AS JSON),
++            NOW(3)
++          )
++        `,
++      )
++    } catch {
++      // noop: không để lỗi audit làm hỏng request nghiệp vụ
++    }
++  }
++
++  private safeStringify(value: unknown): string | null {
++    if (value === undefined) return null
++    try {
++      return JSON.stringify(value)
++    } catch {
++      return JSON.stringify({ note: 'UNSERIALIZABLE_ARGS' })
++    }
+   }
+
+   async onModuleDestroy() {
+-    await this.$disconnect();
++    await this.$disconnect()
+   }
+ }

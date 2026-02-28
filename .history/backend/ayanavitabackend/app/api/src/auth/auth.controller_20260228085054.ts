@@ -8,7 +8,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto'
 import { ChangePasswordDto } from './dto/change-password.dto'
 import { ForgotPasswordDto } from './dto/forgot-password.dto'
 import { CheckPasswordDto } from './dto/check-password.dto'
-import { VerifyOtpDto } from './dto/verify-otp.dto'
+import { VerifyOtpDto } from './dto/'
 
 import { AccessTokenGuard } from './guards/access-token.guard'
 import { RefreshTokenGuard } from './guards/refresh-token.guard'

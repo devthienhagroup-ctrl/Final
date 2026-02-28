@@ -364,11 +364,11 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: 
         }
       }
 
-      await onCreated()
       await AlertJs.success(t.success)
       setForm(initialForm)
       setInputLang('vi')
       onClose()
+      await onCreated()
     } finally {
       setSubmitting(false)
     }

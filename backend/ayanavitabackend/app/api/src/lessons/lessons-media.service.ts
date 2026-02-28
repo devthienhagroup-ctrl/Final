@@ -10,8 +10,8 @@ export class LessonsMediaService {
   private readonly s3Bucket = process.env.CLOUDFLY_BUCKET || 'ayanavita-dev'
   private readonly s3Region = process.env.CLOUDFLY_REGION || 'auto'
   private readonly s3Endpoint = process.env.CLOUDFLY_ENDPOINT || 'https://s3.cloudfly.vn'
-  private readonly s3AccessKey = process.env.CLOUDFLY_ACCESS_KEY || ''
-  private readonly s3SecretKey = process.env.CLOUDFLY_SECRET_KEY || ''
+  private readonly s3AccessKey = process.env.CLOUDFLY_ACCESS_KEY || '67NZA2R2X53AYJU5I036'
+  private readonly s3SecretKey = process.env.CLOUDFLY_SECRET_KEY || '56f8Erg7KoBiIedMrvbe0cBNjy3OIPKHdX0vAW4N'
 
   private hash(input: string | Buffer) {
     return createHash('sha256').update(input).digest('hex')

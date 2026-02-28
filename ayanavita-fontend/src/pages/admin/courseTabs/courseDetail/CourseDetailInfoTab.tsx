@@ -477,29 +477,11 @@ export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated }: P
           <i className='fa-solid fa-language' style={{ width: 16, color: '#22d3ee' }} />
           <span style={{ fontSize: 13, color: '#94a3b8' }}>{t.translations}</span>
         </div>
-
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>{t.description}</div>
-          <div style={{ lineHeight: 1.5 }}>{course.description || '--'}</div>
-        </div>
-
         <div className='admin-row' style={{ gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-          {([
-            [t.objective, currentContent?.objectives || course.objectives || []],
-            [t.audience, currentContent?.targetAudience || course.targetAudience || []],
-            [t.benefits, currentContent?.benefits || course.benefits || []],
-          ] as const).map(([label, items]) => (
-            <div key={label} style={{ flex: '1 1 320px', minWidth: 280 }}>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>{label}</div>
-              {items.length ? (
-                <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.55 }}>
-                  {items.map((item, idx) => <li key={`${label}-${idx}`}>{item}</li>)}
-                </ul>
-              ) : (
-                <div>--</div>
-              )}
-            </div>
-          ))}
+          <div style={{ flex: '1 1 320px' }}><b>{t.description}:</b> {course.description || '--'}</div>
+          <div style={{ flex: '1 1 320px' }}><b>{t.objective}:</b> {(currentContent?.objectives || course.objectives || []).join(' • ') || '--'}</div>
+          <div style={{ flex: '1 1 320px' }}><b>{t.audience}:</b> {(currentContent?.targetAudience || course.targetAudience || []).join(' • ') || '--'}</div>
+          <div style={{ flex: '1 1 320px' }}><b>{t.benefits}:</b> {(currentContent?.benefits || course.benefits || []).join(' • ') || '--'}</div>
         </div>
       </div>
     </div>

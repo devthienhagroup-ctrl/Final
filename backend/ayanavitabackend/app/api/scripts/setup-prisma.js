@@ -22,10 +22,17 @@ async function hasUserTable() {
 
 async function main() {
   run('node scripts/bootstrap-db.js')
-  try {
-    run('npx prisma migrate resolve --rolled-back 20260226130000_add_product_images')
-  } catch (error) {
-    console.log('ℹ️ Bỏ qua migrate resolve vì migration này không cần rollback ở môi trường hiện tại.')
+  const rollbackMigrations = [
+    '20260226130000_add_product_images',
+    '202603080001_course_translation_strings',
+  ]
+
+  for (const migrationName of rollbackMigrations) {
+    try {
+      run(`npx prisma migrate resolve --rolled-back ${migrationName}`)
+    } catch (error) {
+      console.log(`ℹ️ Bỏ qua migrate resolve cho ${migrationName} vì migration này không cần rollback ở môi trường hiện tại.`)
+    }
   }
   run('npx prisma migrate deploy')
   run('npx prisma generate')

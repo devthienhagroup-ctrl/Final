@@ -21,6 +21,7 @@ import { Roles } from '../auth/decorators/roles.decorator'
 import { AccessTokenGuard } from '../auth/guards/access-token.guard'
 import { RolesGuard } from '../auth/guards/roles.guard'
 import { CreateReviewDto } from './dto/create-review.dto'
+import { HelpfulHistoryQueryDto, MergeHelpfulDto } from './dto/review-helpful.dto'
 import { AdminReviewsQueryDto, PublicReviewsQueryDto } from './dto/reviews-query.dto'
 import { ReviewsService } from './reviews.service'
 
@@ -60,6 +61,25 @@ export class ReviewsController {
   )
   create(@Body() dto: CreateReviewDto, @Req() req: Request, @UploadedFiles() files?: any[]) {
     return this.reviewsService.createReview(dto, req, files || [])
+  }
+
+
+  @UseGuards(AccessTokenGuard)
+  @Post(':id/helpful/toggle')
+  toggleHelpful(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
+    return this.reviewsService.toggleHelpful(id, user.sub)
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @Get('my-helpful-reviews')
+  myHelpfulReviews(@CurrentUser() user: JwtUser, @Query() query: HelpfulHistoryQueryDto) {
+    return this.reviewsService.listMyHelpfulReviews(user.sub, query)
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @Post('helpful/merge-local')
+  mergeLocalHelpful(@CurrentUser() user: JwtUser, @Body() dto: MergeHelpfulDto) {
+    return this.reviewsService.mergeLocalHelpful(user.sub, dto.reviewIds || [])
   }
 
   @UseGuards(AccessTokenGuard, RolesGuard)

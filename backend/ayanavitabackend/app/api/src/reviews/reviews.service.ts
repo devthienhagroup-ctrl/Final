@@ -6,6 +6,7 @@ import { normalizeBigInt } from '../catalog/utils'
 import { PrismaService } from '../prisma/prisma.service'
 import { ImageUploadService } from '../services/ImageUploadService'
 import { CreateReviewDto } from './dto/create-review.dto'
+import { HelpfulHistoryQueryDto } from './dto/review-helpful.dto'
 import { AdminReviewsQueryDto, PublicReviewsQueryDto } from './dto/reviews-query.dto'
 
 @Injectable()
@@ -223,12 +224,136 @@ export class ReviewsService {
         images: true,
         branch: { select: { id: true, name: true } },
         service: { select: { id: true, name: true } },
+        product: { select: { translations: { where: { languageCode: 'vi' }, select: { name: true }, take: 1 } } },
+        _count: { select: { helpfulVotes: true } },
       },
       orderBy: { id: 'desc' },
       take: 200,
     })
 
-    return normalizeBigInt(rows)
+    return normalizeBigInt(
+      rows.map((row) => ({
+        ...row,
+        helpfulCount: row._count.helpfulVotes,
+      })),
+    )
+  }
+
+
+  async toggleHelpful(reviewId: number, userId: number) {
+    const review = await this.prisma.review.findFirst({
+      where: {
+        id: BigInt(reviewId),
+        visibility: ReviewVisibility.VISIBLE,
+      },
+      select: { id: true },
+    })
+    if (!review) throw new NotFoundException('Review not found')
+
+    const existed = await this.prisma.reviewHelpful.findUnique({
+      where: {
+        reviewId_userId: {
+          reviewId: BigInt(reviewId),
+          userId,
+        },
+      },
+      select: { id: true },
+    })
+
+    if (existed) {
+      await this.prisma.reviewHelpful.delete({
+        where: {
+          reviewId_userId: {
+            reviewId: BigInt(reviewId),
+            userId,
+          },
+        },
+      })
+    } else {
+      await this.prisma.reviewHelpful.create({
+        data: {
+          reviewId: BigInt(reviewId),
+          userId,
+        },
+      })
+    }
+
+    const helpfulCount = await this.prisma.reviewHelpful.count({
+      where: { reviewId: BigInt(reviewId) },
+    })
+
+    return { active: !existed, helpfulCount }
+  }
+
+  async listMyHelpfulReviews(userId: number, query: HelpfulHistoryQueryDto) {
+    const page = query.page || 1
+    const pageSize = Math.min(query.pageSize || 10, 50)
+    const skip = (page - 1) * pageSize
+
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.reviewHelpful.count({ where: { userId } }),
+      this.prisma.reviewHelpful.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+        include: {
+          review: {
+            include: {
+              images: true,
+              branch: { select: { id: true, name: true } },
+              service: { select: { id: true, name: true } },
+              product: { select: { translations: { where: { languageCode: 'vi' }, select: { name: true }, take: 1 } } },
+              _count: { select: { helpfulVotes: true } },
+            },
+          },
+        },
+      }),
+    ])
+
+    return normalizeBigInt({
+      page,
+      pageSize,
+      total,
+      items: rows
+        .map((row) => row.review)
+        .filter(Boolean)
+        .map((review) => ({
+          ...review,
+          helpfulCount: review._count.helpfulVotes,
+        })),
+    })
+  }
+
+  async mergeLocalHelpful(userId: number, reviewIds: Array<number | string>) {
+    const normalizedIds = Array.from(
+      new Set(
+        (reviewIds || [])
+          .map((id) => Number(id))
+          .filter((id) => Number.isInteger(id) && id > 0),
+      ),
+    )
+    if (!normalizedIds.length) return { merged: 0 }
+
+    const visibleReviewIds = await this.prisma.review.findMany({
+      where: {
+        id: { in: normalizedIds.map((id) => BigInt(id)) },
+        visibility: ReviewVisibility.VISIBLE,
+      },
+      select: { id: true },
+    })
+
+    if (!visibleReviewIds.length) return { merged: 0 }
+
+    const created = await this.prisma.reviewHelpful.createMany({
+      data: visibleReviewIds.map((x) => ({
+        reviewId: x.id,
+        userId,
+      })),
+      skipDuplicates: true,
+    })
+
+    return { merged: created.count }
   }
 
   async adminList(query: AdminReviewsQueryDto) {

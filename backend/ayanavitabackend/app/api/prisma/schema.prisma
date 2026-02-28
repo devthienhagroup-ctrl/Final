@@ -36,6 +36,7 @@ model User {
   serviceReviews     ServiceReview[]
   reviews            Review[]
   specialistProfile  Specialist?
+  reviewHelpfulVotes ReviewHelpful[]
 }
 
 model Branch {
@@ -843,6 +844,7 @@ model Review {
   productOrderDetail ProductOrderDetail? @relation(fields: [productOrderDetailId], references: [id], onDelete: SetNull)
   user               User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
   images             ReviewImage[]
+  helpfulVotes       ReviewHelpful[]
 
   @@index([type, visibility, createdAt])
   @@index([branchId, createdAt])
@@ -851,6 +853,20 @@ model Review {
   @@index([userId])
   @@index([ipAddress, createdAt])
   @@unique([userId, productOrderId, productId], map: "uniq_product_review_per_user_order_product")
+}
+
+model ReviewHelpful {
+  id        BigInt   @id @default(autoincrement())
+  reviewId  BigInt
+  userId    Int
+  createdAt DateTime @default(now())
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, userId], map: "uniq_review_helpful_user")
+  @@index([userId, createdAt])
+  @@index([reviewId])
 }
 
 model ReviewImage {

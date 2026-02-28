@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Patch, Post, Req, UseGuards } from '@nestjs/common'
+import { Request } from 'express'
 import { AuthService } from './auth.service'
 import { RegisterDto } from '../users/dto/register.dto'
 import { LoginDto } from '../users/dto/login.dto'
@@ -42,8 +43,10 @@ export class AuthController {
 
 
   @Post('forgot-password/send-otp')
-  sendForgotPasswordOtp(@Body() dto: SendOtpDto) {
-    return this.auth.sendForgotPasswordOtp(dto)
+  sendForgotPasswordOtp(@Body() dto: SendOtpDto, @Req() req: Request) {
+    const authorization = req.headers.authorization
+    const accessToken = authorization?.startsWith('Bearer ') ? authorization.slice(7) : undefined
+    return this.auth.sendForgotPasswordOtp(dto, accessToken)
   }
 
   @Post('forgot-password/verify-otp')

@@ -76,12 +76,24 @@ export class LessonsService {
       return { ...uploaded, videoId: video.id }
     }
 
-    const uploaded = await this.media.transcodeToHlsAndUpload(file, lessonId, moduleId)
-    const existing = await this.prisma.lessonVideo.findFirst({ where: { moduleId: module.id, order: resolvedOrder }, orderBy: { id: 'asc' }, select: { id: true } })
-    const video = existing
-      ? await this.prisma.lessonVideo.update({ where: { id: existing.id }, data: { mediaType: LessonMediaType.VIDEO, sourceUrl: uploaded.playlistKey, hlsPlaylistKey: uploaded.playlistKey, published: true } })
-      : await this.prisma.lessonVideo.create({ data: { moduleId: module.id, title: `video-${resolvedOrder}`, description: null, mediaType: LessonMediaType.VIDEO, sourceUrl: uploaded.playlistKey, hlsPlaylistKey: uploaded.playlistKey, durationSec: 0, order: resolvedOrder, published: true } })
-    return { ...uploaded, videoId: video.id }
+    try {
+      const uploaded = await this.media.transcodeToHlsAndUpload(file, lessonId, moduleId)
+      const existing = await this.prisma.lessonVideo.findFirst({ where: { moduleId: module.id, order: resolvedOrder }, orderBy: { id: 'asc' }, select: { id: true } })
+      const video = existing
+        ? await this.prisma.lessonVideo.update({ where: { id: existing.id }, data: { mediaType: LessonMediaType.VIDEO, sourceUrl: uploaded.playlistKey, hlsPlaylistKey: uploaded.playlistKey, published: true } })
+        : await this.prisma.lessonVideo.create({ data: { moduleId: module.id, title: `video-${resolvedOrder}`, description: null, mediaType: LessonMediaType.VIDEO, sourceUrl: uploaded.playlistKey, hlsPlaylistKey: uploaded.playlistKey, durationSec: 0, order: resolvedOrder, published: true } })
+      return { ...uploaded, videoId: video.id }
+    } catch (error: any) {
+      const isFfmpegMissing = error?.code === 'ENOENT' || String(error?.message || '').toLowerCase().includes('spawn ffmpeg')
+      if (!isFfmpegMissing) throw error
+
+      const fallback = await this.media.uploadOriginalVideoAndUpload(file, lessonId, moduleId)
+      const existing = await this.prisma.lessonVideo.findFirst({ where: { moduleId: module.id, order: resolvedOrder }, orderBy: { id: 'asc' }, select: { id: true } })
+      const video = existing
+        ? await this.prisma.lessonVideo.update({ where: { id: existing.id }, data: { mediaType: LessonMediaType.VIDEO, sourceUrl: fallback.sourceUrl, hlsPlaylistKey: null, published: true } })
+        : await this.prisma.lessonVideo.create({ data: { moduleId: module.id, title: `video-${resolvedOrder}`, description: null, mediaType: LessonMediaType.VIDEO, sourceUrl: fallback.sourceUrl, hlsPlaylistKey: null, durationSec: 0, order: resolvedOrder, published: true } })
+      return { ...fallback, videoId: video.id, transcoding: 'skipped_ffmpeg_missing' }
+    }
   }
 
   async update(id: number, dto: UpdateLessonDto) {
@@ -109,25 +121,32 @@ export class LessonsService {
 
   remove(id: number) { return this.prisma.lesson.delete({ where: { id } }) }
 
+  private getTranslationByLocale(translations: any, locale: 'vi' | 'en' | 'de') {
+    if (!translations) return undefined
+    if (locale === 'vi') return translations.vi || translations['vi-VN']
+    if (locale === 'en') return translations.en || translations['en-US'] || translations['en-GB']
+    return translations.de || translations['de-DE']
+  }
+
   private async upsertLessonTranslations(tx: any, lessonId: number, dto: any) {
-    for (const locale of ['vi', 'en', 'de']) {
-      const tr = dto.translations?.[locale]
+    for (const locale of ['vi', 'en', 'de'] as const) {
+      const tr = this.getTranslationByLocale(dto.translations, locale)
       const title = tr?.title || (locale === 'vi' ? dto.title : undefined)
       if (!title) continue
       await tx.lessonTranslation.upsert({ where: { lessonId_locale: { lessonId, locale } }, update: { title, description: tr?.description || (locale === 'vi' ? dto.description : null) }, create: { lessonId, locale, title, description: tr?.description || (locale === 'vi' ? dto.description : null) } })
     }
   }
   private async upsertModuleTranslations(tx: any, moduleId: number, dto: any) {
-    for (const locale of ['vi', 'en', 'de']) {
-      const tr = dto.translations?.[locale]
+    for (const locale of ['vi', 'en', 'de'] as const) {
+      const tr = this.getTranslationByLocale(dto.translations, locale)
       const title = tr?.title || (locale === 'vi' ? dto.title : undefined)
       if (!title) continue
       await tx.lessonModuleTranslation.upsert({ where: { moduleId_locale: { moduleId, locale } }, update: { title, description: tr?.description || (locale === 'vi' ? dto.description : null) }, create: { moduleId, locale, title, description: tr?.description || (locale === 'vi' ? dto.description : null) } })
     }
   }
   private async upsertVideoTranslations(tx: any, videoId: number, dto: any) {
-    for (const locale of ['vi', 'en', 'de']) {
-      const tr = dto.translations?.[locale]
+    for (const locale of ['vi', 'en', 'de'] as const) {
+      const tr = this.getTranslationByLocale(dto.translations, locale)
       const title = tr?.title || (locale === 'vi' ? dto.title : undefined)
       if (!title) continue
       await tx.lessonVideoTranslation.upsert({ where: { videoId_locale: { videoId, locale } }, update: { title, description: tr?.description || (locale === 'vi' ? dto.description : null) }, create: { videoId, locale, title, description: tr?.description || (locale === 'vi' ? dto.description : null) } })

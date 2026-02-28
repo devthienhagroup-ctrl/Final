@@ -16,6 +16,7 @@ export type LessonVideoPayload = {
   title: string
   description?: string
   translations?: Record<string, { title: string; shortDescription?: string; description?: string }>
+  mediaType?: 'VIDEO' | 'IMAGE'
   sourceUrl?: string
   durationSec?: number
   order?: number

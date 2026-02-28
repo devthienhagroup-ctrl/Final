@@ -78,15 +78,30 @@ export class LessonsMediaService {
   private runFfmpeg(args: string[]) {
     return new Promise<void>((resolve, reject) => {
       const ffmpeg = spawn('ffmpeg', args)
+      let settled = false
       let stderr = ''
       ffmpeg.stderr.on('data', (chunk) => {
         stderr += chunk.toString()
       })
+      ffmpeg.on('error', (error) => {
+        if (settled) return
+        settled = true
+        reject(error)
+      })
       ffmpeg.on('close', (code) => {
+        if (settled) return
+        settled = true
         if (code === 0) return resolve()
         reject(new Error(stderr || `ffmpeg exited with ${code}`))
       })
     })
+  }
+
+  async uploadOriginalVideoAndUpload(file: { buffer: Buffer; originalname?: string }, lessonId: number, moduleId: string) {
+    const extension = (file.originalname || 'video.mp4').split('.').pop() || 'mp4'
+    const videoKey = `private/courses/${lessonId}/modules/${moduleId}/${randomUUID()}.${extension}`
+    await this.uploadPrivateObject(videoKey, file.buffer, 'video/mp4')
+    return { sourceUrl: videoKey, storage: 'private-bucket' }
   }
 
 

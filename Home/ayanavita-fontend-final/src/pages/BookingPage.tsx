@@ -1,12 +1,10 @@
 // src/pages/BookingPage.tsx
 import React from "react";
 import { useSearchParams } from "react-router-dom";
-import { BookingHeader } from "../components/booking/BookingHeader";
 import { BookingHero } from "../components/booking/BookingHero";
 import { BookingForm } from "../components/booking/BookingForm";
 import { SlotPicker } from "../components/booking/SlotPicker";
 import { TrustSection } from "../components/booking/TrustSection";
-import { AuthModal } from "../components/booking/AuthModal";
 import { PolicyModal } from "../components/booking/PolicyModal";
 import { ToastStack } from "../components/booking/ToastStack";
 
@@ -14,14 +12,107 @@ import { bookingApi } from "../api/booking.api";
 import { http } from "../api/http";
 import { useToast } from "../services/useToast";
 import { useBookingSlots } from "../services/useBookingSlots";
-import { getAuth, setAuth, type AuthUser } from "../services/auth.storage";
+import { getAuth, type AuthUser } from "../services/auth.storage";
 import { Footer } from "../components/layout/Footer";
 
 type Opt = { id: string; name: string; duration?: number; price?: number; address?: string };
 
+const defaultToastCmsData = {
+  // ===== TOASTS =====
+  demoFilled: {
+    title: "Đã điền demo",
+    message: "Hãy chọn khung giờ và tạo lịch hẹn.",
+  },
+  myBookings: {
+    title: "Lịch của tôi",
+    message: "Xem phần sidebar bên phải.",
+  },
+  resetDone: {
+    title: "Đã reset",
+    message: "Bạn có thể đặt lịch lại.",
+  },
+  bookingsCleared: {
+    title: "Đã xóa lịch hẹn",
+    message: "LocalStorage đã được làm sạch.",
+  },
+  statusUpdated: {
+    title: "Đã cập nhật trạng thái",
+    message: "{id} • {status}",
+  },
+  slotsRefreshed: {
+    title: "Đã làm mới slot",
+    message: "Một số khung giờ có thể hết chỗ (demo).",
+  },
+
+  // ✅ BỔ SUNG: các toast đang còn hardcode trong file
+  loadFailed: {
+    title: "Không tải được dữ liệu",
+    message: "Vui lòng kiểm tra backend (localhost:8090).",
+  },
+  branchLoadFailed: {
+    title: "Không tải được chi nhánh theo dịch vụ",
+    message: "Vui lòng thử lại.",
+  },
+  createSuccess: {
+    title: "Tạo lịch hẹn thành công",
+    message: "{date} {time}",
+  },
+  createFailed: {
+    title: "Không thể tạo lịch",
+    message: "{error}",
+  },
+
+  // ===== UI TEXT (nhét tạm ở đây) =====
+  uiSelectedSlotLabel: {
+    title: "UI",
+    message: "Khung giờ đã chọn:",
+  },
+  uiNotSelected: {
+    title: "UI",
+    message: "Chưa chọn",
+  },
+  uiResetAll: {
+    title: "UI",
+    message: "Reset toàn bộ",
+  },
+  uiTipRefreshSlots: {
+    title: "UI",
+    message: 'Tip: bấm “Làm mới” ở khung giờ để random available/unavailable (demo).',
+  },
+  uiConfirmClearBookings: {
+    title: "UI",
+    message: "Xóa toàn bộ lịch hẹn (demo)?",
+  },
+  // ✅ BỔ SUNG: text UI còn hardcode trong file này
+  uiLoading: {
+    title: "UI",
+    message: "Loading...",
+  },
+} as const;
+
+type ToastCmsData = Record<string, { title: string; message: string }>;
+type ToastCmsKey = keyof typeof defaultToastCmsData;
+
+function formatTemplate(template: string, vars?: Record<string, string | number | undefined | null>) {
+  if (!vars) return template;
+  return template.replace(/\{(\w+)\}/g, (_, k) => {
+    const v = vars[k];
+    return v === undefined || v === null ? "" : String(v);
+  });
+}
+
 export default function BookingPage() {
   const [searchParams] = useSearchParams();
   const preselectedService = searchParams.get("serviceId") || "";
+
+  const [currentLanguage, setCurrentLanguage] = React.useState<string>(() => {
+    return localStorage.getItem("preferred-language") || "vi";
+  });
+
+  const [bookingData, setBookingData] = React.useState<any>(null);
+  const [toastCmsData, setToastCmsData] = React.useState<ToastCmsData>(() => ({
+    ...(defaultToastCmsData as unknown as ToastCmsData),
+  }));
 
   const { items: toasts, push: toast, remove } = useToast();
   const slots = useBookingSlots();
@@ -36,7 +127,7 @@ export default function BookingPage() {
   const [date, setDate] = React.useState<string>(new Date(Date.now() + 86400000).toISOString().slice(0, 10));
   const [customTime, setCustomTime] = React.useState("");
 
-  const [authOpen, setAuthOpen] = React.useState(false);
+  const [authOpen] = React.useState(false);
   const [policyOpen, setPolicyOpen] = React.useState(false);
   const [user, setUser] = React.useState<AuthUser | null>(() => {
     try {
@@ -48,18 +139,89 @@ export default function BookingPage() {
 
   const [resetSignal, setResetSignal] = React.useState(0);
   const formRef = React.useRef<HTMLDivElement | null>(null);
-  const userLabel = user ? user.name : "Đăng nhập";
 
-  const refreshSlots = React.useCallback(async (sid: string, bid: string, d: string) => {
-    await slots.refresh({
-      serviceId: sid ? Number(sid) : undefined,
-      branchId: bid ? Number(bid) : undefined,
-      date: d,
-    });
-  }, [slots.refresh]);
+  const getCmsToast = React.useCallback(
+    (key: ToastCmsKey, vars?: Record<string, string | number | undefined | null>) => {
+      const src = toastCmsData?.[key] ?? (defaultToastCmsData as unknown as ToastCmsData)[key];
+      const title = src?.title ?? (defaultToastCmsData as any)[key]?.title ?? "Thông báo";
+      const message = formatTemplate(src?.message ?? "", vars);
+      return { title, message };
+    },
+    [toastCmsData],
+  );
+
+  const toastByKey = React.useCallback(
+    (
+      key: ToastCmsKey,
+      vars?: Record<string, string | number | undefined | null>,
+      status: "success" | "error" | "info" = "info",
+    ) => {
+      const { title, message } = getCmsToast(key, vars);
+      toast(title, message, status);
+    },
+    [getCmsToast, toast],
+  );
+
+  // Lắng nghe sự kiện thay đổi ngôn ngữ
+  React.useEffect(() => {
+    const handleLanguageChange = (event: CustomEvent) => {
+      setCurrentLanguage(event.detail.language);
+    };
+
+    window.addEventListener("languageChange", handleLanguageChange as EventListener);
+    return () => {
+      window.removeEventListener("languageChange", handleLanguageChange as EventListener);
+    };
+  }, []);
+
+  // gọi API theo ngôn ngữ, gán res.data vào bookingData để truyền props
+  React.useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      try {
+        const res = await http.get(`/public/pages/booking?lang=${currentLanguage}`);
+        if (!alive) return;
+        setBookingData(res.data);
+      } catch {
+        // optional debug
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [currentLanguage]);
+
+  // ghi đè toastCmsData bằng bookingData?.sections[5]?.data (giữ nguyên logic bạn đang dùng)
+  React.useEffect(() => {
+    const next = bookingData?.sections?.[5]?.data;
+    if (next && typeof next === "object") {
+      setToastCmsData(next as ToastCmsData);
+    } else {
+      setToastCmsData({ ...(defaultToastCmsData as unknown as ToastCmsData) });
+    }
+  }, [bookingData]);
+
+  const refreshSlots = React.useCallback(
+    async (sid: string, bid: string, d: string) => {
+      await slots.refresh({
+        serviceId: sid ? Number(sid) : undefined,
+        branchId: bid ? Number(bid) : undefined,
+        date: d,
+      });
+    },
+    [slots.refresh],
+  );
 
   const normalizeServices = React.useCallback(
-    (input: any[]) => input.map((s: any) => ({ id: String(s.id), name: s.name, duration: Number(s.durationMin || 0), price: Number(s.price || 0) })),
+    (input: any[]) =>
+      input.map((s: any) => ({
+        id: String(s.id),
+        name: s.name,
+        duration: Number(s.durationMin || 0),
+        price: Number(s.price || 0),
+      })),
     [],
   );
 
@@ -88,64 +250,61 @@ export default function BookingPage() {
 
       await refreshSlots(nextService, nextBranch, date);
     } catch {
-      toast("Không tải được dữ liệu", "Vui lòng kiểm tra backend (localhost:8090).");
+      toastByKey("loadFailed", undefined, "error");
     } finally {
       setLoadingCatalog(false);
     }
-  }, [date, normalizeBranches, normalizeServices, preselectedService, refreshSlots, toast]);
+  }, [date, normalizeBranches, normalizeServices, preselectedService, refreshSlots, toastByKey]);
 
   React.useEffect(() => {
     bootstrapCatalog();
   }, [bootstrapCatalog]);
 
-  const onBranchChange = React.useCallback(async (nextBranch: string) => {
-    setBranchId(nextBranch);
-    setCustomTime("");
-    clearPick();
-    await refreshSlots(serviceId, nextBranch, date);
-  }, [clearPick, date, refreshSlots, serviceId]);
-
-  const onServiceChange = React.useCallback(async (nextService: string) => {
-    setServiceId(nextService);
-    setCustomTime("");
-    clearPick();
-    try {
-      const branchRows = await bookingApi.branches(nextService ? { serviceId: Number(nextService) } : undefined);
-      const normalizedBranches = normalizeBranches(branchRows);
-      setBranches(normalizedBranches);
-      const nextBranch = normalizedBranches[0]?.id || "";
+  const onBranchChange = React.useCallback(
+    async (nextBranch: string) => {
       setBranchId(nextBranch);
-      await refreshSlots(nextService, nextBranch, date);
-    } catch {
-      toast("Không tải được chi nhánh theo dịch vụ");
-    }
-  }, [clearPick, date, normalizeBranches, refreshSlots, toast]);
+      setCustomTime("");
+      clearPick();
+      await refreshSlots(serviceId, nextBranch, date);
+    },
+    [clearPick, date, refreshSlots, serviceId],
+  );
 
-  const onDateChange = React.useCallback(async (nextDate: string) => {
-    setDate(nextDate);
-    setCustomTime("");
-    clearPick();
-    await refreshSlots(serviceId, branchId, nextDate);
-  }, [branchId, clearPick, refreshSlots, serviceId]);
-
-  const onAuthClick = () => {
-    if (user) {
-      if (confirm("Bạn muốn đăng xuất?")) {
-        setAuth(null);
-        setUser(null);
-        toast("Đã đăng xuất");
+  const onServiceChange = React.useCallback(
+    async (nextService: string) => {
+      setServiceId(nextService);
+      setCustomTime("");
+      clearPick();
+      try {
+        const branchRows = await bookingApi.branches(nextService ? { serviceId: Number(nextService) } : undefined);
+        const normalizedBranches = normalizeBranches(branchRows);
+        setBranches(normalizedBranches);
+        const nextBranch = normalizedBranches[0]?.id || "";
+        setBranchId(nextBranch);
+        await refreshSlots(nextService, nextBranch, date);
+      } catch {
+        toastByKey("branchLoadFailed", undefined, "error");
       }
-      return;
-    }
-    setAuthOpen(true);
-  };
+    },
+    [clearPick, date, normalizeBranches, refreshSlots, toastByKey],
+  );
+
+  const onDateChange = React.useCallback(
+    async (nextDate: string) => {
+      setDate(nextDate);
+      setCustomTime("");
+      clearPick();
+      await refreshSlots(serviceId, branchId, nextDate);
+    },
+    [branchId, clearPick, refreshSlots, serviceId],
+  );
 
   const fillDemo = () => {
     if (!user) {
       const demoUser: AuthUser = { email: "demo@ayanavita.vn", name: "Khách Demo", remember: false };
       setUser(demoUser);
     }
-    toast("Đã điền demo", "Hãy chọn khung giờ và tạo lịch hẹn.");
+    toastByKey("demoFilled", undefined, "info");
   };
 
   const scrollToForm = () => {
@@ -157,19 +316,18 @@ export default function BookingPage() {
     setCustomTime("");
     clearPick();
     await bootstrapCatalog();
-    toast("Đã reset", "Bạn có thể đặt lịch lại.");
+    toastByKey("resetDone", undefined, "info");
   };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <BookingHeader userLabel={userLabel} onHotline={() => toast("Hotline", "Gọi 0900 000 000 (demo)." )} onAuthClick={onAuthClick} />
-
       <main className="mx-auto max-w-7xl px-4 py-6">
-        <BookingHero onFillDemo={fillDemo} onScrollForm={scrollToForm} />
+        <BookingHero onViewMyBookings={null} cmsData={bookingData?.sections[0]?.data} onFillDemo={fillDemo} onScrollForm={scrollToForm} />
 
         <section id="form" className="mt-5 grid gap-4 lg:grid-cols-3" ref={formRef}>
           <div className="lg:col-span-2 space-y-4">
             <BookingForm
+              cmsData={bookingData?.sections[1]?.data}
               services={services as any}
               branches={branches as any}
               selectedServiceId={serviceId}
@@ -187,10 +345,12 @@ export default function BookingPage() {
                     branchId: Number(b.branchId),
                     serviceId: Number(b.serviceId),
                   });
-                  toast("Tạo lịch hẹn thành công", `${b.date} ${b.time}`);
+                  toastByKey("createSuccess", { date: b.date, time: b.time }, "success");
                   await refreshSlots(serviceId, branchId, date);
                 } catch (error: any) {
-                  toast("Không thể tạo lịch", error?.response?.data?.message || "Khung giờ có thể đã hết chỗ.");
+                  toastByKey("createFailed", {
+                    error: error?.response?.data?.message || "Khung giờ có thể đã hết chỗ.",
+                  }, "error");
                 }
               }}
               onResetSignal={resetSignal}
@@ -199,11 +359,13 @@ export default function BookingPage() {
               onBranchChange={onBranchChange}
               onDateChange={onDateChange}
             />
-            {loadingCatalog && <div className="text-sm text-slate-500">Đang tải dữ liệu dịch vụ từ API...</div>}
+
+            {loadingCatalog && <div className="text-sm text-slate-500">{getCmsToast("uiLoading").message}</div>}
           </div>
 
           <div className="space-y-4">
             <SlotPicker
+              cmsData={bookingData?.sections[2]?.data}
               slots={slots.slots}
               selected={slots.selectedSlot}
               customTime={customTime}
@@ -223,13 +385,11 @@ export default function BookingPage() {
           </div>
         </section>
 
-        <TrustSection onPolicy={() => setPolicyOpen(true)} />
+        <TrustSection cmsData={bookingData?.sections[4]?.data} onPolicy={() => setPolicyOpen(true)} />
       </main>
 
-      <Footer />
+      <PolicyModal cmsData={bookingData?.sections[5]?.data} open={policyOpen} onClose={() => setPolicyOpen(false)} />
 
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} toast={toast} onAuthed={(u) => setUser(u)} />
-      <PolicyModal open={policyOpen} onClose={() => setPolicyOpen(false)} />
       <ToastStack items={toasts} onClose={remove} />
     </div>
   );

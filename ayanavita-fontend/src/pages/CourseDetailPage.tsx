@@ -1,4 +1,3 @@
-// src/pages/CourseDetailPage.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -9,6 +8,7 @@ import { progressApi, type CourseProgressRes } from "../api/progress.api";
 import { LessonsSidebar } from "../components/LessonsSidebar";
 import { buildSequentialRows, pickContinueLessonId } from "../shared/lessons";
 import { useEnrollmentGate } from "../hooks/useEnrollmentGate";
+import { studentLanguageMeta, useStudentViewPrefs, type StudentLang } from "../hooks/useStudentViewPrefs";
 
 import {
   AppShell,
@@ -25,10 +25,62 @@ import {
 } from "../ui/ui";
 
 import { IconArrowLeft, IconInfo, IconPlay, IconRefresh } from "../ui/icons";
+import "./StudentCoursesTheme.css";
 
 type LessonView = Lesson & {
   order?: number | null;
   published?: boolean;
+};
+
+const tx: Record<StudentLang, Record<string, string>> = {
+  vi: {
+    courses: "Khoá học",
+    myCourses: "Khoá học của tôi",
+    myOrders: "Đơn hàng của tôi",
+    order: "Mua / Ghi danh",
+    cancel: "Huỷ ghi danh",
+    reload: "Tải lại",
+    loading: "Đang tải…",
+    loadingSub: "Đang lấy course / lessons / progress.",
+    continue: "Tiếp tục",
+    progress: "Tiến độ",
+    completed: "Hoàn thành",
+    lockedRule: "Quy tắc mở khoá bài học (Sequential)",
+    lessonList: "Danh sách bài học",
+    darkMode: "Chế độ tối",
+  },
+  en: {
+    courses: "Courses",
+    myCourses: "My Courses",
+    myOrders: "My Orders",
+    order: "Order / Enroll",
+    cancel: "Cancel enrollment",
+    reload: "Reload",
+    loading: "Loading…",
+    loadingSub: "Fetching course / lessons / progress.",
+    continue: "Continue",
+    progress: "Progress",
+    completed: "Completed",
+    lockedRule: "Lesson unlock rule (Sequential)",
+    lessonList: "Lesson list",
+    darkMode: "Dark mode",
+  },
+  de: {
+    courses: "Kurse",
+    myCourses: "Meine Kurse",
+    myOrders: "Meine Bestellungen",
+    order: "Bestellen / Einschreiben",
+    cancel: "Einschreibung stornieren",
+    reload: "Neu laden",
+    loading: "Wird geladen…",
+    loadingSub: "Kurs / Lektionen / Fortschritt werden geladen.",
+    continue: "Weiterlernen",
+    progress: "Fortschritt",
+    completed: "Abgeschlossen",
+    lockedRule: "Regel zur Lektionen-Freischaltung (Sequenziell)",
+    lessonList: "Lektionenliste",
+    darkMode: "Dunkler Modus",
+  },
 };
 
 function fmtVND(v: number) {
@@ -52,6 +104,8 @@ export function CourseDetailPage() {
   const nav = useNavigate();
   const { id } = useParams();
   const courseId = Number(id);
+  const { lang, setLang, theme: uiTheme, setTheme } = useStudentViewPrefs();
+  const t = tx[lang];
 
   const gate = useEnrollmentGate(courseId, { adminBypass: false });
 
@@ -65,12 +119,10 @@ export function CourseDetailPage() {
 
   async function load() {
     if (!Number.isFinite(courseId) || courseId <= 0) return;
-
     setLoading(true);
     setErr(null);
     setInfo(null);
 
-    // 1) course detail
     try {
       const c = await coursesApi.detail(courseId);
       setCourse(c);
@@ -78,22 +130,19 @@ export function CourseDetailPage() {
       setCourse(null);
       setLessons([]);
       setProgress(null);
-      setErr(e?.message || "Không tải được course.");
+      setErr(e?.message || "Cannot load course.");
       setLoading(false);
       return;
     }
 
-    // 2) lessons/progress phụ thuộc gate
     if (gate.canAccess) {
-      // ACTIVE => lessons đầy đủ + progress
       try {
         const ls = await coursesApi.lessons(courseId);
         setLessons(sortLessons(ls as LessonView[]));
       } catch (e: any) {
         setLessons([]);
-        setErr(e?.message || "Không tải được lessons.");
+        setErr(e?.message || "Cannot load lessons.");
       }
-
       try {
         const p = await progressApi.courseProgress(courseId);
         setProgress(p);
@@ -101,46 +150,33 @@ export function CourseDetailPage() {
         setProgress(null);
       }
     } else {
-      // NOT ACTIVE => chỉ outline (không gọi progress)
       try {
         const outline = await coursesApi.lessonsOutline(courseId);
         setLessons(sortLessons(outline as LessonView[]));
       } catch (e2: any) {
         setLessons([]);
-        setErr(e2?.message || "Không tải được lessons outline.");
+        setErr(e2?.message || "Cannot load lesson outline.");
       } finally {
         setProgress(null);
       }
     }
-
     setLoading(false);
   }
 
-  // Load lần đầu + khi gate.canAccess đổi (PENDING -> ACTIVE sẽ tự reload đúng dữ liệu)
   useEffect(() => {
     if (!Number.isFinite(courseId) || courseId <= 0) return;
-    if (gate.loading) return; // chờ gate ổn định để tránh load 2 lần
+    if (gate.loading) return;
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId, gate.loading, gate.canAccess]);
 
   async function onOrder() {
     if (!Number.isFinite(courseId) || courseId <= 0) return;
-
     setErr(null);
     setInfo(null);
-
     try {
       await enrollmentsApi.order(courseId);
-      setInfo(
-        "Đã tạo order. Trạng thái sẽ về PENDING. Khi admin mark-paid, hệ thống sẽ tự mở khoá (ACTIVE)."
-      );
-
-      // cập nhật gate store (shared toàn app)
+      setInfo("Order created. Wait for admin paid confirmation to unlock content.");
       await gate.refresh();
-
-      // nếu đã ACTIVE ngay (trường hợp admin bypass/logic khác) thì load full
-      // còn không thì outline vẫn hiển thị, chờ gate tự lên ACTIVE
       await load();
     } catch (e: any) {
       setErr(e?.message || "Order failed");
@@ -149,14 +185,11 @@ export function CourseDetailPage() {
 
   async function onCancel() {
     if (!Number.isFinite(courseId) || courseId <= 0) return;
-
     setErr(null);
     setInfo(null);
-
     try {
       await enrollmentsApi.cancel(courseId);
-      setInfo("Đã huỷ ghi danh.");
-
+      setInfo("Enrollment cancelled.");
       await gate.refresh();
       await load();
     } catch (e: any) {
@@ -168,10 +201,7 @@ export function CourseDetailPage() {
     nav(`/lessons/${lessonId}?courseId=${courseId}`);
   }
 
-  // Shared sequential rows (single source of truth)
   const seqRows = useMemo(() => buildSequentialRows(lessons as any, progress as any), [lessons, progress]);
-
-  // Continue chỉ hợp lệ khi ACTIVE (vì cần progress ổn định)
   const continueLessonId = useMemo(() => {
     if (!gate.canAccess) return 0;
     return pickContinueLessonId(seqRows);
@@ -180,256 +210,122 @@ export function CourseDetailPage() {
   const percent = gate.canAccess ? progress?.percent ?? 0 : 0;
 
   return (
-    <AppShell>
-      <Container>
-        {/* Top nav + actions */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 12,
-            flexWrap: "wrap",
-            alignItems: "center",
-            marginBottom: 12,
-          }}
-        >
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <Link
-              to="/courses"
-              style={{
-                color: theme.colors.text,
-                textDecoration: "none",
-                display: "inline-flex",
-                gap: 8,
-                alignItems: "center",
-              }}
-            >
-              <IconArrowLeft /> Courses
-            </Link>
-
-            <Link to="/me/courses" style={{ color: theme.colors.text, textDecoration: "none" }}>
-              My Courses
-            </Link>
-
-            <Link to="/me/orders" style={{ color: theme.colors.text, textDecoration: "none" }}>
-              My Orders
-            </Link>
+    <div className={`student-page student-courses-theme ${uiTheme === "dark" ? "student-courses-theme-dark" : ""}`}>
+      <div className="student-shell" style={{ marginBottom: 12 }}>
+        <div className="student-topbar">
+          <div>
+            <h2 style={{ margin: 0 }}>{course?.title || t.courses}</h2>
           </div>
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <Button tone="primary" onClick={onOrder} disabled={loading}>
-              Mua / Ghi danh
-            </Button>
-
-            <Button tone="danger" variant="ghost" onClick={onCancel} disabled={loading}>
-              Huỷ ghi danh
-            </Button>
-
-            <Button
-              tone="neutral"
-              variant="ghost"
-              onClick={load}
-              disabled={loading}
-              leftIcon={<IconRefresh />}
-            >
-              Reload
-            </Button>
+          <div className="student-control-group">
+            <button className="student-theme-toggle" onClick={() => setTheme(uiTheme === "dark" ? "light" : "dark")}>
+              {t.darkMode}: {uiTheme === "dark" ? "ON" : "OFF"}
+            </button>
+            <div className="student-lang-switch">
+              {(Object.keys(studentLanguageMeta) as StudentLang[]).map((code) => (
+                <button key={code} className={`student-lang-option ${lang === code ? "active" : ""}`} onClick={() => setLang(code)}>
+                  <img src={studentLanguageMeta[code].flagUrl} alt={studentLanguageMeta[code].label} />
+                </button>
+              ))}
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Gate banner (thống nhất theo store) */}
-        {!gate.loading && !gate.canAccess && gate.reason && (
-          <Card style={{ marginBottom: 12 }}>
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <Badge tone="warning">
-                <IconInfo /> LOCKED
-              </Badge>
-              <div style={{ fontWeight: 800 }}>{gate.reason}</div>
+      <AppShell>
+        <Container>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+              <Link to="/courses" style={{ color: theme.colors.text, textDecoration: "none", display: "inline-flex", gap: 8, alignItems: "center" }}>
+                <IconArrowLeft /> {t.courses}
+              </Link>
+              <Link to="/me/courses" style={{ color: theme.colors.text, textDecoration: "none" }}>{t.myCourses}</Link>
+              <Link to="/me/orders" style={{ color: theme.colors.text, textDecoration: "none" }}>{t.myOrders}</Link>
             </div>
-            <div style={{ marginTop: 10, color: theme.colors.muted, fontSize: 12 }}>
-              Tip: Sau khi bạn tạo order, trạng thái sẽ là <b>PENDING</b>. Khi admin mark-paid, trạng thái sẽ chuyển{" "}
-              <b>ACTIVE</b> và trang này tự reload để mở khoá nội dung.
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <Button tone="primary" onClick={onOrder} disabled={loading}>{t.order}</Button>
+              <Button tone="danger" variant="ghost" onClick={onCancel} disabled={loading}>{t.cancel}</Button>
+              <Button tone="neutral" variant="ghost" onClick={load} disabled={loading} leftIcon={<IconRefresh />}>{t.reload}</Button>
             </div>
-          </Card>
-        )}
+          </div>
 
-        {/* Alerts */}
-        {loading && (
-          <Card style={{ marginBottom: 12 }}>
-            <Title>Đang tải…</Title>
-            <SubTitle>Đang lấy course / lessons / progress.</SubTitle>
-          </Card>
-        )}
-
-        {err && (
-          <Card style={{ marginBottom: 12 }}>
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <Badge tone="danger">
-                <IconInfo /> ERROR
-              </Badge>
-              <div style={{ fontWeight: 800 }}>{err}</div>
-            </div>
-          </Card>
-        )}
-
-        {info && (
-          <Card style={{ marginBottom: 12 }}>
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <Badge tone="info">
-                <IconInfo /> INFO
-              </Badge>
-              <div style={{ fontWeight: 800 }}>{info}</div>
-            </div>
-          </Card>
-        )}
-
-        {/* Course header */}
-        {course && (
-          <Card style={{ marginBottom: 12 }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 14,
-                flexWrap: "wrap",
-                alignItems: "flex-start",
-              }}
-            >
-              <div style={{ minWidth: 280, flex: "1 1 420px" }}>
-                <div style={{ fontSize: 22, fontWeight: 950, letterSpacing: -0.3 }}>
-                  {course.title}
-                </div>
-
-                <div style={{ marginTop: 8, color: theme.colors.muted, lineHeight: 1.55 }}>
-                  {course.description}
-                </div>
-
-                <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  <Badge tone="info">Giá: {fmtVND(course.price)}</Badge>
-                  {course.published ? (
-                    <Badge tone="success">PUBLISHED</Badge>
-                  ) : (
-                    <Badge tone="danger">UNPUBLISHED</Badge>
-                  )}
-                </div>
-
-                <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  <Badge tone={gate.canAccess ? "success" : "warning"}>
-                    Enrollment: {gate.status}
-                  </Badge>
-                </div>
+          {!gate.loading && !gate.canAccess && gate.reason && (
+            <Card style={{ marginBottom: 12 }}>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <Badge tone="warning"><IconInfo /> LOCKED</Badge>
+                <div style={{ fontWeight: 800 }}>{gate.reason}</div>
               </div>
+            </Card>
+          )}
 
-              <div style={{ minWidth: 280, flex: "0 1 340px" }}>
-                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
-                  <Tooltip
-                    content={
-                      <div>
-                        Đi tới bài đang dở:
-                        <br />
-                        ưu tiên <b>IN_PROGRESS</b> mới nhất, sau đó bài đầu tiên chưa completed.
-                        <br />
-                        (Chỉ khả dụng khi enrollment <b>ACTIVE</b>)
-                      </div>
-                    }
-                    disabled={!continueLessonId}
-                  >
-                    <span>
-                      <Button
-                        tone="success"
-                        onClick={() => {
-                          if (!continueLessonId) return;
-                          goLesson(continueLessonId);
-                        }}
-                        disabled={!continueLessonId}
-                        leftIcon={<IconPlay />}
-                      >
-                        Continue
-                      </Button>
-                    </span>
-                  </Tooltip>
-                </div>
+          {loading && <Card style={{ marginBottom: 12 }}><Title>{t.loading}</Title><SubTitle>{t.loadingSub}</SubTitle></Card>}
+          {err && <Card style={{ marginBottom: 12 }}><div style={{ display: "flex", gap: 10, alignItems: "center" }}><Badge tone="danger"><IconInfo /> ERROR</Badge><div style={{ fontWeight: 800 }}>{err}</div></div></Card>}
+          {info && <Card style={{ marginBottom: 12 }}><div style={{ display: "flex", gap: 10, alignItems: "center" }}><Badge tone="info"><IconInfo /> INFO</Badge><div style={{ fontWeight: 800 }}>{info}</div></div></Card>}
 
-                <Hr />
-
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-                  <div style={{ fontWeight: 900 }}>Progress</div>
-                  <div style={{ color: theme.colors.muted, fontSize: 13 }}>
-                    {gate.canAccess ? `${percent}%` : "—"}
+          {course && (
+            <Card style={{ marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "flex-start" }}>
+                <div style={{ minWidth: 280, flex: "1 1 420px" }}>
+                  <div style={{ fontSize: 22, fontWeight: 950, letterSpacing: -0.3 }}>{course.title}</div>
+                  <div style={{ marginTop: 8, color: theme.colors.muted, lineHeight: 1.55 }}>{course.description}</div>
+                  <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <Badge tone="info">{fmtVND(course.price)}</Badge>
+                    {course.published ? <Badge tone="success">PUBLISHED</Badge> : <Badge tone="danger">UNPUBLISHED</Badge>}
+                  </div>
+                  <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <Badge tone={gate.canAccess ? "success" : "warning"}>Enrollment: {gate.status}</Badge>
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    marginTop: 10,
-                    height: 10,
-                    borderRadius: 999,
-                    background: theme.shadow.soft,
-                    overflow: "hidden",
-                    border: `1px solid ${theme.colors.border}`,
-                    opacity: gate.canAccess ? 1 : 0.45,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: `${Math.max(0, Math.min(100, percent))}%`,
-                      height: "100%",
-                      background: theme.colors.brand,
-                    }}
-                  />
+                <div style={{ minWidth: 280, flex: "0 1 340px" }}>
+                  <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                    <Tooltip content={<div>Continue from your latest lesson.</div>} disabled={!continueLessonId}>
+                      <span>
+                        <Button tone="success" onClick={() => continueLessonId && goLesson(continueLessonId)} disabled={!continueLessonId} leftIcon={<IconPlay />}>
+                          {t.continue}
+                        </Button>
+                      </span>
+                    </Tooltip>
+                  </div>
+                  <Hr />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                    <div style={{ fontWeight: 900 }}>{t.progress}</div>
+                    <div style={{ color: theme.colors.muted, fontSize: 13 }}>{gate.canAccess ? `${percent}%` : "—"}</div>
+                  </div>
+                  <div style={{ marginTop: 10, height: 10, borderRadius: 999, background: theme.shadow.soft, overflow: "hidden", border: `1px solid ${theme.colors.border}`, opacity: gate.canAccess ? 1 : 0.45 }}>
+                    <div style={{ width: `${Math.max(0, Math.min(100, percent))}%`, height: "100%", background: theme.colors.brand }} />
+                  </div>
+                  {gate.canAccess && progress ? (
+                    <Muted><div style={{ marginTop: 10, fontSize: 12 }}>{t.completed}: <b style={{ color: theme.colors.text }}>{progress.completedLessons}/{progress.totalLessons}</b></div></Muted>
+                  ) : (
+                    <Muted><div style={{ marginTop: 10, fontSize: 12 }}>Progress only available when enrollment is ACTIVE.</div></Muted>
+                  )}
                 </div>
-
-                {gate.canAccess && progress ? (
-                  <Muted>
-                    <div style={{ marginTop: 10, fontSize: 12 }}>
-                      Hoàn thành:{" "}
-                      <b style={{ color: theme.colors.text }}>
-                        {progress.completedLessons}/{progress.totalLessons}
-                      </b>
-                    </div>
-                  </Muted>
-                ) : (
-                  <Muted>
-                    <div style={{ marginTop: 10, fontSize: 12 }}>
-                      Progress chỉ hiển thị khi enrollment <b>ACTIVE</b>.
-                    </div>
-                  </Muted>
-                )}
               </div>
+            </Card>
+          )}
+
+          <Card style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <div style={{ marginTop: 2 }}><IconInfo /></div>
+              <div><Title>{t.lockedRule}</Title><SubTitle>Complete previous lesson to unlock next one.</SubTitle></div>
             </div>
           </Card>
-        )}
 
-        {/* Rule hint */}
-        <Card style={{ marginBottom: 12 }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-            <div style={{ marginTop: 2 }}>
-              <IconInfo />
-            </div>
-            <div>
-              <Title>Quy tắc mở khoá bài học (Sequential)</Title>
-              <SubTitle>
-                Bạn phải <b>hoàn thành</b> bài trước để mở bài kế tiếp. Nếu Enrollment chưa{" "}
-                <b>ACTIVE</b>, chỉ hiển thị outline.
-              </SubTitle>
-            </div>
-          </div>
-        </Card>
-
-        {/* Reusable list/sidebar (no duplicated logic) */}
-        <LessonsSidebar
-          title="Danh sách bài học"
-          lessons={lessons as any}
-          progress={progress as any}
-          rows={seqRows}
-          courseId={courseId}
-          primaryLabel="Học"
-          onPrimary={(id2) => goLesson(id2)}
-          secondaryLabel="Chi tiết"
-          secondaryHref={(id2) => `/lessons/${id2}?courseId=${courseId}`}
-          emptyText="Chưa có lesson hoặc bạn chưa có quyền xem danh sách."
-        />
-      </Container>
-    </AppShell>
+          <LessonsSidebar
+            title={t.lessonList}
+            lessons={lessons as any}
+            progress={progress as any}
+            rows={seqRows}
+            courseId={courseId}
+            primaryLabel={t.continue}
+            onPrimary={(id2) => goLesson(id2)}
+            secondaryLabel="Detail"
+            secondaryHref={(id2) => `/lessons/${id2}?courseId=${courseId}`}
+            emptyText="No lesson available."
+          />
+        </Container>
+      </AppShell>
+    </div>
   );
 }

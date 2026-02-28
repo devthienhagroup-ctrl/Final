@@ -64,6 +64,7 @@ export type CheckoutState = {
 
 export const CHECKOUT_KEY = "aya_checkout_v1";
 export const PRODUCT_DETAIL_KEY = "aya_product_detail_v1"; // optional import
+export const CHECKOUT_SELECTED_ITEMS_KEY = "aya_checkout_selected_items_v1";
 
 function deepClone<T>(x: T): T {
   return JSON.parse(JSON.stringify(x)) as T;
@@ -172,6 +173,46 @@ export function loadCheckoutState(): CheckoutState {
         .filter(Boolean);
 
       if (imported.length) base.cart = imported as CartItem[];
+    }
+  } catch {
+    // ignore
+  }
+
+  // 3) optional import selected items from CartPage
+  try {
+    const selectedRaw = localStorage.getItem(CHECKOUT_SELECTED_ITEMS_KEY);
+    if (selectedRaw) {
+      const selectedItems = JSON.parse(selectedRaw) as Array<{
+        productId: number;
+        name: string;
+        price: number;
+        qty: number;
+        img?: string;
+      }>;
+
+      const mapped = (selectedItems || [])
+        .map((item, index) => {
+          const numericProductId = Number(item.productId);
+          if (!Number.isFinite(numericProductId) || numericProductId <= 0) {
+            return null;
+          }
+
+          return {
+            id: `CI-SEL-${numericProductId}-${index + 1}`,
+            productId: `P-${numericProductId}`,
+            name: item.name || `Product #${numericProductId}`,
+            sku: `AYA-${numericProductId}`,
+            price: Math.max(0, Number(item.price || 0)),
+            img: item.img || "",
+            qty: Math.max(1, Number(item.qty || 1)),
+          };
+        })
+        .filter(Boolean) as CartItem[];
+
+      if (mapped.length) {
+        base.cart = mapped;
+      }
+      localStorage.removeItem(CHECKOUT_SELECTED_ITEMS_KEY);
     }
   } catch {
     // ignore

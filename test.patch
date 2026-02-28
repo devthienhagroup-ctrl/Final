@@ -1,204 +1,1696 @@
-diff --git a/backend/ayanavitabackend/app/api/src/orders/orders.module.ts b/backend/ayanavitabackend/app/api/src/orders/orders.module.ts
-index 0f56562b8e3eb215080d84e3e2f015deeda57929..d73890c365adfd135c70b4029401d55785834594 100644
---- a/backend/ayanavitabackend/app/api/src/orders/orders.module.ts
-+++ b/backend/ayanavitabackend/app/api/src/orders/orders.module.ts
-@@ -1,12 +1,11 @@
- import { Module } from '@nestjs/common'
- import { PrismaModule } from '../prisma/prisma.module'
--import { EnrollmentsModule } from '../enrollments/enrollments.module'
- import { OrdersController } from './orders.controller'
- import { OrdersService } from './orders.service'
+diff --git a/ayanavita-fontend/src/hooks/useStudentViewPrefs.ts b/ayanavita-fontend/src/hooks/useStudentViewPrefs.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..84567aeae6b0c292530fed6b998c50f38870fe08
+--- /dev/null
++++ b/ayanavita-fontend/src/hooks/useStudentViewPrefs.ts
+@@ -0,0 +1,35 @@
++import { useEffect, useState } from "react";
++
++export type StudentLang = "vi" | "en" | "de";
++export type StudentTheme = "light" | "dark";
++
++const THEME_KEY = "student-courses-theme-mode";
++const LANG_KEY = "student-courses-lang";
++
++export const studentLanguageMeta: Record<StudentLang, { label: string; flagUrl: string }> = {
++  vi: { label: "Tiếng Việt", flagUrl: "https://flagcdn.com/w40/vn.png" },
++  en: { label: "English", flagUrl: "https://flagcdn.com/w40/gb.png" },
++  de: { label: "Deutsch", flagUrl: "https://flagcdn.com/w40/de.png" },
++};
++
++export function useStudentViewPrefs() {
++  const [theme, setTheme] = useState<StudentTheme>(() => {
++    const saved = window.localStorage.getItem(THEME_KEY);
++    return saved === "dark" ? "dark" : "light";
++  });
++
++  const [lang, setLang] = useState<StudentLang>(() => {
++    const saved = window.localStorage.getItem(LANG_KEY);
++    return saved === "en" || saved === "de" ? saved : "vi";
++  });
++
++  useEffect(() => {
++    window.localStorage.setItem(THEME_KEY, theme);
++  }, [theme]);
++
++  useEffect(() => {
++    window.localStorage.setItem(LANG_KEY, lang);
++  }, [lang]);
++
++  return { theme, setTheme, lang, setLang };
++}
+diff --git a/ayanavita-fontend/src/pages/CourseDetailPage.tsx b/ayanavita-fontend/src/pages/CourseDetailPage.tsx
+index 7d59db534a338968a3fbce8fd0f2b814417bff95..4029a63dbe5596f6eb1db890cbfcb48a539b3a96 100644
+--- a/ayanavita-fontend/src/pages/CourseDetailPage.tsx
++++ b/ayanavita-fontend/src/pages/CourseDetailPage.tsx
+@@ -1,435 +1,331 @@
+-// src/pages/CourseDetailPage.tsx
+ import React, { useEffect, useMemo, useState } from "react";
+ import { Link, useNavigate, useParams } from "react-router-dom";
 
- @Module({
--  imports: [PrismaModule, EnrollmentsModule],
-+  imports: [PrismaModule],
-   controllers: [OrdersController],
-   providers: [OrdersService],
- })
- export class OrdersModule {}
-diff --git a/backend/ayanavitabackend/app/api/src/orders/orders.service.ts b/backend/ayanavitabackend/app/api/src/orders/orders.service.ts
-index ab10e21b973a3cf6bc762a16a7f93b70c18dca26..19c54f949f1d69bbac71eff3baadd9355ff02611 100644
---- a/backend/ayanavitabackend/app/api/src/orders/orders.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/orders/orders.service.ts
-@@ -1,36 +1,32 @@
- import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
--import { EnrollmentStatus, OrderStatus, Prisma } from '@prisma/client'
--import { EnrollmentsService } from 'src/enrollments/enrollments.service'
-+import { CourseAccessStatus, OrderStatus, Prisma } from '@prisma/client'
- import { PrismaService } from 'src/prisma/prisma.service'
+ import { coursesApi, type Course, type Lesson } from "../api/courses.api";
+ import { enrollmentsApi } from "../api/enrollments.api";
+ import { progressApi, type CourseProgressRes } from "../api/progress.api";
 
- @Injectable()
- export class OrdersService {
--  constructor(
--    private readonly prisma: PrismaService,
--    private readonly enrollments: EnrollmentsService,
--  ) {}
-+  constructor(private readonly prisma: PrismaService) {}
+ import { LessonsSidebar } from "../components/LessonsSidebar";
+ import { buildSequentialRows, pickContinueLessonId } from "../shared/lessons";
+ import { useEnrollmentGate } from "../hooks/useEnrollmentGate";
++import { studentLanguageMeta, useStudentViewPrefs, type StudentLang } from "../hooks/useStudentViewPrefs";
 
-   private genOrderCode() {
-     return `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-   }
+ import {
+   AppShell,
+   Badge,
+   Button,
+   Card,
+   Container,
+   Hr,
+   Muted,
+   SubTitle,
+   Title,
+   Tooltip,
+   theme,
+ } from "../ui/ui";
 
-   // ADMIN: list orders cho UI Admin Orders (GET /orders)
-   // Fix lỗi mode: 'insensitive' (MySQL không support mode trong Prisma contains)
-   async list(params: { status?: string; q?: string }) {
-     const statusRaw = (params.status ?? '').toString().trim()
-     const q = (params.q ?? '').toString().trim()
+ import { IconArrowLeft, IconInfo, IconPlay, IconRefresh } from "../ui/icons";
++import "./StudentCoursesTheme.css";
 
-     const status = statusRaw
-       ? Object.values(OrderStatus).includes(statusRaw as OrderStatus)
-         ? (statusRaw as OrderStatus)
-         : undefined
-       : undefined
+ type LessonView = Lesson & {
+   order?: number | null;
+   published?: boolean;
+ };
 
-     const qNum = Number(q)
-     const qIsNum = q.length > 0 && Number.isFinite(qNum)
-
-     const OR: Prisma.OrderWhereInput[] = []
-     if (q) {
-       if (qIsNum) {
-         OR.push({ id: qNum })
-         OR.push({ userId: qNum })
-@@ -60,85 +56,88 @@ export class OrdersService {
-         updatedAt: true,
-         user: { select: { id: true, email: true, name: true } },
-         items: {
-           select: {
-             id: true,
-             courseId: true,
-             price: true,
-             courseTitle: true,
-             course: { select: { id: true, title: true, slug: true, price: true } },
-           },
-         },
-       },
-       orderBy: { id: 'desc' },
-       take: 200,
-     })
-   }
-
-   async createOrder(userId: number, courseId: number) {
-     const course = await this.prisma.course.findUnique({
-       where: { id: courseId },
-       select: { id: true, title: true, price: true, published: true },
-     })
-     if (!course) throw new NotFoundException('Course not found')
-     if (!course.published) throw new ForbiddenException('Course not published')
-
--    const existingEnroll = await this.prisma.enrollment.findUnique({
-+    const existingAccess = await this.prisma.courseAccess.findUnique({
-       where: { userId_courseId: { userId, courseId } },
-       select: { status: true },
-     })
--    if (existingEnroll?.status === EnrollmentStatus.ACTIVE) {
-+    if (existingAccess?.status === CourseAccessStatus.ACTIVE) {
-       throw new ForbiddenException('Already enrolled')
-     }
-
--    // FREE: vì Enrollment bắt buộc orderId => tạo order PAID total=0 rồi enroll
-+    // FREE: tạo order PAID total=0 và ghi nhận quyền truy cập khóa học ở CourseAccess
-     if ((course.price ?? 0) === 0) {
-       const paid = await this.prisma.$transaction(async (tx) => {
-         const paidOrder = await tx.order.create({
-           data: {
-             code: this.genOrderCode(),
-             status: OrderStatus.PAID,
-             currency: 'VND',
-             subtotal: 0,
-             discount: 0,
-             total: 0,
-             user: { connect: { id: userId } },
-             items: {
-               create: [
-                 {
-                   courseId,
-                   price: 0,
-                   courseTitle: course.title ?? 'Untitled course',
-                 },
-               ],
-             },
-           },
-           select: { id: true },
-         })
-
--        // dùng service để giữ logic tập trung
--        await this.enrollments.enroll(userId, courseId, paidOrder.id)
-+        await tx.courseAccess.upsert({
-+          where: { userId_courseId: { userId, courseId } },
-+          update: { status: CourseAccessStatus.ACTIVE, grantedAt: new Date() },
-+          create: { userId, courseId, status: CourseAccessStatus.ACTIVE },
-+        })
-
-         return paidOrder
-       })
-
-       return { mode: 'FREE', enrolled: true, orderId: paid.id }
-     }
-
-     // Nếu có order pending cho course này => trả lại order đó (tránh tạo trùng)
-     const pending = await this.prisma.order.findFirst({
-       where: {
-         userId,
-         status: OrderStatus.PENDING,
-         items: { some: { courseId } },
-       },
-       select: { id: true, status: true, total: true, createdAt: true },
-       orderBy: { id: 'desc' },
-     })
-     if (pending) return pending
-
-     // Create order + item (PENDING)
-     const order = await this.prisma.order.create({
-       data: {
-         code: this.genOrderCode(),
-         status: OrderStatus.PENDING,
-         currency: 'VND',
-@@ -195,45 +194,44 @@ export class OrdersService {
-     })
-   }
-
-   // ADMIN mark-paid (mock payment)
-   async markPaid(orderId: number) {
-     const order = await this.prisma.order.findUnique({
-       where: { id: orderId },
-       select: {
-         id: true,
-         userId: true,
-         status: true,
-         items: { select: { courseId: true } },
-       },
-     })
-     if (!order) throw new NotFoundException('Order not found')
-     if (order.status === OrderStatus.PAID) return { ok: true, alreadyPaid: true }
-
-     return this.prisma.$transaction(async (tx) => {
-       const paidOrder = await tx.order.update({
-         where: { id: orderId },
-         data: { status: OrderStatus.PAID },
-         select: { id: true, status: true, updatedAt: true },
-       })
-
-       for (const item of order.items) {
--        await tx.enrollment.upsert({
-+        await tx.courseAccess.upsert({
-           where: { userId_courseId: { userId: order.userId, courseId: item.courseId } },
--          update: { status: EnrollmentStatus.ACTIVE, orderId: paidOrder.id },
-+          update: { status: CourseAccessStatus.ACTIVE, grantedAt: new Date() },
-           create: {
-             userId: order.userId,
-             courseId: item.courseId,
--            orderId: paidOrder.id,
--            status: EnrollmentStatus.ACTIVE,
-+            status: CourseAccessStatus.ACTIVE,
-           },
-         })
-       }
-
-       return {
-         ok: true,
-         order: paidOrder,
-         enrolledCourses: order.items.map((i) => i.courseId),
-       }
-     })
++const tx: Record<StudentLang, Record<string, string>> = {
++  vi: {
++    courses: "Khoá học",
++    myCourses: "Khoá học của tôi",
++    myOrders: "Đơn hàng của tôi",
++    order: "Mua / Ghi danh",
++    cancel: "Huỷ ghi danh",
++    reload: "Tải lại",
++    loading: "Đang tải…",
++    loadingSub: "Đang lấy course / lessons / progress.",
++    continue: "Tiếp tục",
++    progress: "Tiến độ",
++    completed: "Hoàn thành",
++    lockedRule: "Quy tắc mở khoá bài học (Sequential)",
++    lessonList: "Danh sách bài học",
++    darkMode: "Chế độ tối",
++  },
++  en: {
++    courses: "Courses",
++    myCourses: "My Courses",
++    myOrders: "My Orders",
++    order: "Order / Enroll",
++    cancel: "Cancel enrollment",
++    reload: "Reload",
++    loading: "Loading…",
++    loadingSub: "Fetching course / lessons / progress.",
++    continue: "Continue",
++    progress: "Progress",
++    completed: "Completed",
++    lockedRule: "Lesson unlock rule (Sequential)",
++    lessonList: "Lesson list",
++    darkMode: "Dark mode",
++  },
++  de: {
++    courses: "Kurse",
++    myCourses: "Meine Kurse",
++    myOrders: "Meine Bestellungen",
++    order: "Bestellen / Einschreiben",
++    cancel: "Einschreibung stornieren",
++    reload: "Neu laden",
++    loading: "Wird geladen…",
++    loadingSub: "Kurs / Lektionen / Fortschritt werden geladen.",
++    continue: "Weiterlernen",
++    progress: "Fortschritt",
++    completed: "Abgeschlossen",
++    lockedRule: "Regel zur Lektionen-Freischaltung (Sequenziell)",
++    lessonList: "Lektionenliste",
++    darkMode: "Dunkler Modus",
++  },
++};
++
+ function fmtVND(v: number) {
+   try {
+     return v.toLocaleString("vi-VN") + "đ";
+   } catch {
+     return String(v) + "đ";
    }
  }
+
+ function sortLessons(ls: LessonView[]) {
+   return [...ls].sort((a, b) => {
+     const ao = a.order ?? 0;
+     const bo = b.order ?? 0;
+     if (ao !== bo) return ao - bo;
+     return a.id - b.id;
+   });
+ }
+
+ export function CourseDetailPage() {
+   const nav = useNavigate();
+   const { id } = useParams();
+   const courseId = Number(id);
++  const { lang, setLang, theme: uiTheme, setTheme } = useStudentViewPrefs();
++  const t = tx[lang];
+
+   const gate = useEnrollmentGate(courseId, { adminBypass: false });
+
+   const [course, setCourse] = useState<Course | null>(null);
+   const [lessons, setLessons] = useState<LessonView[]>([]);
+   const [progress, setProgress] = useState<CourseProgressRes | null>(null);
+
+   const [loading, setLoading] = useState(true);
+   const [err, setErr] = useState<string | null>(null);
+   const [info, setInfo] = useState<string | null>(null);
+
+   async function load() {
+     if (!Number.isFinite(courseId) || courseId <= 0) return;
+-
+     setLoading(true);
+     setErr(null);
+     setInfo(null);
+
+-    // 1) course detail
+     try {
+       const c = await coursesApi.detail(courseId);
+       setCourse(c);
+     } catch (e: any) {
+       setCourse(null);
+       setLessons([]);
+       setProgress(null);
+-      setErr(e?.message || "Không tải được course.");
++      setErr(e?.message || "Cannot load course.");
+       setLoading(false);
+       return;
+     }
+
+-    // 2) lessons/progress phụ thuộc gate
+     if (gate.canAccess) {
+-      // ACTIVE => lessons đầy đủ + progress
+       try {
+         const ls = await coursesApi.lessons(courseId);
+         setLessons(sortLessons(ls as LessonView[]));
+       } catch (e: any) {
+         setLessons([]);
+-        setErr(e?.message || "Không tải được lessons.");
++        setErr(e?.message || "Cannot load lessons.");
+       }
+-
+       try {
+         const p = await progressApi.courseProgress(courseId);
+         setProgress(p);
+       } catch {
+         setProgress(null);
+       }
+     } else {
+-      // NOT ACTIVE => chỉ outline (không gọi progress)
+       try {
+         const outline = await coursesApi.lessonsOutline(courseId);
+         setLessons(sortLessons(outline as LessonView[]));
+       } catch (e2: any) {
+         setLessons([]);
+-        setErr(e2?.message || "Không tải được lessons outline.");
++        setErr(e2?.message || "Cannot load lesson outline.");
+       } finally {
+         setProgress(null);
+       }
+     }
+-
+     setLoading(false);
+   }
+
+-  // Load lần đầu + khi gate.canAccess đổi (PENDING -> ACTIVE sẽ tự reload đúng dữ liệu)
+   useEffect(() => {
+     if (!Number.isFinite(courseId) || courseId <= 0) return;
+-    if (gate.loading) return; // chờ gate ổn định để tránh load 2 lần
++    if (gate.loading) return;
+     load();
+-    // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [courseId, gate.loading, gate.canAccess]);
+
+   async function onOrder() {
+     if (!Number.isFinite(courseId) || courseId <= 0) return;
+-
+     setErr(null);
+     setInfo(null);
+-
+     try {
+       await enrollmentsApi.order(courseId);
+-      setInfo(
+-        "Đã tạo order. Trạng thái sẽ về PENDING. Khi admin mark-paid, hệ thống sẽ tự mở khoá (ACTIVE)."
+-      );
+-
+-      // cập nhật gate store (shared toàn app)
++      setInfo("Order created. Wait for admin paid confirmation to unlock content.");
+       await gate.refresh();
+-
+-      // nếu đã ACTIVE ngay (trường hợp admin bypass/logic khác) thì load full
+-      // còn không thì outline vẫn hiển thị, chờ gate tự lên ACTIVE
+       await load();
+     } catch (e: any) {
+       setErr(e?.message || "Order failed");
+     }
+   }
+
+   async function onCancel() {
+     if (!Number.isFinite(courseId) || courseId <= 0) return;
+-
+     setErr(null);
+     setInfo(null);
+-
+     try {
+       await enrollmentsApi.cancel(courseId);
+-      setInfo("Đã huỷ ghi danh.");
+-
++      setInfo("Enrollment cancelled.");
+       await gate.refresh();
+       await load();
+     } catch (e: any) {
+       setErr(e?.message || "Cancel failed");
+     }
+   }
+
+   function goLesson(lessonId: number) {
+     nav(`/lessons/${lessonId}?courseId=${courseId}`);
+   }
+
+-  // Shared sequential rows (single source of truth)
+   const seqRows = useMemo(() => buildSequentialRows(lessons as any, progress as any), [lessons, progress]);
+-
+-  // Continue chỉ hợp lệ khi ACTIVE (vì cần progress ổn định)
+   const continueLessonId = useMemo(() => {
+     if (!gate.canAccess) return 0;
+     return pickContinueLessonId(seqRows);
+   }, [seqRows, gate.canAccess]);
+
+   const percent = gate.canAccess ? progress?.percent ?? 0 : 0;
+
+   return (
+-    <AppShell>
+-      <Container>
+-        {/* Top nav + actions */}
+-        <div
+-          style={{
+-            display: "flex",
+-            justifyContent: "space-between",
+-            gap: 12,
+-            flexWrap: "wrap",
+-            alignItems: "center",
+-            marginBottom: 12,
+-          }}
+-        >
+-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+-            <Link
+-              to="/courses"
+-              style={{
+-                color: theme.colors.text,
+-                textDecoration: "none",
+-                display: "inline-flex",
+-                gap: 8,
+-                alignItems: "center",
+-              }}
+-            >
+-              <IconArrowLeft /> Courses
+-            </Link>
+-
+-            <Link to="/me/courses" style={{ color: theme.colors.text, textDecoration: "none" }}>
+-              My Courses
+-            </Link>
+-
+-            <Link to="/me/orders" style={{ color: theme.colors.text, textDecoration: "none" }}>
+-              My Orders
+-            </Link>
++    <div className={`student-page student-courses-theme ${uiTheme === "dark" ? "student-courses-theme-dark" : ""}`}>
++      <div className="student-shell" style={{ marginBottom: 12 }}>
++        <div className="student-topbar">
++          <div>
++            <h2 style={{ margin: 0 }}>{course?.title || t.courses}</h2>
+           </div>
+-
+-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+-            <Button tone="primary" onClick={onOrder} disabled={loading}>
+-              Mua / Ghi danh
+-            </Button>
+-
+-            <Button tone="danger" variant="ghost" onClick={onCancel} disabled={loading}>
+-              Huỷ ghi danh
+-            </Button>
+-
+-            <Button
+-              tone="neutral"
+-              variant="ghost"
+-              onClick={load}
+-              disabled={loading}
+-              leftIcon={<IconRefresh />}
+-            >
+-              Reload
+-            </Button>
++          <div className="student-control-group">
++            <button className="student-theme-toggle" onClick={() => setTheme(uiTheme === "dark" ? "light" : "dark")}>
++              {t.darkMode}: {uiTheme === "dark" ? "ON" : "OFF"}
++            </button>
++            <div className="student-lang-switch">
++              {(Object.keys(studentLanguageMeta) as StudentLang[]).map((code) => (
++                <button key={code} className={`student-lang-option ${lang === code ? "active" : ""}`} onClick={() => setLang(code)}>
++                  <img src={studentLanguageMeta[code].flagUrl} alt={studentLanguageMeta[code].label} />
++                </button>
++              ))}
++            </div>
+           </div>
+         </div>
+-
+-        {/* Gate banner (thống nhất theo store) */}
+-        {!gate.loading && !gate.canAccess && gate.reason && (
+-          <Card style={{ marginBottom: 12 }}>
+-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+-              <Badge tone="warning">
+-                <IconInfo /> LOCKED
+-              </Badge>
+-              <div style={{ fontWeight: 800 }}>{gate.reason}</div>
+-            </div>
+-            <div style={{ marginTop: 10, color: theme.colors.muted, fontSize: 12 }}>
+-              Tip: Sau khi bạn tạo order, trạng thái sẽ là <b>PENDING</b>. Khi admin mark-paid, trạng thái sẽ chuyển{" "}
+-              <b>ACTIVE</b> và trang này tự reload để mở khoá nội dung.
+-            </div>
+-          </Card>
+-        )}
+-
+-        {/* Alerts */}
+-        {loading && (
+-          <Card style={{ marginBottom: 12 }}>
+-            <Title>Đang tải…</Title>
+-            <SubTitle>Đang lấy course / lessons / progress.</SubTitle>
+-          </Card>
+-        )}
+-
+-        {err && (
+-          <Card style={{ marginBottom: 12 }}>
+-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+-              <Badge tone="danger">
+-                <IconInfo /> ERROR
+-              </Badge>
+-              <div style={{ fontWeight: 800 }}>{err}</div>
++      </div>
++
++      <AppShell>
++        <Container>
++          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
++            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
++              <Link to="/courses" style={{ color: theme.colors.text, textDecoration: "none", display: "inline-flex", gap: 8, alignItems: "center" }}>
++                <IconArrowLeft /> {t.courses}
++              </Link>
++              <Link to="/me/courses" style={{ color: theme.colors.text, textDecoration: "none" }}>{t.myCourses}</Link>
++              <Link to="/me/orders" style={{ color: theme.colors.text, textDecoration: "none" }}>{t.myOrders}</Link>
+             </div>
+-          </Card>
+-        )}
+
+-        {info && (
+-          <Card style={{ marginBottom: 12 }}>
+-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+-              <Badge tone="info">
+-                <IconInfo /> INFO
+-              </Badge>
+-              <div style={{ fontWeight: 800 }}>{info}</div>
++            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
++              <Button tone="primary" onClick={onOrder} disabled={loading}>{t.order}</Button>
++              <Button tone="danger" variant="ghost" onClick={onCancel} disabled={loading}>{t.cancel}</Button>
++              <Button tone="neutral" variant="ghost" onClick={load} disabled={loading} leftIcon={<IconRefresh />}>{t.reload}</Button>
+             </div>
+-          </Card>
+-        )}
+-
+-        {/* Course header */}
+-        {course && (
+-          <Card style={{ marginBottom: 12 }}>
+-            <div
+-              style={{
+-                display: "flex",
+-                justifyContent: "space-between",
+-                gap: 14,
+-                flexWrap: "wrap",
+-                alignItems: "flex-start",
+-              }}
+-            >
+-              <div style={{ minWidth: 280, flex: "1 1 420px" }}>
+-                <div style={{ fontSize: 22, fontWeight: 950, letterSpacing: -0.3 }}>
+-                  {course.title}
+-                </div>
++          </div>
+
+-                <div style={{ marginTop: 8, color: theme.colors.muted, lineHeight: 1.55 }}>
+-                  {course.description}
++          {!gate.loading && !gate.canAccess && gate.reason && (
++            <Card style={{ marginBottom: 12 }}>
++              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
++                <Badge tone="warning"><IconInfo /> LOCKED</Badge>
++                <div style={{ fontWeight: 800 }}>{gate.reason}</div>
++              </div>
++            </Card>
++          )}
++
++          {loading && <Card style={{ marginBottom: 12 }}><Title>{t.loading}</Title><SubTitle>{t.loadingSub}</SubTitle></Card>}
++          {err && <Card style={{ marginBottom: 12 }}><div style={{ display: "flex", gap: 10, alignItems: "center" }}><Badge tone="danger"><IconInfo /> ERROR</Badge><div style={{ fontWeight: 800 }}>{err}</div></div></Card>}
++          {info && <Card style={{ marginBottom: 12 }}><div style={{ display: "flex", gap: 10, alignItems: "center" }}><Badge tone="info"><IconInfo /> INFO</Badge><div style={{ fontWeight: 800 }}>{info}</div></div></Card>}
++
++          {course && (
++            <Card style={{ marginBottom: 12 }}>
++              <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "flex-start" }}>
++                <div style={{ minWidth: 280, flex: "1 1 420px" }}>
++                  <div style={{ fontSize: 22, fontWeight: 950, letterSpacing: -0.3 }}>{course.title}</div>
++                  <div style={{ marginTop: 8, color: theme.colors.muted, lineHeight: 1.55 }}>{course.description}</div>
++                  <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
++                    <Badge tone="info">{fmtVND(course.price)}</Badge>
++                    {course.published ? <Badge tone="success">PUBLISHED</Badge> : <Badge tone="danger">UNPUBLISHED</Badge>}
++                  </div>
++                  <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
++                    <Badge tone={gate.canAccess ? "success" : "warning"}>Enrollment: {gate.status}</Badge>
++                  </div>
+                 </div>
+
+-                <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+-                  <Badge tone="info">Giá: {fmtVND(course.price)}</Badge>
+-                  {course.published ? (
+-                    <Badge tone="success">PUBLISHED</Badge>
++                <div style={{ minWidth: 280, flex: "0 1 340px" }}>
++                  <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
++                    <Tooltip content={<div>Continue from your latest lesson.</div>} disabled={!continueLessonId}>
++                      <span>
++                        <Button tone="success" onClick={() => continueLessonId && goLesson(continueLessonId)} disabled={!continueLessonId} leftIcon={<IconPlay />}>
++                          {t.continue}
++                        </Button>
++                      </span>
++                    </Tooltip>
++                  </div>
++                  <Hr />
++                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
++                    <div style={{ fontWeight: 900 }}>{t.progress}</div>
++                    <div style={{ color: theme.colors.muted, fontSize: 13 }}>{gate.canAccess ? `${percent}%` : "—"}</div>
++                  </div>
++                  <div style={{ marginTop: 10, height: 10, borderRadius: 999, background: theme.shadow.soft, overflow: "hidden", border: `1px solid ${theme.colors.border}`, opacity: gate.canAccess ? 1 : 0.45 }}>
++                    <div style={{ width: `${Math.max(0, Math.min(100, percent))}%`, height: "100%", background: theme.colors.brand }} />
++                  </div>
++                  {gate.canAccess && progress ? (
++                    <Muted><div style={{ marginTop: 10, fontSize: 12 }}>{t.completed}: <b style={{ color: theme.colors.text }}>{progress.completedLessons}/{progress.totalLessons}</b></div></Muted>
+                   ) : (
+-                    <Badge tone="danger">UNPUBLISHED</Badge>
++                    <Muted><div style={{ marginTop: 10, fontSize: 12 }}>Progress only available when enrollment is ACTIVE.</div></Muted>
+                   )}
+                 </div>
+-
+-                <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+-                  <Badge tone={gate.canAccess ? "success" : "warning"}>
+-                    Enrollment: {gate.status}
+-                  </Badge>
+-                </div>
+               </div>
++            </Card>
++          )}
+
+-              <div style={{ minWidth: 280, flex: "0 1 340px" }}>
+-                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
+-                  <Tooltip
+-                    content={
+-                      <div>
+-                        Đi tới bài đang dở:
+-                        <br />
+-                        ưu tiên <b>IN_PROGRESS</b> mới nhất, sau đó bài đầu tiên chưa completed.
+-                        <br />
+-                        (Chỉ khả dụng khi enrollment <b>ACTIVE</b>)
+-                      </div>
+-                    }
+-                    disabled={!continueLessonId}
+-                  >
+-                    <span>
+-                      <Button
+-                        tone="success"
+-                        onClick={() => {
+-                          if (!continueLessonId) return;
+-                          goLesson(continueLessonId);
+-                        }}
+-                        disabled={!continueLessonId}
+-                        leftIcon={<IconPlay />}
+-                      >
+-                        Continue
+-                      </Button>
+-                    </span>
+-                  </Tooltip>
+-                </div>
+-
+-                <Hr />
+-
+-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+-                  <div style={{ fontWeight: 900 }}>Progress</div>
+-                  <div style={{ color: theme.colors.muted, fontSize: 13 }}>
+-                    {gate.canAccess ? `${percent}%` : "—"}
+-                  </div>
+-                </div>
+-
+-                <div
+-                  style={{
+-                    marginTop: 10,
+-                    height: 10,
+-                    borderRadius: 999,
+-                    background: theme.shadow.soft,
+-                    overflow: "hidden",
+-                    border: `1px solid ${theme.colors.border}`,
+-                    opacity: gate.canAccess ? 1 : 0.45,
+-                  }}
+-                >
+-                  <div
+-                    style={{
+-                      width: `${Math.max(0, Math.min(100, percent))}%`,
+-                      height: "100%",
+-                      background: theme.colors.brand,
+-                    }}
+-                  />
+-                </div>
+-
+-                {gate.canAccess && progress ? (
+-                  <Muted>
+-                    <div style={{ marginTop: 10, fontSize: 12 }}>
+-                      Hoàn thành:{" "}
+-                      <b style={{ color: theme.colors.text }}>
+-                        {progress.completedLessons}/{progress.totalLessons}
+-                      </b>
+-                    </div>
+-                  </Muted>
+-                ) : (
+-                  <Muted>
+-                    <div style={{ marginTop: 10, fontSize: 12 }}>
+-                      Progress chỉ hiển thị khi enrollment <b>ACTIVE</b>.
+-                    </div>
+-                  </Muted>
+-                )}
+-              </div>
++          <Card style={{ marginBottom: 12 }}>
++            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
++              <div style={{ marginTop: 2 }}><IconInfo /></div>
++              <div><Title>{t.lockedRule}</Title><SubTitle>Complete previous lesson to unlock next one.</SubTitle></div>
+             </div>
+           </Card>
+-        )}
+-
+-        {/* Rule hint */}
+-        <Card style={{ marginBottom: 12 }}>
+-          <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+-            <div style={{ marginTop: 2 }}>
+-              <IconInfo />
+-            </div>
+-            <div>
+-              <Title>Quy tắc mở khoá bài học (Sequential)</Title>
+-              <SubTitle>
+-                Bạn phải <b>hoàn thành</b> bài trước để mở bài kế tiếp. Nếu Enrollment chưa{" "}
+-                <b>ACTIVE</b>, chỉ hiển thị outline.
+-              </SubTitle>
+-            </div>
+-          </div>
+-        </Card>
+
+-        {/* Reusable list/sidebar (no duplicated logic) */}
+-        <LessonsSidebar
+-          title="Danh sách bài học"
+-          lessons={lessons as any}
+-          progress={progress as any}
+-          rows={seqRows}
+-          courseId={courseId}
+-          primaryLabel="Học"
+-          onPrimary={(id2) => goLesson(id2)}
+-          secondaryLabel="Chi tiết"
+-          secondaryHref={(id2) => `/lessons/${id2}?courseId=${courseId}`}
+-          emptyText="Chưa có lesson hoặc bạn chưa có quyền xem danh sách."
+-        />
+-      </Container>
+-    </AppShell>
++          <LessonsSidebar
++            title={t.lessonList}
++            lessons={lessons as any}
++            progress={progress as any}
++            rows={seqRows}
++            courseId={courseId}
++            primaryLabel={t.continue}
++            onPrimary={(id2) => goLesson(id2)}
++            secondaryLabel="Detail"
++            secondaryHref={(id2) => `/lessons/${id2}?courseId=${courseId}`}
++            emptyText="No lesson available."
++          />
++        </Container>
++      </AppShell>
++    </div>
+   );
+ }
+diff --git a/ayanavita-fontend/src/pages/CoursesPage.tsx b/ayanavita-fontend/src/pages/CoursesPage.tsx
+index 4b99adf204d1cf32c1063dbc86736426b9b4ac1e..e3232301f92a65d92d94c6c0bb06273866f1b9a0 100644
+--- a/ayanavita-fontend/src/pages/CoursesPage.tsx
++++ b/ayanavita-fontend/src/pages/CoursesPage.tsx
+@@ -1,78 +1,127 @@
+-import React, { useEffect, useState } from "react";
++import React, { useEffect, useMemo, useState } from "react";
+ import { Link } from "react-router-dom";
+ import { coursesApi, type Course } from "../api/courses.api";
+ import { useAuth } from "../state/auth.store";
++import { studentLanguageMeta, useStudentViewPrefs, type StudentLang } from "../hooks/useStudentViewPrefs";
++import "./StudentCoursesTheme.css";
++
++const i18n: Record<StudentLang, Record<string, string>> = {
++  vi: {
++    title: "Khoá học",
++    mine: "Khoá học của tôi",
++    orders: "Đơn hàng của tôi",
++    adminOrders: "Admin Orders",
++    adminCourses: "Admin Courses",
++    logout: "Đăng xuất",
++    detail: "Xem chi tiết",
++    price: "Giá",
++    darkMode: "Chế độ tối",
++    loadingFail: "Tải khoá học thất bại",
++    subtitle: "Khám phá thư viện khoá học theo phong cách mới.",
++  },
++  en: {
++    title: "Courses",
++    mine: "My Courses",
++    orders: "My Orders",
++    adminOrders: "Admin Orders",
++    adminCourses: "Admin Courses",
++    logout: "Logout",
++    detail: "View details",
++    price: "Price",
++    darkMode: "Dark mode",
++    loadingFail: "Load courses failed",
++    subtitle: "Discover the upgraded course catalog experience.",
++  },
++  de: {
++    title: "Kurse",
++    mine: "Meine Kurse",
++    orders: "Meine Bestellungen",
++    adminOrders: "Admin-Bestellungen",
++    adminCourses: "Admin-Kurse",
++    logout: "Abmelden",
++    detail: "Details ansehen",
++    price: "Preis",
++    darkMode: "Dunkler Modus",
++    loadingFail: "Kurse konnten nicht geladen werden",
++    subtitle: "Entdecke das modernisierte Kursportal.",
++  },
++};
+
+ export function CoursesPage() {
+   const { logout, user } = useAuth();
++  const { lang, setLang, theme, setTheme } = useStudentViewPrefs();
++  const t = i18n[lang];
+   const [items, setItems] = useState<Course[]>([]);
+   const [err, setErr] = useState<string | null>(null);
+
+   useEffect(() => {
+     (async () => {
+       try {
+         setErr(null);
+         const data = await coursesApi.list();
+         setItems(data);
+       } catch (e: any) {
+-        setErr(e?.message || "Load courses failed");
++        setErr(e?.message || t.loadingFail);
+       }
+     })();
+-  }, []);
+-
+-  return (
+-    <div style={{ maxWidth: 960, margin: "24px auto", padding: 16 }}>
+-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+-        <h2>Khoá học</h2>
+-
+-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+-          <span>{user?.email}</span>
++  }, [t.loadingFail]);
+
+-          <Link to="/me/courses">Khoá học của tôi</Link>
+-          <Link to="/me/orders">Đơn hàng của tôi</Link>
+-
+-
+-          {user?.role === "ADMIN" && <Link to="/admin/orders">Admin Orders</Link>}
+-          {user?.role === "ADMIN" && <Link to="/admin/cources">Admin Courses</Link>}
++  const wrapClass = useMemo(
++    () => `student-page student-courses-theme ${theme === "dark" ? "student-courses-theme-dark" : ""}`,
++    [theme]
++  );
+
+-          <button onClick={logout}>Logout</button>
++  return (
++    <div className={wrapClass}>
++      <div className="student-shell">
++        <div className="student-topbar">
++          <div>
++            <h2 style={{ margin: 0 }}>{t.title}</h2>
++            <div style={{ opacity: 0.9, marginTop: 4 }}>{t.subtitle}</div>
++          </div>
++          <div className="student-control-group">
++            <button className="student-theme-toggle" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
++              {t.darkMode}: {theme === "dark" ? "ON" : "OFF"}
++            </button>
++            <div className="student-lang-switch">
++              {(Object.keys(studentLanguageMeta) as StudentLang[]).map((code) => (
++                <button
++                  key={code}
++                  className={`student-lang-option ${lang === code ? "active" : ""}`}
++                  onClick={() => setLang(code)}
++                  title={studentLanguageMeta[code].label}
++                >
++                  <img src={studentLanguageMeta[code].flagUrl} alt={studentLanguageMeta[code].label} />
++                </button>
++              ))}
++            </div>
++          </div>
+         </div>
+-      </div>
+
+-      {err && (
+-        <div style={{ color: "crimson", marginTop: 10 }}>
+-          {err}
++        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 12 }}>
++          <span className="student-muted">{user?.email}</span>
++          <Link to="/me/courses">{t.mine}</Link>
++          <Link to="/me/orders">{t.orders}</Link>
++          {user?.role === "ADMIN" && <Link to="/admin/orders">{t.adminOrders}</Link>}
++          {user?.role === "ADMIN" && <Link to="/admin/cources">{t.adminCourses}</Link>}
++          <button onClick={logout}>{t.logout}</button>
+         </div>
+-      )}
+
+-      <div
+-        style={{
+-          display: "grid",
+-          gridTemplateColumns: "repeat(3, 1fr)",
+-          gap: 12,
+-          marginTop: 12,
+-        }}
+-      >
+-        {items.map((c: Course) => (
+-          <div
+-            key={c.id}
+-            style={{
+-              border: "1px solid #ddd",
+-              borderRadius: 12,
+-              padding: 12,
+-            }}
+-          >
+-            <div style={{ fontWeight: 700 }}>{c.title}</div>
+-            <div style={{ opacity: 0.8, marginTop: 6 }}>{c.description}</div>
+-            <div style={{ marginTop: 8 }}>
+-              Giá: {c.price.toLocaleString("vi-VN")}đ
+-            </div>
+-            <div style={{ marginTop: 10 }}>
+-              <Link to={`/courses/${c.id}`}>Xem chi tiết</Link>
++        {err && <div style={{ color: "crimson", marginTop: 10 }}>{err}</div>}
++
++        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginTop: 12 }}>
++          {items.map((c: Course) => (
++            <div key={c.id} className="student-card">
++              <div style={{ fontWeight: 800 }}>{c.title}</div>
++              <div className="student-muted" style={{ marginTop: 6 }}>{c.description}</div>
++              <div style={{ marginTop: 8 }}>{t.price}: {c.price.toLocaleString("vi-VN")}đ</div>
++              <div style={{ marginTop: 10 }}>
++                <Link to={`/courses/${c.id}`}>{t.detail}</Link>
++              </div>
+             </div>
+-          </div>
+-        ))}
++          ))}
++        </div>
+       </div>
+     </div>
+   );
+ }
+diff --git a/ayanavita-fontend/src/pages/LessonDetailPage.tsx b/ayanavita-fontend/src/pages/LessonDetailPage.tsx
+index ae854cd0c769153f6c25f46d9891589727a1f1ec..06354bdcef924718c4604874e5f992106bfc5707 100644
+--- a/ayanavita-fontend/src/pages/LessonDetailPage.tsx
++++ b/ayanavita-fontend/src/pages/LessonDetailPage.tsx
+@@ -1,78 +1,93 @@
+ import React, { useEffect, useMemo, useState } from "react";
+ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+ import { coursesApi, type Lesson } from "../api/courses.api";
+ import { lessonsApi, type LessonDetail, type LessonVideoItem } from "../api/lessons.api";
+ import { progressApi, type CourseProgressRes } from "../api/progress.api";
+ import { useAuth } from "../state/auth.store";
++import { studentLanguageMeta, useStudentViewPrefs, type StudentLang } from "../hooks/useStudentViewPrefs";
++import "./StudentCoursesTheme.css";
+
+-const t = {
++const t: Record<StudentLang, Record<string, string>> = {
+   vi: {
+     myLearning: "Trang học viên",
++    subtitle: "Theo dõi bài học theo giao diện mới đồng bộ toàn bộ trang khoá học.",
+     user: "Học viên",
+     course: "Khóa học",
+     progress: "Tiến độ",
+     lessonList: "Danh sách bài học",
+     completeModule: "Hoàn thành module",
+     watched: "Đã xem hết",
++    loading: "Đang tải...",
++    emptyModule: "Bài học chưa có module/video.",
++    backMyCourses: "Khoá học của tôi",
++    darkMode: "Chế độ tối",
+   },
+   en: {
+     myLearning: "Student Learning",
++    subtitle: "Track each lesson with the new course-wide visual style.",
+     user: "User",
+     course: "Course",
+     progress: "Progress",
+     lessonList: "Lesson list",
+     completeModule: "Complete module",
+     watched: "Watched",
++    loading: "Loading...",
++    emptyModule: "No module/video in this lesson yet.",
++    backMyCourses: "My Courses",
++    darkMode: "Dark mode",
+   },
+   de: {
+     myLearning: "Lernseite",
++    subtitle: "Lernfortschritt im neuen, einheitlichen Kurs-Design verfolgen.",
+     user: "Benutzer",
+     course: "Kurs",
+     progress: "Fortschritt",
+     lessonList: "Lektionen",
+     completeModule: "Modul abschließen",
+     watched: "Angesehen",
++    loading: "Laden...",
++    emptyModule: "Diese Lektion hat noch keine Module/Videos.",
++    backMyCourses: "Meine Kurse",
++    darkMode: "Dunkler Modus",
+   },
+-} as const;
+-
+-type Lang = keyof typeof t;
++};
+
+ type OutlineLesson = Lesson & {
+   localizedTitle?: string;
+   progress?: { status?: string; percent?: number } | null;
+ };
+
+ export function LessonDetailPage() {
+   const { id } = useParams();
+   const lessonId = Number(id || 0);
+   const [sp] = useSearchParams();
+   const courseId = Number(sp.get("courseId") || 0);
+   const nav = useNavigate();
+   const { user } = useAuth();
++  const { lang, setLang, theme, setTheme } = useStudentViewPrefs();
+
+-  const [lang, setLang] = useState<Lang>("vi");
+   const [loading, setLoading] = useState(true);
+   const [err, setErr] = useState<string | null>(null);
+
+   const [courseTitle, setCourseTitle] = useState("");
+   const [outline, setOutline] = useState<OutlineLesson[]>([]);
+   const [progress, setProgress] = useState<CourseProgressRes | null>(null);
+   const [lesson, setLesson] = useState<LessonDetail | null>(null);
+
+   const tx = t[lang];
+
+   const doneLessons = useMemo(() => {
+     const set = new Set<number>();
+     outline.forEach((l) => {
+       if (l.progress?.status === "COMPLETED" || (l.progress?.percent || 0) >= 100) set.add(l.id);
+     });
+     if (progress?.items) {
+       progress.items.forEach((x) => {
+         if (x.status === "COMPLETED") set.add(x.lessonId);
+       });
+     }
+     return set;
+   }, [outline, progress]);
+
+   async function loadAll(targetLessonId = lessonId) {
+     if (!courseId || !targetLessonId) return;
+@@ -92,105 +107,123 @@ export function LessonDetailPage() {
+     } catch (e: any) {
+       setErr(e?.message || "Không tải được dữ liệu bài học");
+     } finally {
+       setLoading(false);
+     }
+   }
+
+   useEffect(() => {
+     void loadAll();
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [lessonId, courseId, lang]);
+
+   async function handleVideoDone(video: LessonVideoItem) {
+     if (!lesson) return;
+     await progressApi.updateVideoProgress(lesson.id, video.id, video.durationSec || 0, true);
+     await loadAll(lesson.id);
+   }
+
+   async function handleModuleDone(moduleId: number) {
+     if (!lesson) return;
+     await progressApi.completeModule(lesson.id, moduleId);
+     await loadAll(lesson.id);
+   }
+
+   return (
+-    <div style={{ maxWidth: 1200, margin: "20px auto", padding: 16 }}>
+-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+-        <h2>{tx.myLearning}</h2>
+-        <div style={{ display: "flex", gap: 10 }}>
+-          <Link to="/me/courses">/me/courses</Link>
+-          <select value={lang} onChange={(e) => setLang(e.target.value as Lang)}>
+-            <option value="vi">VI</option>
+-            <option value="en">EN</option>
+-            <option value="de">DE</option>
+-          </select>
++    <div className={`student-page student-courses-theme ${theme === "dark" ? "student-courses-theme-dark" : ""}`}>
++      <div className="student-shell">
++        <div className="student-topbar">
++          <div>
++            <h2 style={{ margin: 0 }}>{tx.myLearning}</h2>
++            <div style={{ marginTop: 4, opacity: 0.9 }}>{tx.subtitle}</div>
++          </div>
++          <div className="student-control-group">
++            <button className="student-theme-toggle" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
++              {tx.darkMode}: {theme === "dark" ? "ON" : "OFF"}
++            </button>
++            <div className="student-lang-switch">
++              {(Object.keys(studentLanguageMeta) as StudentLang[]).map((code) => (
++                <button
++                  key={code}
++                  className={`student-lang-option ${lang === code ? "active" : ""}`}
++                  onClick={() => setLang(code)}
++                  title={studentLanguageMeta[code].label}
++                >
++                  <img src={studentLanguageMeta[code].flagUrl} alt={studentLanguageMeta[code].label} />
++                </button>
++              ))}
++            </div>
++          </div>
+         </div>
+-      </div>
+
+-      <div style={{ marginBottom: 12, opacity: 0.9 }}>
+-        <div>{tx.user}: <b>{user?.name || user?.email || "-"}</b></div>
+-        <div>{tx.course}: <b>{courseTitle || "-"}</b></div>
+-      </div>
++        <div className="student-lesson-links">
++          <Link to="/me/courses">{tx.backMyCourses}</Link>
++        </div>
+
+-      <div style={{ height: 10, borderRadius: 999, background: "#ececec", overflow: "hidden" }}>
+-        <div style={{ height: "100%", background: "#111", width: `${progress?.percent || 0}%` }} />
+-      </div>
+-      <div style={{ margin: "6px 0 12px" }}>{tx.progress}: <b>{progress?.percent || 0}%</b></div>
+-
+-      {loading && <div>Loading...</div>}
+-      {err && <div style={{ color: "crimson" }}>{err}</div>}
+-
+-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14 }}>
+-        <div style={{ border: "1px solid #ddd", borderRadius: 12, padding: 12 }}>
+-          <h3>{lesson?.localizedTitle || lesson?.title || `Lesson #${lessonId}`}</h3>
+-          {!lesson?.modules?.length && <div style={{ opacity: 0.7 }}>Lesson chưa có module/video.</div>}
+-
+-          {lesson?.modules?.map((m) => (
+-            <div key={m.id} style={{ marginTop: 10, border: "1px solid #eee", borderRadius: 10, padding: 10 }}>
+-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+-                <div>
+-                  <b>{m.localizedTitle || m.title}</b>
+-                  <div style={{ fontSize: 12, opacity: 0.8 }}>{m.progress?.percent || 0}%</div>
+-                </div>
+-                <button onClick={() => void handleModuleDone(m.id)}>{tx.completeModule}</button>
+-              </div>
++        <div className="student-card" style={{ marginBottom: 12 }}>
++          <div className="student-muted">{tx.user}: <b style={{ color: "var(--st-text)" }}>{user?.name || user?.email || "-"}</b></div>
++          <div className="student-muted">{tx.course}: <b style={{ color: "var(--st-text)" }}>{courseTitle || "-"}</b></div>
+
+-              {m.videos?.map((v) => (
+-                <div key={v.id} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, marginTop: 8, alignItems: "center" }}>
++          <div className="student-progress-track">
++            <div className="student-progress-fill" style={{ width: `${progress?.percent || 0}%` }} />
++          </div>
++          <div style={{ marginTop: 8 }}>{tx.progress}: <b>{progress?.percent || 0}%</b></div>
++        </div>
++
++        {loading && <div className="student-card">{tx.loading}</div>}
++        {err && <div className="student-card" style={{ color: "crimson" }}>{err}</div>}
++
++        <div className="student-lesson-layout">
++          <div className="student-card">
++            <h3 style={{ marginTop: 0 }}>{lesson?.localizedTitle || lesson?.title || `Lesson #${lessonId}`}</h3>
++            {!lesson?.modules?.length && <div className="student-muted">{tx.emptyModule}</div>}
++
++            {lesson?.modules?.map((m) => (
++              <div key={m.id} className="student-module-card">
++                <div className="student-module-head">
+                   <div>
+-                    <div>{v.localizedTitle || v.title}</div>
+-                    {!!v.playbackUrl && (
+-                      <video
+-                        controls
+-                        src={v.playbackUrl}
+-                        style={{ width: "100%", marginTop: 6, borderRadius: 8 }}
+-                        onEnded={() => void handleVideoDone(v)}
+-                      />
+-                    )}
++                    <b>{m.localizedTitle || m.title}</b>
++                    <div className="student-muted" style={{ fontSize: 12 }}>{m.progress?.percent || 0}%</div>
+                   </div>
+-                  <button onClick={() => void handleVideoDone(v)}>
+-                    {tx.watched} {v.progress?.completed ? "✓" : ""}
+-                  </button>
++                  <button onClick={() => void handleModuleDone(m.id)}>{tx.completeModule}</button>
+                 </div>
+-              ))}
+-            </div>
+-          ))}
+-        </div>
+
+-        <div style={{ border: "1px solid #ddd", borderRadius: 12, padding: 12 }}>
+-          <h3>{tx.lessonList}</h3>
+-          {outline.map((l) => (
+-            <button
+-              key={l.id}
+-              style={{ width: "100%", textAlign: "left", marginBottom: 8, border: "1px solid #eee", borderRadius: 8, padding: 8, background: l.id === lessonId ? "#f6f3ff" : "#fff" }}
+-              onClick={() => nav(`/lessons/${l.id}?courseId=${courseId}`)}
+-            >
+-              <span style={{ marginRight: 6 }}>▾</span>
+-              <span>{doneLessons.has(l.id) ? "✅" : "⬜"} {l.localizedTitle || l.title}</span>
+-            </button>
+-          ))}
++                {m.videos?.map((v) => (
++                  <div key={v.id} className="student-video-row">
++                    <div>
++                      <div>{v.localizedTitle || v.title}</div>
++                      {!!v.playbackUrl && (
++                        <video
++                          controls
++                          src={v.playbackUrl}
++                          className="student-video-player"
++                          onEnded={() => void handleVideoDone(v)}
++                        />
++                      )}
++                    </div>
++                    <button onClick={() => void handleVideoDone(v)}>
++                      {tx.watched} {v.progress?.completed ? "✓" : ""}
++                    </button>
++                  </div>
++                ))}
++              </div>
++            ))}
++          </div>
++
++          <div className="student-card">
++            <h3 style={{ marginTop: 0 }}>{tx.lessonList}</h3>
++            {outline.map((l) => (
++              <button
++                key={l.id}
++                className={`student-lesson-item ${l.id === lessonId ? "active" : ""}`}
++                onClick={() => nav(`/lessons/${l.id}?courseId=${courseId}`)}
++              >
++                <span>{doneLessons.has(l.id) ? "✅" : "⬜"}</span>
++                <span>{l.localizedTitle || l.title}</span>
++              </button>
++            ))}
++          </div>
+         </div>
+       </div>
+     </div>
+   );
+ }
+diff --git a/ayanavita-fontend/src/pages/MyCoursesPage.tsx b/ayanavita-fontend/src/pages/MyCoursesPage.tsx
+index cf02b2874a44053a2a7cf3616ecf8ccc6487a35e..626c31ac03791d86b54d9b8473bb07deb9a1b25a 100644
+--- a/ayanavita-fontend/src/pages/MyCoursesPage.tsx
++++ b/ayanavita-fontend/src/pages/MyCoursesPage.tsx
+@@ -1,292 +1,255 @@
+ import React, { useEffect, useMemo, useState } from "react";
+ import { Link, useNavigate } from "react-router-dom";
+ import { enrollmentsApi, type MyCourse } from "../api/enrollments.api";
+ import { coursesApi, type Lesson } from "../api/courses.api";
+ import { progressApi, type CourseProgressRes } from "../api/progress.api";
++import { studentLanguageMeta, useStudentViewPrefs, type StudentLang } from "../hooks/useStudentViewPrefs";
++import "./StudentCoursesTheme.css";
++
++const i18n: Record<StudentLang, Record<string, string>> = {
++  vi: {
++    title: "Khoá học của tôi",
++    subtitle: "Theo dõi tiến độ học tập với giao diện nâng cấp.",
++    courses: "Khoá học",
++    orders: "Đơn hàng",
++    reload: "Tải lại",
++    loading: "Đang tải...",
++    progress: "Tiến độ",
++    price: "Giá",
++    completed: "Hoàn thành",
++    detail: "Xem chi tiết",
++    continue: "Tiếp tục",
++    cancel: "Huỷ",
++    noCourse: "Bạn chưa ghi danh khoá học nào.",
++    darkMode: "Chế độ tối",
++  },
++  en: {
++    title: "My Courses",
++    subtitle: "Track your learning progress in the upgraded layout.",
++    courses: "Courses",
++    orders: "Orders",
++    reload: "Reload",
++    loading: "Loading...",
++    progress: "Progress",
++    price: "Price",
++    completed: "Completed",
++    detail: "View details",
++    continue: "Continue",
++    cancel: "Cancel",
++    noCourse: "You have not enrolled in any course.",
++    darkMode: "Dark mode",
++  },
++  de: {
++    title: "Meine Kurse",
++    subtitle: "Verfolge deinen Lernfortschritt im neuen Layout.",
++    courses: "Kurse",
++    orders: "Bestellungen",
++    reload: "Neu laden",
++    loading: "Laden...",
++    progress: "Fortschritt",
++    price: "Preis",
++    completed: "Abgeschlossen",
++    detail: "Details",
++    continue: "Weiterlernen",
++    cancel: "Stornieren",
++    noCourse: "Du bist in keinem Kurs eingeschrieben.",
++    darkMode: "Dunkler Modus",
++  },
++};
+
+ function StatusBadge({ status }: { status: MyCourse["status"] }) {
+   const style: React.CSSProperties = useMemo(() => {
+     const base: React.CSSProperties = {
+       display: "inline-block",
+       padding: "4px 10px",
+       borderRadius: 999,
+       fontSize: 12,
+       fontWeight: 700,
+       border: "1px solid #ddd",
+       background: "#fff",
++      color: "#0f172a",
+     };
+     if (status === "ACTIVE") return { ...base, borderColor: "#2ecc71" };
+     if (status === "PENDING") return { ...base, borderColor: "#f1c40f" };
+     return { ...base, borderColor: "#e74c3c" };
+   }, [status]);
+
+   return <span style={style}>{status}</span>;
+ }
+
+-function ProgressBar({ percent }: { percent: number }) {
++function ProgressBar({ percent, label }: { percent: number; label: string }) {
+   const p = Math.max(0, Math.min(100, percent || 0));
+   return (
+     <div style={{ marginTop: 10 }}>
+-      <div
+-        style={{
+-          display: "flex",
+-          justifyContent: "space-between",
+-          fontSize: 12,
+-          opacity: 0.8,
+-        }}
+-      >
+-        <span>Tiến độ</span>
++      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, opacity: 0.8 }}>
++        <span>{label}</span>
+         <span>{p.toFixed(0)}%</span>
+       </div>
+-      <div
+-        style={{
+-          height: 10,
+-          borderRadius: 999,
+-          background: "#eee",
+-          overflow: "hidden",
+-          marginTop: 6,
+-        }}
+-      >
++      <div style={{ height: 10, borderRadius: 999, background: "#eee", overflow: "hidden", marginTop: 6 }}>
+         <div style={{ width: `${p}%`, height: "100%", background: "#111" }} />
+       </div>
+     </div>
+   );
+ }
+
+-// sort lessons ổn định theo (order, id)
+ function sortLessons(ls: Lesson[]) {
+   return [...ls].sort((a, b) => {
+     const ao = a.order ?? 0;
+     const bo = b.order ?? 0;
+     if (ao !== bo) return ao - bo;
+     return a.id - b.id;
+   });
+ }
+
+ export function MyCoursesPage() {
+   const nav = useNavigate();
++  const { lang, setLang, theme, setTheme } = useStudentViewPrefs();
++  const t = i18n[lang];
+   const [items, setItems] = useState<MyCourse[]>([]);
+   const [loading, setLoading] = useState(true);
+   const [err, setErr] = useState<string | null>(null);
+   const [info, setInfo] = useState<string | null>(null);
+-
+-  // map courseId -> progress
+   const [progressMap, setProgressMap] = useState<Record<number, CourseProgressRes>>({});
+
+   async function load() {
+     setLoading(true);
+     setErr(null);
+     setInfo(null);
+     try {
+       const data = await enrollmentsApi.myCourses();
+       setItems(data);
+-
+-      // tải progress cho các course ACTIVE
+-      const activeCourseIds = data
+-        .filter((d) => d.status === "ACTIVE")
+-        .map((d) => d.courseId);
+-
++      const activeCourseIds = data.filter((d) => d.status === "ACTIVE").map((d) => d.courseId);
+       const results = await Promise.allSettled(
+-        activeCourseIds.map(async (cid) => {
+-          const p = await progressApi.courseProgress(cid);
+-          return { cid, p };
+-        })
++        activeCourseIds.map(async (cid) => ({ cid, p: await progressApi.courseProgress(cid) }))
+       );
+-
+       const next: Record<number, CourseProgressRes> = {};
+-      for (const r of results) {
+-        if (r.status === "fulfilled") next[r.value.cid] = r.value.p;
+-      }
++      for (const r of results) if (r.status === "fulfilled") next[r.value.cid] = r.value.p;
+       setProgressMap(next);
+     } catch (e: any) {
+       setErr(e?.message || "Load my courses failed");
+     } finally {
+       setLoading(false);
+     }
+   }
+
+-  useEffect(() => {
+-    load();
+-  }, []);
++  useEffect(() => { load(); }, []);
+
+   async function onCancel(courseId: number) {
+     setErr(null);
+     setInfo(null);
+     try {
+       await enrollmentsApi.cancel(courseId);
+-      setInfo(`Đã huỷ ghi danh course #${courseId}.`);
++      setInfo(`Course #${courseId} cancelled.`);
+       await load();
+     } catch (e: any) {
+       setErr(e?.message || "Cancel failed");
+     }
+   }
+
+-  // chọn lessonId để Continue theo progress
+   function pickContinueLessonId(courseId: number, lessons: Lesson[]): number {
+     const sorted = sortLessons(lessons);
+     if (sorted.length === 0) return 0;
+-
+     const prog = progressMap[courseId];
+     const pItems = prog?.items ?? [];
+-
+-    // map lessonId -> { status, updatedAt }
+     const byLesson: Record<number, { status: string; updatedAt?: string | undefined }> = {};
+-    for (const it of pItems) {
+-      byLesson[it.lessonId] = { status: it.status, updatedAt: it.updatedAt };
+-    }
+-
+-    // 1) ưu tiên IN_PROGRESS mới nhất
+-    const inProgress = pItems
+-      .filter((it) => it.status === "IN_PROGRESS")
+-      .sort((a, b) => {
+-        const at = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+-        const bt = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+-        return bt - at;
+-      });
++    for (const it of pItems) byLesson[it.lessonId] = { status: it.status, updatedAt: it.updatedAt };
+
+-    if (inProgress.length) {
+-      const candId = inProgress[0].lessonId;
+-      if (sorted.some((l) => l.id === candId)) return candId;
+-    }
+-
+-    // 2) lesson đầu tiên chưa COMPLETED
+-    for (const l of sorted) {
+-      const st = byLesson[l.id]?.status;
+-      if (st !== "COMPLETED") return l.id;
+-    }
++    const inProgress = pItems.filter((it) => it.status === "IN_PROGRESS").sort((a, b) => {
++      const at = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
++      const bt = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
++      return bt - at;
++    });
++    if (inProgress.length && sorted.some((l) => l.id === inProgress[0].lessonId)) return inProgress[0].lessonId;
+
+-    // 3) tất cả completed -> vào bài cuối
++    for (const l of sorted) if (byLesson[l.id]?.status !== "COMPLETED") return l.id;
+     return sorted[sorted.length - 1].id;
+   }
+
+   async function onContinue(courseId: number) {
+     setErr(null);
+     setInfo(null);
+-
+     try {
+-      // Backend sẽ 403 nếu Enrollment chưa ACTIVE
+       const lessons = await coursesApi.lessons(courseId);
+       if (!lessons || lessons.length === 0) {
+-        setInfo("Khoá học chưa có bài học nào.");
++        setInfo("Course has no lesson yet.");
+         return;
+       }
+-
+       const lessonId = pickContinueLessonId(courseId, lessons);
+       if (!lessonId) {
+-        setInfo("Không xác định được bài học để tiếp tục.");
++        setInfo("Unable to determine continue lesson.");
+         return;
+       }
+-
+       nav(`/lessons/${lessonId}?courseId=${courseId}`);
+     } catch (e: any) {
+-      setErr(
+-        e?.message ||
+-          "Không thể tiếp tục học (có thể Enrollment chưa ACTIVE nên bị chặn 403)."
+-      );
++      setErr(e?.message || "Unable to continue");
+     }
+   }
+
+   return (
+-    <div style={{ maxWidth: 1000, margin: "24px auto", padding: 16 }}>
+-      <div
+-        style={{
+-          display: "flex",
+-          justifyContent: "space-between",
+-          alignItems: "center",
+-        }}
+-      >
+-        <h2>Khoá học của tôi</h2>
+-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+-          <Link to="/courses">Khoá học</Link>
+-          <Link to="/me/orders">My Orders</Link>
+-          <button onClick={load}>Reload</button>
++    <div className={`student-page student-courses-theme ${theme === "dark" ? "student-courses-theme-dark" : ""}`}>
++      <div className="student-shell">
++        <div className="student-topbar">
++          <div>
++            <h2 style={{ margin: 0 }}>{t.title}</h2>
++            <div style={{ opacity: 0.9, marginTop: 4 }}>{t.subtitle}</div>
++          </div>
++          <div className="student-control-group">
++            <button className="student-theme-toggle" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
++              {t.darkMode}: {theme === "dark" ? "ON" : "OFF"}
++            </button>
++            <div className="student-lang-switch">
++              {(Object.keys(studentLanguageMeta) as StudentLang[]).map((code) => (
++                <button key={code} className={`student-lang-option ${lang === code ? "active" : ""}`} onClick={() => setLang(code)}>
++                  <img src={studentLanguageMeta[code].flagUrl} alt={studentLanguageMeta[code].label} />
++                </button>
++              ))}
++            </div>
++          </div>
+         </div>
+-      </div>
+-
+-      {loading && <div style={{ padding: 12 }}>Loading...</div>}
+-      {err && <div style={{ padding: 12, color: "crimson" }}>{err}</div>}
+-      {info && <div style={{ padding: 12 }}>{info}</div>}
+
+-      {!loading && items.length === 0 && (
+-        <div style={{ padding: 12, opacity: 0.8 }}>
+-          Bạn chưa ghi danh khoá học nào. Vào{" "}
+-          <Link to="/courses">Khoá học</Link> để mua/ghi danh.
++        <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
++          <Link to="/courses">{t.courses}</Link>
++          <Link to="/me/orders">{t.orders}</Link>
++          <button onClick={load}>{t.reload}</button>
+         </div>
+-      )}
+-
+-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+-        {items.map((enr) => {
+-          const prog = progressMap[enr.courseId];
+-          const percent =
+-            prog?.percent ??
+-            (prog
+-              ? Math.round(
+-                  (prog.completedLessons / Math.max(1, prog.totalLessons)) * 100
+-                )
+-              : 0);
+-
+-          return (
+-            <div
+-              key={enr.id}
+-              style={{
+-                border: "1px solid #e5e7eb",
+-                borderRadius: 14,
+-                padding: 14,
+-                background: "#fff",
+-              }}
+-            >
+-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+-                <div style={{ fontWeight: 800 }}>{enr.course.title}</div>
+-                <StatusBadge status={enr.status} />
+-              </div>
+-
+-              <div style={{ marginTop: 8, opacity: 0.8 }}>
+-                Giá: {enr.course.price.toLocaleString("vi-VN")}đ
+-              </div>
+-
+-              {enr.status === "ACTIVE" && prog && (
+-                <>
+-                  <ProgressBar percent={percent} />
+-                  <div style={{ marginTop: 8, fontSize: 12, opacity: 0.75 }}>
+-                    Hoàn thành: {prog.completedLessons}/{prog.totalLessons} bài
+-                  </div>
+-                </>
+-              )}
+-
+-              <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+-                <Link to={`/courses/${enr.courseId}`}>Xem chi tiết</Link>
+
+-                <button
+-                  onClick={() => onContinue(enr.courseId)}
+-                  disabled={enr.status !== "ACTIVE"}
+-                  title={
+-                    enr.status !== "ACTIVE"
+-                      ? "Chỉ học được khi Enrollment ACTIVE"
+-                      : "Tiếp tục học đúng bài đang dở"
+-                  }
+-                >
+-                  Continue
+-                </button>
+-
+-                <button
+-                  onClick={() => onCancel(enr.courseId)}
+-                  disabled={enr.status !== "ACTIVE" && enr.status !== "PENDING"}
+-                  title="Huỷ ghi danh"
+-                >
+-                  Cancel
+-                </button>
+-              </div>
+-
+-              {enr.status !== "ACTIVE" && (
+-                <div style={{ marginTop: 10, fontSize: 12, opacity: 0.75 }}>
+-                  Ghi chú: Nếu bạn vừa tạo order, cần Admin mark-paid để kích hoạt
+-                  (ACTIVE) trước khi xem bài học.
++        {loading && <div style={{ padding: 12 }}>{t.loading}</div>}
++        {err && <div style={{ padding: 12, color: "crimson" }}>{err}</div>}
++        {info && <div style={{ padding: 12 }}>{info}</div>}
++
++        {!loading && items.length === 0 && (
++          <div style={{ padding: 12 }} className="student-muted">
++            {t.noCourse} <Link to="/courses">{t.courses}</Link>
++          </div>
++        )}
++
++        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
++          {items.map((enr) => {
++            const prog = progressMap[enr.courseId];
++            const percent = prog?.percent ?? (prog ? Math.round((prog.completedLessons / Math.max(1, prog.totalLessons)) * 100) : 0);
++            return (
++              <div key={enr.id} className="student-card">
++                <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
++                  <div style={{ fontWeight: 800 }}>{enr.course.title}</div>
++                  <StatusBadge status={enr.status} />
+                 </div>
+-              )}
+-            </div>
+-          );
+-        })}
++                <div style={{ marginTop: 8 }} className="student-muted">{t.price}: {enr.course.price.toLocaleString("vi-VN")}đ</div>
++                {enr.status === "ACTIVE" && prog && (
++                  <>
++                    <ProgressBar percent={percent} label={t.progress} />
++                    <div style={{ marginTop: 8, fontSize: 12 }} className="student-muted">{t.completed}: {prog.completedLessons}/{prog.totalLessons}</div>
++                  </>
++                )}
++                <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
++                  <Link to={`/courses/${enr.courseId}`}>{t.detail}</Link>
++                  <button onClick={() => onContinue(enr.courseId)} disabled={enr.status !== "ACTIVE"}>{t.continue}</button>
++                  <button onClick={() => onCancel(enr.courseId)} disabled={enr.status !== "ACTIVE" && enr.status !== "PENDING"}>{t.cancel}</button>
++                </div>
++              </div>
++            );
++          })}
++        </div>
+       </div>
+     </div>
+   );
+ }
+diff --git a/ayanavita-fontend/src/pages/StudentCoursesTheme.css b/ayanavita-fontend/src/pages/StudentCoursesTheme.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..49625dbd4679b9ec283a0a63defba8b5f7805cba
+--- /dev/null
++++ b/ayanavita-fontend/src/pages/StudentCoursesTheme.css
+@@ -0,0 +1,142 @@
++.student-courses-theme {
++  --st-bg:
++    radial-gradient(900px 600px at 0% 0%, rgba(20, 184, 166, 0.12), transparent 58%),
++    radial-gradient(900px 550px at 100% 0%, rgba(59, 130, 246, 0.14), transparent 58%),
++    linear-gradient(180deg, #f0fdfa, #eff6ff);
++  --st-card: rgba(255, 255, 255, 0.92);
++  --st-border: #dbeafe;
++  --st-text: #0f172a;
++  --st-muted: #475569;
++}
++
++.student-courses-theme-dark {
++  --st-bg:
++    radial-gradient(900px 600px at 0% 0%, rgba(30, 64, 175, 0.22), transparent 58%),
++    radial-gradient(900px 550px at 100% 0%, rgba(20, 184, 166, 0.18), transparent 58%),
++    linear-gradient(180deg, #020617, #0f172a);
++  --st-card: rgba(15, 23, 42, 0.9);
++  --st-border: #334155;
++  --st-text: #e2e8f0;
++  --st-muted: #94a3b8;
++}
++
++.student-page {
++  min-height: 100vh;
++  background: var(--st-bg);
++  color: var(--st-text);
++  padding: 24px 16px;
++}
++
++.student-shell {
++  max-width: 1080px;
++  margin: 0 auto;
++}
++
++.student-topbar {
++  background: linear-gradient(130deg, #0f766e, #0284c7);
++  border-radius: 20px;
++  padding: 18px;
++  color: #f8fafc;
++  display: flex;
++  justify-content: space-between;
++  gap: 10px;
++  flex-wrap: wrap;
++  box-shadow: 0 14px 30px rgba(2, 132, 199, 0.25);
++}
++
++.student-control-group { display: inline-flex; align-items: center; gap: 8px; }
++.student-theme-toggle { border: none; border-radius: 999px; padding: 8px 12px; font-weight: 700; cursor: pointer; }
++.student-lang-switch { display: inline-flex; gap: 4px; background: rgba(15,23,42,0.26); border: 1px solid rgba(255,255,255,0.4); border-radius: 999px; padding: 5px; }
++.student-lang-option { border:none; background:transparent; border-radius:999px; cursor:pointer; width:36px; height:28px; display:flex; align-items:center; justify-content:center; }
++.student-lang-option.active { background: rgba(255,255,255,0.92); }
++.student-lang-option img { width:22px; height:14px; border-radius:2px; }
++
++.student-card {
++  border: 1px solid var(--st-border);
++  border-radius: 14px;
++  padding: 14px;
++  background: var(--st-card);
++}
++
++.student-muted { color: var(--st-muted); }
++
++.student-lesson-links {
++  display: flex;
++  gap: 10px;
++  margin: 12px 0;
++}
++
++.student-progress-track {
++  margin-top: 10px;
++  height: 10px;
++  border-radius: 999px;
++  background: color-mix(in srgb, var(--st-border) 64%, #ffffff 36%);
++  overflow: hidden;
++}
++
++.student-progress-fill {
++  height: 100%;
++  background: linear-gradient(135deg, #0f766e, #0284c7);
++}
++
++.student-lesson-layout {
++  display: grid;
++  grid-template-columns: 2fr 1fr;
++  gap: 14px;
++}
++
++.student-module-card {
++  margin-top: 10px;
++  border: 1px solid var(--st-border);
++  border-radius: 12px;
++  padding: 12px;
++}
++
++.student-module-head {
++  display: flex;
++  justify-content: space-between;
++  gap: 10px;
++  align-items: center;
++}
++
++.student-video-row {
++  display: grid;
++  grid-template-columns: 1fr auto;
++  gap: 10px;
++  margin-top: 10px;
++  align-items: center;
++}
++
++.student-video-player {
++  width: 100%;
++  margin-top: 6px;
++  border-radius: 10px;
++}
++
++.student-lesson-item {
++  width: 100%;
++  text-align: left;
++  margin-bottom: 8px;
++  border: 1px solid var(--st-border);
++  border-radius: 10px;
++  padding: 10px;
++  background: transparent;
++  color: var(--st-text);
++  display: flex;
++  gap: 8px;
++  align-items: center;
++  cursor: pointer;
++}
++
++.student-lesson-item.active {
++  background: color-mix(in srgb, #14b8a6 24%, var(--st-card) 76%);
++}
++
++@media (max-width: 1024px) {
++  .student-lesson-layout {
++    grid-template-columns: 1fr;
++  }
++  .student-video-row {
++    grid-template-columns: 1fr;
++  }
++}

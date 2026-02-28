@@ -1,191 +1,120 @@
-// src/components/home/Partners.tsx
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useState } from "react";
 
-export type Partner = {
+type Partner = {
     name: string;
-    domain: string;
-    imageUrl?: string;
-    logoUrl?: string;
+    logoUrl: string;
 };
 
-type FallbackMode = "text" | "dummy";
-
-type PartnersProps = {
-    gridItems?: Partner[];
-    marqueeItems?: Partner[];
-    useClearbit?: boolean;
-    fallbackMode?: FallbackMode;
-    logoBase?: string;
+type PartnersCMS = {
+    title?: string;
+    description?: string;
+    trustedText?: string;
+    gridPartners?: Partner[];
+    marqueePartners?: Partner[];
 };
 
-const TextLogo: React.FC<{ name: string }> = ({ name }) => {
-    return (
-        <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black">
-                {name.trim().slice(0, 1).toUpperCase()}
+type Props = {
+    cmsData?: PartnersCMS;
+};
+
+const Logo: React.FC<{ partner: Partner }> = ({ partner }) => {
+    const [error, setError] = useState(false);
+
+    const hasValidLogo =
+        partner.logoUrl &&
+        partner.logoUrl.trim() !== "" &&
+        !error;
+
+    if (!hasValidLogo) {
+        return (
+            <div className="flex items-center gap-2 px-2">
+                <div className="h-8 w-8 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black">
+                    {partner.name.slice(0, 1).toUpperCase()}
+                </div>
+                <span className="text-sm font-extrabold text-slate-700">
+                    {partner.name}
+                </span>
             </div>
-            <div className="text-sm font-extrabold text-slate-700">{name}</div>
-        </div>
-    );
-};
-
-const LogoTile: React.FC<{
-    p: Partner;
-    width?: number;
-    useClearbit: boolean;
-    fallbackMode: FallbackMode;
-    logoBase: string;
-}> = ({ p, width, useClearbit, fallbackMode, logoBase }) => {
-    const [useFallback, setUseFallback] = useState(false);
-    const [imageError, setImageError] = useState(false);
-
-    useEffect(() => {
-        // Reset fallback khi partner thay đổi
-        setUseFallback(false);
-        setImageError(false);
-    }, [p]);
-
-    // Debug: log để kiểm tra dữ liệu
-    console.log('Rendering partner:', {
-        name: p.name,
-        domain: p.domain,
-        imageUrl: p.imageUrl,
-        logoUrl: p.logoUrl,
-        hasImage: !!(p.imageUrl || p.logoUrl)
-    });
-
-    // ✅ Xác định nguồn ảnh
-    let remoteSrc = '';
-
-    if (p.imageUrl) {
-        remoteSrc = p.imageUrl;
-        console.log(`Using imageUrl for ${p.name}:`, p.imageUrl);
-    } else if (p.logoUrl) {
-        remoteSrc = p.logoUrl;
-        console.log(`Using logoUrl for ${p.name}:`, p.logoUrl);
-    } else if (useClearbit) {
-        remoteSrc = `${logoBase.replace(/\/$/, "")}/${p.domain}`;
-        console.log(`Using Clearbit for ${p.name}:`, remoteSrc);
+        );
     }
 
-    const dummy =
-        `https://dummyimage.com/160x48/0b1220/ffffff&text=` +
-        encodeURIComponent(p.name);
-
-    // ✅ Kiểm tra có nên hiển thị ảnh không
-    const hasValidImage = !!(p.imageUrl || p.logoUrl || (useClearbit && p.domain));
-    const showImage = hasValidImage && !useFallback && !imageError && !!remoteSrc;
-
-    const tileStyle = width ? { width } : undefined;
-
     return (
-        <div
-            className="flex h-16 items-center justify-center rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm transition hover:-translate-y-1 hover:shadow"
-            style={tileStyle}
-        >
-            {showImage ? (
-                <img
-                    loading="lazy"
-                    alt={p.name}
-                    className="h-7 w-auto object-contain opacity-80 grayscale hover:opacity-100 hover:grayscale-0 transition"
-                    src={remoteSrc}
-                    onError={(e) => {
-                        console.log(`❌ Image failed to load for ${p.name}:`, remoteSrc);
-                        setImageError(true);
-                        setUseFallback(true);
-                    }}
-                    onLoad={() => {
-                        console.log(`✅ Image loaded successfully for ${p.name}:`, remoteSrc);
-                        setImageError(false);
-                    }}
-                />
-            ) : (
-                <div className="px-4">
-                    {fallbackMode === "dummy" ? (
-                        <img
-                            loading="lazy"
-                            alt={p.name}
-                            className="h-7 w-auto object-contain opacity-90"
-                            src={dummy}
-                            onError={(e) => {
-                                console.log(`Dummy image failed for ${p.name}`);
-                            }}
-                        />
-                    ) : (
-                        <TextLogo name={p.name} />
-                    )}
-                </div>
-            )}
-        </div>
+        <img
+            src={partner.logoUrl}
+            alt={partner.name}
+            className="h-full w-auto object-contain transition"
+            onError={() => setError(true)}
+            loading="lazy"
+        />
     );
 };
 
-export const Partners: React.FC<PartnersProps> = ({
-                                                      gridItems,
-                                                      marqueeItems,
-                                                      useClearbit = false,
-                                                      fallbackMode = "text",
-                                                      logoBase = "https://logo.clearbit.com",
-                                                  }) => {
-    // Debug props
-    console.log('Partners props:', { gridItems, marqueeItems, useClearbit, fallbackMode });
-
-    // Hardcode data để test
-    const defaultPartners: Partner[] = [
+export const Partners: React.FC<Props> = ({ cmsData }) => {
+    // Dữ liệu mặc định (giống như code cũ)
+    const defaultGridPartners: Partner[] = [
         {
             name: "Coursera",
-            domain: "coursera.org",
-            imageUrl: "https://logos-world.net/wp-content/uploads/2023/08/Coursera-Logo.png"
+            logoUrl: "https://upload.wikimedia.org/wikipedia/commons/9/97/Coursera-Logo_600x600.svg",
         },
         {
             name: "Udemy",
-            domain: "udemy.com",
-            imageUrl: "/images/partners/udemy.svg"
+            logoUrl: "https://upload.wikimedia.org/wikipedia/commons/e/e3/Udemy_logo.svg",
         },
         {
             name: "edX",
-            domain: "edx.org",
-            imageUrl: "/images/partners/edx.svg"
+            logoUrl: "https://www.edx.org/trademark-logos/edx-logo-elm.svg",
         },
         {
             name: "Skillshare",
-            domain: "skillshare.com",
-            imageUrl: "/images/partners/skillshare.svg"
+            logoUrl: "https://tinyworkshops.com/wp-content/uploads/2020/08/skillshare-logo.jpg",
         },
         {
             name: "LinkedIn Learning",
-            domain: "linkedin.com",
-            imageUrl: "/images/partners/linkedin-learning.svg"
+            logoUrl: "https://www.gopomelo.com/hs-fs/hubfs/LinkedIn_Learning_Logo.png?width=5000&height=681&name=LinkedIn_Learning_Logo.png",
         },
         {
             name: "Pluralsight",
-            domain: "pluralsight.com",
-            imageUrl: "/images/partners/pluralsight.svg"
+            logoUrl: "https://tse4.mm.bing.net/th/id/OIP.Jlv_za4hcnfuCJYRGxp0SwHaEH?rs=1&pid=ImgDetMain&o=7&rm=3",
         },
     ];
 
-    const defaultMarquee: Partner[] = [
-        { name: "Coursera", domain: "coursera.org", imageUrl: "https://logos-world.net/wp-content/uploads/2023/08/Coursera-Logo.png" },
-        { name: "Udemy", domain: "udemy.com", imageUrl: "/images/partners/udemy.svg" },
-        { name: "edX", domain: "edx.org", imageUrl: "/images/partners/edx.svg" },
-        { name: "Skillshare", domain: "skillshare.com", imageUrl: "/images/partners/skillshare.svg" },
-        { name: "LinkedIn Learning", domain: "linkedin.com", imageUrl: "/images/partners/linkedin-learning.svg" },
-        { name: "Pluralsight", domain: "pluralsight.com", imageUrl: "/images/partners/pluralsight.svg" },
-        { name: "Teachable", domain: "teachable.com", imageUrl: "/images/partners/teachable.svg" },
-        { name: "Thinkific", domain: "thinkific.com", imageUrl: "/images/partners/thinkific.svg" },
-        { name: "Kajabi", domain: "kajabi.com", imageUrl: "/images/partners/kajabi.svg" },
-        { name: "MasterClass", domain: "masterclass.com", imageUrl: "/images/partners/masterclass.svg" },
-        { name: "Udacity", domain: "udacity.com", imageUrl: "/images/partners/udacity.svg" },
-        { name: "Khan Academy", domain: "khanacademy.org", imageUrl: "/images/partners/khan-academy.svg" },
+    const defaultMarqueePartners: Partner[] = [
+        ...defaultGridPartners,
+        {
+            name: "Teachable",
+            logoUrl: "https://tse3.mm.bing.net/th/id/OIP.NVr2MsW9NE1EJLNUuedhUwHaEv?rs=1&pid=ImgDetMain&o=7&rm=3",
+        },
+        {
+            name: "Thinkific",
+            logoUrl: "https://tse4.mm.bing.net/th/id/OIP.eyMmLEd5aznP7tI7GGHpigHaFj?rs=1&pid=ImgDetMain&o=7&rm=3",
+        },
+        {
+            name: "Kajabi",
+            logoUrl: "https://brandlogo.org/wp-content/uploads/2024/10/Kajabi-Logo-2024-300x300.png",
+        },
+        {
+            name: "MasterClass",
+            logoUrl: "https://logowik.com/content/uploads/images/masterclass4801.logowik.com.webp",
+        },
+        {
+            name: "Udacity",
+            logoUrl: "https://logospng.org/download/udacity/udacity-1536.png",
+        },
+        {
+            name: "Khan Academy",
+            logoUrl: "https://e7.pngegg.com/pngimages/997/403/png-clipart-khan-academy-full-logo-tech-companies.png",
+        },
     ];
 
-    // Sử dụng data mặc định nếu không có props
-    const partners = gridItems || defaultPartners;
-    const marquee = marqueeItems || defaultMarquee;
+    // Sử dụng dữ liệu từ CMS nếu có, nếu không thì dùng mặc định
+    const title = cmsData?.title ?? "Đối tác & nền tảng bán khoá học";
+    const description = cmsData?.description ?? "Nếu ảnh lỗi sẽ hiển thị tên.";
+    const trustedText = cmsData?.trustedText ?? "Trusted by learners worldwide";
+    const gridPartners = cmsData?.gridPartners ?? defaultGridPartners;
+    const marqueePartners = cmsData?.marqueePartners ?? defaultMarqueePartners;
 
-    // Log để kiểm tra
-    console.log('Final partners data:', partners);
-    console.log('Final marquee data:', marquee);
+    // Lặp lại marquee 2 lần để tạo hiệu ứng cuộn liên tục
+    const repeatedMarquee = [...marqueePartners, ...marqueePartners];
 
     return (
         <section className="w-full pb-6">
@@ -194,42 +123,44 @@ export const Partners: React.FC<PartnersProps> = ({
                     <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                         <div>
                             <h3 className="text-xl font-bold text-slate-900">
-                                Đối tác & nền tảng bán khoá học
+                                {title}
                             </h3>
                             <p className="mt-1 text-sm text-slate-600">
-                                Logo demo. Nếu mạng chặn Clearbit, component sẽ tự fallback (không spam console).
+                                {description}
                             </p>
                         </div>
-                        <div className="text-sm text-slate-600">Trusted by learners worldwide</div>
+                        <div className="text-sm text-slate-600">
+                            {trustedText}
+                        </div>
                     </div>
 
+                    {/* Grid */}
                     <div className="mt-6 grid grid-cols-2 items-center gap-6 md:grid-cols-6">
-                        {partners.map((p, index) => (
-                            <LogoTile
-                                key={`${p.domain}-${p.name}-${index}`}
-                                p={p}
-                                useClearbit={useClearbit}
-                                fallbackMode={fallbackMode}
-                                logoBase={logoBase}
-                            />
+                        {gridPartners.map((p) => (
+                            <div
+                                key={p.name}
+                                className="flex h-16 items-center justify-center rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm transition hover:-translate-y-1 hover:shadow"
+                            >
+                                <Logo partner={p} />
+                            </div>
                         ))}
                     </div>
 
-                    {/* marquee */}
+                    {/* Marquee */}
                     <div className="mt-6 overflow-hidden rounded-2xl bg-slate-50 ring-1 ring-slate-200">
                         <div
-                            className="flex w-max gap-4 p-4 animate-[marquee_28s_linear_infinite] hover:[animation-play-state:paused]"
+                            className="flex w-max gap-4 p-4 animate-[ayaMarquee_28s_linear_infinite] hover:[animation-play-state:paused]"
                             style={{ willChange: "transform" }}
                         >
-                            {marquee.map((p, idx) => (
-                                <div key={`${p.domain}-${idx}`} className="flex-none" style={{ width: 180 }}>
-                                    <LogoTile
-                                        p={p}
-                                        width={180}
-                                        useClearbit={useClearbit}
-                                        fallbackMode={fallbackMode}
-                                        logoBase={logoBase}
-                                    />
+                            {repeatedMarquee.map((p, idx) => (
+                                <div
+                                    key={`${p.name}-${idx}`}
+                                    className="flex-none"
+                                    style={{ width: 180 }}
+                                >
+                                    <div className="flex h-16 items-center justify-center rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm">
+                                        <Logo partner={p} />
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -238,11 +169,11 @@ export const Partners: React.FC<PartnersProps> = ({
             </div>
 
             <style>{`
-        @keyframes marquee { 
-          from { transform: translateX(0); } 
-          to { transform: translateX(-50%); } 
-        }
-      `}</style>
+                @keyframes ayaMarquee {
+                    from { transform: translateX(0); }
+                    to { transform: translateX(-50%); }
+                }
+            `}</style>
         </section>
     );
 };

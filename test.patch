@@ -1,165 +1,140 @@
-diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-index f40a924e01934cfa314feded1479b860a923c830..b8b30057eac7d998e087ed101a6cfc6b73fe4b30 100644
---- a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-@@ -60,71 +60,71 @@ export class CoursesService {
-     }
+diff --git a/backend/ayanavitabackend/app/api/src/orders/orders.controller.ts b/backend/ayanavitabackend/app/api/src/orders/orders.controller.ts
+index 81062269c2331bf0b8fcaa03efb526c944c6fcc1..bc8e5dd6f92e38f6bd802665d87c112141d7df05 100644
+--- a/backend/ayanavitabackend/app/api/src/orders/orders.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/orders/orders.controller.ts
+@@ -1,71 +1,51 @@
+ import {
+-  Body,
+   Controller,
+   Get,
+-  Headers,
+   Param,
+   ParseIntPipe,
+   Post,
+   Query,
+   UseGuards,
+ } from '@nestjs/common'
+ import { OrdersService } from './orders.service'
+ import { AccessTokenGuard } from '../auth/guards/access-token.guard'
+ import { RolesGuard } from '../auth/guards/roles.guard'
+ import { Roles } from '../auth/decorators/roles.decorator'
+ import { CurrentUser } from '../auth/decorators/current-user.decorator'
+
+ type JwtUser = { sub: number; role: string }
+
+ @UseGuards(AccessTokenGuard)
+ @Controller()
+ export class OrdersController {
+   constructor(private readonly orders: OrdersService) {}
+
+   // USER: tạo order theo course
+   @Post('courses/:id/order')
+   create(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+     return this.orders.createOrder(user.sub, id)
    }
 
-
-   private hydratePrimaryContent(dto: Partial<CreateCourseDto>): Partial<CreateCourseDto> {
-     const objectivesByLocale = this.normalizeLocalizedList(dto.objectives)
-     const targetAudienceByLocale = this.normalizeLocalizedList(dto.targetAudience)
-     const benefitsByLocale = this.normalizeLocalizedList(dto.benefits)
-
-     const viContent = dto.contentTranslations?.vi
-
-     return {
-       ...dto,
-       objectives: (dto.objectives !== undefined ? objectivesByLocale.vi : (viContent?.objectives || objectivesByLocale.vi)) as any,
-       targetAudience: (dto.targetAudience !== undefined ? targetAudienceByLocale.vi : (viContent?.targetAudience || targetAudienceByLocale.vi)) as any,
-       benefits: (dto.benefits !== undefined ? benefitsByLocale.vi : (viContent?.benefits || benefitsByLocale.vi)) as any,
-     }
+   // USER: xem orders của tôi
+   @Get('me/orders')
+   myOrders(@CurrentUser() user: JwtUser) {
+     return this.orders.myOrders(user.sub)
    }
 
-   private buildCreateCoursePayload(dto: CreateCourseDto & { title: string }): Prisma.CourseUncheckedCreateInput {
-     return {
-       title: dto.title,
-       slug: dto.slug,
-       ...(dto.description !== undefined ? { description: dto.description } : {}),
-       ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
--      ...(dto.time !== undefined ? { time: dto.time } : {}),
-+      ...(dto.time !== undefined ? { time: String(dto.time) } : {}),
-       ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
-       ...(dto.price !== undefined ? { price: dto.price } : {}),
-       ...(dto.published !== undefined ? { published: dto.published } : {}),
-       ...(dto.topicId !== undefined ? { topicId: dto.topicId } : {}),
-       ...(dto.objectives !== undefined ? { objectives: dto.objectives as any } : {}),
-       ...(dto.targetAudience !== undefined ? { targetAudience: dto.targetAudience as any } : {}),
-       ...(dto.benefits !== undefined ? { benefits: dto.benefits as any } : {}),
-       ...(dto.ratingAvg !== undefined ? { ratingAvg: dto.ratingAvg } : {}),
-       ...(dto.ratingCount !== undefined ? { ratingCount: dto.ratingCount } : {}),
-       ...(dto.enrollmentCount !== undefined ? { enrollmentCount: dto.enrollmentCount } : {}),
-     }
+   // ADMIN: list orders cho Admin UI
+   // FE gọi: GET /orders?status=PENDING&q=abc
+   @UseGuards(RolesGuard)
+   @Roles('ADMIN')
+   @Get('orders')
+   list(@Query('status') status?: string, @Query('q') q?: string) {
+     return this.orders.list({ status, q })
    }
 
-   private buildUpdateCoursePayload(dto: UpdateCourseDto): Prisma.CourseUncheckedUpdateInput {
-     return {
-       ...(dto.title !== undefined ? { title: dto.title } : {}),
-       ...(dto.slug !== undefined ? { slug: dto.slug } : {}),
-       ...(dto.description !== undefined ? { description: dto.description } : {}),
-       ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
--      ...(dto.time !== undefined ? { time: dto.time } : {}),
-+      ...(dto.time !== undefined ? { time: String(dto.time) } : {}),
-       ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
-       ...(dto.price !== undefined ? { price: dto.price } : {}),
-       ...(dto.published !== undefined ? { published: dto.published } : {}),
-       ...(dto.topicId !== undefined ? { topicId: dto.topicId } : {}),
-       ...(dto.objectives !== undefined ? { objectives: dto.objectives as any } : {}),
-       ...(dto.targetAudience !== undefined ? { targetAudience: dto.targetAudience as any } : {}),
-       ...(dto.benefits !== undefined ? { benefits: dto.benefits as any } : {}),
-       ...(dto.ratingAvg !== undefined ? { ratingAvg: dto.ratingAvg } : {}),
-       ...(dto.ratingCount !== undefined ? { ratingCount: dto.ratingCount } : {}),
-       ...(dto.enrollmentCount !== undefined ? { enrollmentCount: dto.enrollmentCount } : {}),
-     }
+   // ADMIN: mark paid (kích hoạt enrollment)
+   @UseGuards(RolesGuard)
+   @Roles('ADMIN')
+   @Post('orders/:id/mark-paid')
+   markPaid(@Param('id', ParseIntPipe) id: number) {
+     return this.orders.markPaid(id)
    }
-
-   async lessonsOutline(user: JwtUser, courseId: number, lang?: string) {
-     const lessonLocale = this.resolveCourseLocale(lang)
-     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } })
-     if (!course) throw new NotFoundException('Course not found')
-     if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
-     const lessons = await this.prisma.lesson.findMany({
-       where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) },
-       select: {
-         id: true,
-         courseId: true,
-         title: true,
-         slug: true,
-diff --git a/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts b/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts
-index 553610a6128976e6c010e5d50a041d73a7c37af7..a79b532a9fbd8a84ef0217a7ca7548943fc0bafd 100644
---- a/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts
-+++ b/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts
-@@ -1,26 +1,26 @@
--import { Type } from 'class-transformer'
-+import { Transform, Type } from 'class-transformer'
- import { IsArray, IsBoolean, IsInt, IsNumber, IsObject, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator'
-
- class TranslationDto {
-   @IsString()
-   title: string
-
-   @IsOptional()
-   @IsString()
-   shortDescription?: string
-
-   @IsOptional()
-   @IsString()
-   description?: string
-
-   @IsOptional()
-   @IsArray()
-   @IsString({ each: true })
-   objectives?: string[]
-
-   @IsOptional()
-   @IsArray()
-   @IsString({ each: true })
-   targetAudience?: string[]
-
-   @IsOptional()
-@@ -37,50 +37,54 @@ class ContentTranslationDto {
-
-   @IsOptional()
-   @IsArray()
-   @IsString({ each: true })
-   targetAudience?: string[]
-
-   @IsOptional()
-   @IsArray()
-   @IsString({ each: true })
-   benefits?: string[]
  }
+-
+-@Controller('hooks')
+-export class SepayWebhookController {
+-  constructor(private readonly orders: OrdersService) {}
+-
+-  @Post('sepay-payment')
+-  async handlePayment(
+-    @Headers('authorization') authorization?: string,
+-    @Headers('x-sepay-key') xSepayKey?: string,
+-    @Headers('x-api-key') xApiKey?: string,
+-    @Body() payload?: any,
+-  ) {
+-    const token = xSepayKey ?? xApiKey ?? authorization?.replace(/^Bearer\s+/i, '').trim()
+-    await this.orders.assertWebhookKey(token)
+-
+-    return this.orders.handleSepayWebhook(payload)
+-  }
+-}
+diff --git a/backend/ayanavitabackend/app/api/src/orders/orders.module.ts b/backend/ayanavitabackend/app/api/src/orders/orders.module.ts
+index cbdbced768eefa72f2cf1da0a1ea40bb97b71825..fee534ae91c3192cd6f47405876a0ebe7a8ed14d 100644
+--- a/backend/ayanavitabackend/app/api/src/orders/orders.module.ts
++++ b/backend/ayanavitabackend/app/api/src/orders/orders.module.ts
+@@ -1,11 +1,12 @@
+ import { Module } from '@nestjs/common'
+ import { PrismaModule } from '../prisma/prisma.module'
+-import { OrdersController, SepayWebhookController } from './orders.controller'
++import { OrdersController } from './orders.controller'
+ import { OrdersService } from './orders.service'
++import { SepayWebhookController } from './sepay-webhook.controller'
 
- export class CreateCourseDto {
-   @IsString()
-   slug: string
+ @Module({
+   imports: [PrismaModule],
+   controllers: [OrdersController, SepayWebhookController],
+   providers: [OrdersService],
+ })
+ export class OrdersModule {}
+diff --git a/backend/ayanavitabackend/app/api/src/orders/sepay-webhook.controller.ts b/backend/ayanavitabackend/app/api/src/orders/sepay-webhook.controller.ts
+index de5c8e452f617db6dd77cb97b96f4ae344daf114..52c74dd39538b91d5037ff608ce93c87e8f8f263 100644
+--- a/backend/ayanavitabackend/app/api/src/orders/sepay-webhook.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/orders/sepay-webhook.controller.ts
+@@ -1,29 +1,27 @@
+ import { Body, Controller, Headers, Post, UnauthorizedException } from '@nestjs/common'
+ import { OrdersService } from './orders.service'
 
-   @IsOptional()
-   @IsString()
-   title?: string
+ @Controller('hooks')
+ export class SepayWebhookController {
+   constructor(private readonly orders: OrdersService) {}
 
-   @IsOptional()
-   @IsString()
-   shortDescription?: string
+   @Post('sepay-payment')
+   async handlePayment(
+-      @Headers('authorization') authorization?: string,
+-      @Body() payload?: any,
++    @Headers('authorization') authorization?: string,
++    @Headers('x-sepay-key') xSepayKey?: string,
++    @Headers('x-api-key') xApiKey?: string,
++    @Body() payload?: any,
+   ) {
+-    if (!authorization) {
+-      throw new UnauthorizedException('Missing Authorization header')
+-    }
++    const bearerToken = authorization?.replace(/^Bearer\s+/i, '').trim()
++    const apiKeyToken = authorization?.match(/^Apikey\s+(.+)$/i)?.[1]?.trim()
++    const token = xSepayKey ?? xApiKey ?? apiKeyToken ?? bearerToken
 
-   @IsOptional()
-+  @Transform(({ value }) => {
-+    if (value === undefined || value === null || value === '') return undefined
-+    return String(value)
-+  })
-   @IsString()
-   time?: string
+-    // SePay gửi: Authorization: Apikey YOUR_KEY
+-    const match = authorization.match(/^Apikey\s+(.+)$/i)
+-    if (!match) {
+-      throw new UnauthorizedException('Invalid Authorization format')
++    if (!token) {
++      throw new UnauthorizedException('Missing webhook key')
+     }
 
-   @IsOptional()
-   @IsString()
-   description?: string
+-    const apiKey = match[1].trim()
+-
+-    await this.orders.assertWebhookKey(apiKey)
++    await this.orders.assertWebhookKey(token)
 
-   @IsOptional()
-   @IsString()
-   thumbnail?: string
-
-   @IsOptional()
-   @IsInt()
-   @Min(0)
-   price?: number
-
-   @IsOptional()
-   @IsBoolean()
-   published?: boolean
-
-   @IsOptional()
-   @IsInt()
-   @Min(1)
-   topicId?: number
-
+     return this.orders.handleSepayWebhook(payload)
+   }
+-}
+\ No newline at end of file
++}

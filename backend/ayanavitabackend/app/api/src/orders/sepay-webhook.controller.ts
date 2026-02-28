@@ -7,22 +7,20 @@ export class SepayWebhookController {
 
   @Post('sepay-payment')
   async handlePayment(
-      @Headers('authorization') authorization?: string,
-      @Body() payload?: any,
+    @Headers('authorization') authorization?: string,
+    @Headers('x-sepay-key') xSepayKey?: string,
+    @Headers('x-api-key') xApiKey?: string,
+    @Body() payload?: any,
   ) {
-    if (!authorization) {
-      throw new UnauthorizedException('Missing Authorization header')
+    const bearerToken = authorization?.replace(/^Bearer\s+/i, '').trim()
+    const apiKeyToken = authorization?.match(/^Apikey\s+(.+)$/i)?.[1]?.trim()
+    const token = xSepayKey ?? xApiKey ?? apiKeyToken ?? bearerToken
+
+    if (!token) {
+      throw new UnauthorizedException('Missing webhook key')
     }
 
-    // SePay gửi: Authorization: Apikey YOUR_KEY
-    const match = authorization.match(/^Apikey\s+(.+)$/i)
-    if (!match) {
-      throw new UnauthorizedException('Invalid Authorization format')
-    }
-
-    const apiKey = match[1].trim()
-
-    await this.orders.assertWebhookKey(apiKey)
+    await this.orders.assertWebhookKey(token)
 
     return this.orders.handleSepayWebhook(payload)
   }

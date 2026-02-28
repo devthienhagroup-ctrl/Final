@@ -8,7 +8,7 @@ export class OrdersService {
   constructor(private readonly prisma: PrismaService) {}
 
   private readonly sepayKeyHash =
-      process.env.SEPAY_WEBHOOK_KEY_HASH ?? '$2a$12$2yvupTSA/.mZSjt1.gto2OqcfxoBiUzskasi7zpYogBDZMMWA8uXa'
+      process.env.SEPAY_WEBHOOK_KEY_HASH ?? '$2b$10$9dcVYk0jeiF76U84AzpCM.sixhaI/bEi/vQMKYvrW5sF1WhTEGDSy'
 
   // Bank nhận tiền
   private readonly bankInfo = {

@@ -235,7 +235,7 @@ const defaultCmsData: CmsData = {
       },
       {
         key: "forgotPassword",
-        label: "Quên mật khẩu",
+        label: "Qu",
         desc: "OTP qua email",
         iconClass: "fa-solid fa-shield-halved",
       },

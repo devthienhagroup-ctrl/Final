@@ -865,3 +865,74 @@
   width: 16px;
   height: 16px;
 }
+
+.lesson-outline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.lesson-outline-item {
+  margin: 0;
+}
+
+.lesson-outline-card {
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.lesson-outline-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.lesson-outline-title {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.lesson-module-card {
+  margin-top: 10px;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 10px;
+  background: #eff6ff;
+}
+
+.lesson-media-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.lesson-media-card {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px;
+  background: #fff;
+}
+
+.admin-courses-theme-dark .lesson-outline-card {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.admin-courses-theme-dark .lesson-outline-title {
+  color: #e2e8f0;
+}
+
+.admin-courses-theme-dark .lesson-module-card {
+  background: #0b1220;
+  border-color: #334155;
+}
+
+.admin-courses-theme-dark .lesson-media-card {
+  background: #020617;
+  border-color: #1e293b;
+}

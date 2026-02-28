@@ -1,13 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   adminCoursesApi,
   type CourseDetailAdmin,
   type LessonDetailAdmin,
   type CourseTopic,
   type LessonOutlineAdmin,
+  type LessonI18n,
 } from '../../../../api/adminCourses.api'
 import { CourseDetailInfoTab } from './CourseDetailInfoTab'
 import { CreateLessonModal } from './CreateLessonModal'
+import { AlertJs } from '../../../../utils/alertJs'
 
 type Props = {
   course: CourseDetailAdmin
@@ -24,28 +26,73 @@ const labels = {
     info: 'Thông tin khóa học',
     lessons: 'Danh sách bài học',
     add: 'Thêm bài học mới',
+    edit: 'Sửa bài học',
+    deleteLesson: 'Xóa bài học',
+    deleteCourse: 'Xóa khóa học',
     noData: 'Chưa có bài học nào.',
+    loading: 'Đang tải...',
+    lessonOrder: 'Thứ tự bài',
+    moduleOrder: 'Thứ tự module',
+    mediaOrder: 'Thứ tự media',
+    confirmDeleteLesson: 'Bạn có chắc muốn xóa bài học này?',
+    confirmDeleteCourse: 'Bạn có chắc muốn xóa khóa học này?',
+    lessonDeleted: 'Đã xóa bài học.',
+    courseDeleted: 'Đã xóa khóa học.',
   },
   en: {
     info: 'Course Information',
     lessons: 'Lesson list',
     add: 'Add new lesson',
+    edit: 'Edit lesson',
+    deleteLesson: 'Delete lesson',
+    deleteCourse: 'Delete course',
     noData: 'No lessons yet.',
+    loading: 'Loading...',
+    lessonOrder: 'Lesson order',
+    moduleOrder: 'Module order',
+    mediaOrder: 'Media order',
+    confirmDeleteLesson: 'Are you sure you want to delete this lesson?',
+    confirmDeleteCourse: 'Are you sure you want to delete this course?',
+    lessonDeleted: 'Lesson deleted.',
+    courseDeleted: 'Course deleted.',
   },
   de: {
     info: 'Kursinformationen',
     lessons: 'Lektionsliste',
     add: 'Neue Lektion',
+    edit: 'Lektion bearbeiten',
+    deleteLesson: 'Lektion löschen',
+    deleteCourse: 'Kurs löschen',
     noData: 'Noch keine Lektionen.',
+    loading: 'Wird geladen...',
+    lessonOrder: 'Reihenfolge Lektion',
+    moduleOrder: 'Reihenfolge Modul',
+    mediaOrder: 'Reihenfolge Medien',
+    confirmDeleteLesson: 'Möchten Sie diese Lektion wirklich löschen?',
+    confirmDeleteCourse: 'Möchten Sie diesen Kurs wirklich löschen?',
+    lessonDeleted: 'Lektion gelöscht.',
+    courseDeleted: 'Kurs gelöscht.',
   },
 } as const
+
+const normalizeTranslations = (translations?: LessonI18n) => {
+  if (!translations) return {}
+  if (Array.isArray(translations)) {
+    return translations.reduce<Record<string, { title?: string; description?: string }>>((acc, item) => {
+      acc[item.locale] = { title: item.title, description: item.description }
+      return acc
+    }, {})
+  }
+  return translations
+}
 
 export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated }: Props) {
   const [activeTab, setActiveTab] = useState<DetailTabKey>('info')
   const [lessons, setLessons] = useState<LessonOutlineAdmin[]>([])
   const [lessonDetails, setLessonDetails] = useState<Record<number, LessonDetailAdmin>>({})
   const [loadingDetailIds, setLoadingDetailIds] = useState<Record<number, boolean>>({})
-  const [openCreateLesson, setOpenCreateLesson] = useState(false)
+  const [openLessonModal, setOpenLessonModal] = useState(false)
+  const [editingLesson, setEditingLesson] = useState<LessonDetailAdmin | null>(null)
 
   const t = labels[lang]
 
@@ -56,11 +103,12 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated }
     setLoadingDetailIds({})
   }
 
-  const getLocalizedText = <T extends { title?: string; description?: string; translations?: Record<string, { title?: string; description?: string }> }>(item: T) => {
-    const localeText = item.translations?.[lang]
+  const getLocalizedText = <T extends { title?: string; description?: string; translations?: LessonI18n; localizedTitle?: string; localizedDescription?: string }>(item: T) => {
+    const map = normalizeTranslations(item.translations)
+    const localeText = map[lang]
     return {
-      title: localeText?.title || item.title || '--',
-      description: localeText?.description || item.description || '--',
+      title: item.localizedTitle || localeText?.title || item.title || '--',
+      description: item.localizedDescription || localeText?.description || item.description || '--',
     }
   }
 
@@ -75,7 +123,7 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated }
     if (lessonDetails[lessonId] || loadingDetailIds[lessonId]) return
     setLoadingDetailIds((prev) => ({ ...prev, [lessonId]: true }))
     try {
-      const detail = await adminCoursesApi.getLessonDetail(lessonId)
+      const detail = await adminCoursesApi.getLessonDetail(lessonId, lang)
       setLessonDetails((prev) => ({ ...prev, [lessonId]: detail }))
     } finally {
       setLoadingDetailIds((prev) => ({ ...prev, [lessonId]: false }))
@@ -87,6 +135,8 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated }
       void loadLessons()
     }
   }, [activeTab, lang, course.id])
+
+  const sortedLessons = useMemo(() => [...lessons].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id - b.id), [lessons])
 
   return (
     <section>
@@ -105,55 +155,96 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated }
         <div className='admin-card'>
           <div className='admin-row' style={{ justifyContent: 'space-between', marginBottom: 12 }}>
             <h4 style={{ margin: 0 }}><i className='fa-solid fa-list' /> {t.lessons}</h4>
-            <button className='admin-btn admin-btn-save' type='button' onClick={() => setOpenCreateLesson(true)}>
-              <i className='fa-solid fa-circle-plus' /> {t.add}
-            </button>
+            <div className='admin-row' style={{ gap: 8 }}>
+              <button className='admin-btn admin-btn-danger' type='button' onClick={async () => {
+                const confirmed = await AlertJs.confirm(t.confirmDeleteCourse)
+                if (!confirmed) return
+                await adminCoursesApi.deleteCourse(course.id)
+                await AlertJs.success(t.courseDeleted)
+                await onCourseUpdated()
+              }}>
+                <i className='fa-solid fa-trash' /> {t.deleteCourse}
+              </button>
+              <button className='admin-btn admin-btn-save' type='button' onClick={() => {
+                setEditingLesson(null)
+                setOpenLessonModal(true)
+              }}>
+                <i className='fa-solid fa-circle-plus' /> {t.add}
+              </button>
+            </div>
           </div>
 
-          {!lessons.length && <p className='admin-helper'>{t.noData}</p>}
-          {!!lessons.length && (
-            <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
-              {lessons.map((lesson) => (
-                <li key={lesson.id} style={{ marginBottom: 10 }}>
-                  <details className='admin-card' onToggle={(e) => {
+          {!sortedLessons.length && <p className='admin-helper'>{t.noData}</p>}
+          {!!sortedLessons.length && (
+            <ul className='lesson-outline-list'>
+              {sortedLessons.map((lesson) => (
+                <li key={lesson.id} className='lesson-outline-item'>
+                  <details className='lesson-outline-card' onToggle={(e) => {
                     const target = e.currentTarget
                     if (target.open) {
                       void loadLessonDetail(lesson.id)
                     }
                   }}>
-                    <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
-                      {lesson.localizedTitle || lesson.title}
+                    <summary className='lesson-outline-summary'>
+                      <div>
+                        <div className='lesson-outline-title'>{lesson.localizedTitle || lesson.title}</div>
+                        <div className='admin-helper'>{t.lessonOrder}: {lesson.order ?? 0}</div>
+                      </div>
+                      <div className='admin-row' style={{ gap: 8 }}>
+                        <button type='button' className='admin-btn admin-btn-ghost' onClick={async (e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          const detail = lessonDetails[lesson.id] ?? await adminCoursesApi.getLessonDetail(lesson.id, lang)
+                          setEditingLesson(detail)
+                          setOpenLessonModal(true)
+                        }}>
+                          <i className='fa-solid fa-pen' /> {t.edit}
+                        </button>
+                        <button type='button' className='admin-btn admin-btn-danger' onClick={async (e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          const confirmed = await AlertJs.confirm(t.confirmDeleteLesson)
+                          if (!confirmed) return
+                          await adminCoursesApi.deleteLesson(lesson.id)
+                          await AlertJs.success(t.lessonDeleted)
+                          await loadLessons()
+                          await onCourseUpdated()
+                        }}>
+                          <i className='fa-solid fa-trash' /> {t.deleteLesson}
+                        </button>
+                      </div>
                     </summary>
 
-                    <div style={{ marginTop: 8 }}>
+                    <div>
                       <div className='admin-helper'>{lesson.localizedDescription || lesson.description || '--'}</div>
 
-                      {loadingDetailIds[lesson.id] && <div className='admin-helper'>Loading...</div>}
+                      {loadingDetailIds[lesson.id] && <div className='admin-helper'>{t.loading}</div>}
 
                       {!loadingDetailIds[lesson.id] && lessonDetails[lesson.id]?.modules?.map((module) => {
                         const moduleText = getLocalizedText(module)
+                        const moduleVideos = [...module.videos].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id - b.id)
                         return (
-                          <div key={module.id} style={{ marginTop: 12, border: '1px solid #23335f', borderRadius: 12, padding: 12 }}>
+                          <div key={module.id} className='lesson-module-card'>
                             <div style={{ fontWeight: 700 }}>{moduleText.title}</div>
+                            <div className='admin-helper'>{t.moduleOrder}: {module.order ?? 0}</div>
                             <div className='admin-helper' style={{ marginBottom: 8 }}>{moduleText.description}</div>
 
-                            <div style={{ display: 'grid', gap: 10 }}>
-                              {module.videos.map((media) => {
+                            <div className='lesson-media-grid'>
+                              {moduleVideos.map((media) => {
                                 const mediaText = getLocalizedText(media)
                                 const mediaUrl = resolveMediaUrl(media.playbackUrl || media.sourceUrl || media.hlsPlaylistKey || '')
                                 const isImage = media.mediaType === 'IMAGE'
                                 return (
-                                  <div key={media.id} style={{ border: '1px solid #1d2a52', borderRadius: 10, padding: 10 }}>
+                                  <div key={media.id} className='lesson-media-card'>
                                     <strong style={{ display: 'block' }}>{mediaText.title}</strong>
+                                    <div className='admin-helper'>{t.mediaOrder}: {media.order ?? 0}</div>
                                     <div className='admin-helper' style={{ marginBottom: 6 }}>{mediaText.description}</div>
                                     {mediaUrl ? (
-                                      <>
-                                        {isImage ? (
-                                          <img src={mediaUrl} alt={mediaText.title} style={{ width: '100%', maxWidth: 360, borderRadius: 8, marginTop: 6 }} />
-                                        ) : (
-                                          <video src={mediaUrl} controls style={{ width: '100%', maxWidth: 360, marginTop: 6 }} />
-                                        )}
-                                      </>
+                                      isImage ? (
+                                        <img src={mediaUrl} alt={mediaText.title} style={{ width: '100%', maxWidth: 360, borderRadius: 8, marginTop: 6 }} />
+                                      ) : (
+                                        <video src={mediaUrl} controls style={{ width: '100%', maxWidth: 360, marginTop: 6 }} />
+                                      )
                                     ) : (
                                       <div className='admin-helper'>--</div>
                                     )}
@@ -174,11 +265,15 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated }
       )}
 
       <CreateLessonModal
-        open={openCreateLesson}
+        open={openLessonModal}
         lang={lang}
         courseId={course.id}
-        onClose={() => setOpenCreateLesson(false)}
-        onCreated={async () => {
+        editingLesson={editingLesson}
+        onClose={() => {
+          setOpenLessonModal(false)
+          setEditingLesson(null)
+        }}
+        onSaved={async () => {
           await loadLessons()
           await onCourseUpdated()
         }}

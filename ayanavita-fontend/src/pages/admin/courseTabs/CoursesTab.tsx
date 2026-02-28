@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { adminCoursesApi, type CourseAdmin, type CourseDetailAdmin, type CourseTopic } from '../../../api/adminCourses.api'
 import { CreateCourseModal } from './CreateCourseModal'
 import { CourseDetailTabs } from './courseDetail/CourseDetailTabs'
+import { AlertJs } from '../../../utils/alertJs'
 
 type Props = {
   courses: CourseAdmin[]
@@ -131,16 +132,35 @@ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searc
                     <td>{c.updatedAt ? new Date(c.updatedAt).toLocaleString('vi-VN') : '--'}</td>
                     <td><span className={`status-pill ${c.published ? 'is-published' : 'is-draft'}`}>{c.published ? text.publishedStatus : text.draftStatus}</span></td>
                     <td>
-                      <button
-                        type='button'
-                        className='admin-btn admin-btn-ghost'
-                        onClick={() => {
-                          setSelectedCourseId(c.id)
-                          setActiveTab('detail')
-                        }}
-                      >
-                        <i className='fa-solid fa-eye' />
-                      </button>
+                      <div className='admin-row' style={{ gap: 6 }}>
+                        <button
+                          type='button'
+                          className='admin-btn admin-btn-ghost'
+                          onClick={() => {
+                            setSelectedCourseId(c.id)
+                            setActiveTab('detail')
+                          }}
+                        >
+                          <i className='fa-solid fa-eye' />
+                        </button>
+                        <button
+                          type='button'
+                          className='admin-btn admin-btn-danger'
+                          onClick={async () => {
+                            const confirmed = await AlertJs.confirm(lang === 'vi' ? 'Bạn có chắc muốn xóa khóa học này?' : lang === 'en' ? 'Are you sure you want to delete this course?' : 'Möchten Sie diesen Kurs wirklich löschen?')
+                            if (!confirmed) return
+                            await adminCoursesApi.deleteCourse(c.id)
+                            await onCourseCreated()
+                            if (selectedCourseId === c.id) {
+                              setSelectedCourseId(null)
+                              setSelectedCourse(null)
+                              setActiveTab('list')
+                            }
+                          }}
+                        >
+                          <i className='fa-solid fa-trash' />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -11,7 +11,15 @@ import { LessonMediaType, ProgressStatus } from '@prisma/client'
 export class LessonsService {
   constructor(private readonly prisma: PrismaService, private readonly enrollments: EnrollmentsService, private readonly media: LessonsMediaService) {}
 
-  async findOne(user: JwtUser, id: number) {
+  private resolveLocale(lang?: string): 'vi' | 'en' | 'de' {
+    const activeLang = (lang || 'vi').toLowerCase()
+    if (activeLang === 'en-us' || activeLang === 'en') return 'en'
+    if (activeLang === 'de') return 'de'
+    return 'vi'
+  }
+
+  async findOne(user: JwtUser, id: number, lang?: string) {
+    const locale = this.resolveLocale(lang)
     const lesson = await this.prisma.lesson.findUnique({
       where: { id },
       select: {
@@ -37,10 +45,16 @@ export class LessonsService {
 
     return {
       ...lesson,
+      localizedTitle: lesson.translations.find((item) => item.locale === locale)?.title || lesson.title,
+      localizedDescription: lesson.translations.find((item) => item.locale === locale)?.description || lesson.description,
       modules: lesson.modules.map((module) => ({
         ...module,
+        localizedTitle: module.translations.find((item) => item.locale === locale)?.title || module.title,
+        localizedDescription: module.translations.find((item) => item.locale === locale)?.description || module.description,
         videos: module.videos.map((video) => ({
           ...video,
+          localizedTitle: video.translations.find((item) => item.locale === locale)?.title || video.title,
+          localizedDescription: video.translations.find((item) => item.locale === locale)?.description || video.description,
           playbackUrl: this.media.buildSingleMediaUrl(video.sourceUrl || video.hlsPlaylistKey || ''),
         })),
       })),

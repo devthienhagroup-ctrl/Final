@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { adminCoursesApi } from '../../../../api/adminCourses.api'
+import { useEffect, useMemo, useState } from 'react'
+import { adminCoursesApi, type LessonDetailAdmin, type LessonI18n } from '../../../../api/adminCourses.api'
 import { AlertJs } from '../../../../utils/alertJs'
 import { autoTranslateFromVietnamese } from '../../tabs/i18nForm'
 
@@ -7,8 +7,9 @@ type Props = {
   open: boolean
   lang: 'vi' | 'en' | 'de'
   courseId: number
+  editingLesson?: LessonDetailAdmin | null
   onClose: () => void
-  onCreated: () => Promise<void> | void
+  onSaved: () => Promise<void> | void
 }
 
 type AdminLang = 'vi' | 'en' | 'de'
@@ -16,15 +17,20 @@ type MediaType = 'VIDEO' | 'IMAGE'
 type I18nText = Record<AdminLang, string>
 
 type MediaForm = {
+  id?: number
   title: I18nText
   description: I18nText
   mediaType: MediaType
+  sourceUrl?: string
+  order: number
   file: File | null
 }
 
 type ModuleForm = {
+  id?: number
   title: I18nText
   description: I18nText
+  order: number
   medias: MediaForm[]
 }
 
@@ -32,6 +38,7 @@ type FormState = {
   title: I18nText
   slug: string
   description: I18nText
+  order: number
   modules: ModuleForm[]
 }
 
@@ -39,79 +46,100 @@ const emptyI18n = (): I18nText => ({ vi: '', en: '', de: '' })
 
 const textByLang = {
   vi: {
-    title: 'Tạo bài học mới',
+    createTitle: 'Tạo bài học mới',
+    editTitle: 'Chỉnh sửa bài học',
     inputLang: 'Ngôn ngữ nhập liệu',
     lessonTitle: 'Tiêu đề bài học *',
     slug: 'Slug',
     lessonDescription: 'Mô tả bài học *',
+    lessonOrder: 'Số thứ tự bài học *',
     moduleTitle: 'Tên module *',
     moduleDescription: 'Mô tả module *',
+    moduleOrder: 'Số thứ tự module *',
     mediaTitle: 'Tiêu đề video/ảnh *',
     mediaDescription: 'Mô tả video/ảnh *',
     mediaType: 'Loại media *',
-    mediaFile: 'File video/ảnh *',
+    mediaOrder: 'Số thứ tự media *',
+    mediaFile: 'File video/ảnh',
+    keepCurrentMedia: 'Giữ media hiện tại nếu không chọn file mới.',
     addModule: 'Thêm module',
     removeModule: 'Xóa module',
     addMedia: 'Thêm media',
     removeMedia: 'Xóa media',
-    save: 'Tạo bài học',
+    create: 'Tạo bài học',
+    save: 'Lưu bài học',
     close: 'Đóng',
     missing: 'Vui lòng nhập đầy đủ thông tin tiếng Việt cho bài học, module và media.',
     moduleMissingMedia: 'Mỗi module cần ít nhất 1 media (ảnh hoặc video).',
     invalidFile: 'Vui lòng chọn đúng file ảnh/video cho từng media.',
-    creating: 'Đang tạo bài học...',
+    creating: 'Đang xử lý bài học...',
     uploadingMedia: 'Đang tải media {current}/{total}...',
-    success: 'Đã tạo bài học mới.',
+    createSuccess: 'Đã tạo bài học mới.',
+    updateSuccess: 'Đã cập nhật bài học.',
   },
   en: {
-    title: 'Create new lesson',
+    createTitle: 'Create new lesson',
+    editTitle: 'Edit lesson',
     inputLang: 'Input language',
     lessonTitle: 'Lesson title *',
     slug: 'Slug',
     lessonDescription: 'Lesson description *',
+    lessonOrder: 'Lesson order *',
     moduleTitle: 'Module title *',
     moduleDescription: 'Module description *',
+    moduleOrder: 'Module order *',
     mediaTitle: 'Video/Image title *',
     mediaDescription: 'Video/Image description *',
     mediaType: 'Media type *',
-    mediaFile: 'Video/Image file *',
+    mediaOrder: 'Media order *',
+    mediaFile: 'Video/Image file',
+    keepCurrentMedia: 'Keep current media if no file is selected.',
     addModule: 'Add module',
     removeModule: 'Remove module',
     addMedia: 'Add media',
     removeMedia: 'Remove media',
-    save: 'Create lesson',
+    create: 'Create lesson',
+    save: 'Save lesson',
     close: 'Close',
     missing: 'Please complete Vietnamese content for lesson, module, and media.',
     moduleMissingMedia: 'Each module must include at least one media file.',
     invalidFile: 'Please attach a valid image/video file for each media item.',
-    creating: 'Creating lesson...',
+    creating: 'Processing lesson...',
     uploadingMedia: 'Uploading media {current}/{total}...',
-    success: 'Created lesson successfully.',
+    createSuccess: 'Created lesson successfully.',
+    updateSuccess: 'Lesson updated successfully.',
   },
   de: {
-    title: 'Neue Lektion erstellen',
+    createTitle: 'Neue Lektion erstellen',
+    editTitle: 'Lektion bearbeiten',
     inputLang: 'Eingabesprache',
     lessonTitle: 'Lektionstitel *',
     slug: 'Slug',
     lessonDescription: 'Lektionsbeschreibung *',
+    lessonOrder: 'Reihenfolge Lektion *',
     moduleTitle: 'Modulname *',
     moduleDescription: 'Modulbeschreibung *',
+    moduleOrder: 'Reihenfolge Modul *',
     mediaTitle: 'Video/Bild-Titel *',
     mediaDescription: 'Video/Bild-Beschreibung *',
     mediaType: 'Medientyp *',
-    mediaFile: 'Video/Bild-Datei *',
+    mediaOrder: 'Reihenfolge Medien *',
+    mediaFile: 'Video/Bild-Datei',
+    keepCurrentMedia: 'Behalten Sie das aktuelle Medium, wenn keine neue Datei ausgewählt wird.',
     addModule: 'Modul hinzufügen',
     removeModule: 'Modul löschen',
     addMedia: 'Medium hinzufügen',
     removeMedia: 'Medium löschen',
-    save: 'Lektion erstellen',
+    create: 'Lektion erstellen',
+    save: 'Lektion speichern',
     close: 'Schließen',
     missing: 'Bitte füllen Sie die vietnamesischen Inhalte für Lektion, Modul und Medien aus.',
     moduleMissingMedia: 'Jedes Modul muss mindestens eine Mediendatei enthalten.',
     invalidFile: 'Bitte wählen Sie für jedes Medium eine gültige Bild-/Videodatei aus.',
-    creating: 'Lektion wird erstellt...',
+    creating: 'Lektion wird verarbeitet...',
     uploadingMedia: 'Medien werden hochgeladen {current}/{total}...',
-    success: 'Lektion erfolgreich erstellt.',
+    createSuccess: 'Lektion erfolgreich erstellt.',
+    updateSuccess: 'Lektion erfolgreich aktualisiert.',
   },
 } as const
 
@@ -124,16 +152,54 @@ const slugify = (value: string) =>
     .trim()
     .replace(/\s+/g, '-')
 
+const normalizeTranslations = (translations?: LessonI18n): I18nText => {
+  const base = emptyI18n()
+  if (!translations) return base
+  if (Array.isArray(translations)) {
+    translations.forEach((item) => {
+      if (item.locale === 'vi' || item.locale === 'en' || item.locale === 'de') {
+        base[item.locale] = item.title || ''
+      }
+    })
+    return base
+  }
+  return {
+    vi: translations.vi?.title || '',
+    en: translations.en?.title || '',
+    de: translations.de?.title || '',
+  }
+}
+
+const normalizeDescriptions = (translations?: LessonI18n): I18nText => {
+  const base = emptyI18n()
+  if (!translations) return base
+  if (Array.isArray(translations)) {
+    translations.forEach((item) => {
+      if (item.locale === 'vi' || item.locale === 'en' || item.locale === 'de') {
+        base[item.locale] = item.description || ''
+      }
+    })
+    return base
+  }
+  return {
+    vi: translations.vi?.description || '',
+    en: translations.en?.description || '',
+    de: translations.de?.description || '',
+  }
+}
+
 const createEmptyMedia = (): MediaForm => ({
   title: emptyI18n(),
   description: emptyI18n(),
   mediaType: 'VIDEO',
+  order: 0,
   file: null,
 })
 
 const createEmptyModule = (): ModuleForm => ({
   title: emptyI18n(),
   description: emptyI18n(),
+  order: 0,
   medias: [createEmptyMedia()],
 })
 
@@ -141,6 +207,7 @@ const initialForm: FormState = {
   title: emptyI18n(),
   slug: '',
   description: emptyI18n(),
+  order: 0,
   modules: [createEmptyModule()],
 }
 
@@ -149,14 +216,76 @@ const inferMediaTypeFromFile = (file: File | null): MediaType => {
   return file.type.startsWith('image/') ? 'IMAGE' : 'VIDEO'
 }
 
-export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: Props) {
+const toNumber = (value: string) => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
+}
+
+const buildFormFromLesson = (lesson: LessonDetailAdmin): FormState => ({
+  title: {
+    vi: normalizeTranslations(lesson.translations).vi || lesson.title || '',
+    en: normalizeTranslations(lesson.translations).en,
+    de: normalizeTranslations(lesson.translations).de,
+  },
+  slug: lesson.slug,
+  description: {
+    vi: normalizeDescriptions(lesson.translations).vi || lesson.description || '',
+    en: normalizeDescriptions(lesson.translations).en,
+    de: normalizeDescriptions(lesson.translations).de,
+  },
+  order: lesson.order ?? 0,
+  modules: lesson.modules.length
+    ? lesson.modules.map((module) => ({
+      id: module.id,
+      title: {
+        vi: normalizeTranslations(module.translations).vi || module.title || '',
+        en: normalizeTranslations(module.translations).en,
+        de: normalizeTranslations(module.translations).de,
+      },
+      description: {
+        vi: normalizeDescriptions(module.translations).vi || module.description || '',
+        en: normalizeDescriptions(module.translations).en,
+        de: normalizeDescriptions(module.translations).de,
+      },
+      order: module.order ?? 0,
+      medias: module.videos.length
+        ? module.videos.map((media) => ({
+          id: media.id,
+          title: {
+            vi: normalizeTranslations(media.translations).vi || media.title || '',
+            en: normalizeTranslations(media.translations).en,
+            de: normalizeTranslations(media.translations).de,
+          },
+          description: {
+            vi: normalizeDescriptions(media.translations).vi || media.description || '',
+            en: normalizeDescriptions(media.translations).en,
+            de: normalizeDescriptions(media.translations).de,
+          },
+          mediaType: media.mediaType || 'VIDEO',
+          sourceUrl: media.sourceUrl || media.playbackUrl || media.hlsPlaylistKey || '',
+          order: media.order ?? 0,
+          file: null,
+        }))
+        : [createEmptyMedia()],
+    }))
+    : [createEmptyModule()],
+})
+
+export function CreateLessonModal({ open, lang, courseId, editingLesson, onClose, onSaved }: Props) {
   const t = textByLang[lang]
   const [submitting, setSubmitting] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null)
   const [inputLang, setInputLang] = useState<AdminLang>('vi')
   const [form, setForm] = useState<FormState>(initialForm)
 
+  useEffect(() => {
+    if (!open) return
+    setInputLang('vi')
+    setForm(editingLesson ? buildFormFromLesson(editingLesson) : initialForm)
+  }, [open, editingLesson])
+
   const slug = useMemo(() => slugify(form.title.vi), [form.title.vi])
+  const isEditMode = Boolean(editingLesson)
 
   if (!open) return null
 
@@ -183,7 +312,13 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: 
     })
   }
 
-  const addModule = () => setForm((prev) => ({ ...prev, modules: [...prev.modules, createEmptyModule()] }))
+  const updateLessonOrder = (value: string) => {
+    setForm((prev) => ({ ...prev, order: toNumber(value) }))
+  }
+
+  const addModule = () => {
+    setForm((prev) => ({ ...prev, modules: [...prev.modules, { ...createEmptyModule(), order: prev.modules.length }] }))
+  }
 
   const removeModule = (moduleIndex: number) => {
     setForm((prev) => {
@@ -207,10 +342,17 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: 
     })
   }
 
+  const updateModuleOrder = (moduleIndex: number, value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      modules: prev.modules.map((module, idx) => idx === moduleIndex ? { ...module, order: toNumber(value) } : module),
+    }))
+  }
+
   const addMedia = (moduleIndex: number) => {
     setForm((prev) => ({
       ...prev,
-      modules: prev.modules.map((module, idx) => idx === moduleIndex ? { ...module, medias: [...module.medias, createEmptyMedia()] } : module),
+      modules: prev.modules.map((module, idx) => idx === moduleIndex ? { ...module, medias: [...module.medias, { ...createEmptyMedia(), order: module.medias.length }] } : module),
     }))
   }
 
@@ -265,6 +407,19 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: 
     }))
   }
 
+  const updateMediaOrder = (moduleIndex: number, mediaIndex: number, value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      modules: prev.modules.map((module, idx) => {
+        if (idx !== moduleIndex) return module
+        return {
+          ...module,
+          medias: module.medias.map((media, mIdx) => mIdx === mediaIndex ? { ...media, order: toNumber(value) } : media),
+        }
+      }),
+    }))
+  }
+
   const updateMediaFile = (moduleIndex: number, mediaIndex: number, file: File | null) => {
     setForm((prev) => ({
       ...prev,
@@ -283,29 +438,35 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: 
 
   const validate = async () => {
     if (!form.title.vi.trim() || !form.description.vi.trim() || !slug.trim()) {
-      await AlertJs.error(t.missing)
+      await AlertJs.error(t.missing, '')
       return false
     }
 
     for (const module of form.modules) {
       if (!module.title.vi.trim() || !module.description.vi.trim()) {
-        await AlertJs.error(t.missing)
+        await AlertJs.error(t.missing, '')
         return false
       }
       if (!module.medias.length) {
-        await AlertJs.error(t.moduleMissingMedia)
+        await AlertJs.error(t.moduleMissingMedia, '')
         return false
       }
       for (const media of module.medias) {
-        if (!media.title.vi.trim() || !media.description.vi.trim() || !media.file) {
-          await AlertJs.error(t.missing)
+        if (!media.title.vi.trim() || !media.description.vi.trim()) {
+          await AlertJs.error(t.missing, '')
           return false
         }
-        const isImage = media.file.type.startsWith('image/')
-        const isVideo = media.file.type.startsWith('video/')
-        if (!isImage && !isVideo) {
-          await AlertJs.error(t.invalidFile)
+        if (!media.file && !media.sourceUrl) {
+          await AlertJs.error(t.missing, '')
           return false
+        }
+        if (media.file) {
+          const isImage = media.file.type.startsWith('image/')
+          const isVideo = media.file.type.startsWith('video/')
+          if (!isImage && !isVideo) {
+            await AlertJs.error(t.invalidFile, '')
+            return false
+          }
         }
       }
     }
@@ -320,10 +481,11 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: 
     try {
       setSubmitting(true)
 
-      const createdLesson = await adminCoursesApi.createLesson(courseId, {
+      const payload = {
         title: form.title.vi.trim(),
         slug,
         description: form.description.vi.trim(),
+        order: form.order,
         translations: {
           vi: { title: form.title.vi.trim(), description: form.description.vi.trim() },
           en: { title: form.title.en.trim(), description: form.description.en.trim() },
@@ -332,7 +494,7 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: 
         modules: form.modules.map((module, moduleIndex) => ({
           title: module.title.vi.trim(),
           description: module.description.vi.trim(),
-          order: moduleIndex,
+          order: module.order,
           translations: {
             vi: { title: module.title.vi.trim(), description: module.description.vi.trim() },
             en: { title: module.title.en.trim(), description: module.description.en.trim() },
@@ -342,8 +504,8 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: 
             title: media.title.vi.trim(),
             description: media.description.vi.trim(),
             mediaType: media.mediaType,
-            sourceUrl: `pending-upload-${moduleIndex}-${mediaIndex}`,
-            order: mediaIndex,
+            sourceUrl: media.sourceUrl || `pending-upload-${moduleIndex}-${mediaIndex}`,
+            order: media.order,
             translations: {
               vi: { title: media.title.vi.trim(), description: media.description.vi.trim() },
               en: { title: media.title.en.trim(), description: media.description.en.trim() },
@@ -351,9 +513,13 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: 
             },
           })),
         })),
-      })
+      }
 
-      const detail = await adminCoursesApi.getLessonDetail(createdLesson.id)
+      const persistedLesson = isEditMode && editingLesson
+        ? await adminCoursesApi.updateLesson(editingLesson.id, payload)
+        : await adminCoursesApi.createLesson(courseId, payload)
+
+      const detail = await adminCoursesApi.getLessonDetail(persistedLesson.id, lang)
       const totalMediaCount = form.modules.reduce((sum, module) => sum + module.medias.filter((media) => Boolean(media.file)).length, 0)
       setUploadProgress(totalMediaCount > 0 ? { current: 0, total: totalMediaCount } : null)
       let uploadedCount = 0
@@ -367,17 +533,17 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: 
           const media = inputModule.medias[mediaIndex]
           if (!media.file) continue
           const uploadType = media.mediaType === 'IMAGE' ? 'image' : 'video'
-          await adminCoursesApi.uploadModuleMedia(createdLesson.id, createdModule.id, media.file, uploadType, mediaIndex)
+          await adminCoursesApi.uploadModuleMedia(detail.id, createdModule.id, media.file, uploadType, media.order)
           uploadedCount += 1
           setUploadProgress(totalMediaCount > 0 ? { current: uploadedCount, total: totalMediaCount } : null)
         }
       }
 
-      await AlertJs.success(t.success)
+      await AlertJs.success(isEditMode ? t.updateSuccess : t.createSuccess)
       setForm(initialForm)
       setInputLang('vi')
       onClose()
-      await onCreated()
+      await onSaved()
     } finally {
       setSubmitting(false)
       setUploadProgress(null)
@@ -386,15 +552,15 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: 
 
   const uploadProgressText = uploadProgress
     ? t.uploadingMedia
-        .replace('{current}', String(uploadProgress.current))
-        .replace('{total}', String(uploadProgress.total))
+      .replace('{current}', String(uploadProgress.current))
+      .replace('{total}', String(uploadProgress.total))
     : t.creating
 
   return (
     <div className='admin-modal-backdrop' role='dialog' aria-modal='true'>
       <div className='admin-modal create-course-modal'>
         <div className='admin-modal-header'>
-          <h4><i className='fa-solid fa-circle-plus' /> {t.title}</h4>
+          <h4><i className={`fa-solid ${isEditMode ? 'fa-pen-to-square' : 'fa-circle-plus'}`} /> {isEditMode ? t.editTitle : t.createTitle}</h4>
           <button type='button' className='admin-btn admin-btn-ghost' onClick={onClose}>{t.close}</button>
         </div>
 
@@ -419,6 +585,11 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: 
             <input className='admin-input' value={slug || form.slug} disabled />
           </label>
 
+          <label className='admin-field'>
+            <span className='admin-label'>{t.lessonOrder}</span>
+            <input className='admin-input' type='number' min={0} value={form.order} onChange={(e) => updateLessonOrder(e.target.value)} />
+          </label>
+
           <label className='admin-field admin-field-full'>
             <span className='admin-label'>{t.lessonDescription}</span>
             <textarea className='admin-input' rows={2} value={form.description[inputLang]} onChange={(e) => updateLessonField('description', e.target.value)} />
@@ -441,6 +612,11 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: 
                 <label className='admin-field'>
                   <span className='admin-label'>{t.moduleDescription}</span>
                   <input className='admin-input' value={module.description[inputLang]} onChange={(e) => updateModuleField(moduleIndex, 'description', e.target.value)} />
+                </label>
+
+                <label className='admin-field admin-field-full'>
+                  <span className='admin-label'>{t.moduleOrder}</span>
+                  <input className='admin-input' type='number' min={0} value={module.order} onChange={(e) => updateModuleOrder(moduleIndex, e.target.value)} />
                 </label>
 
                 {module.medias.map((media, mediaIndex) => (
@@ -470,6 +646,11 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: 
                         </select>
                       </label>
                       <label className='admin-field'>
+                        <span className='admin-label'>{t.mediaOrder}</span>
+                        <input className='admin-input' type='number' min={0} value={media.order} onChange={(e) => updateMediaOrder(moduleIndex, mediaIndex, e.target.value)} />
+                      </label>
+
+                      <label className='admin-field admin-field-full'>
                         <span className='admin-label'>{t.mediaFile}</span>
                         <input
                           className='admin-input'
@@ -477,6 +658,7 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: 
                           accept={media.mediaType === 'IMAGE' ? 'image/*' : 'video/*'}
                           onChange={(e) => updateMediaFile(moduleIndex, mediaIndex, e.target.files?.[0] || null)}
                         />
+                        {media.sourceUrl && <small className='admin-helper'>{t.keepCurrentMedia}</small>}
                       </label>
                     </div>
                   </div>
@@ -500,7 +682,7 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: 
 
         <div className='admin-row create-course-footer'>
           <button type='button' className='admin-btn admin-btn-save' disabled={submitting} onClick={() => void submit()}>
-            <i className={`fa-solid ${submitting ? 'fa-spinner fa-spin' : 'fa-floppy-disk'}`} /> {submitting ? uploadProgressText : t.save}
+            <i className={`fa-solid ${submitting ? 'fa-spinner fa-spin' : 'fa-floppy-disk'}`} /> {submitting ? uploadProgressText : isEditMode ? t.save : t.create}
           </button>
         </div>
       </div>

@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseInterceptors,
   UseGuards,
@@ -32,8 +33,9 @@ export class LessonsController {
   findOne(
     @CurrentUser() user: JwtUser,
     @Param('id', ParseIntPipe) id: number,
+    @Query('lang') lang?: string,
   ) {
-    return this.lessons.findOne(user, id)
+    return this.lessons.findOne(user, id, lang)
   }
 
   // ADMIN: tạo lesson trong course

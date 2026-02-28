@@ -11,11 +11,12 @@ export type CourseTopic = {
 }
 
 export type LocalizedText = { vi?: string; en?: string; de?: string }
+export type LessonI18n = Record<string, { title?: string; description?: string }> | Array<{ locale: string; title?: string; description?: string }>
 
 export type LessonVideoPayload = {
   title: string
   description?: string
-  translations?: Record<string, { title: string; shortDescription?: string; description?: string }>
+  translations?: LessonI18n
   mediaType?: 'VIDEO' | 'IMAGE'
   sourceUrl?: string
   durationSec?: number
@@ -26,7 +27,7 @@ export type LessonVideoPayload = {
 export type LessonModulePayload = {
   title: string
   description?: string
-  translations?: Record<string, { title: string; shortDescription?: string; description?: string }>
+  translations?: LessonI18n
   order?: number
   published?: boolean
   videos?: LessonVideoPayload[]
@@ -36,7 +37,7 @@ export type LessonPayload = {
   title: string
   slug: string
   description?: string
-  translations?: Record<string, { title: string; shortDescription?: string; description?: string; objectives?: string[]; targetAudience?: string[]; benefits?: string[] }>
+  translations?: LessonI18n
   content?: string
   videoUrl?: string
   modules?: LessonModulePayload[]
@@ -44,8 +45,8 @@ export type LessonPayload = {
   published?: boolean
 }
 
-export type LessonVideoAdmin = LessonVideoPayload & { id: number; hlsPlaylistKey?: string; playbackUrl?: string }
-export type LessonModuleAdmin = LessonModulePayload & { id: number; videos: LessonVideoAdmin[] }
+export type LessonVideoAdmin = LessonVideoPayload & { id: number; hlsPlaylistKey?: string; playbackUrl?: string; localizedTitle?: string; localizedDescription?: string }
+export type LessonModuleAdmin = LessonModulePayload & { id: number; videos: LessonVideoAdmin[]; localizedTitle?: string; localizedDescription?: string }
 
 export type LessonAdmin = {
   id: number
@@ -53,7 +54,7 @@ export type LessonAdmin = {
   title: string
   slug: string
   description?: string
-  translations?: Record<string, { title: string; description?: string }>
+  translations?: LessonI18n
   content?: string
   order?: number
   published: boolean
@@ -162,7 +163,12 @@ export const adminCoursesApi = {
     const suffix = qs.toString() ? `?${qs.toString()}` : ''
     return get<LessonOutlineAdmin[]>(`/courses/${courseId}/lessons-outline${suffix}`, { auth: true })
   },
-  getLessonDetail: (lessonId: number) => get<LessonDetailAdmin>(`/lessons/${lessonId}`, { auth: true }),
+  getLessonDetail: (lessonId: number, lang?: string) => {
+    const qs = new URLSearchParams()
+    if (lang) qs.set('lang', lang)
+    const suffix = qs.toString() ? `?${qs.toString()}` : ''
+    return get<LessonDetailAdmin>(`/lessons/${lessonId}${suffix}`, { auth: true })
+  },
   createLesson: (courseId: number, body: LessonPayload) => post<LessonAdmin>(`/courses/${courseId}/lessons`, body, { auth: true }),
   updateLesson: (lessonId: number, body: Partial<LessonPayload>) => patch<LessonAdmin>(`/lessons/${lessonId}`, body, { auth: true }),
   deleteLesson: (lessonId: number) => del<{ id: number }>(`/lessons/${lessonId}`, { auth: true }),

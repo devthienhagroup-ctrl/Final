@@ -55,16 +55,6 @@ async function bootstrap() {
     optionsSuccessStatus: 204,
   });
 
-  app.useGlobalPipes(
-  new ValidationPipe({
-    transform: true,
-    whitelist: true,
-    transformOptions: {
-      enableImplicitConversion: false, // QUAN TRỌNG
-    },
-  }),
-)
-
   // ✅ serve temporary uploaded images
   app.use("/booking-temp-images", express.static(join(process.cwd(), "temp-images")));
 

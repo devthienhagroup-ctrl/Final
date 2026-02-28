@@ -477,7 +477,7 @@ export default function ProductDetailPage() {
     if (!Number.isFinite(productId)) return;
     void addItem({ productId, quantity: q, name: apiProduct?.name, price: Number(apiProduct?.price || 0), image: apiProduct?.imageUrl || undefined });
                             Swal.fire({
-                            title: "Successfully added to cart",
+                            title: "Succ",
                             icon: "success",
                             position: "top-right",
                             toast: true,

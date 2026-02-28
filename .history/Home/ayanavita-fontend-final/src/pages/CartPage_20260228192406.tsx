@@ -82,7 +82,6 @@ type ApiUpsellProduct = {
   price: number;
   image?: string | null;
   shortDescription?: string | null;
-  slug: string;
 };
 
 // Nội dung mặc định (fallback)

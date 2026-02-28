@@ -82,7 +82,6 @@ type ApiUpsellProduct = {
   price: number;
   image?: string | null;
   shortDescription?: string | null;
-  slug: string;
 };
 
 // Nội dung mặc định (fallback)
@@ -197,7 +196,7 @@ export default function CartPage() {
             sort: "newest",
           },
         });
-        console.log("API upsell products:", res.data);
+
         if (cancelled) return;
         const rows = Array.isArray(res.data?.items) ? res.data.items : [];
         setUpsellProducts(rows.slice(0, 6));
@@ -349,14 +348,7 @@ export default function CartPage() {
       image: product.image || "",
     });
 
-                            Swal.fire({
-                            title: cms.addToCartMessage,
-                            icon: "success",
-                            position: "top-right",
-                            toast: true,
-                            showConfirmButton: false,
-                            timer: 2000,
-                        });
+    window.alert(cms.addToCartMessage);
   }
 
   function clearAll() {
@@ -641,22 +633,14 @@ export default function CartPage() {
                       <div className="text-sm text-slate-600 line-clamp-2">
                         {p.shortDescription || ""}
                       </div>
-                        <div className="mt-1 font-extrabold text-right">{money(p.price)}</div>
-                      <div className="flex items-center justify-between mt-2 gap-2">
                       <button
-                        className="btn w-3/4"
+                        className="mt-3 btn w-full"
                         type="button"
                         onClick={() => onUpsellAdd(p)}
                       >
-                        <i className="fa-solid fa-plus mr-2"/>
+                        <i className="fa-solid fa-plus mr-2" />
                         {cms.addButton}
                       </button>
-
-                      <a href={`/products/${p.slug}`} type="button" className="w-1/4 btn h-full">
-                        <i className="fa-solid fa-info-circle text-slate-500"></i>
-                      </a>
-
-                      </div>
                     </div>
                   );
                 })}

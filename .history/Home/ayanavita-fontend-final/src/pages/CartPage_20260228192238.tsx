@@ -82,7 +82,6 @@ type ApiUpsellProduct = {
   price: number;
   image?: string | null;
   shortDescription?: string | null;
-  slug: string;
 };
 
 // Nội dung mặc định (fallback)
@@ -641,7 +640,7 @@ export default function CartPage() {
                       <div className="text-sm text-slate-600 line-clamp-2">
                         {p.shortDescription || ""}
                       </div>
-                        <div className="mt-1 font-extrabold text-right">{money(p.price)}</div>
+                        <div className="mt-1 font-extrabold">{money(p.price)}</div>
                       <div className="flex items-center justify-between mt-2 gap-2">
                       <button
                         className="btn w-3/4"
@@ -652,7 +651,7 @@ export default function CartPage() {
                         {cms.addButton}
                       </button>
 
-                      <a href={`/products/${p.slug}`} type="button" className="w-1/4 btn h-full">
+                      <a type="button" className="w-1/4 btn h-full">
                         <i className="fa-solid fa-info-circle text-slate-500"></i>
                       </a>
 

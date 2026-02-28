@@ -272,7 +272,7 @@ export default function AccountCenter() {
 
         {forgotStep === "email" && (
           <form className="flex flex-col gap-4 md:flex-row" onSubmit={onSendForgotOtp}>
-            <input className="flex-1 rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-slate-600" type="text" placeholder="Email tài khoản" value={maskEmail(forgotForm.email)} readOnly />
+            <input className="flex-1 rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-slate-600" type="text" placeholder="Email tài khoản" value={forgotForm.email}/>
             <button type="submit" className="rounded-xl border border-indigo-300 px-4 py-2 font-semibold text-indigo-700 hover:bg-indigo-50">Gửi OTP</button>
           </form>
         )}

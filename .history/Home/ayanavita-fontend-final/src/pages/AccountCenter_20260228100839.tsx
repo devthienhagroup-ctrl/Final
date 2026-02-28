@@ -152,6 +152,7 @@ export default function AccountCenter() {
       setMessage(res?.message || "OTP đã được gửi tới email.");
     } catch (e: any) {
       const serverMessage = e?.response?.data?.message;
+      const serverMessage = e?.response?.data?.message;
       setError(serverMessage === "Email không đúng" ? "Email không đúng" : serverMessage || "Không gửi được OTP.");
     } finally {
       setLoading(false);

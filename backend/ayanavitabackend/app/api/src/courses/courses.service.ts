@@ -113,23 +113,11 @@ export class CoursesService {
     }
   }
 
-  async lessonsOutline(user: JwtUser, courseId: number, lang?: string) {
+  async lessonsOutline(user: JwtUser, courseId: number) { /* unchanged */
     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } })
     if (!course) throw new NotFoundException('Course not found')
     if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
-    const locale = this.resolveCourseLocale(lang)
-    const rows = await this.prisma.lesson.findMany({
-      where: { courseId },
-      select: {
-        id: true, courseId: true, title: true, slug: true, stt: true, createdAt: true, updatedAt: true,
-        translations: { where: { locale: { in: [locale, 'vi'] } }, select: { locale: true, title: true, description: true } },
-      },
-      orderBy: [{ stt: 'asc' }, { id: 'asc' }],
-    })
-    return rows.map((row) => {
-      const tr = row.translations.find((x: any) => x.locale === locale) || row.translations.find((x: any) => x.locale === 'vi')
-      return { ...row, title: tr?.title || row.title, description: tr?.description || null }
-    })
+    return this.prisma.lesson.findMany({ where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) }, select: { id: true, courseId: true, title: true, slug: true, order: true, published: true, createdAt: true, updatedAt: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] })
   }
 
   async findAll(query: CourseQueryDto, user?: { sub: number; role: string } | null) {
@@ -258,7 +246,7 @@ export class CoursesService {
 
   async listLessons(user: { sub: number; role: string }, courseId: number) { /* kept */
     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } }); if (!course) throw new NotFoundException('Course not found'); await this.enrollments.assertEnrolledOrAdmin(user, courseId); if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
-    const lessons = await this.prisma.lesson.findMany({ where: { courseId }, select: { id: true, courseId: true, title: true, slug: true, stt: true, createdAt: true, updatedAt: true }, orderBy: [{ stt: 'asc' }, { id: 'asc' }] })
+    const lessons = await this.prisma.lesson.findMany({ where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) }, select: { id: true, courseId: true, title: true, slug: true, order: true, published: true, createdAt: true, updatedAt: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] })
     if (user.role === 'ADMIN') return lessons.map((l) => ({ ...l, locked: false, lockReason: null, progress: null }))
     const progressRows = await this.prisma.lessonProgress.findMany({ where: { userId: user.sub, lessonId: { in: lessons.map((l) => l.id) } }, select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true } })
     const progressMap = new Map(progressRows.map((p) => [p.lessonId, p])); let prevCompleted = true
@@ -267,8 +255,9 @@ export class CoursesService {
 
   async getLessonDetail(user: { sub: number; role: string }, courseId: number, lessonId: number) { /* kept */
     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } }); if (!course) throw new NotFoundException('Course not found'); await this.enrollments.assertEnrolledOrAdmin(user, courseId); if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
-    const lesson = await this.prisma.lesson.findFirst({ where: { id: lessonId, courseId }, select: { id: true, courseId: true, title: true, slug: true, content: true, stt: true, createdAt: true, updatedAt: true } }); if (!lesson) throw new NotFoundException('Lesson not found')
-    if (user.role !== 'ADMIN') { const orderedLessons = await this.prisma.lesson.findMany({ where: { courseId }, select: { id: true }, orderBy: [{ stt: 'asc' }, { id: 'asc' }] }); const idx = orderedLessons.findIndex((l) => l.id === lessonId); if (idx < 0) throw new NotFoundException('Lesson not found'); if (idx > 0) { const prevLessonId = orderedLessons[idx - 1].id; const prevProgress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId: prevLessonId } }, select: { status: true } }); if (prevProgress?.status !== ProgressStatus.COMPLETED) throw new ForbiddenException('Lesson locked') } }
+    const lesson = await this.prisma.lesson.findFirst({ where: { id: lessonId, courseId }, select: { id: true, courseId: true, title: true, slug: true, content: true, videoUrl: true, order: true, published: true, createdAt: true, updatedAt: true } }); if (!lesson) throw new NotFoundException('Lesson not found')
+    if (user.role !== 'ADMIN' && !lesson.published) throw new NotFoundException('Lesson not found')
+    if (user.role !== 'ADMIN') { const orderedLessons = await this.prisma.lesson.findMany({ where: { courseId, published: true }, select: { id: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] }); const idx = orderedLessons.findIndex((l) => l.id === lessonId); if (idx < 0) throw new NotFoundException('Lesson not found'); if (idx > 0) { const prevLessonId = orderedLessons[idx - 1].id; const prevProgress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId: prevLessonId } }, select: { status: true } }); if (prevProgress?.status !== ProgressStatus.COMPLETED) throw new ForbiddenException('Lesson locked') } }
     const progress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId } }, select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true } })
     return { ...lesson, progress: progress ?? null }
   }

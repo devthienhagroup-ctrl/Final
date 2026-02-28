@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { type CourseDetailAdmin, type CourseTopic } from '../../../../api/adminCourses.api'
 import { CourseDetailInfoTab } from './CourseDetailInfoTab'
-import { CourseLessonListTab } from './CourseLessonListTab'
 
 type Props = {
   course: CourseDetailAdmin
@@ -11,12 +10,16 @@ type Props = {
   onCourseUpdated: () => Promise<void> | void
 }
 
-type DetailTabKey = 'info' | 'lessons'
+type DetailTabKey = 'info' | 'content'
 
 export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated }: Props) {
   const [activeTab, setActiveTab] = useState<DetailTabKey>('info')
 
-  const lessonTabLabel = useMemo(() => (lang === 'vi' ? 'Danh sách bài học' : lang === 'en' ? 'Lesson list' : 'Lektionsliste'), [lang])
+  const localizedContent = useMemo(() => ({
+    objectives: course.objectives || [],
+    targetAudience: course.targetAudience || [],
+    benefits: course.benefits || [],
+  }), [course])
 
   return (
     <section>
@@ -29,14 +32,35 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated }
                   ? 'Course Information'
                   : 'Kursinformationen'}
         </button>
-        <button className={`admin-tab ${activeTab === 'lessons' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('lessons')}>
-          <i className='fa-solid fa-list-check' /> {lessonTabLabel}
+        <button className={`admin-tab ${activeTab === 'content' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('content')}>
+          <i className='fa-solid fa-list-check' /> {lang === 'vi' ? 'Nội dung mở rộng' : lang === 'en' ? 'Extended content' : 'Erweiterte Inhalte'}
         </button>
       </div>
 
       {activeTab === 'info' && <CourseDetailInfoTab course={course} text={text} lang={lang} topics={topics} onUpdated={onCourseUpdated} />}
 
-      {activeTab === 'lessons' && <CourseLessonListTab course={course} lang={lang} onUpdated={onCourseUpdated} />}
+      {activeTab === 'content' && (
+        <div className='admin-row' style={{ alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+          <div className='admin-card' style={{ flex: 1, minWidth: 240 }}>
+            <h4>Objectives</h4>
+            <ul>
+              {localizedContent.objectives.length ? localizedContent.objectives.map((item, idx) => <li key={`${item}-${idx}`}>{item}</li>) : <li>--</li>}
+            </ul>
+          </div>
+          <div className='admin-card' style={{ flex: 1, minWidth: 240 }}>
+            <h4>Target audience</h4>
+            <ul>
+              {localizedContent.targetAudience.length ? localizedContent.targetAudience.map((item, idx) => <li key={`${item}-${idx}`}>{item}</li>) : <li>--</li>}
+            </ul>
+          </div>
+          <div className='admin-card' style={{ flex: 1, minWidth: 240 }}>
+            <h4>Benefits</h4>
+            <ul>
+              {localizedContent.benefits.length ? localizedContent.benefits.map((item, idx) => <li key={`${item}-${idx}`}>{item}</li>) : <li>--</li>}
+            </ul>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

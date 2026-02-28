@@ -56,13 +56,12 @@ export class CoursesController {
   constructor(private readonly courses: CoursesService) {}
 
   @UseGuards(AccessTokenGuard)
-  @Get(':id/lessons-outline')
+  @Get('courses/:id/lessons-outline')
   lessonsOutline(
     @CurrentUser() user: JwtUser,
     @Param('id', ParseIntPipe) id: number,
-    @Query('lang') lang?: string,
   ) {
-    return this.courses.lessonsOutline(user, id, lang)
+    return this.courses.lessonsOutline(user, id)
   }
 
   @Get()

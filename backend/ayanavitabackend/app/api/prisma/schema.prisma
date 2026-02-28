@@ -345,7 +345,9 @@ model Lesson {
   slug            String
   description     String?
   content         String?          @db.LongText
-  stt             Int              @default(0)
+  videoUrl        String?
+  order           Int              @default(0)
+  published       Boolean          @default(false)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   course          Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -354,7 +356,7 @@ model Lesson {
   translations    LessonTranslation[]
 
   @@unique([courseId, slug])
-  @@index([courseId, stt])
+  @@index([courseId, order])
 }
 
 model LessonModule {
@@ -362,7 +364,8 @@ model LessonModule {
   lessonId        Int
   title           String
   description     String?
-  stt             Int          @default(0)
+  order           Int          @default(0)
+  published       Boolean      @default(true)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -370,7 +373,7 @@ model LessonModule {
   videos LessonVideo[]
   translations LessonModuleTranslation[]
 
-  @@index([lessonId, stt])
+  @@index([lessonId, order])
 }
 
 model LessonVideo {
@@ -381,7 +384,7 @@ model LessonVideo {
   sourceUrl       String?
   hlsPlaylistKey  String?
   durationSec     Int          @default(0)
-  stt             Int          @default(0)
+  order           Int          @default(0)
   published       Boolean      @default(true)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
@@ -391,7 +394,7 @@ model LessonVideo {
   module LessonModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   translations LessonVideoTranslation[]
 
-  @@index([moduleId, stt])
+  @@index([moduleId, order])
 }
 
 
@@ -743,8 +746,23 @@ model CatalogProduct {
   translations ProductTranslation[]
   attributes   ProductAttribute[]
   ingredients  ProductIngredient[]
+  images       ProductImage[]
 
   @@map("products")
+}
+
+model ProductImage {
+  id          BigInt   @id @default(autoincrement())
+  productId   BigInt   @map("product_id")
+  imageUrl    String   @map("image_url") @db.VarChar(500)
+  isPrimary   Boolean  @default(false) @map("is_primary")
+  sortOrder   Int      @default(0) @map("sort_order")
+  primaryFlag BigInt?  @unique(map: "ux_one_primary_per_product") @map("primary_flag")
+
+  product CatalogProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, sortOrder], map: "idx_product_images_sort")
+  @@map("product_images")
 }
 
 model ProductTranslation {

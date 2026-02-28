@@ -26,7 +26,8 @@ export class ProgressService {
       select: {
         id: true,
         courseId: true,
-        stt: true,
+        published: true,
+        order: true,
         course: { select: { published: true } },
       },
     })
@@ -44,9 +45,9 @@ export class ProgressService {
     if (user.role === 'ADMIN') return
 
     const orderedLessons = await this.prisma.lesson.findMany({
-      where: { courseId },
+      where: { courseId, published: true },
       select: { id: true },
-      orderBy: [{ stt: 'asc' }, { id: 'asc' }],
+      orderBy: [{ order: 'asc' }, { id: 'asc' }],
     })
 
     const idx = orderedLessons.findIndex((l) => l.id === lessonId)
@@ -76,6 +77,7 @@ export class ProgressService {
     // USER không truy cập course/lesson unpublished (ẩn 404)
     if (user.role !== 'ADMIN') {
       if (!lesson.course.published) throw new NotFoundException('Lesson not found')
+      if (!lesson.published) throw new NotFoundException('Lesson not found')
     }
 
     // Gate lock (ADMIN bypass)
@@ -136,7 +138,7 @@ export class ProgressService {
         lastOpenedAt: true,
         completedAt: true,
         updatedAt: true,
-        lesson: { select: { id: true, courseId: true, title: true, stt: true } },
+        lesson: { select: { id: true, courseId: true, title: true, order: true, published: true } },
       },
       orderBy: [{ lastOpenedAt: 'desc' }],
     })
@@ -154,15 +156,16 @@ export class ProgressService {
     const lessons = await this.prisma.lesson.findMany({
       where: {
         courseId,
+        ...(user.role === 'ADMIN' ? {} : { published: true }),
       },
-      select: { id: true, stt: true },
-      orderBy: [{ stt: 'asc' }, { id: 'asc' }],
+      select: { id: true, order: true, published: true },
+      orderBy: [{ order: 'asc' }, { id: 'asc' }],
     })
 
     const progress = await this.prisma.lessonProgress.findMany({
       where: {
         userId: user.sub,
-        lesson: { courseId },
+        lesson: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) },
       },
       select: {
         lessonId: true,

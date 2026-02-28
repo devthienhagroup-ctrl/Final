@@ -15,19 +15,20 @@ export class LessonsService {
     const lesson = await this.prisma.lesson.findUnique({
       where: { id },
       select: {
-        id: true, courseId: true, title: true, slug: true, description: true, stt: true, content: true, createdAt: true, updatedAt: true,
+        id: true, courseId: true, title: true, slug: true, description: true, order: true, published: true, content: true, videoUrl: true, createdAt: true, updatedAt: true,
         translations: { select: { locale: true, title: true, description: true } },
-        modules: { orderBy: [{ stt: 'asc' }, { id: 'asc' }], select: {
-          id: true, title: true, description: true, stt: true,
+        modules: { where: user.role === 'ADMIN' ? {} : { published: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }], select: {
+          id: true, title: true, description: true, order: true, published: true,
           translations: { select: { locale: true, title: true, description: true } },
-          videos: { orderBy: [{ stt: 'asc' }, { id: 'asc' }], select: { id: true, title: true, description: true, sourceUrl: true, hlsPlaylistKey: true, mediaType: true, durationSec: true, stt: true, translations: { select: { locale: true, title: true, description: true } } } },
+          videos: { where: user.role === 'ADMIN' ? {} : { published: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }], select: { id: true, title: true, description: true, sourceUrl: true, hlsPlaylistKey: true, mediaType: true, durationSec: true, order: true, published: true, translations: { select: { locale: true, title: true, description: true } } } },
         } },
       },
     })
     if (!lesson) throw new NotFoundException('Lesson not found')
     await this.enrollments.assertEnrolledOrAdmin(user, lesson.courseId)
+    if (user.role !== 'ADMIN' && !lesson.published) throw new NotFoundException('Lesson not found')
     if (user.role !== 'ADMIN') {
-      const prev = await this.prisma.lesson.findFirst({ where: { courseId: lesson.courseId, OR: [{ stt: { lt: lesson.stt ?? 0 } }, { stt: lesson.stt ?? 0, id: { lt: lesson.id } }] }, select: { id: true }, orderBy: [{ stt: 'desc' }, { id: 'desc' }] })
+      const prev = await this.prisma.lesson.findFirst({ where: { courseId: lesson.courseId, published: true, OR: [{ order: { lt: lesson.order ?? 0 } }, { order: lesson.order ?? 0, id: { lt: lesson.id } }] }, select: { id: true }, orderBy: [{ order: 'desc' }, { id: 'desc' }] })
       if (prev) {
         const prevProgress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId: prev.id } }, select: { status: true } })
         if (!prevProgress || prevProgress.status !== ProgressStatus.COMPLETED) throw new ForbiddenException('Complete previous lesson first')
@@ -38,15 +39,15 @@ export class LessonsService {
 
   async create(courseId: number, dto: CreateLessonDto) {
     return this.prisma.$transaction(async (tx) => {
-      const lesson = await tx.lesson.create({ data: { courseId, title: dto.title, slug: dto.slug, description: dto.description, content: dto.content, stt: dto.stt } as any })
+      const lesson = await tx.lesson.create({ data: { courseId, title: dto.title, slug: dto.slug, description: dto.description, content: dto.content, videoUrl: dto.videoUrl, order: dto.order, published: dto.published } as any })
       await this.upsertLessonTranslations(tx, lesson.id, dto)
       if (dto.modules?.length) {
         for (const m of dto.modules) {
-          const mod = await tx.lessonModule.create({ data: { lessonId: lesson.id, title: m.title, description: m.description, stt: m.stt } as any })
+          const mod = await tx.lessonModule.create({ data: { lessonId: lesson.id, title: m.title, description: m.description, order: m.order, published: m.published } as any })
           await this.upsertModuleTranslations(tx, mod.id, m)
           if (m.videos?.length) {
-            for (const v of m.videos) {
-              const video = await tx.lessonVideo.create({ data: { moduleId: mod.id, title: v.title, description: v.description, sourceUrl: v.sourceUrl, mediaType: v.mediaType === 'IMAGE' ? LessonMediaType.IMAGE : LessonMediaType.VIDEO, durationSec: v.durationSec ?? 0, stt: v.stt } as any })
+            for (const [idx, v] of m.videos.entries()) {
+              const video = await tx.lessonVideo.create({ data: { moduleId: mod.id, title: v.title, description: v.description, sourceUrl: v.sourceUrl, mediaType: v.mediaType === 'IMAGE' ? LessonMediaType.IMAGE : LessonMediaType.VIDEO, durationSec: v.durationSec ?? 0, order: v.order ?? idx, published: v.published ?? true } as any })
               await this.upsertVideoTranslations(tx, video.id, v)
             }
           }
@@ -56,35 +57,35 @@ export class LessonsService {
     })
   }
 
-  async uploadModuleMedia(lessonId: number, moduleId: string, type: 'video' | 'image', file: { buffer: Buffer; originalname?: string }, stt?: number) {
+  async uploadModuleMedia(lessonId: number, moduleId: string, type: 'video' | 'image', file: { buffer: Buffer; originalname?: string }, order?: number) {
     const lesson = await this.prisma.lesson.findUnique({ where: { id: lessonId }, select: { id: true } })
     if (!lesson) throw new NotFoundException('Lesson not found')
 
     const module = await this.prisma.lessonModule.findFirst({ where: { id: Number(moduleId), lessonId }, select: { id: true } })
     if (!module) throw new NotFoundException('Module not found')
 
-    const resolvedStt = Number.isFinite(stt) ? Number(stt) : 0
+    const resolvedOrder = Number.isFinite(order) ? Number(order) : 0
 
     if (type === 'image') {
       const uploaded = await this.media.convertImageToWebpAndUpload(file, lessonId, moduleId)
-      const existing = await this.prisma.lessonVideo.findFirst({ where: { moduleId: module.id, stt: resolvedStt }, orderBy: { id: 'asc' }, select: { id: true } })
+      const existing = await this.prisma.lessonVideo.findFirst({ where: { moduleId: module.id, order: resolvedOrder }, orderBy: { id: 'asc' }, select: { id: true } })
       const video = existing
         ? await this.prisma.lessonVideo.update({ where: { id: existing.id }, data: { mediaType: LessonMediaType.IMAGE, sourceUrl: uploaded.sourceUrl, hlsPlaylistKey: null, published: true } })
-        : await this.prisma.lessonVideo.create({ data: { moduleId: module.id, title: `image-${resolvedStt}`, description: null, mediaType: LessonMediaType.IMAGE, sourceUrl: uploaded.sourceUrl, durationSec: 0, stt: resolvedStt, published: true } })
+        : await this.prisma.lessonVideo.create({ data: { moduleId: module.id, title: `image-${resolvedOrder}`, description: null, mediaType: LessonMediaType.IMAGE, sourceUrl: uploaded.sourceUrl, durationSec: 0, order: resolvedOrder, published: true } })
       return { ...uploaded, videoId: video.id }
     }
 
     const uploaded = await this.media.transcodeToHlsAndUpload(file, lessonId, moduleId)
-    const existing = await this.prisma.lessonVideo.findFirst({ where: { moduleId: module.id, stt: resolvedStt }, orderBy: { id: 'asc' }, select: { id: true } })
+    const existing = await this.prisma.lessonVideo.findFirst({ where: { moduleId: module.id, order: resolvedOrder }, orderBy: { id: 'asc' }, select: { id: true } })
     const video = existing
       ? await this.prisma.lessonVideo.update({ where: { id: existing.id }, data: { mediaType: LessonMediaType.VIDEO, sourceUrl: uploaded.playlistKey, hlsPlaylistKey: uploaded.playlistKey, published: true } })
-      : await this.prisma.lessonVideo.create({ data: { moduleId: module.id, title: `video-${resolvedStt}`, description: null, mediaType: LessonMediaType.VIDEO, sourceUrl: uploaded.playlistKey, hlsPlaylistKey: uploaded.playlistKey, durationSec: 0, stt: resolvedStt, published: true } })
+      : await this.prisma.lessonVideo.create({ data: { moduleId: module.id, title: `video-${resolvedOrder}`, description: null, mediaType: LessonMediaType.VIDEO, sourceUrl: uploaded.playlistKey, hlsPlaylistKey: uploaded.playlistKey, durationSec: 0, order: resolvedOrder, published: true } })
     return { ...uploaded, videoId: video.id }
   }
 
   async update(id: number, dto: UpdateLessonDto) {
     return this.prisma.$transaction(async (tx) => {
-      const lesson = await tx.lesson.update({ where: { id }, data: { title: dto.title, slug: dto.slug, description: dto.description, content: dto.content, stt: dto.stt } as any })
+      const lesson = await tx.lesson.update({ where: { id }, data: { title: dto.title, slug: dto.slug, description: dto.description, content: dto.content, videoUrl: dto.videoUrl, order: dto.order, published: dto.published } as any })
       await this.upsertLessonTranslations(tx, id, dto)
       if (dto.modules) {
         await tx.lessonVideoTranslation.deleteMany({ where: { video: { module: { lessonId: id } } } as any })
@@ -92,10 +93,10 @@ export class LessonsService {
         await tx.lessonVideo.deleteMany({ where: { module: { lessonId: id } } as any })
         await tx.lessonModule.deleteMany({ where: { lessonId: id } })
         for (const m of dto.modules) {
-          const mod = await tx.lessonModule.create({ data: { lessonId: id, title: m.title, description: m.description, stt: m.stt } as any })
+          const mod = await tx.lessonModule.create({ data: { lessonId: id, title: m.title, description: m.description, order: m.order, published: m.published } as any })
           await this.upsertModuleTranslations(tx, mod.id, m)
-          for (const v of (m.videos || [])) {
-            const video = await tx.lessonVideo.create({ data: { moduleId: mod.id, title: v.title, description: v.description, sourceUrl: v.sourceUrl, mediaType: v.mediaType === 'IMAGE' ? LessonMediaType.IMAGE : LessonMediaType.VIDEO, durationSec: v.durationSec ?? 0, stt: v.stt } as any })
+          for (const [idx, v] of (m.videos || []).entries()) {
+            const video = await tx.lessonVideo.create({ data: { moduleId: mod.id, title: v.title, description: v.description, sourceUrl: v.sourceUrl, mediaType: v.mediaType === 'IMAGE' ? LessonMediaType.IMAGE : LessonMediaType.VIDEO, durationSec: v.durationSec ?? 0, order: v.order ?? idx, published: v.published ?? true } as any })
             await this.upsertVideoTranslations(tx, video.id, v)
           }
         }

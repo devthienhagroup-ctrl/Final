@@ -1,2 +1,0 @@
--- Migration already applied manually.
--- No-op migration to keep Prisma history consistent.

@@ -4,6 +4,8 @@ import { CreateProductDto, UpdateProductDto } from './dto/product.dto'
 import { UpsertProductAttributesDto, UpsertProductIngredientsDto } from './dto/product-metadata.dto'
 import { normalizeBigInt } from './utils'
 import { Prisma } from '@prisma/client'
+import { ImageUploadService } from '../services/ImageUploadService'
+import { CreateProductImageDto, UpdateProductImageDto } from './dto/product-image.dto'
 import { ProductQueryDto } from './dto/product-query.dto'
 type JsonValue = string | number | boolean | { [key: string]: JsonValue } | JsonValue[];
 type ProductTranslationCreateManyRow = Prisma.ProductTranslationCreateManyInput
@@ -39,7 +41,10 @@ const toProductTranslationCreateManyData = (
 
 @Injectable()
 export class ProductsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly imageUploadService: ImageUploadService,
+  ) {}
 
   private async makeUniqueTranslationSlugs(
     tx: Prisma.TransactionClient,
@@ -112,7 +117,7 @@ export class ProductsService {
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.catalogProduct.findMany({
         where,
-        include: { translations: true, category: true },
+        include: { translations: true, category: true, images: { orderBy: { sortOrder: 'asc' } } },
         orderBy: { id: 'desc' },
         skip,
         take: pageSize,
@@ -137,6 +142,7 @@ export class ProductsService {
         category: true,
         attributes: true,
         ingredients: true,
+        images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }, { id: 'asc' }] },
       },
     })
     if (!row) throw new NotFoundException('Product not found')
@@ -241,7 +247,16 @@ export class ProductsService {
     await this.findOne(id)
 
     try {
-      const row = await this.prisma.catalogProduct.delete({ where: { id: BigInt(id) } })
+      const row = await this.prisma.$transaction(async (tx) => {
+        const images = await tx.productImage.findMany({ where: { productId: BigInt(id) } })
+
+        for (const image of images) {
+          await this.imageUploadService.deleteImage({ url: image.imageUrl })
+        }
+
+        await tx.productImage.deleteMany({ where: { productId: BigInt(id) } })
+        return tx.catalogProduct.delete({ where: { id: BigInt(id) } })
+      })
 
       return normalizeBigInt(row)
     } catch (error) {
@@ -252,4 +267,60 @@ export class ProductsService {
     }
   }
 
+  async listImages(id: number) {
+    await this.findOne(id)
+    const rows = await this.prisma.productImage.findMany({
+      where: { productId: BigInt(id) },
+      orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }, { id: 'asc' }],
+    })
+    return normalizeBigInt(rows)
+  }
+
+  async createImage(id: number, dto: CreateProductImageDto) {
+    await this.findOne(id)
+    const created = await this.prisma.productImage.create({
+      data: {
+        productId: BigInt(id),
+        imageUrl: dto.imageUrl,
+        isPrimary: dto.isPrimary ?? false,
+        sortOrder: dto.sortOrder ?? 0,
+      },
+    })
+    return normalizeBigInt(created)
+  }
+
+  async updateImage(id: number, imageId: number, dto: UpdateProductImageDto) {
+    await this.findOne(id)
+    const existing = await this.prisma.productImage.findFirst({
+      where: { id: BigInt(imageId), productId: BigInt(id) },
+    })
+    if (!existing) throw new NotFoundException('Product image not found')
+
+    if (dto.imageUrl && dto.imageUrl !== existing.imageUrl) {
+      await this.imageUploadService.deleteImage({ url: existing.imageUrl })
+    }
+
+    const updated = await this.prisma.productImage.update({
+      where: { id: BigInt(imageId) },
+      data: {
+        imageUrl: dto.imageUrl,
+        isPrimary: dto.isPrimary,
+        sortOrder: dto.sortOrder,
+      },
+    })
+
+    return normalizeBigInt(updated)
+  }
+
+  async removeImage(id: number, imageId: number) {
+    await this.findOne(id)
+    const existing = await this.prisma.productImage.findFirst({
+      where: { id: BigInt(imageId), productId: BigInt(id) },
+    })
+    if (!existing) throw new NotFoundException('Product image not found')
+
+    await this.imageUploadService.deleteImage({ url: existing.imageUrl })
+    const deleted = await this.prisma.productImage.delete({ where: { id: BigInt(imageId) } })
+    return normalizeBigInt(deleted)
+  }
 }

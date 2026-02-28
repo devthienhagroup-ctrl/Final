@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer'
-import { IsArray, IsInt, IsObject, IsOptional, IsString, Min, ValidateNested } from 'class-validator'
+import { IsArray, IsBoolean, IsInt, IsObject, IsOptional, IsString, Min, ValidateNested } from 'class-validator'
 
 class TranslationDto {
   @IsString()
@@ -14,10 +14,11 @@ class LessonVideoDto {
   @IsString()
   title: string
   @IsOptional() @IsString() description?: string
-  @IsString() sourceUrl: string
+  @IsOptional() @IsString() sourceUrl?: string
   @IsOptional() @IsString() mediaType?: 'VIDEO' | 'IMAGE'
   @IsOptional() @IsInt() @Min(0) durationSec?: number
-  @IsInt() @Min(0) stt: number
+  @IsOptional() @IsInt() @Min(0) order?: number
+  @IsOptional() @IsBoolean() published?: boolean
   @IsOptional() @IsObject() @ValidateNested({ each: true }) @Type(() => TranslationDto)
   translations?: Record<string, TranslationDto>
 }
@@ -25,11 +26,12 @@ class LessonVideoDto {
 class LessonModuleDto {
   @IsString() title: string
   @IsOptional() @IsString() description?: string
-  @IsInt() @Min(0) stt: number
+  @IsOptional() @IsInt() @Min(0) order?: number
+  @IsOptional() @IsBoolean() published?: boolean
   @IsOptional() @IsObject() @ValidateNested({ each: true }) @Type(() => TranslationDto)
   translations?: Record<string, TranslationDto>
-  @IsArray() @ValidateNested({ each: true }) @Type(() => LessonVideoDto)
-  videos: LessonVideoDto[]
+  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => LessonVideoDto)
+  videos?: LessonVideoDto[]
 }
 
 export class CreateLessonDto {
@@ -39,7 +41,9 @@ export class CreateLessonDto {
   @IsOptional() @IsObject() @ValidateNested({ each: true }) @Type(() => TranslationDto)
   translations?: Record<string, TranslationDto>
   @IsOptional() @IsString() content?: string
-  @IsArray() @ValidateNested({ each: true }) @Type(() => LessonModuleDto)
-  modules: LessonModuleDto[]
-  @IsInt() @Min(0) stt: number
+  @IsOptional() @IsString() videoUrl?: string
+  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => LessonModuleDto)
+  modules?: LessonModuleDto[]
+  @IsOptional() @IsInt() @Min(0) order?: number
+  @IsOptional() @IsBoolean() published?: boolean
 }

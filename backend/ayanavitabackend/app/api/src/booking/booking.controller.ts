@@ -47,8 +47,8 @@ export class BookingController {
   constructor(private readonly booking: BookingService) {}
 
   @Get('services-page')
-  servicesPage() {
-    return this.booking.listServicesCatalog()
+  servicesPage(@Query('lang') lang?: string) {
+    return this.booking.listServicesCatalog(lang)
   }
 
   @Post('images/temp')

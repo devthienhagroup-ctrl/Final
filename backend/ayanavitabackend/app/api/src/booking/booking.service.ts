@@ -205,13 +205,14 @@ export class BookingService {
     }
   }
 
-  async listServicesCatalog(): Promise<ServiceCatalogItemDto[]> {
+  async listServicesCatalog(locale?: string): Promise<ServiceCatalogItemDto[]> {
+    const lang = this.normalizeLocale(locale)
     const rows = await this.prisma.service.findMany({
       where: { isActive: true },
       select: {
         id: true,
-          name: true,
-        category: { select: { name: true } },
+        name: true,
+        category: { select: { name: true, translations: { select: { locale: true, name: true } } } },
         goals: true,
         suitableFor: true,
         durationMin: true,
@@ -220,23 +221,28 @@ export class BookingService {
         bookedCount: true,
         imageUrl: true,
         tag: true,
+        translations: { select: { locale: true, name: true, goals: true, tag: true } },
       },
       orderBy: { id: 'asc' },
     })
 
-    return rows.map((s) => ({
-      id: String(s.id),
-      dbId: s.id,
-        name: s.name,
-      cat: (s.category?.name ?? 'health').toLowerCase().replace(/\s+/g, '-'),
-      goal: this.toStringArray(s.goals),
-      duration: s.durationMin,
-      price: s.price,
-      rating: s.ratingAvg,
-      booked: s.bookedCount,
-      img: s.imageUrl,
-      tag: s.tag ?? 'Spa',
-    }))
+    return rows.map((s) => {
+      const trans = this.pickTranslation(s.translations, lang)
+      const categoryTrans = this.pickTranslation(s.category?.translations, lang)
+      return {
+        id: String(s.id),
+        dbId: s.id,
+        name: trans?.name || s.name,
+        cat: (categoryTrans?.name || s.category?.name || 'health'),
+        goal: this.toStringArray(trans?.goals ?? s.goals),
+        duration: s.durationMin,
+        price: s.price,
+        rating: s.ratingAvg,
+        booked: s.bookedCount,
+        img: s.imageUrl,
+        tag: trans?.tag || s.tag || 'Spa',
+      }
+    })
   }
 
   async listBranches(includeInactive = false, serviceId?: number, locale?: string): Promise<BranchResponseDto[]> {

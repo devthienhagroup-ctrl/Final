@@ -102,7 +102,7 @@ export class BlogService implements OnModuleInit, OnModuleDestroy {
 
     const where = {
       status: BlogPostStatus.PUBLISHED,
-...(query.tag ? { tags: { array_contains: [query.tag] } } : {}),
+      ...(query.tag ? { tags: { has: query.tag } } : {}),
       ...(query.q
         ? {
             OR: [

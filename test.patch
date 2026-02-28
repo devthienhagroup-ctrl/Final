@@ -1,21 +1,76 @@
+diff --git a/Home/ayanavita-fontend-final/src/App.tsx b/Home/ayanavita-fontend-final/src/App.tsx
+index a6fdfa43de485f149cdeeb7d0a3002c1ec7388fc..c1e049739bc7020a91df9e934c2decbc976601e2 100644
+--- a/Home/ayanavita-fontend-final/src/App.tsx
++++ b/Home/ayanavita-fontend-final/src/App.tsx
+@@ -27,48 +27,48 @@ import AccountCenter from "./pages/AccountCenter";
+
+ export default function App() {
+     return (
+         <Routes>
+             <Route element={<Layout/>}>
+
+                 <Route path="/" element={<HomePage/>}/>
+
+                 {/* Spa services */}
+                 <Route path="/services" element={<ServicesPage/>}/>
+                 <Route path="/services/:serviceId" element={<ServiceDetailPage/>}/>
+                 <Route path="/booking" element={<BookingPage/>}/>
+
+                 {/* Courses (prototype) */}
+                 <Route path="/courses" element={<CoursesPage/>}/>
+
+                 {/* Product cart (prototype) */}
+                 <Route path="/cart" element={<CartPage/>}/>
+                 <Route path="/product-checkout" element={<ProductCheckoutPage/>}/>
+                 {/* <Route path="/checkout" element={<CheckoutPage/>}/> */}
+                 <Route path="/products" element={<ProductsPage/>}/>
+                 <Route path="/compare" element={<ComparePage/>}/>
+                 <Route path="/track-order" element={<TrackOrderPage/>}/>
+                 <Route path="/products" element={<ProductCategoryPage/>}/>
+                 <Route path="/products/:slug" element={<ProductDetailPage/>}/>
+-                <Route path="/courses/:courseId" element={<CourseDetailPage/>}/>
++                <Route path="/courses/:slug" element={<CourseDetailPage/>}/>
+                 <Route path="/courses/player" element={<CoursePlayerPage/>}/>
+                 // truy cập: /courses/detail?courseId=CR-1001
+                 <Route path="/courses/:courseId/lesson" element={<LessonDetailPage/>}/>
+                 <Route path="/reviews" element={<ReviewsCenterPage/>}/>
+
+                 <Route path="/blog" element={<BlogPage/>}/>
+
+
+                 {/* placeholder các page khác để không vỡ Link */}
+                 <Route path="/products" element={<div className="p-6">Products (todo)</div>}/>
+                 <Route path="/checkout" element={<div className="p-6">Checkout (todo)</div>}/>
+                 <Route path="/franchise" element={<div className="p-6">Franchise (todo)</div>}/>
+                 <Route path="/account" element={<AccountCenter/>}/>
+                 <Route path="/account-center" element={<AccountCenter/>}/>
+                 <Route path="/compare" element={<div className="p-6">Compare (todo)</div>}/>
+                 <Route path="/track-order" element={<div className="p-6">Track order (todo)</div>}/>
+                         <Route path="/contact" element={<ContactPage />} />
+                 <Route path="*" element={<div className="p-6">Not found</div>}/>
+             </Route>
+         </Routes>
+     );
+ }
 diff --git a/Home/ayanavita-fontend-final/src/data/courses.data.ts b/Home/ayanavita-fontend-final/src/data/courses.data.ts
-index bd2c6b797633fe9de8987f226392babeb9f9324f..15172d25a916cf999102bd7b7ac4788c2ca26939 100644
+index 15172d25a916cf999102bd7b7ac4788c2ca26939..851da129f1a5e6e40f3b4395d4307981a23dd974 100644
 --- a/Home/ayanavita-fontend-final/src/data/courses.data.ts
 +++ b/Home/ayanavita-fontend-final/src/data/courses.data.ts
-@@ -1,35 +1,38 @@
+@@ -1,31 +1,32 @@
  // src/data/courses.data.ts
  export type CourseTopic = "technique" | "consult" | "ops" | "product";
  export type CourseSort = "best" | "new" | "high" | "low";
 
  export type Course = {
    id: string;
++  slug?: string;
    title: string;
    topic: CourseTopic;
-+  topicName?: string;
-+  topicId?: number | null;
+   topicName?: string;
+   topicId?: number | null;
    img: string;
    desc: string;
-+  time?: string;
+   time?: string;
    price: number;
    hours: number;
    rating: number;
@@ -34,303 +89,817 @@ index bd2c6b797633fe9de8987f226392babeb9f9324f..15172d25a916cf999102bd7b7ac4788c
  export function topicLabel(t: string) {
    return (TOPIC_LABEL as any)[t] || "Khác";
  }
+diff --git a/Home/ayanavita-fontend-final/src/pages/CourseDetailPage.tsx b/Home/ayanavita-fontend-final/src/pages/CourseDetailPage.tsx
+index 4fecc3e6facc039f24ae9c968748029d082817a5..a64420b4cb2202f4f44f3a27b53dfc8589383b7d 100644
+--- a/Home/ayanavita-fontend-final/src/pages/CourseDetailPage.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/CourseDetailPage.tsx
+@@ -1,634 +1,213 @@
+-// src/pages/CourseDetailPage.tsx
+-import React, { useEffect, useMemo, useRef, useState } from "react";
+-import { useNavigate, useParams } from "react-router-dom";
++import React, { useEffect, useMemo, useState } from "react";
++import { Link, useParams } from "react-router-dom";
 
- export const COURSES: Course[] = [
-   {
-     id: "C-101",
-     title: "Kỹ thuật Facial Luxury – chuẩn liệu trình 90 phút",
-     topic: "technique",
-     img: "https://images.unsplash.com/photo-1526948128573-703ee1aeb6fa?auto=format&fit=crop&w=1800&q=80",
++import { http } from "../api/http";
+ import { SiteHeader } from "../components/layout/SiteHeader";
+ import { Footer } from "../components/layout/Footer";
+
+-import { LMS_COURSES, LMS_VOUCHERS, categoryLabel, type LmsCourse, type LmsLesson } from "../data/lmsCourses.data";
+-import { computeFinalPrice, findVoucher, moneyVND } from "../services/lmsPricing.utils";
+-import { courseSeed, imgSeed, personSeed } from "../services/lmsImage.utils";
+-
+-
+-import { PreviewSidebar } from "../components/course-detail/PreviewSidebar";
+-
+-import { useOutsideClick, useEscapeKey, useScrollLock } from "../hooks/useUiGuards";
+-import { CourseDetailTab, CourseDetailTabs } from "../components/course-detail/CourseDetailTabs";
+-import { CurriculumSection } from "../components/course-detail/CurriculumSection";
+-
+-type OrderStatus = "NONE" | "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+-type Order = { id: string; status: OrderStatus; createdAt: string };
+-
+-function uid(prefix = "ID") {
+-  return prefix + "-" + Math.random().toString(16).slice(2, 8).toUpperCase();
++type CourseModule = {
++  id: number;
++  title: string;
++  order: number;
++};
++
++type CourseLesson = {
++  id: number;
++  title: string;
++  slug: string;
++  order: number;
++  modules: CourseModule[];
++};
++
++type CourseReview = {
++  id: number;
++  stars: number;
++  comment: string | null;
++  customerName: string | null;
++  createdAt: string;
++};
++
++type CourseDetailPayload = {
++  id: number;
++  slug: string;
++  title: string;
++  shortDescription: string | null;
++  description: string | null;
++  time: string | null;
++  price: number;
++  thumbnail: string | null;
++  topic: { id: number; name: string } | null;
++  enrollmentCount: number;
++  ratingAvg: number;
++  lessons: CourseLesson[];
++  reviews: CourseReview[];
++  reviewSummary: { ratingAvg: number; ratingCount: number };
++};
++
++function currentLang() {
++  return localStorage.getItem("preferred-language") || "vi";
+ }
+
+ export default function CourseDetailPage() {
+-  const { courseId } = useParams<{ courseId: string }>();
+-  const nav = useNavigate();
+-
+-  const [tab, setTab] = useState<CourseDetailTab>("overview");
+-
+-  const course: LmsCourse = useMemo(() => {
+-    const hit = LMS_COURSES.find((c) => c.id === courseId);
+-    return hit || LMS_COURSES[0];
+-  }, [courseId]);
+-
+-  // ----- computed aggregates
+-  const lessons = useMemo(() => (course.modules || []).flatMap((m) => m.lessons || []), [course]);
+-  const totalMinutes = useMemo(() => lessons.reduce((s, x) => s + Number(x.duration || 0), 0), [lessons]);
+-
+-  // ----- hero images
+-  const seed = courseSeed(course);
+-  const heroImg = useMemo(() => imgSeed("hero-" + seed, 1600, 720), [seed]);
+-  const thumbImg = useMemo(() => imgSeed("thumb-" + seed, 800, 420), [seed]);
+-
+-  const instructorAvatar = useMemo(
+-    () => imgSeed(personSeed(course.instructor?.name || "instructor"), 200, 200),
+-    [course.instructor?.name]
+-  );
+-
+-  // ----- pricing
+-  const basePrice = Number(course.sales?.basePrice ?? course.price ?? 0);
+-  const defaultDiscount = Number(course.sales?.defaultDiscount ?? 0);
+-  const priceNoVoucher = useMemo(() => computeFinalPrice(basePrice, defaultDiscount, null), [basePrice, defaultDiscount]);
+-
+-  // ----- preview modal (simple)
+-  const [previewLesson, setPreviewLesson] = useState<LmsLesson | null>(null);
+-
+-  // ----- checkout state
+-  const [ckName, setCkName] = useState("");
+-  const [ckEmail, setCkEmail] = useState("");
+-  const [ckPhone, setCkPhone] = useState("");
+-  const [ckVoucher, setCkVoucher] = useState("");
+-  const [ckAgree, setCkAgree] = useState(false);
+-
+-  const voucher = useMemo(() => findVoucher(LMS_VOUCHERS, ckVoucher, course.id), [ckVoucher, course.id]);
+-  const finalPricing = useMemo(
+-    () => computeFinalPrice(basePrice, defaultDiscount, voucher),
+-    [basePrice, defaultDiscount, voucher]
+-  );
++  const { slug } = useParams<{ slug: string }>();
+
+-  const [order, setOrder] = useState<Order>({ id: "—", status: "NONE", createdAt: "" });
++  const [lang, setLang] = useState(currentLang);
++  const [loading, setLoading] = useState(true);
++  const [error, setError] = useState<string | null>(null);
++  const [course, setCourse] = useState<CourseDetailPayload | null>(null);
+
+-  function setOrderStatus(next: OrderStatus) {
+-    setOrder((o) => {
+-      if (!o || o.status === "NONE") return o;
+-      return { ...o, status: next, createdAt: new Date().toISOString() };
+-    });
+-  }
+-
+-  function createOrder() {
+-    if (!ckName.trim() || !ckEmail.trim()) {
+-      window.alert("Vui lòng nhập Họ tên và Email để tạo đơn.");
+-      return;
+-    }
+-    setOrder({ id: uid("OD"), status: "PENDING", createdAt: new Date().toISOString() });
+-    window.alert("Đã tạo đơn hàng (prototype).");
+-  }
+-
+-  function payNow() {
+-    if (!order || order.status === "NONE") {
+-      window.alert("Chưa có đơn hàng. Bấm “Tạo đơn hàng” trước.");
+-      return;
+-    }
+-    if (!ckAgree) {
+-      window.alert("Vui lòng tick đồng ý điều khoản (demo).");
+-      return;
+-    }
+-    setOrderStatus("PAID");
+-    window.alert("Thanh toán thành công (demo).");
+-  }
+-
+-  // ----- course switch dropdown
+-  function onChangeCourse(nextId: string) {
+-    // reset page state
+-    setTab("overview");
+-    setPreviewLesson(null);
+-    setOrder({ id: "—", status: "NONE", createdAt: "" });
+-    // navigate
+-    nav(`/courses/${nextId}`); // ✅ đổi path nếu router bạn khác
+-  }
+-
+-  // allow hash open checkout
+   useEffect(() => {
+-    if (location.hash === "#checkout") {
+-      // giữ tab overview, chỉ scroll
+-      const el = document.getElementById("checkout");
+-      el?.scrollIntoView({ behavior: "smooth" });
+-    }
+-  }, [course.id]);
++    const handleLanguageChange = (event: Event) => {
++      const customEvent = event as CustomEvent<{ language: string }>;
++      setLang(customEvent.detail?.language || currentLang());
++    };
+
+-  // ===== Preview modal UX
+-  const previewOpen = !!previewLesson;
+-  useScrollLock(previewOpen);
+-  useEscapeKey(() => setPreviewLesson(null), previewOpen);
++    window.addEventListener("languageChange", handleLanguageChange);
++    return () => window.removeEventListener("languageChange", handleLanguageChange);
++  }, []);
+
+-  const previewRef = useRef<HTMLDivElement | null>(null);
+-  useOutsideClick(previewRef, () => setPreviewLesson(null), previewOpen);
+-
+-  // ===== order chip style
+-  const orderChip = useMemo(() => {
+-    const st = order.status;
+-    const icon =
+-      st === "PENDING" ? "text-amber-500" : st === "PAID" ? "text-emerald-500" : st === "FAILED" ? "text-rose-500" : st === "REFUNDED" ? "text-slate-500" : "text-slate-400";
+-    const text = st === "NONE" ? "None" : st;
+-    return { icon, text };
+-  }, [order.status]);
++  useEffect(() => {
++    if (!slug) return;
++
++    let cancelled = false;
++    setLoading(true);
++    setError(null);
++
++    (async () => {
++      try {
++        const res = await http.get(`/courses/public/slug/${slug}`, {
++          params: { lang },
++        });
++
++        if (!cancelled) {
++          setCourse(res.data);
++        }
++      } catch (e) {
++        if (!cancelled) {
++          setError("Không tải được thông tin khoá học.");
++        }
++      } finally {
++        if (!cancelled) {
++          setLoading(false);
++        }
++      }
++    })();
++
++    return () => {
++      cancelled = true;
++    };
++  }, [slug, lang]);
++
++  const totalModules = useMemo(
++    () => (course?.lessons || []).reduce((sum, lesson) => sum + lesson.modules.length, 0),
++    [course?.lessons]
++  );
+
+   return (
+     <div className="text-slate-900">
+       <SiteHeader />
+-
+-      <main className="px-4 pb-10">
++      <main className="px-4 pb-12 pt-6">
+         <div className="max-w-6xl mx-auto grid gap-4">
+-          {/* Header tools (sticky-ish like prototype) */}
+-          <div className="card p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+-            <div className="flex items-center gap-3">
+-              <div className="h-10 w-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-extrabold">
+-                A
+-              </div>
+-              <div>
+-                <div className="font-extrabold">AYANAVITA</div>
+-                <div className="text-xs font-extrabold text-slate-500">Course Detail</div>
+-              </div>
+-            </div>
++          <Link to="/courses" className="btn w-fit">
++            <i className="fa-solid fa-arrow-left" /> Danh sách khoá học
++          </Link>
+
+-            <div className="flex flex-wrap items-center gap-2">
+-              <select
+-                className="btn"
+-                value={course.id}
+-                onChange={(e) => onChangeCourse(e.target.value)}
+-                aria-label="select course"
+-              >
+-                {LMS_COURSES.map((c) => (
+-                  <option key={c.id} value={c.id}>
+-                    {c.title} ({c.id})
+-                  </option>
+-                ))}
+-              </select>
++          {loading ? (
++            <div className="card p-8 text-center">Đang tải chi tiết khoá học...</div>
++          ) : null}
+
+-              <a href="#checkout" className="btn btn-primary">
+-                <i className="fa-solid fa-credit-card mr-2" />
+-                Checkout
+-              </a>
+-            </div>
+-          </div>
++          {error ? <div className="card p-8 text-center text-rose-600">{error}</div> : null}
+
+-          {/* HERO */}
+-          <section className="card overflow-hidden relative">
+-            <div
+-              className="absolute inset-0 bg-cover bg-center"
+-              style={{ backgroundImage: `url("${heroImg}")` }}
+-            />
+-            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/55 to-transparent" />
+-
+-            <div className="relative p-6 md:p-8 grid gap-6 lg:grid-cols-12 items-center text-white">
+-              <div className="lg:col-span-8">
+-                <div className="text-xs font-extrabold opacity-90">{categoryLabel(course.category)}</div>
+-                <h1 className="mt-2 text-3xl md:text-4xl font-extrabold leading-tight">{course.title}</h1>
+-                <div className="mt-3 text-white/90 font-bold">{course.sales?.landing?.hero?.subtitle || course.desc}</div>
+-
+-                <div className="mt-4 flex flex-wrap gap-2">
+-                  <span className="chip">
+-                    <i className="fa-solid fa-star text-amber-400" /> {course.rating}
+-                  </span>
+-                  <span className="chip">
+-                    <i className="fa-solid fa-users text-white" />{" "}
+-                    {new Intl.NumberFormat("vi-VN").format(course.students)} học viên
+-                  </span>
+-                  <span className="chip">
+-                    <i className="fa-solid fa-clock text-white" /> {totalMinutes} phút
+-                  </span>
+-                  <span className="chip">
+-                    <i className="fa-solid fa-layer-group text-white" /> {course.modules.length} modules
+-                  </span>
+-                </div>
+-
+-                <div className="mt-5 flex flex-wrap gap-2">
+-                  <button type="button" className="btn btn-accent" onClick={() => (location.hash = "#checkout")}>
+-                    <i className="fa-solid fa-bolt mr-2" />
+-                    Mua ngay
+-                  </button>
+-                  <button type="button" className="btn" onClick={() => setTab("curriculum")}>
+-                    <i className="fa-solid fa-eye mr-2" />
+-                    Xem preview
+-                  </button>
+-                  <button
+-                    type="button"
+-                    className="btn"
+-                    onClick={async () => {
+-                      const url = `${location.origin}${location.pathname}#course=${encodeURIComponent(course.id)}`;
+-                      try {
+-                        await navigator.clipboard.writeText(url);
+-                        window.alert("Đã copy link: " + url);
+-                      } catch {
+-                        window.alert("Không copy được (trình duyệt chặn).");
+-                      }
+-                    }}
+-                  >
+-                    <i className="fa-solid fa-link mr-2" />
+-                    Copy link
+-                  </button>
+-                </div>
+-
+-                <div className="mt-6 flex items-center gap-3">
+-                  <img className="h-11 w-11 rounded-full object-cover border-2 border-white/90" src={instructorAvatar} alt="Instructor avatar" />
+-                  <div>
+-                    <div className="font-extrabold leading-5">{course.instructor?.name}</div>
+-                    <div className="text-xs text-white/80 font-bold">{course.instructor?.bio}</div>
+-                  </div>
+-                </div>
+-              </div>
+-
+-              {/* Pricing card */}
+-              <div className="lg:col-span-4">
+-                <div className="card p-5 text-slate-900">
+-                  <img className="w-full h-40 object-cover rounded-2xl ring-1 ring-slate-200" src={thumbImg} alt="Course thumbnail" />
+-                  <div className="mt-4 text-xs font-extrabold text-slate-500">Giá hôm nay</div>
+-                  <div className="mt-1 text-3xl font-extrabold">{moneyVND(priceNoVoucher.price)}</div>
+-                  <div className="mt-2 text-sm text-slate-600">{priceNoVoucher.note}</div>
+-
+-                  <div className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 text-sm text-slate-700">
+-                    <div className="font-extrabold">Bao gồm</div>
+-                    <ul className="mt-2 space-y-1">
+-                      <li>• Truy cập trọn đời (demo)</li>
+-                      <li>• Cập nhật nội dung</li>
+-                      <li>• Chứng nhận hoàn thành</li>
+-                      <li>• Hỗ trợ Q&A</li>
+-                    </ul>
+-                  </div>
+-
+-                  <a href="#checkout" className="btn btn-primary w-full text-center mt-3">
+-                    <i className="fa-solid fa-cart-shopping mr-2" />
+-                    Đăng ký học
+-                  </a>
++          {!loading && !error && course ? (
++            <>
++              <section className="card overflow-hidden">
++                {course.thumbnail ? (
++                  <img className="w-full h-72 object-cover" src={course.thumbnail} alt={course.title} />
++                ) : null}
+
+-                  <div className="text-xs text-slate-500 text-center mt-2">
+-                    Giá/giảm lấy từ Sales config (default discount).
++                <div className="p-6 grid gap-4">
++                  <div className="text-xs font-extrabold text-slate-500">COURSE DETAIL</div>
++                  <h1 className="text-3xl font-extrabold">{course.title}</h1>
++                  <p className="text-slate-700">{course.shortDescription || course.description || "—"}</p>
++
++                  <div className="flex flex-wrap gap-2">
++                    {course.topic ? <span className="chip">{course.topic.name}</span> : null}
++                    <span className="chip">
++                      <i className="fa-solid fa-clock text-amber-600" /> {course.time || "0"} Hour
++                    </span>
++                    <span className="chip">
++                      <i className="fa-solid fa-users text-emerald-600" /> {course.enrollmentCount} học viên
++                    </span>
++                    <span className="chip">
++                      <i className="fa-solid fa-star text-amber-500" /> {Number(course.reviewSummary.ratingAvg || 0).toFixed(1)}
++                    </span>
+                   </div>
+-                </div>
+-              </div>
+-            </div>
+-          </section>
+-
+-          {/* CONTENT GRID */}
+-          <section className="grid gap-4 lg:grid-cols-12">
+-            {/* Left */}
+-            <div className="lg:col-span-8 grid gap-4">
+-              <div className="card p-5">
+-                <CourseDetailTabs tab={tab} onChange={setTab} />
+-
+-                <div className="mt-4">
+-                  {tab === "overview" ? (
+-                    <div>
+-                      <div className="text-lg font-extrabold">Bạn sẽ học được gì</div>
+-                      <div className="mt-2 text-sm text-slate-700">{course.desc}</div>
+-
+-                      <div className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+-                        <div className="font-extrabold">Highlights</div>
+-                        <div className="mt-2 text-sm text-slate-700">{course.sales?.landing?.hero?.highlight || "—"}</div>
+-                      </div>
+-
+-                      <div className="mt-4 grid gap-3 md:grid-cols-3">
+-                        <img className="w-full h-40 object-cover rounded-2xl ring-1 ring-slate-200" alt="Gallery 1" src={imgSeed("gallery1-" + seed, 700, 420)} />
+-                        <img className="w-full h-40 object-cover rounded-2xl ring-1 ring-slate-200" alt="Gallery 2" src={imgSeed("gallery2-" + seed, 700, 420)} />
+-                        <img className="w-full h-40 object-cover rounded-2xl ring-1 ring-slate-200" alt="Gallery 3" src={imgSeed("gallery3-" + seed, 700, 420)} />
+-                      </div>
+-
+-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+-                        <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+-                          <div className="text-xs font-extrabold text-slate-500">Đối tượng phù hợp</div>
+-                          <ul className="mt-2 text-sm text-slate-700 space-y-1">
+-                            <li>• Người mới bắt đầu muốn có lộ trình</li>
+-                            <li>• Dev cần build LMS thực tế</li>
+-                            <li>• Chủ khóa học muốn tối ưu bán hàng</li>
+-                          </ul>
+-                        </div>
+-                        <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+-                          <div className="text-xs font-extrabold text-slate-500">Yêu cầu</div>
+-                          <ul className="mt-2 text-sm text-slate-700 space-y-1">
+-                            <li>• Laptop + internet</li>
+-                            <li>• Kiến thức cơ bản (tùy khóa)</li>
+-                            <li>• Thực hành theo bài</li>
+-                          </ul>
+-                        </div>
+-                      </div>
+-                    </div>
+-                  ) : null}
+
+-                  {tab === "curriculum" ? (
++                  <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 flex flex-wrap gap-4 justify-between items-center">
+                     <div>
+-                      <div className="text-lg font-extrabold">Curriculum</div>
+-                      <div className="mt-2 text-sm text-slate-600">Danh sách module/bài học (có thumbnail + preview).</div>
+-
+-                      <div className="mt-4">
+-                        <CurriculumSection course={course} onPreview={(l) => setPreviewLesson(l)} />
++                      <div className="text-xs text-slate-500 font-extrabold">Học phí</div>
++                      <div className="text-2xl font-extrabold text-indigo-700">
++                        {new Intl.NumberFormat("vi-VN").format(course.price)} đ
+                       </div>
+                     </div>
+-                  ) : null}
+-
+-                  {tab === "reviews" ? (
+-                    <div>
+-                      <div className="text-lg font-extrabold">Reviews (demo)</div>
+-                      <div className="mt-2 text-sm text-slate-600">Lấy từ landing proof + mô phỏng vài review.</div>
+-
+-                      <div className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+-                        <div className="font-extrabold">{course.sales?.landing?.proof?.text || "—"}</div>
+-                        <ul className="mt-2 text-sm text-slate-700 list-disc pl-5">
+-                          {(course.sales?.landing?.proof?.bullets || []).map((x, i) => (
+-                            <li key={i}>{x}</li>
+-                          ))}
+-                        </ul>
+-                      </div>
+-
+-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+-                        <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+-                          <div className="flex items-center gap-3">
+-                            <img className="h-11 w-11 rounded-full object-cover border-2 border-white" src={imgSeed("reviewer-minh-" + seed, 200, 200)} alt="Reviewer 1" />
+-                            <div>
+-                              <div className="font-extrabold">Minh (Dev)</div>
+-                              <div className="text-xs text-slate-500 font-bold">5.0 ★</div>
+-                            </div>
+-                          </div>
+-                          <div className="text-sm text-slate-600 mt-3">“Rõ ràng, có checklist, làm được ngay.”</div>
+-                        </div>
+-
+-                        <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+-                          <div className="flex items-center gap-3">
+-                            <img className="h-11 w-11 rounded-full object-cover border-2 border-white" src={imgSeed("reviewer-lan-" + seed, 200, 200)} alt="Reviewer 2" />
+-                            <div>
+-                              <div className="font-extrabold">Lan (Creator)</div>
+-                              <div className="text-xs text-slate-500 font-bold">4.8 ★</div>
+-                            </div>
+-                          </div>
+-                          <div className="text-sm text-slate-600 mt-3">“Phần sales/checkout rất thực chiến.”</div>
+-                        </div>
+-                      </div>
+-
+-                      <div className="mt-4 grid gap-3 md:grid-cols-3">
+-                        <img className="w-full h-32 object-cover rounded-2xl ring-1 ring-slate-200" alt="Review image 1" src={imgSeed("reviewimg1-" + seed, 700, 360)} />
+-                        <img className="w-full h-32 object-cover rounded-2xl ring-1 ring-slate-200" alt="Review image 2" src={imgSeed("reviewimg2-" + seed, 700, 360)} />
+-                        <img className="w-full h-32 object-cover rounded-2xl ring-1 ring-slate-200" alt="Review image 3" src={imgSeed("reviewimg3-" + seed, 700, 360)} />
+-                      </div>
+-                    </div>
+-                  ) : null}
+-
+-                  {tab === "faq" ? (
+-                    <div>
+-                      <div className="text-lg font-extrabold">FAQ</div>
+-                      <div className="mt-2 text-sm text-slate-600">Câu hỏi thường gặp (từ landing faq).</div>
+-
+-                      <div className="mt-4 grid gap-2">
+-                        <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+-                          <div className="font-extrabold">{course.sales?.landing?.faq?.q1 || "—"}</div>
+-                          <div className="text-sm text-slate-700 mt-1">{course.sales?.landing?.faq?.a1 || "—"}</div>
+-                        </div>
+-                        <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+-                          <div className="font-extrabold">{course.sales?.landing?.faq?.q2 || "—"}</div>
+-                          <div className="text-sm text-slate-700 mt-1">{course.sales?.landing?.faq?.a2 || "—"}</div>
+-                        </div>
+-                      </div>
+-                    </div>
+-                  ) : null}
+-                </div>
+-              </div>
+-
+-              {/* Checkout */}
+-              <div id="checkout" className="card p-6">
+-                <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+-                  <div>
+-                    <div className="text-xs font-extrabold text-slate-500">Checkout</div>
+-                    <div className="text-2xl font-extrabold">Thanh toán (Prototype)</div>
+-                    <div className="mt-1 text-sm text-slate-600">
+-                      Mô phỏng: tạo đơn + đổi trạng thái thanh toán.
+-                    </div>
+-                  </div>
+-                  <div className="flex gap-2">
+-                    <button className="btn btn-primary" type="button" onClick={createOrder}>
+-                      <i className="fa-solid fa-receipt mr-2" />
+-                      Tạo đơn hàng
+-                    </button>
+-                    <button className="btn btn-accent" type="button" onClick={payNow}>
+-                      <i className="fa-solid fa-credit-card mr-2" />
+-                      Thanh toán (demo)
++                    <button className="btn btn-primary hover:text-purple-800" type="button" onClick={() => window.alert("Đăng ký thành công (demo).") }>
++                      <i className="fa-solid fa-user-plus" /> Đăng ký khoá học
+                     </button>
+                   </div>
+                 </div>
++              </section>
+
+-                <div className="mt-5 grid gap-4 md:grid-cols-2">
+-                  <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+-                    <div className="font-extrabold">Thông tin học viên</div>
++              <section className="card p-6">
++                <div className="text-xl font-extrabold">Nội dung khoá học</div>
++                <div className="text-slate-600 text-sm mt-1">
++                  {course.lessons.length} bài học • {totalModules} module
++                </div>
+
+-                    <div className="mt-3 grid gap-3">
+-                      <div>
+-                        <div className="text-xs font-extrabold text-slate-500">Họ và tên</div>
+-                        <input className="field mt-2" value={ckName} onChange={(e) => setCkName(e.target.value)} placeholder="Nguyễn Văn A" />
+-                      </div>
+-                      <div>
+-                        <div className="text-xs font-extrabold text-slate-500">Email</div>
+-                        <input className="field mt-2" value={ckEmail} onChange={(e) => setCkEmail(e.target.value)} placeholder="email@example.com" />
+-                      </div>
+-                      <div>
+-                        <div className="text-xs font-extrabold text-slate-500">Số điện thoại (tuỳ chọn)</div>
+-                        <input className="field mt-2" value={ckPhone} onChange={(e) => setCkPhone(e.target.value)} placeholder="090..." />
++                <div className="mt-4 grid gap-3">
++                  {course.lessons.map((lesson) => (
++                    <div key={lesson.id} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
++                      <div className="font-extrabold">
++                        Bài {lesson.order}: {lesson.title}
+                       </div>
+-                      <div>
+-                        <div className="text-xs font-extrabold text-slate-500">Voucher (demo)</div>
+-                        <input className="field mt-2" value={ckVoucher} onChange={(e) => setCkVoucher(e.target.value)} placeholder="AYA20" />
+-                        <div className="text-xs text-slate-500 mt-2">Prototype: validate voucher theo rules ở `LMS_VOUCHERS`.</div>
+-                      </div>
+-                    </div>
+-                  </div>
+-
+-                  <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+-                    <div className="font-extrabold">Tóm tắt đơn</div>
+-
+-                    <div className="mt-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+-                      <div className="flex items-start justify-between gap-3">
+-                        <div className="flex items-center gap-3">
+-                          <img className="w-16 h-11 rounded-xl object-cover border border-slate-200 bg-slate-200" src={thumbImg} alt="Course thumb" />
+-                          <div>
+-                            <div className="font-extrabold">{course.title}</div>
+-                            <div className="text-xs text-slate-500 mt-1">
+-                              {categoryLabel(course.category)} • {course.id} • Rating {course.rating}
+-                            </div>
++                      <div className="mt-2 grid gap-2">
++                        {lesson.modules.map((module) => (
++                          <div key={module.id} className="rounded-xl bg-white px-3 py-2 ring-1 ring-slate-200 text-sm">
++                            Module {module.order}: {module.title}
+                           </div>
+-                        </div>
+-                        <span className="chip">
+-                          <i className="fa-solid fa-tag text-emerald-600" />
+-                          {moneyVND(finalPricing.price)}
+-                        </span>
+-                      </div>
+-
+-                      <div className="mt-3 text-sm text-slate-700">
+-                        <div className="flex items-center justify-between">
+-                          <span>Giá niêm yết</span>
+-                          <b>{moneyVND(basePrice)}</b>
+-                        </div>
+-                        <div className="flex items-center justify-between mt-2">
+-                          <span>Giảm mặc định</span>
+-                          <b>{Math.max(0, Math.min(100, defaultDiscount))}%</b>
+-                        </div>
+-                        <div className="flex items-center justify-between mt-2">
+-                          <span>Voucher</span>
+-                          <b>
+-                            {voucher
+-                              ? voucher.type === "percent"
+-                                ? `-${voucher.value}% (${voucher.code})`
+-                                : `-${moneyVND(voucher.value)} (${voucher.code})`
+-                              : "—"}
+-                          </b>
+-                        </div>
+-                        <div className="my-3 border-t border-slate-200" />
+-                        <div className="flex items-center justify-between">
+-                          <span className="font-extrabold">Tổng thanh toán</span>
+-                          <b className="text-lg">{moneyVND(finalPricing.price)}</b>
+-                        </div>
+-                        <div className="text-xs text-slate-500 mt-2">{finalPricing.note}</div>
+-                      </div>
+-
+-                      <label className="mt-4 flex items-center gap-2 text-sm font-extrabold">
+-                        <input type="checkbox" className="h-4 w-4 rounded border-slate-300" checked={ckAgree} onChange={(e) => setCkAgree(e.target.checked)} />
+-                        Tôi đồng ý điều khoản (demo)
+-                      </label>
+-
+-                      <div className="mt-4 grid gap-2">
+-                        <button type="button" className="btn" onClick={() => window.alert("Đã tính lại giá (demo).")}>
+-                          <i className="fa-solid fa-calculator mr-2" />
+-                          Tính lại giá
+-                        </button>
+-                        <button type="button" className="btn btn-primary" onClick={payNow}>
+-                          <i className="fa-solid fa-lock mr-2" />
+-                          Thanh toán an toàn (demo)
+-                        </button>
++                        ))}
+                       </div>
+                     </div>
+-
+-                    <div className="mt-4 rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+-                      <div className="font-extrabold">Đơn hàng</div>
+-
+-                      <div className="mt-2 text-sm text-slate-700">
+-                        <div className="flex items-center justify-between">
+-                          <span>Mã đơn</span>
+-                          <b>{order.id}</b>
+-                        </div>
+-                        <div className="flex items-center justify-between mt-2">
+-                          <span>Trạng thái</span>
+-                          <span className="chip">
+-                            <i className={`fa-solid fa-circle ${orderChip.icon}`} />
+-                            {orderChip.text}
+-                          </span>
+-                        </div>
+-                        <div className="flex items-center justify-between mt-2">
+-                          <span>Thời gian</span>
+-                          <span className="text-slate-500">
+-                            {order.createdAt ? new Date(order.createdAt).toLocaleString("vi-VN") : "—"}
+-                          </span>
+-                        </div>
+-                      </div>
+-
+-                      <div className="mt-4 flex flex-wrap gap-2">
+-                        <button type="button" className="btn" onClick={() => setOrderStatus("PENDING")}>
+-                          Pending
+-                        </button>
+-                        <button type="button" className="btn btn-accent" onClick={() => setOrderStatus("PAID")}>
+-                          Paid
+-                        </button>
+-                        <button type="button" className="btn" onClick={() => setOrderStatus("FAILED")}>
+-                          Failed
+-                        </button>
+-                        <button type="button" className="btn" onClick={() => setOrderStatus("REFUNDED")}>
+-                          Refunded
+-                        </button>
+-                      </div>
+-
+-                      <div className="mt-3 text-xs text-slate-500">Prototype: trạng thái đơn chỉ lưu trong state.</div>
+-                    </div>
+-                  </div>
++                  ))}
+                 </div>
+-              </div>
+-            </div>
++              </section>
+
+-            {/* Right */}
+-            <aside className="lg:col-span-4 grid gap-4">
+-              <PreviewSidebar course={course} onPreview={(l) => setPreviewLesson(l)} />
+-
+-              <div className="card p-5">
+-                <div className="font-extrabold">CTA nhanh</div>
+-                <div className="mt-3 grid gap-2">
+-                  <a href="#checkout" className="btn btn-primary w-full text-center">
+-                    <i className="fa-solid fa-cart-shopping mr-2" />
+-                    Đăng ký ngay
+-                  </a>
+-                  <button type="button" className="btn w-full" onClick={() => window.alert("Demo: mở chat/tư vấn (sau nối Zalo/FB).")}>
+-                    <i className="fa-solid fa-message mr-2" />
+-                    Nhắn tư vấn (demo)
+-                  </button>
++              <section className="card p-6">
++                <div className="text-xl font-extrabold">Đánh giá khoá học</div>
++                <div className="text-sm text-slate-600 mt-1">
++                  {course.reviewSummary.ratingCount} đánh giá • Điểm trung bình {Number(course.reviewSummary.ratingAvg || 0).toFixed(1)}
+                 </div>
+-                <div className="mt-3 text-xs text-slate-500">Prototype: CTA nối xuống checkout.</div>
+-              </div>
+
+-              <div className="card p-5">
+-                <div className="font-extrabold">Gợi ý thao tác</div>
+-                <div className="mt-2 text-sm text-slate-700">
+-                  • Chọn course ở dropdown.<br />
+-                  • Xem curriculum & preview.<br />
+-                  • Cuộn xuống Checkout để tạo đơn và đổi trạng thái thanh toán.
++                <div className="mt-4 grid gap-3">
++                  {course.reviews.length ? (
++                    course.reviews.map((review) => (
++                      <div key={review.id} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
++                        <div className="flex items-center justify-between gap-2">
++                          <div className="font-extrabold">{review.customerName || "Học viên"}</div>
++                          <div className="text-sm text-slate-600">{review.stars.toFixed(1)} ★</div>
++                        </div>
++                        {review.comment ? <div className="text-sm text-slate-700 mt-2">{review.comment}</div> : null}
++                      </div>
++                    ))
++                  ) : (
++                    <div className="text-slate-600 text-sm">Chưa có đánh giá.</div>
++                  )}
+                 </div>
+-              </div>
+-            </aside>
+-          </section>
+-
+-          <div className="text-center text-sm text-slate-500">© 2025 AYANAVITA • Course Detail Prototype</div>
++              </section>
++            </>
++          ) : null}
+         </div>
+       </main>
+-
+       <Footer />
+-
+-      {/* Preview Modal */}
+-      {previewOpen ? (
+-        <div className="fixed inset-0 z-[90] bg-black/55 flex items-center justify-center p-4">
+-          <div ref={previewRef} className="card w-full max-w-2xl overflow-hidden">
+-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between gap-3">
+-              <div>
+-                <div className="text-xs font-extrabold text-slate-500">Preview</div>
+-                <div className="text-lg font-extrabold">{previewLesson?.title}</div>
+-              </div>
+-              <button className="btn h-10 w-10 p-0" type="button" onClick={() => setPreviewLesson(null)} aria-label="close">
+-                <i className="fa-solid fa-xmark" />
+-              </button>
+-            </div>
+-
+-            <div className="p-6 grid gap-3">
+-              <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 text-sm text-slate-700">
+-                <div>
+-                  <b>Course:</b> {course.title}
+-                </div>
+-                <div className="mt-1">
+-                  <b>Type:</b> {String(previewLesson?.type || "").toUpperCase()}
+-                </div>
+-                <div className="mt-1">
+-                  <b>Duration:</b> {previewLesson?.duration ?? 0} phút
+-                </div>
+-                <div className="mt-1">
+-                  <b>Source:</b> {previewLesson?.source || "—"}
+-                </div>
+-                {previewLesson?.note ? (
+-                  <div className="mt-2 text-slate-600">
+-                    <b>Note:</b> {previewLesson.note}
+-                  </div>
+-                ) : null}
+-              </div>
+-
+-              <button type="button" className="btn btn-primary" onClick={() => window.alert("Prototype: mở player/reader thật ở bước sau.")}>
+-                <i className="fa-solid fa-play mr-2" />
+-                Mở bài học (demo)
+-              </button>
+-            </div>
+-          </div>
+-        </div>
+-      ) : null}
+     </div>
+   );
+ }
 diff --git a/Home/ayanavita-fontend-final/src/pages/CoursesPage.tsx b/Home/ayanavita-fontend-final/src/pages/CoursesPage.tsx
-index 56d20fcd2a4da1985d45bb62ac2aaf683fb37dc5..67bfd42434b02dcfef268d95b919df675663eaac 100644
+index 67bfd42434b02dcfef268d95b919df675663eaac..f27a58337629cd199e701bcedd1d38cab9ce4156 100644
 --- a/Home/ayanavita-fontend-final/src/pages/CoursesPage.tsx
 +++ b/Home/ayanavita-fontend-final/src/pages/CoursesPage.tsx
-@@ -1,66 +1,65 @@
- // src/pages/CoursesPage.tsx
- import React, { useEffect, useMemo, useState } from "react";
- import { Link } from "react-router-dom";
-
- // NOTE: chỉnh lại path nếu project của bạn đặt http client ở chỗ khác.
- // Mục tiêu: dùng được mẫu `await http.get(...)` như yêu cầu.
- import {http} from "../api/http";
-
- import { COURSES, type Course, type CourseTopic, topicLabel } from "../data/courses.data";
- import { money } from "../services/booking.utils";
- import {
-   readCourseCart,
-   addCourseToCart,
-   removeCourseFromCart,
-   clearCourseCart,
- } from "../services/courseCart.utils";
-
--type SortRule = "best" | "new" | "high" | "low";
-+type ApiTopicOption = { id: number; name: string };
-
- export type CoursesPageCmsData = {
-   // HERO
-   heroImageSrc: string;
-   heroImageAlt: string;
-   heroChips: { iconClass: string; text: string }[]; // icons can be customized from CMS (colors remain in code)
-   heroTitle: string;
-   heroTitleHighlight: string;
-   heroCartBtn: string;
-   heroProductCartLink: string;
-
-   // FILTER
-   filterKicker: string;
-   filterTitle: string;
-   filterFoundText: string; // use {count}
-   filterResetBtn: string;
-   filterOpenCartBtn: string;
-   filterOpenCartBtnSuffix: string; // use {count}
-   keywordLabel: string;
-   keywordPlaceholder: string;
-   topicLabel: string;
-   topicAllLabel: string;
--  sortLabel: string;
-   prototypeNote: string;
-
-   // LIST
-   listKicker: string;
-   listTitle: string;
-   listDesc: string;
-   scrollTopBtn: string;
-   listCartBtn: string;
-   listCartBtnSuffix: string; // use {count}
-   viewDetailBtn: string;
-   addBtn: string;
-
-   // EMPTY
-   emptyTitle: string;
-   emptyDesc: string;
-   emptyResetBtn: string;
-
-   // COURSE DETAIL MODAL
-   detailModalKicker: string;
-   detailAddBtn: string;
-   detailCloseAria: string;
-   detailStudentsSuffix: string;
-   detailPriceNote: string;
-
-   // CART MODAL
-@@ -82,98 +81,88 @@ export type CoursesPageCmsData = {
-
- export const defaultCmsData: CoursesPageCmsData = {
-   heroImageSrc:
-       "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?auto=format&fit=crop&w=2400&q=80",
-   heroImageAlt: "Courses hero",
-   heroChips: [
-     { iconClass: "fa-solid fa-graduation-cap", text: "Academy" },
-     { iconClass: "fa-solid fa-certificate", text: "Chứng chỉ" },
-     { iconClass: "fa-solid fa-video", text: "Video + tài liệu" },
-   ],
-   heroTitle: "Khoá học AYANAVITA chuẩn spa & vận hành",
-   heroTitleHighlight: "chuẩn spa & vận hành",
-   heroCartBtn: "Cart",
-   heroProductCartLink: "Giỏ hàng sản phẩm",
-
-   filterKicker: "Bộ lọc",
-   filterTitle: "Tìm & sắp xếp khoá học",
-   filterFoundText: "Tìm thấy {count} khoá",
-   filterResetBtn: "Reset",
-   filterOpenCartBtn: "Mở cart",
-   filterOpenCartBtnSuffix: "{count}",
-   keywordLabel: "Từ khoá",
-   keywordPlaceholder: "VD: skincare, vận hành, tư vấn...",
-   topicLabel: "Chủ đề",
-   topicAllLabel: "Tất cả",
--  sortLabel: "Sắp xếp",
-   prototypeNote: "Prototype: “Chi tiết” mở modal, “Thêm” vào cart.",
-
-   listKicker: "Danh sách",
-   listTitle: "Khoá học nổi bật",
-   listDesc: "Chọn khoá để xem chi tiết hoặc thêm vào cart.",
-   scrollTopBtn: "Lên đầu",
-   listCartBtn: "Cart",
-   listCartBtnSuffix: "{count}",
-   viewDetailBtn: "Chi tiết",
-   addBtn: "Thêm",
-
-   emptyTitle: "Không có khoá học phù hợp",
-   emptyDesc: "Thử đổi từ khoá/chủ đề khác.",
-   emptyResetBtn: "Reset",
-
-   detailModalKicker: "Course",
-   detailAddBtn: "Thêm vào cart",
-   detailCloseAria: "close",
-   detailStudentsSuffix: "HV",
-   detailPriceNote: "Giá demo (có thể áp voucher)",
-
-   cartModalKicker: "Cart",
-   cartModalTitle: "Giỏ khoá học (demo)",
-   cartClearBtn: "Xoá",
-   cartCloseAria: "close",
-   cartEmptyTitle: "Cart trống",
-   cartEmptyDesc: "Thêm khoá học để test checkout.",
-   cartSubtotalLabel: "Tạm tính",
-   cartCheckoutBtn: "Checkout (demo)",
-   cartContinueBtn: "Tiếp tục xem",
-
-   alertAddedToCart: "Đã thêm vào cart (demo): {id}",
-   confirmClearCart: "Xoá toàn bộ cart?",
-   alertCheckout: "Checkout (demo). Bạn có thể điều hướng sang trang thanh toán thật.",
- };
-
- const HERO_CHIP_COLOR_BY_INDEX = ["text-amber-600", "text-emerald-600", "text-indigo-600"] as const;
-
--// NOTE: Options hiển thị trong filter thường gắn với dữ liệu DB (topic, sort rule),
--// nên KHÔNG đưa vào cmsData. CMS chỉ chỉnh nội dung text chung.
--const SORT_RULE_LABEL: Record<SortRule, string> = {
--  best: "Phổ biến",
--  new: "Mới nhất",
--  high: "Giá cao → thấp",
--  low: "Giá thấp → cao",
--};
--
- function tpl(text: string, vars: Record<string, string | number>) {
-   let out = text;
-   for (const [k, v] of Object.entries(vars)) out = out.split(`{${k}}`).join(String(v));
-   return out;
- }
-
- function Stars({ rating }: { rating: number }) {
-   const full = Math.round(rating);
-   return (
-       <span className="inline-flex items-center gap-1">
-       {Array.from({ length: 5 }).map((_, i) => (
-           <i key={i} className={`fa-solid fa-star ${i < full ? "star" : "text-slate-300"}`} />
-       ))}
-     </span>
-   );
- }
-
-
- function CourseDetailModal({
-                              open,
-                              course,
-                              onClose,
-                              onAdd,
-                              cms,
-                            }: {
-@@ -201,55 +190,55 @@ function CourseDetailModal({
-             <div className="flex gap-2">
-               <button className="btn btn-primary hover:text-purple-800" type="button" onClick={() => onAdd(course.id)}>
-                 <i className="fa-solid fa-cart-plus" /> {cms.detailAddBtn}
-               </button>
-               <button
-                   className="btn h-10 w-10 p-0"
-                   type="button"
-                   onClick={onClose}
-                   aria-label={cms.detailCloseAria}
-               >
-                 <i className="fa-solid fa-xmark" />
-               </button>
-             </div>
-           </div>
-
-           <div className="p-6 grid gap-4">
-             <img
-                 className="w-full h-64 object-cover rounded-3xl ring-1 ring-slate-200"
-                 src={course.img}
-                 alt={course.title}
-             />
-
-             <div className="flex flex-wrap gap-2">
-             <span className="chip">
-               <i className="fa-solid fa-layer-group text-indigo-600" />
--              {topicLabel(course.topic)}
-+              {course.topicName || topicLabel(course.topic)}
-             </span>
-               <span className="chip">
-               <i className="fa-solid fa-clock text-amber-600" />
--                {course.hours} giờ
-+                {course.time || `${course.hours} giờ`}
-             </span>
-               <span className="chip">
-               <i className="fa-solid fa-users text-emerald-600" />
-                 {new Intl.NumberFormat("vi-VN").format(course.students)} {cms.detailStudentsSuffix}
-             </span>
-               <span className="chip">
-               <i className="fa-solid fa-star text-amber-500" />
-                 {course.rating.toFixed(1)}
-             </span>
-             </div>
-
-             <div className="text-slate-700 leading-relaxed">{course.desc}</div>
-
-             <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
-               <div className="flex items-center justify-between">
-                 <div className="font-extrabold text-indigo-700">{money(course.price)}</div>
-                 <div className="text-sm text-slate-600">{cms.detailPriceNote}</div>
-               </div>
-             </div>
-           </div>
-         </div>
-       </div>
-   );
- }
-
-@@ -293,51 +282,51 @@ function CourseCartModal({
-                   className="btn h-10 w-10 p-0"
-                   type="button"
-                   onClick={onClose}
-                   aria-label={cms.cartCloseAria}
-               >
-                 <i className="fa-solid fa-xmark" />
-               </button>
-             </div>
-           </div>
-
-           <div className="p-6">
-             {items.length ? (
-                 <div className="grid gap-3">
-                   {items.map((c) => (
-                       <div key={c.id} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
-                         <div className="flex items-start justify-between gap-3">
-                           <div className="flex gap-3">
-                             <img
-                                 src={c.img}
-                                 alt={c.title}
-                                 className="h-16 w-24 object-cover rounded-2xl ring-1 ring-slate-200"
-                             />
-                             <div>
-                               <div className="font-extrabold">{c.title}</div>
-                               <div className="text-sm text-slate-600 mt-1">
--                                {topicLabel(c.topic)} • {money(c.price)}
-+                                {c.topicName || topicLabel(c.topic)} • {money(c.price)}
-                               </div>
-                             </div>
-                           </div>
-                           <button className="btn h-10 w-10 p-0" type="button" onClick={() => onRemove(c.id)}>
-                             <i className="fa-solid fa-trash text-rose-600" />
-                           </button>
-                         </div>
-                       </div>
-                   ))}
-                 </div>
-             ) : (
-                 <div className="text-center text-slate-600 py-10">
-                   <div className="text-3xl">
-                     <i className="fa-solid fa-cart-shopping" />
-                   </div>
-                   <div className="mt-2 font-extrabold">{cms.cartEmptyTitle}</div>
-                   <div className="text-sm mt-1">{cms.cartEmptyDesc}</div>
-                 </div>
-             )}
-
-             <div className="mt-6 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 flex items-center justify-between">
-               <div className="text-sm text-slate-600">{cms.cartSubtotalLabel}</div>
-               <div className="font-extrabold text-indigo-700">{money(total)}</div>
-             </div>
-
-@@ -392,109 +381,146 @@ export default function CoursesPage({
-   // Gọi API theo ngôn ngữ và ghi đè dữ liệu lên cmsData
-   useEffect(() => {
-     let cancelled = false;
-
-     (async () => {
-       try {
-         const res = await http.get(`/public/pages/courses?lang=${currentLanguage}`);
+@@ -388,113 +388,108 @@ export default function CoursesPage({
          // Hỗ trợ cả kiểu axios ({ data }) lẫn client trả thẳng JSON
          const remoteCms = res.data.sections[0].data;
          if (!cancelled && remoteCms && typeof remoteCms === "object") {
@@ -349,101 +918,81 @@ index 56d20fcd2a4da1985d45bb62ac2aaf683fb37dc5..67bfd42434b02dcfef268d95b919df67
 
    const cms = useMemo(() => ({ ...defaultCmsData, ...(cmsDataState || {}) }), [cmsDataState]);
    const [q, setQ] = useState("");
--  const [topic, setTopic] = useState<"all" | CourseTopic>("all");
--  const [sort, setSort] = useState<SortRule>("best");
-+  const [topic, setTopic] = useState<"all" | number>("all");
-+  const [page, setPage] = useState(1);
-+  const [pageSize, setPageSize] = useState(8);
-+  const [totalCourses, setTotalCourses] = useState(0);
-+  const [courses, setCourses] = useState<Course[]>(COURSES);
-+  const [topicOptions, setTopicOptions] = useState<ApiTopicOption[]>([]);
+   const [topic, setTopic] = useState<"all" | number>("all");
+   const [page, setPage] = useState(1);
+   const [pageSize, setPageSize] = useState(8);
+   const [totalCourses, setTotalCourses] = useState(0);
+   const [courses, setCourses] = useState<Course[]>(COURSES);
+   const [topicOptions, setTopicOptions] = useState<ApiTopicOption[]>([]);
 
-   const [detailId, setDetailId] = useState<string | null>(null);
+-  const [detailId, setDetailId] = useState<string | null>(null);
    const [cartOpen, setCartOpen] = useState(false);
 
    const [cartIds, setCartIds] = useState<string[]>(() => readCourseCart());
 
--  const filtered = useMemo(() => {
--    const qq = q.trim().toLowerCase();
-+  useEffect(() => {
-+    let cancelled = false;
+   useEffect(() => {
+     let cancelled = false;
 
--    let list = COURSES.filter((c) => {
--      if (topic !== "all" && c.topic !== topic) return false;
--      if (qq) {
--        const hay = (c.title + " " + c.desc).toLowerCase();
--        if (!hay.includes(qq)) return false;
-+    (async () => {
-+      try {
-+        const [coursesRes, topicsRes] = await Promise.all([
-+          http.get("/courses", {
-+            params: {
-+              lang: currentLanguage,
-+              page,
-+              pageSize,
-+              search: q.trim() || undefined,
-+              topicId: topic === "all" ? undefined : topic,
-+            },
-+          }),
-+          http.get("/courses/topics", { params: { lang: currentLanguage } }),
-+        ]);
-+
-+        if (cancelled) return;
-+
-+        const items = Array.isArray(coursesRes.data?.items) ? coursesRes.data.items : [];
-+        const mapped: Course[] = items.map((item: any) => ({
-+          id: String(item.id),
-+          title: item.title || "",
-+          topic: "ops" as CourseTopic,
-+          img: item.thumbnail || cms.heroImageSrc,
-+          desc: item.shortDescription || item.description || "",
-+          price: Number(item.price || 0),
-+          hours: Number(item.time || 0),
-+          rating: Number(item.ratingAvg || 0),
-+          students: Number(item.enrollmentCount || 0),
-+          popular: 0,
-+          date: item.createdAt || "",
-+          time: item.time || "",
-+          topicName: item.topic?.name || topicLabel("ops"),
-+          topicId: item.topic?.id || null,
-+        } as Course));
-+
-+        setCourses(mapped);
-+        setTotalCourses(Number(coursesRes.data?.total || 0));
-+        setTopicOptions(Array.isArray(topicsRes.data) ? topicsRes.data : []);
-+      } catch (err) {
-+        console.error("Fetch courses failed:", err);
+     (async () => {
+       try {
+         const [coursesRes, topicsRes] = await Promise.all([
+           http.get("/courses", {
+             params: {
+               lang: currentLanguage,
+               page,
+               pageSize,
+               search: q.trim() || undefined,
+               topicId: topic === "all" ? undefined : topic,
+             },
+           }),
+           http.get("/courses/topics", { params: { lang: currentLanguage } }),
+         ]);
+
+         if (cancelled) return;
+
+         const items = Array.isArray(coursesRes.data?.items) ? coursesRes.data.items : [];
+         const mapped: Course[] = items.map((item: any) => ({
+           id: String(item.id),
++          slug: item.slug || String(item.id),
+           title: item.title || "",
+           topic: "ops" as CourseTopic,
+           img: item.thumbnail || cms.heroImageSrc,
+           desc: item.shortDescription || item.description || "",
+           price: Number(item.price || 0),
+           hours: Number(item.time || 0),
+           rating: Number(item.ratingAvg || 0),
+           students: Number(item.enrollmentCount || 0),
+           popular: 0,
+           date: item.createdAt || "",
+           time: item.time || "",
+           topicName: item.topic?.name || topicLabel("ops"),
+           topicId: item.topic?.id || null,
+         } as Course));
+
+         setCourses(mapped);
+         setTotalCourses(Number(coursesRes.data?.total || 0));
+         setTopicOptions(Array.isArray(topicsRes.data) ? topicsRes.data : []);
+       } catch (err) {
+         console.error("Fetch courses failed:", err);
        }
--      return true;
--    });
-+    })();
+     })();
 
--    if (sort === "new") list = [...list].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
--    if (sort === "high") list = [...list].sort((a, b) => (b.price || 0) - (a.price || 0));
--    if (sort === "low") list = [...list].sort((a, b) => (a.price || 0) - (b.price || 0));
--    if (sort === "best") list = [...list].sort((a, b) => (b.popular || 0) - (a.popular || 0));
-+    return () => {
-+      cancelled = true;
-+    };
-+  }, [cms.heroImageSrc, currentLanguage, page, pageSize, q, topic]);
+     return () => {
+       cancelled = true;
+     };
+   }, [cms.heroImageSrc, currentLanguage, page, pageSize, q, topic]);
 
--    return list;
--  }, [q, topic, sort]);
-+  const totalPages = Math.max(1, Math.ceil(totalCourses / pageSize));
+   const totalPages = Math.max(1, Math.ceil(totalCourses / pageSize));
 
-   const selectedCourse = useMemo(() => {
-     if (!detailId) return null;
--    return COURSES.find((c) => c.id === detailId) || null;
--  }, [detailId]);
-+    return courses.find((c) => c.id === detailId) || null;
-+  }, [courses, detailId]);
-
+-  const selectedCourse = useMemo(() => {
+-    if (!detailId) return null;
+-    return courses.find((c) => c.id === detailId) || null;
+-  }, [courses, detailId]);
+-
    const cartItems = useMemo(() => {
      const set = new Set(cartIds.map((x) => x.toUpperCase()));
--    return COURSES.filter((c) => set.has(c.id));
--  }, [cartIds]);
-+    return courses.filter((c) => set.has(c.id.toUpperCase()));
-+  }, [cartIds, courses]);
+     return courses.filter((c) => set.has(c.id.toUpperCase()));
+   }, [cartIds, courses]);
 
    function addToCart(id: string) {
      const next = addCourseToCart(id);
@@ -465,253 +1014,58 @@ index 56d20fcd2a4da1985d45bb62ac2aaf683fb37dc5..67bfd42434b02dcfef268d95b919df67
    function reset() {
      setQ("");
      setTopic("all");
--    setSort("best");
-+    setPage(1);
-   }
-
-   return (
-       <div className="text-slate-900">
-         {/*<SiteHeader />*/}
-
-         <main className="pb-12">
-           {/* HERO full width */}
-           <section className="relative">
-             <img
-                 className="h-64 md:h-80 w-full object-cover"
-                 alt={cms.heroImageAlt}
-                 src={cms.heroImageSrc}
-             />
-             <div className="absolute inset-0 bg-gradient-to-r from-slate-950/75 to-indigo-700/25" />
-
-             <div className="absolute inset-0">
-               <div className="max-w-7xl mx-auto h-full px-4 py-8 flex flex-col justify-end">
-                 <div className="flex flex-wrap gap-2">
-                   {(cms.heroChips || []).slice(0, 3).map((chip, idx) => (
-                       <span key={idx} className="chip">
-                     <i className={`${chip.iconClass} ${HERO_CHIP_COLOR_BY_INDEX[idx] || ""}`} /> {chip.text}
-                   </span>
-                   ))}
-                 </div>
-@@ -506,186 +532,200 @@ export default function CoursesPage({
-
-                 <div className="mt-4 flex flex-wrap gap-2">
-                   <button className="btn btn-accent" type="button" onClick={() => setCartOpen(true)}>
-                     <i className="fa-solid fa-cart-shopping" />
-                     {cms.heroCartBtn}
-                     <span className="chip ml-1">{cartIds.length}</span>
-                   </button>
-                   <Link className="btn btn-primary hover:text-purple-800" to="/cart">
-                     <i className="fa-solid fa-bag-shopping" />
-                     {cms.heroProductCartLink}
-                   </Link>
-                 </div>
-               </div>
-             </div>
-           </section>
-
-           {/* FILTER BAR ngang (trên) */}
-           <section className="px-4 -mt-6">
-             <div className="max-w-7xl mx-auto">
-               <div className="card p-4 md:p-5">
-                 <div className="flex items-center justify-between gap-3 flex-wrap">
-                   <div>
-                     <div className="text-xs font-extrabold text-slate-500">{cms.filterKicker}</div>
-                     <div className="text-lg md:text-xl font-extrabold">{cms.filterTitle}</div>
-                     <div className="mt-1 text-sm text-slate-600">
--                      {tpl(cms.filterFoundText, { count: filtered.length })}
-+                      {tpl(cms.filterFoundText, { count: totalCourses })}
-                     </div>
-                   </div>
-
-                   <div className="flex gap-2 flex-wrap">
-                     <button className="btn" type="button" onClick={reset} aria-label="reset">
-                       <i className="fa-solid fa-rotate-left" /> {cms.filterResetBtn}
-                     </button>
-                     <button className="btn btn-primary hover:text-purple-800" type="button" onClick={() => setCartOpen(true)}>
-                       <i className="fa-solid fa-cart-shopping" /> {cms.filterOpenCartBtn}{" "}
-                       <span className="chip ml-1">{tpl(cms.filterOpenCartBtnSuffix, { count: cartIds.length })}</span>
-                     </button>
-                   </div>
-                 </div>
-
-                 <div className="mt-4 grid gap-3 md:grid-cols-12">
-                   {/* Search */}
-                   <div className="md:col-span-6">
-                     <label className="text-sm font-extrabold text-slate-700">{cms.keywordLabel}</label>
-                     <input
-                         className="field mt-2"
-                         placeholder={cms.keywordPlaceholder}
-                         value={q}
--                        onChange={(e) => setQ(e.target.value)}
-+                        onChange={(e) => {
-+                          setQ(e.target.value);
-+                          setPage(1);
-+                        }}
-                     />
-                   </div>
-
-                   {/* Topic */}
-                   <div className="md:col-span-3">
-                     <label className="text-sm font-extrabold text-slate-700">{cms.topicLabel}</label>
--                    <select className="field mt-2" value={topic} onChange={(e) => setTopic(e.target.value as any)}>
-+                    <select className="field mt-2" value={String(topic)} onChange={(e) => {
-+                      const nextValue = e.target.value === "all" ? "all" : Number(e.target.value);
-+                      setTopic(nextValue);
-+                      setPage(1);
-+                    }}>
-                       <option value="all">{cms.topicAllLabel}</option>
--                      <option value="technique">{topicLabel("technique")}</option>
--                      <option value="consult">{topicLabel("consult")}</option>
--                      <option value="ops">{topicLabel("ops")}</option>
--                      <option value="product">{topicLabel("product")}</option>
-+                      {topicOptions.map((item) => (
-+                        <option key={item.id} value={item.id}>{item.name}</option>
-+                      ))}
-                     </select>
-                   </div>
-
--                  {/* Sort */}
-                   <div className="md:col-span-3">
--                    <label className="text-sm font-extrabold text-slate-700">{cms.sortLabel}</label>
--                    <select className="field mt-2" value={sort} onChange={(e) => setSort(e.target.value as SortRule)}>
--                      <option value="best">{SORT_RULE_LABEL.best}</option>
--                      <option value="new">{SORT_RULE_LABEL.new}</option>
--                      <option value="high">{SORT_RULE_LABEL.high}</option>
--                      <option value="low">{SORT_RULE_LABEL.low}</option>
-+                    <label className="text-sm font-extrabold text-slate-700">Mỗi trang</label>
-+                    <select className="field mt-2" value={pageSize} onChange={(e) => {
-+                      setPageSize(Number(e.target.value));
-+                      setPage(1);
-+                    }}>
-+                      <option value={4}>4</option>
-+                      <option value={8}>8</option>
-+                      <option value={12}>12</option>
-+                      <option value={16}>16</option>
-                     </select>
-                   </div>
-                 </div>
-
-                 <div className="mt-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 text-sm text-slate-700">
-                   {cms.prototypeNote}
-                 </div>
-               </div>
-             </div>
-           </section>
-
-           {/* LIST full trang */}
-           <section className="px-4 mt-6">
-             <div className="max-w-7xl mx-auto">
-               <div className="flex items-end justify-between gap-3 flex-wrap">
-                 <div>
-                   <div className="text-xs font-extrabold text-slate-500">{cms.listKicker}</div>
-                   <div className="text-2xl font-extrabold">{cms.listTitle}</div>
-                   <div className="mt-1 text-slate-600 text-sm">{cms.listDesc}</div>
-                 </div>
-
-                 <div className="flex gap-2">
-                   <button className="btn" type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-                     <i className="fa-solid fa-arrow-up" /> {cms.scrollTopBtn}
-                   </button>
-                   <button className="btn btn-primary hover:text-purple-800" type="button" onClick={() => setCartOpen(true)}>
-                     <i className="fa-solid fa-cart-shopping" />
-                     {cms.listCartBtn}{" "}
-                     <span className="chip ml-1">{tpl(cms.listCartBtnSuffix, { count: cartIds.length })}</span>
-                   </button>
-                 </div>
+@@ -643,90 +638,81 @@ export default function CoursesPage({
                </div>
 
--              <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
--                {filtered.map((c) => (
--                    <article key={c.id} className="card overflow-hidden">
--                      <div className="relative">
--                        <img src={c.img} alt={c.title} className="w-full h-44 object-cover" />
--                        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/55 to-transparent" />
--                        <div className="absolute left-4 bottom-4 flex flex-wrap gap-2">
--                      <span className="chip">
--                        <i className="fa-solid fa-layer-group text-indigo-600" />
--                        {topicLabel(c.topic)}
--                      </span>
--                          <span className="chip">
--                        <i className="fa-solid fa-clock text-amber-600" />
--                            {c.hours}h
--                      </span>
--                        </div>
--                      </div>
--
--                      <div className="p-5">
--                        <div className="font-extrabold">{c.title}</div>
--
--                        <div className="mt-2 flex items-center gap-2 text-sm text-slate-600">
--                          <Stars rating={c.rating} />
--                          <b>{c.rating.toFixed(1)}</b>
--                          <span className="muted">• {new Intl.NumberFormat("vi-VN").format(c.students)} HV</span>
--                        </div>
--
--                        <p className="mt-3 text-slate-700 leading-relaxed line-clamp-3">{c.desc}</p>
--
--                        <div className="mt-4 flex flex-col gap-2 items-end">
--                          <div className="font-extrabold text-indigo-700 text-2xl">{money(c.price)}</div>
--                          <div className="flex gap-2 w-full">
--                            <button className="btn text-sm w-1/2" type="button" onClick={() => setDetailId(c.id)}>
--                              <i className="fa-solid fa-eye" /> {cms.viewDetailBtn}
--                            </button>
--                            <button className="btn btn-primary text-sm w-1/2 hover:text-purple-800" type="button" onClick={() => addToCart(c.id)}>
--                              <i className="fa-solid fa-cart-plus" /> {cms.addBtn}
--                            </button>
--                          </div>
--                        </div>
--                      </div>
--                    </article>
--                ))}
--
--                {!filtered.length ? (
--                    <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4 card p-8 text-center text-slate-600">
-+              <div className="mt-5 card overflow-x-auto p-4">
-+                {courses.length ? (
-+                  <table className="w-full min-w-[900px] text-sm">
-+                    <thead>
-+                      <tr className="border-b border-slate-200 text-left">
-+                        <th className="py-3 pr-3">Khóa học</th>
-+                        <th className="py-3 pr-3">Chủ đề</th>
-+                        <th className="py-3 pr-3">Time</th>
-+                        <th className="py-3 pr-3">Đánh giá</th>
-+                        <th className="py-3 pr-3">Giá</th>
-+                        <th className="py-3 text-right">Thao tác</th>
-+                      </tr>
-+                    </thead>
-+                    <tbody>
-+                      {courses.map((c) => (
-+                        <tr key={c.id} className="border-b border-slate-100 align-top">
-+                          <td className="py-3 pr-3">
-+                            <div className="font-extrabold">{c.title}</div>
-+                            <div className="text-slate-600 mt-1 line-clamp-2">{c.desc}</div>
-+                          </td>
-+                          <td className="py-3 pr-3">
-+                            <span className="chip">{c.topicName || topicLabel(c.topic)}</span>
-+                          </td>
-+                          <td className="py-3 pr-3">{c.time || "-"}</td>
-+                          <td className="py-3 pr-3">
-+                            <div className="flex items-center gap-2 text-slate-600">
-+                              <Stars rating={c.rating} /> <b>{c.rating.toFixed(1)}</b>
-+                            </div>
-+                          </td>
-+                          <td className="py-3 pr-3 font-extrabold text-indigo-700">{money(c.price)}</td>
-+                          <td className="py-3 text-right">
-+                            <div className="flex gap-2 justify-end">
-+                              <button className="btn text-sm" type="button" onClick={() => setDetailId(c.id)}>
-+                                <i className="fa-solid fa-eye" /> {cms.viewDetailBtn}
-+                              </button>
-+                              <button className="btn btn-primary text-sm hover:text-purple-800" type="button" onClick={() => addToCart(c.id)}>
-+                                <i className="fa-solid fa-cart-plus" /> {cms.addBtn}
-+                              </button>
-+                            </div>
-+                          </td>
-+                        </tr>
-+                      ))}
-+                    </tbody>
-+                  </table>
-+                ) : (
-+                    <div className="card p-8 text-center text-slate-600">
+               <div className="mt-5 card overflow-x-auto p-4">
+                 {courses.length ? (
+                   <table className="w-full min-w-[900px] text-sm">
+                     <thead>
+                       <tr className="border-b border-slate-200 text-left">
+                         <th className="py-3 pr-3">Khóa học</th>
+                         <th className="py-3 pr-3">Chủ đề</th>
+                         <th className="py-3 pr-3">Time</th>
+                         <th className="py-3 pr-3">Đánh giá</th>
+                         <th className="py-3 pr-3">Giá</th>
+                         <th className="py-3 text-right">Thao tác</th>
+                       </tr>
+                     </thead>
+                     <tbody>
+                       {courses.map((c) => (
+                         <tr key={c.id} className="border-b border-slate-100 align-top">
+                           <td className="py-3 pr-3">
+                             <div className="font-extrabold">{c.title}</div>
+                             <div className="text-slate-600 mt-1 line-clamp-2">{c.desc}</div>
+                           </td>
+                           <td className="py-3 pr-3">
+                             <span className="chip">{c.topicName || topicLabel(c.topic)}</span>
+                           </td>
+-                          <td className="py-3 pr-3">{c.time || "-"}</td>
++                          <td className="py-3 pr-3">{c.time ? `${c.time} Hour` : "-"}</td>
+                           <td className="py-3 pr-3">
+                             <div className="flex items-center gap-2 text-slate-600">
+                               <Stars rating={c.rating} /> <b>{c.rating.toFixed(1)}</b>
+                             </div>
+                           </td>
+                           <td className="py-3 pr-3 font-extrabold text-indigo-700">{money(c.price)}</td>
+                           <td className="py-3 text-right">
+                             <div className="flex gap-2 justify-end">
+-                              <button className="btn text-sm" type="button" onClick={() => setDetailId(c.id)}>
++                              <Link className="btn text-sm" to={`/courses/${c.slug || c.id}`}>
+                                 <i className="fa-solid fa-eye" /> {cms.viewDetailBtn}
+-                              </button>
++                              </Link>
+                               <button className="btn btn-primary text-sm hover:text-purple-800" type="button" onClick={() => addToCart(c.id)}>
+                                 <i className="fa-solid fa-cart-plus" /> {cms.addBtn}
+                               </button>
+                             </div>
+                           </td>
+                         </tr>
+                       ))}
+                     </tbody>
+                   </table>
+                 ) : (
+                     <div className="card p-8 text-center text-slate-600">
                        <div className="text-4xl">
                          <i className="fa-solid fa-box-open text-slate-400" />
                        </div>
@@ -721,29 +1075,28 @@ index 56d20fcd2a4da1985d45bb62ac2aaf683fb37dc5..67bfd42434b02dcfef268d95b919df67
                          <i className="fa-solid fa-rotate" /> {cms.emptyResetBtn}
                        </button>
                      </div>
--                ) : null}
-+                )}
-+
-+                <div className="mt-4 flex items-center justify-end gap-2">
-+                  <button className="btn" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Trước</button>
-+                  <span className="text-sm text-slate-600">Trang {page}/{totalPages}</span>
-+                  <button className="btn" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Sau</button>
-+                </div>
+                 )}
+
+                 <div className="mt-4 flex items-center justify-end gap-2">
+                   <button className="btn" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Trước</button>
+                   <span className="text-sm text-slate-600">Trang {page}/{totalPages}</span>
+                   <button className="btn" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Sau</button>
+                 </div>
                </div>
              </div>
            </section>
          </main>
 
          {/*<Footer />*/}
-
-         <CourseDetailModal
-             open={!!detailId}
-             course={selectedCourse}
-             onClose={() => setDetailId(null)}
-             onAdd={(id) => addToCart(id)}
-             cms={cms}
-         />
-
+-
+-        <CourseDetailModal
+-            open={!!detailId}
+-            course={selectedCourse}
+-            onClose={() => setDetailId(null)}
+-            onAdd={(id) => addToCart(id)}
+-            cms={cms}
+-        />
+-
          <CourseCartModal
              open={cartOpen}
              onClose={() => setCartOpen(false)}
@@ -754,19 +1107,107 @@ index 56d20fcd2a4da1985d45bb62ac2aaf683fb37dc5..67bfd42434b02dcfef268d95b919df67
          />
        </div>
    );
-diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202602280001_add_course_time/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202602280001_add_course_time/migration.sql
+ }
+diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202603210001_add_course_reviews/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202603210001_add_course_reviews/migration.sql
 new file mode 100644
-index 0000000000000000000000000000000000000000..9d442aa3fea9d828c43a0fcfacbf4b473838033f
+index 0000000000000000000000000000000000000000..159c6096047628c56e3877b2ae97c8298c974304
 --- /dev/null
-+++ b/backend/ayanavitabackend/app/api/prisma/migrations/202602280001_add_course_time/migration.sql
-@@ -0,0 +1,2 @@
-+ALTER TABLE `Course`
-+  ADD COLUMN `time` VARCHAR(120) NULL;
++++ b/backend/ayanavitabackend/app/api/prisma/migrations/202603210001_add_course_reviews/migration.sql
+@@ -0,0 +1,23 @@
++CREATE TABLE `CourseReview` (
++  `id` INTEGER NOT NULL AUTO_INCREMENT,
++  `courseId` INTEGER NOT NULL,
++  `userId` INTEGER NULL,
++  `stars` INTEGER NOT NULL,
++  `comment` TEXT NULL,
++  `customerName` VARCHAR(255) NULL,
++  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
++  `updatedAt` DATETIME(3) NOT NULL,
++
++  INDEX `CourseReview_courseId_idx`(`courseId`),
++  PRIMARY KEY (`id`)
++) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
++
++ALTER TABLE `CourseReview`
++  ADD CONSTRAINT `CourseReview_courseId_fkey`
++  FOREIGN KEY (`courseId`) REFERENCES `Course`(`id`)
++  ON DELETE CASCADE ON UPDATE CASCADE;
++
++ALTER TABLE `CourseReview`
++  ADD CONSTRAINT `CourseReview_userId_fkey`
++  FOREIGN KEY (`userId`) REFERENCES `User`(`id`)
++  ON DELETE SET NULL ON UPDATE CASCADE;
 diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-index 2cbbc59ef7caa50c88b4c60151879a49d132c060..32ad02bc7a77df1c3200943500cc57961f9dd89d 100644
+index 32ad02bc7a77df1c3200943500cc57961f9dd89d..82abe5ee1db56758c3aaa2446e41c91ea5ca9120 100644
 --- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
 +++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-@@ -226,50 +226,51 @@ model ServiceReview {
+@@ -9,50 +9,51 @@ datasource db {
+ }
+
+ model User {
+   id                 Int      @id @default(autoincrement())
+   email              String   @unique
+   password           String
+   name               String?
+   phone              String?
+   role               Role     @default(USER)
+   isActive           Boolean  @default(true)
+   hashedRefreshToken String?  @db.Text
+   createdAt          DateTime @default(now())
+   updatedAt          DateTime @updatedAt
+
+   // ✅ ADD
+   enrollments    Enrollment[]
+   courseAccesses CourseAccess[]
+   lessonProgress LessonProgress[]
+   lessonVideoProgress LessonVideoProgress[]
+   orders         Order[] // <— opposite for Order.user
+
+   // ✅ CMS (optional relations)
+   cmsSectionVersions CmsSectionVersion[]
+   mediaAssets        MediaAsset[]
+   serviceReviews     ServiceReview[]
++  courseReviews      CourseReview[]
+   specialistProfile  Specialist?
+ }
+
+ model Branch {
+   id          Int                @id @default(autoincrement())
+   code        String             @unique @db.VarChar(32)
+   name        String             @db.VarChar(255)
+   address     String             @db.VarChar(255)
+   phone       String?            @db.VarChar(30)
+   isActive    Boolean            @default(true)
+   createdAt   DateTime           @default(now())
+   updatedAt   DateTime           @updatedAt
+   services    BranchService[]
+   specialists Specialist[]
+   appointments Appointment[]
+   translations BranchTranslation[]
+ }
+
+ model ServiceCategory {
+   id        Int      @id @default(autoincrement())
+   name      String   @unique @db.VarChar(255)
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
+   services  Service[]
+   translations ServiceCategoryTranslation[]
+@@ -212,86 +213,104 @@ model Appointment {
+   service    Service     @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+   specialist Specialist? @relation(fields: [specialistId], references: [id], onDelete: SetNull)
+
+   @@index([branchId, appointmentAt])
+   @@index([serviceId])
+   @@index([specialistId])
+ }
+
+ model ServiceReview {
+   id         Int      @id @default(autoincrement())
+   serviceId  Int
+   userId     Int?
+   stars      Int
+   comment    String?  @db.Text
    customerName String? @db.VarChar(255)
    createdAt  DateTime @default(now())
    updatedAt  DateTime @updatedAt
@@ -778,6 +1219,23 @@ index 2cbbc59ef7caa50c88b4c60151879a49d132c060..32ad02bc7a77df1c3200943500cc5796
  }
 
 
++
++model CourseReview {
++  id           Int      @id @default(autoincrement())
++  courseId      Int
++  userId        Int?
++  stars         Int
++  comment       String?  @db.Text
++  customerName  String?  @db.VarChar(255)
++  createdAt     DateTime @default(now())
++  updatedAt     DateTime @updatedAt
++
++  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
++  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
++
++  @@index([courseId])
++}
++
  model RegistrationOtp {
    id        Int      @id @default(autoincrement())
    email     String   @unique
@@ -792,7 +1250,7 @@ index 2cbbc59ef7caa50c88b4c60151879a49d132c060..32ad02bc7a77df1c3200943500cc5796
    id                  Int      @id @default(autoincrement())
    topicId             Int?
    title               String
-+  time                String?  @db.VarChar(120)
+   time                String?  @db.VarChar(120)
    shortDescription    String?  @db.VarChar(500)
    slug                String   @unique
    description         String?
@@ -814,21 +1272,37 @@ index 2cbbc59ef7caa50c88b4c60151879a49d132c060..32ad02bc7a77df1c3200943500cc5796
    topic       CourseTopic? @relation(fields: [topicId], references: [id], onDelete: Restrict)
    translations CourseTranslation[]
    contentTranslations CourseContentTranslation[]
++  reviews      CourseReview[]
 
    // ✅ ADD
    orderItems OrderItem[] // <— opposite for OrderItem.course
 
-diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-index f36449d19cf9527030a0ebfc415722f310a1cb54..db39f4b4c1d51e48ffdbcaf36e0cd397e9e9947f 100644
---- a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-+++ b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-@@ -49,50 +49,56 @@ const parseMultipartData = (input: Record<string, any>) => {
-     }
-   }
-   return data
+   @@index([topicId])
  }
 
- @Controller('courses')
+ model CourseTranslation {
+   id               Int      @id @default(autoincrement())
+   courseId         Int
+   locale           String   @db.VarChar(10)
+   title            String   @db.VarChar(255)
+   shortDescription String?  @db.VarChar(500)
+   description      String?  @db.Text
+   objectives       Json?
+   targetAudience   Json?
+   benefits         Json?
+   createdAt        DateTime @default(now())
+   updatedAt        DateTime @updatedAt
+
+   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+   @@unique([courseId, locale])
+   @@index([locale])
+ }
+diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
+index db39f4b4c1d51e48ffdbcaf36e0cd397e9e9947f..12f913c772a7c1088af78631595fa90a90560acf 100644
+--- a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
+@@ -55,50 +55,56 @@ const parseMultipartData = (input: Record<string, any>) => {
  export class CoursesController {
    constructor(private readonly courses: CoursesService) {}
 
@@ -848,10 +1322,16 @@ index f36449d19cf9527030a0ebfc415722f310a1cb54..db39f4b4c1d51e48ffdbcaf36e0cd397
      return this.courses.findAll(query, user)
    }
 
-+  @Get('topics')
-+  @UseGuards(OptionalAccessTokenGuard)
-+  listTopics(@CurrentUser() user: JwtUser | null, @Query('lang') lang?: string) {
-+    return this.courses.listTopics(lang, user)
+   @Get('topics')
+   @UseGuards(OptionalAccessTokenGuard)
+   listTopics(@CurrentUser() user: JwtUser | null, @Query('lang') lang?: string) {
+     return this.courses.listTopics(lang, user)
+   }
+
++
++  @Get('public/slug/:slug')
++  publicDetailBySlug(@Param('slug') slug: string, @Query('lang') lang?: string) {
++    return this.courses.publicDetailBySlug(slug, lang)
 +  }
 +
    @UseGuards(AccessTokenGuard)
@@ -880,134 +1360,10 @@ index f36449d19cf9527030a0ebfc415722f310a1cb54..db39f4b4c1d51e48ffdbcaf36e0cd397
    @Roles('ADMIN')
    @Post('thumbnail/upload')
 diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-index a6f10af0d407833c238e08a0186395c09cb98ec4..f40a924e01934cfa314feded1479b860a923c830 100644
+index f40a924e01934cfa314feded1479b860a923c830..77761fbd41d27dce52203976fc69ce78f6a269cf 100644
 --- a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
 +++ b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-@@ -1,50 +1,51 @@
- import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
- import { PrismaService } from '../prisma/prisma.service'
- import { EnrollmentsService } from '../enrollments/enrollments.service'
- import { CreateCourseDto } from './dto/create-course.dto'
- import { UpdateCourseDto } from './dto/update-course.dto'
- import { Prisma, ProgressStatus } from '@prisma/client'
- import { CourseQueryDto } from './dto/course-query.dto'
- import { CoursesMediaService } from './courses-media.service'
-
- type JwtUser = { sub: number; role: string }
- type Locale = 'vi' | 'en' | 'de'
- type MultiLingualStringList = Record<Locale, string[]>
-
- @Injectable()
- export class CoursesService {
-   constructor(
-     private readonly prisma: PrismaService,
-     private readonly enrollments: EnrollmentsService,
-     private readonly courseMedia: CoursesMediaService,
-   ) {}
-
-   private readonly baseCourseSelect = {
-     id: true,
-     topicId: true,
-     title: true,
-+    time: true,
-     shortDescription: true,
-     slug: true,
-     description: true,
-     thumbnail: true,
-     price: true,
-     published: true,
-     objectives: true,
-     targetAudience: true,
-     benefits: true,
-     ratingAvg: true,
-     ratingCount: true,
-     enrollmentCount: true,
-     createdAt: true,
-     updatedAt: true,
-     _count: { select: { lessons: true } },
-   } as const
-
-   private resolveCourseLocale(lang?: string): Locale {
-     const activeLang = (lang || 'vi').toLowerCase()
-     if (activeLang === 'en-us' || activeLang === 'en') return 'en'
-     if (activeLang === 'de') return 'de'
-     return 'vi'
-   }
-
-   private normalizeLocalizedList(value: unknown): MultiLingualStringList {
-@@ -59,69 +60,71 @@ export class CoursesService {
-     }
-   }
-
-
-   private hydratePrimaryContent(dto: Partial<CreateCourseDto>): Partial<CreateCourseDto> {
-     const objectivesByLocale = this.normalizeLocalizedList(dto.objectives)
-     const targetAudienceByLocale = this.normalizeLocalizedList(dto.targetAudience)
-     const benefitsByLocale = this.normalizeLocalizedList(dto.benefits)
-
-     const viContent = dto.contentTranslations?.vi
-
-     return {
-       ...dto,
-       objectives: (dto.objectives !== undefined ? objectivesByLocale.vi : (viContent?.objectives || objectivesByLocale.vi)) as any,
-       targetAudience: (dto.targetAudience !== undefined ? targetAudienceByLocale.vi : (viContent?.targetAudience || targetAudienceByLocale.vi)) as any,
-       benefits: (dto.benefits !== undefined ? benefitsByLocale.vi : (viContent?.benefits || benefitsByLocale.vi)) as any,
-     }
-   }
-
-   private buildCreateCoursePayload(dto: CreateCourseDto & { title: string }): Prisma.CourseUncheckedCreateInput {
-     return {
-       title: dto.title,
-       slug: dto.slug,
-       ...(dto.description !== undefined ? { description: dto.description } : {}),
-       ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
-+      ...(dto.time !== undefined ? { time: dto.time } : {}),
-       ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
-       ...(dto.price !== undefined ? { price: dto.price } : {}),
-       ...(dto.published !== undefined ? { published: dto.published } : {}),
-       ...(dto.topicId !== undefined ? { topicId: dto.topicId } : {}),
-       ...(dto.objectives !== undefined ? { objectives: dto.objectives as any } : {}),
-       ...(dto.targetAudience !== undefined ? { targetAudience: dto.targetAudience as any } : {}),
-       ...(dto.benefits !== undefined ? { benefits: dto.benefits as any } : {}),
-       ...(dto.ratingAvg !== undefined ? { ratingAvg: dto.ratingAvg } : {}),
-       ...(dto.ratingCount !== undefined ? { ratingCount: dto.ratingCount } : {}),
-       ...(dto.enrollmentCount !== undefined ? { enrollmentCount: dto.enrollmentCount } : {}),
-     }
-   }
-
-   private buildUpdateCoursePayload(dto: UpdateCourseDto): Prisma.CourseUncheckedUpdateInput {
-     return {
-       ...(dto.title !== undefined ? { title: dto.title } : {}),
-       ...(dto.slug !== undefined ? { slug: dto.slug } : {}),
-       ...(dto.description !== undefined ? { description: dto.description } : {}),
-       ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
-+      ...(dto.time !== undefined ? { time: dto.time } : {}),
-       ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
-       ...(dto.price !== undefined ? { price: dto.price } : {}),
-       ...(dto.published !== undefined ? { published: dto.published } : {}),
-       ...(dto.topicId !== undefined ? { topicId: dto.topicId } : {}),
-       ...(dto.objectives !== undefined ? { objectives: dto.objectives as any } : {}),
-       ...(dto.targetAudience !== undefined ? { targetAudience: dto.targetAudience as any } : {}),
-       ...(dto.benefits !== undefined ? { benefits: dto.benefits as any } : {}),
-       ...(dto.ratingAvg !== undefined ? { ratingAvg: dto.ratingAvg } : {}),
-       ...(dto.ratingCount !== undefined ? { ratingCount: dto.ratingCount } : {}),
-       ...(dto.enrollmentCount !== undefined ? { enrollmentCount: dto.enrollmentCount } : {}),
-     }
-   }
-
-   async lessonsOutline(user: JwtUser, courseId: number, lang?: string) {
-     const lessonLocale = this.resolveCourseLocale(lang)
-     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } })
-     if (!course) throw new NotFoundException('Course not found')
-     if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
-     const lessons = await this.prisma.lesson.findMany({
-       where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) },
-       select: {
-         id: true,
-         courseId: true,
-         title: true,
-         slug: true,
-@@ -162,50 +165,82 @@ export class CoursesService {
+@@ -165,50 +165,161 @@ export class CoursesService {
          where,
          select: {
            ...this.baseCourseSelect,
@@ -1033,119 +1389,139 @@ index a6f10af0d407833c238e08a0186395c09cb98ec4..f40a924e01934cfa314feded1479b860
      return { items, total, page, pageSize }
    }
 
-+  async listTopics(lang?: string, user?: { sub: number; role: string } | null) {
-+    const locale = this.resolveCourseLocale(lang)
-+    const topics = await this.prisma.courseTopic.findMany({
-+      where: {
-+        ...(user?.role === 'ADMIN'
-+          ? {}
-+          : {
-+              courses: {
-+                some: { published: true },
-+              },
-+            }),
-+      },
++
++  async publicDetailBySlug(slug: string, lang?: string) {
++    const courseLocale = this.resolveCourseLocale(lang)
++    const course = await this.prisma.course.findFirst({
++      where: { slug, published: true },
 +      select: {
 +        id: true,
-+        name: true,
++        slug: true,
++        title: true,
++        time: true,
++        shortDescription: true,
++        description: true,
++        thumbnail: true,
++        price: true,
++        enrollmentCount: true,
++        ratingAvg: true,
++        ratingCount: true,
 +        translations: {
-+          where: { locale: { in: [locale, 'vi'] } },
-+          select: { locale: true, name: true },
++          where: { locale: { in: [courseLocale, 'vi'] } },
++          select: { locale: true, title: true, shortDescription: true, description: true },
++        },
++        topic: {
++          select: {
++            id: true,
++            name: true,
++            translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, name: true } },
++          },
++        },
++        lessons: {
++          where: { published: true },
++          orderBy: [{ order: 'asc' }, { id: 'asc' }],
++          select: {
++            id: true,
++            title: true,
++            slug: true,
++            order: true,
++            translations: {
++              where: { locale: { in: [courseLocale, 'vi'] } },
++              select: { locale: true, title: true },
++            },
++            modules: {
++              where: { published: true },
++              orderBy: [{ order: 'asc' }, { id: 'asc' }],
++              select: {
++                id: true,
++                title: true,
++                order: true,
++                translations: {
++                  where: { locale: { in: [courseLocale, 'vi'] } },
++                  select: { locale: true, title: true },
++                },
++              },
++            },
++          },
++        },
++        reviews: {
++          orderBy: { createdAt: 'desc' },
++          take: 20,
++          select: {
++            id: true,
++            stars: true,
++            comment: true,
++            customerName: true,
++            createdAt: true,
++          },
 +        },
 +      },
-+      orderBy: { name: 'asc' },
 +    })
 +
-+    return topics.map((topic: any) => {
-+      const translation = topic.translations?.find((item: any) => item.locale === locale) || topic.translations?.find((item: any) => item.locale === 'vi')
-+      return {
-+        id: topic.id,
-+        name: translation?.name || topic.name,
-+      }
-+    })
++    if (!course) throw new NotFoundException('Course not found')
++
++    const tr = course.translations?.find((x: any) => x.locale === courseLocale) || course.translations?.find((x: any) => x.locale === 'vi')
++    const tt = course.topic?.translations?.find((x: any) => x.locale === courseLocale) || course.topic?.translations?.find((x: any) => x.locale === 'vi')
++
++    return {
++      id: course.id,
++      slug: course.slug,
++      title: tr?.title || course.title,
++      shortDescription: tr?.shortDescription || course.shortDescription,
++      description: tr?.description || course.description,
++      time: course.time,
++      price: course.price,
++      thumbnail: course.thumbnail,
++      topic: course.topic ? { id: course.topic.id, name: tt?.name || course.topic.name } : null,
++      enrollmentCount: course.enrollmentCount,
++      ratingAvg: course.ratingAvg,
++      lessons: (course.lessons || []).map((lesson: any) => {
++        const lessonTr = lesson.translations?.find((x: any) => x.locale === courseLocale) || lesson.translations?.find((x: any) => x.locale === 'vi')
++        return {
++          id: lesson.id,
++          title: lessonTr?.title || lesson.title,
++          slug: lesson.slug,
++          order: lesson.order,
++          modules: (lesson.modules || []).map((module: any) => {
++            const moduleTr = module.translations?.find((x: any) => x.locale === courseLocale) || module.translations?.find((x: any) => x.locale === 'vi')
++            return {
++              id: module.id,
++              title: moduleTr?.title || module.title,
++              order: module.order,
++            }
++          }),
++        }
++      }),
++      reviews: course.reviews,
++      reviewSummary: {
++        ratingAvg: course.ratingAvg,
++        ratingCount: course.ratingCount,
++      },
++    }
 +  }
 +
-
-   async uploadThumbnail(file: { buffer: Buffer }) {
-     return this.courseMedia.uploadThumbnail(file)
-   }
-   async findOne(id: number, lang?: string) {
-     const courseLocale = this.resolveCourseLocale(lang)
-     const c = await this.prisma.course.findUnique({
-       where: { id },
-       select: {
-         ...this.baseCourseSelect,
-         translations: { select: { locale: true, title: true, shortDescription: true, description: true, objectives: true, targetAudience: true, benefits: true } },
-         contentTranslations: { select: { locale: true, objectives: true, targetAudience: true, benefits: true } },
-         topic: { select: { id: true, name: true, translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, name: true } } } },
+   async listTopics(lang?: string, user?: { sub: number; role: string } | null) {
+     const locale = this.resolveCourseLocale(lang)
+     const topics = await this.prisma.courseTopic.findMany({
+       where: {
+         ...(user?.role === 'ADMIN'
+           ? {}
+           : {
+               courses: {
+                 some: { published: true },
+               },
+             }),
        },
+       select: {
+         id: true,
+         name: true,
+         translations: {
+           where: { locale: { in: [locale, 'vi'] } },
+           select: { locale: true, name: true },
+         },
+       },
+       orderBy: { name: 'asc' },
      })
-     if (!c) throw new NotFoundException('Course not found')
-     const tr = (c as any).translations?.find((x: any) => x.locale === courseLocale) || (c as any).translations?.find((x: any) => x.locale === 'vi')
-     const ct = (c as any).translations?.find((x: any) => x.locale === courseLocale) || (c as any).translations?.find((x: any) => x.locale === 'vi')
-     const legacyCt = (c as any).contentTranslations?.find((x: any) => x.locale === courseLocale) || (c as any).contentTranslations?.find((x: any) => x.locale === 'vi')
-     const tt = (c as any).topic?.translations?.find((x: any) => x.locale === courseLocale) || (c as any).topic?.translations?.find((x: any) => x.locale === 'vi')
 
-     const videoRows = await this.prisma.$queryRaw<Array<{ videoCount: bigint | number }>>`
-       SELECT COUNT(v.id) as videoCount
-       FROM LessonVideo v
-       INNER JOIN LessonModule m ON m.id = v.moduleId
-diff --git a/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts b/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts
-index e71ad57f3f3355ea0f33a536965febfd74d84097..553610a6128976e6c010e5d50a041d73a7c37af7 100644
---- a/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts
-+++ b/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts
-@@ -36,50 +36,54 @@ class ContentTranslationDto {
-   objectives?: string[]
-
-   @IsOptional()
-   @IsArray()
-   @IsString({ each: true })
-   targetAudience?: string[]
-
-   @IsOptional()
-   @IsArray()
-   @IsString({ each: true })
-   benefits?: string[]
- }
-
- export class CreateCourseDto {
-   @IsString()
-   slug: string
-
-   @IsOptional()
-   @IsString()
-   title?: string
-
-   @IsOptional()
-   @IsString()
-   shortDescription?: string
-
-+  @IsOptional()
-+  @IsString()
-+  time?: string
-+
-   @IsOptional()
-   @IsString()
-   description?: string
-
-   @IsOptional()
-   @IsString()
-   thumbnail?: string
-
-   @IsOptional()
-   @IsInt()
-   @Min(0)
-   price?: number
-
-   @IsOptional()
-   @IsBoolean()
-   published?: boolean
-
-   @IsOptional()
-   @IsInt()
-   @Min(1)
-   topicId?: number
-
-   @IsOptional()
-   @IsArray()
-   @IsString({ each: true })
+     return topics.map((topic: any) => {
+       const translation = topic.translations?.find((item: any) => item.locale === locale) || topic.translations?.find((item: any) => item.locale === 'vi')

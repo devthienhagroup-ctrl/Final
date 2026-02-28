@@ -18,13 +18,14 @@ type Props = {
 
 type I18nText = Record<AdminLang, string>
 type I18nStringArray = Record<AdminLang, string[]>
-type FormErrors = Partial<Record<'topicId' | 'title' | 'price', string>>
+type FormErrors = Partial<Record<'topicId' | 'title' | 'price' | 'time', string>>
 
 type CourseForm = {
   title: I18nText
   shortDescription: I18nText
   description: I18nText
   thumbnailFile?: File | null
+  time: string
   price: string
   published: boolean
   topicId?: number
@@ -41,6 +42,7 @@ const initialForm = (): CourseForm => ({
   shortDescription: emptyI18n(),
   description: emptyI18n(),
   thumbnailFile: null,
+  time: '',
   price: '',
   published: false,
   topicId: undefined,
@@ -65,6 +67,7 @@ const textMap: Record<AdminLang, Record<string, string>> = {
     submit: 'Lưu khóa học',
     required: 'Vui lòng nhập đủ các trường bắt buộc.',
     invalidPrice: 'Giá phải là số hợp lệ và lớn hơn hoặc bằng 0.',
+    invalidTime: 'Thời gian phải là số hợp lệ và lớn hơn hoặc bằng 0.',
     langInput: 'Ngôn ngữ nhập liệu',
     courseInfo: 'I. Thông tin khóa học',
     topic: 'Chủ đề *',
@@ -73,6 +76,7 @@ const textMap: Record<AdminLang, Record<string, string>> = {
     description: 'Mô tả chi tiết',
     thumbnailUpload: 'Thumbnail (upload ảnh)',
     price: 'Giá',
+    time: 'Thời gian (tiếng)',
     published: 'Xuất bản',
     addItem: 'Thêm dòng',
     remove: 'Xóa',
@@ -91,6 +95,7 @@ const textMap: Record<AdminLang, Record<string, string>> = {
     submit: 'Save course',
     required: 'Please fill required fields.',
     invalidPrice: 'Price must be a valid number and greater than or equal to 0.',
+    invalidTime: 'Duration must be a valid number and greater than or equal to 0.',
     langInput: 'Input language',
     courseInfo: 'I. Course information',
     topic: 'Topic *',
@@ -99,6 +104,7 @@ const textMap: Record<AdminLang, Record<string, string>> = {
     description: 'Description',
     thumbnailUpload: 'Thumbnail (upload image)',
     price: 'Price',
+    time: 'Duration (hours)',
     published: 'Published',
     addItem: 'Add row',
     remove: 'Remove',
@@ -117,6 +123,7 @@ const textMap: Record<AdminLang, Record<string, string>> = {
     submit: 'Kurs speichern',
     required: 'Bitte Pflichtfelder ausfüllen.',
     invalidPrice: 'Preis muss eine gültige Zahl und größer oder gleich 0 sein.',
+    invalidTime: 'Dauer muss eine gültige Zahl und größer oder gleich 0 sein.',
     langInput: 'Eingabesprache',
     courseInfo: 'I. Kursinformationen',
     topic: 'Thema *',
@@ -125,6 +132,7 @@ const textMap: Record<AdminLang, Record<string, string>> = {
     description: 'Beschreibung',
     thumbnailUpload: 'Thumbnail (Bild hochladen)',
     price: 'Preis',
+    time: 'Dauer (Stunden)',
     published: 'Veröffentlicht',
     addItem: 'Zeile hinzufügen',
     remove: 'Löschen',
@@ -200,12 +208,14 @@ export function CreateCourseModal({ open, lang, topics, onClose, onCreated }: Pr
   }
 
   const getPrice = () => Number(form.price)
+  const getTime = () => Number(form.time)
 
   const validate = () => {
     const nextErrors: FormErrors = {}
 
     if (!form.topicId) nextErrors.topicId = t.topicRequired
     if (!form.title.vi.trim()) nextErrors.title = t.titleRequired
+    if (!Number.isFinite(getTime()) || getTime() < 0) nextErrors.time = t.invalidTime
     if (!Number.isFinite(getPrice()) || getPrice() < 0) nextErrors.price = t.invalidPrice
 
     setErrors(nextErrors)
@@ -221,6 +231,7 @@ export function CreateCourseModal({ open, lang, topics, onClose, onCreated }: Pr
       payload.append('title', form.title.vi)
       payload.append('shortDescription', form.shortDescription.vi)
       payload.append('description', form.description.vi)
+      payload.append('time', String(getTime()))
       payload.append('price', String(getPrice()))
       payload.append('published', 'false')
       if (form.topicId) payload.append('topicId', String(form.topicId))
@@ -296,6 +307,10 @@ export function CreateCourseModal({ open, lang, topics, onClose, onCreated }: Pr
             <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-note-sticky create-course-icon-orange' /> {t.shortDescription}</span><input className='admin-input' value={form.shortDescription[inputLang]} onChange={(e) => updateI18nField('shortDescription', e.target.value)} /></label>
             <label className='admin-field admin-field-full'><span className='admin-label'><i className='fa-solid fa-align-left create-course-icon-orange' /> {t.description}</span><textarea className='admin-input' rows={2} value={form.description[inputLang]} onChange={(e) => updateI18nField('description', e.target.value)} /></label>
             <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-image create-course-icon-orange' /> {t.thumbnailUpload}</span><input type='file' accept='image/*' onChange={(e) => setForm((prev) => ({ ...prev, thumbnailFile: e.target.files?.[0] || null }))} /></label>
+            <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-clock create-course-icon-green' /> {t.time}</span><input type='number' min={0} className='admin-input' value={form.time} onChange={(e) => {
+              setForm((prev) => ({ ...prev, time: e.target.value }))
+              setErrors((prev) => ({ ...prev, time: undefined }))
+            }} />{errors.time ? <span className='create-course-error'>{errors.time}</span> : null}</label>
             <label className='admin-field'><span className='admin-label'><i className='fa-solid fa-money-bill-wave create-course-icon-green' /> {t.price}</span><input type='number' min={0} className='admin-input' value={form.price} onChange={(e) => {
               setForm((prev) => ({ ...prev, price: e.target.value }))
               setErrors((prev) => ({ ...prev, price: undefined }))

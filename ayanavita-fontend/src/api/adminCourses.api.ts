@@ -73,6 +73,7 @@ export type CourseAdmin = {
   id: number
   topicId?: number | null
   title: string
+  time?: string | null
   shortDescription?: string | null
   slug: string
   description?: string | null
@@ -107,6 +108,7 @@ export type TopicPayload = {
 export type CoursePayload = {
   topicId?: number
   title: string
+  time?: string
   shortDescription?: string
   slug: string
   description?: string

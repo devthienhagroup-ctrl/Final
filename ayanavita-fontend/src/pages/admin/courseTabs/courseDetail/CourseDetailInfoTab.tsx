@@ -21,6 +21,7 @@ type EditForm = {
   title: I18nText
   shortDescription: I18nText
   description: I18nText
+  time: string
   price: string
   published: boolean
   thumbnailFile?: File | null
@@ -86,6 +87,7 @@ const i18n = {
     noImage: 'Chưa có ảnh',
     chooseFile: 'Ảnh mới',
     price: 'Giá',
+    time: 'Thời gian (tiếng)',
     published: 'Xuất bản',
     publishLocked: 'Chỉ bật khi có ít nhất 1 bài học và 1 video.',
     objective: 'Mục tiêu',
@@ -98,6 +100,8 @@ const i18n = {
     titleRequired: 'Vui lòng nhập tiêu đề tiếng Việt cho khóa học.',
     invalidPriceTitle: 'Giá không hợp lệ',
     invalidPriceBody: 'Giá phải là số hợp lệ và lớn hơn hoặc bằng 0.',
+    invalidTimeTitle: 'Thời gian không hợp lệ',
+    invalidTimeBody: 'Thời gian phải là số hợp lệ và lớn hơn hoặc bằng 0.',
     updateSuccessTitle: 'Cập nhật thành công',
     updateSuccessBody: 'Khóa học đã được cập nhật.',
     translations: 'Nội dung ngôn ngữ hiện tại',
@@ -121,6 +125,7 @@ const i18n = {
     noImage: 'No image yet',
     chooseFile: 'New image',
     price: 'Price',
+    time: 'Duration (hours)',
     published: 'Published',
     publishLocked: 'Can only enable after at least 1 lesson and 1 video.',
     objective: 'Objectives',
@@ -133,6 +138,8 @@ const i18n = {
     titleRequired: 'Please enter the Vietnamese title for this course.',
     invalidPriceTitle: 'Invalid price',
     invalidPriceBody: 'Price must be a valid number greater than or equal to 0.',
+    invalidTimeTitle: 'Invalid duration',
+    invalidTimeBody: 'Duration must be a valid number greater than or equal to 0.',
     updateSuccessTitle: 'Updated',
     updateSuccessBody: 'Course updated successfully.',
     translations: 'Current language content',
@@ -156,6 +163,7 @@ const i18n = {
     noImage: 'Noch kein Bild',
     chooseFile: 'Neues Bild',
     price: 'Preis',
+    time: 'Dauer (Stunden)',
     published: 'Veröffentlicht',
     publishLocked: 'Nur aktivierbar mit mindestens 1 Lektion und 1 Video.',
     objective: 'Ziele',
@@ -168,6 +176,8 @@ const i18n = {
     titleRequired: 'Bitte geben Sie den vietnamesischen Kurstitel ein.',
     invalidPriceTitle: 'Ungültiger Preis',
     invalidPriceBody: 'Preis muss eine gültige Zahl ≥ 0 sein.',
+    invalidTimeTitle: 'Ungültige Dauer',
+    invalidTimeBody: 'Dauer muss eine gültige Zahl ≥ 0 sein.',
     updateSuccessTitle: 'Aktualisiert',
     updateSuccessBody: 'Kurs erfolgreich aktualisiert.',
     translations: 'Inhalt der aktuellen Sprache',
@@ -183,6 +193,7 @@ const createEditForm = (course: CourseDetailAdmin): EditForm => {
     title: emptyI18n(),
     shortDescription: emptyI18n(),
     description: emptyI18n(),
+    time: course.time || '',
     price: String(course.price ?? 0),
     published: !!course.published,
     thumbnailFile: null,
@@ -376,6 +387,10 @@ export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated, onD
       await AlertJs.error(t.invalidPriceTitle, t.invalidPriceBody)
       return
     }
+    if (Number.isNaN(Number(form.time)) || Number(form.time) < 0) {
+      await AlertJs.error(t.invalidTimeTitle, t.invalidTimeBody)
+      return
+    }
 
     try {
       setSubmitting(true)
@@ -385,6 +400,7 @@ export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated, onD
       payload.append('title', form.title.vi.trim())
       payload.append('shortDescription', form.shortDescription.vi.trim())
       payload.append('description', form.description.vi.trim())
+      payload.append('time', String(Number(form.time)))
       payload.append('price', String(Number(form.price)))
       payload.append('published', String(canPublish ? form.published : false))
       payload.append('objectives', JSON.stringify(form.objectives.vi.filter((v) => v.trim())))
@@ -475,6 +491,7 @@ export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated, onD
         </div>
 
         <label className='admin-field' style={{ flex: '0 0 220px' }}><span className='admin-label'>{t.price}</span><input type='number' min={0} className='admin-input' value={form.price} onChange={(e) => setForm((prev) => ({ ...prev, price: e.target.value }))} /></label>
+        <label className='admin-field' style={{ flex: '0 0 220px' }}><span className='admin-label'>{t.time}</span><input type='number' min={0} className='admin-input' value={form.time} onChange={(e) => setForm((prev) => ({ ...prev, time: e.target.value }))} /></label>
 
         <label className='admin-field' style={{ flex: '0 0 280px' }}>
           <span className='admin-label'>{t.published}</span>
@@ -564,6 +581,7 @@ export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated, onD
         ['ID', course.id || '--', 'fa-hashtag'],
         ['Topic', topic ? displayTopicName(topic) : text.unassigned, 'fa-folder-tree'],
         ['Slug', course.slug || '--', 'fa-link'],
+        [t.time, course.time ? `${course.time} tiếng` : '--', 'fa-clock'],
         [text.priceCol, `${(course.price || 0).toLocaleString('vi-VN')}đ`, 'fa-money-bill-wave'],
         [text.ratingCol, `${course.ratingAvg ?? 0} (${course.ratingCount ?? 0})`, 'fa-star'],
         [text.enrollmentCol, course.enrollmentCount ?? 0, 'fa-user-graduate'],

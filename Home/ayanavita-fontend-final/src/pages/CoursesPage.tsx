@@ -1,12 +1,11 @@
 // src/pages/CoursesPage.tsx
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 
 // NOTE: chỉnh lại path nếu project của bạn đặt http client ở chỗ khác.
 // Mục tiêu: dùng được mẫu `await http.get(...)` như yêu cầu.
 import {http} from "../api/http";
 
-import { COURSES, type Course, type CourseTopic, topicLabel } from "../data/courses.data";
+import { type Course, type CourseTopic } from "../data/courses.data";
 import { money } from "../services/booking.utils";
 import {
   readCourseCart,
@@ -90,55 +89,49 @@ export const defaultCmsData: CoursesPageCmsData = {
   ],
   heroTitle: "Khoá học AYANAVITA chuẩn spa & vận hành",
   heroTitleHighlight: "chuẩn spa & vận hành",
-  heroCartBtn: "Cart",
-  heroProductCartLink: "Giỏ hàng sản phẩm",
+  heroPrimaryBtn: "Xem khoá học",
+  heroSecondaryBtn: "Khóa học của tôi",
 
   filterKicker: "Bộ lọc",
   filterTitle: "Tìm & sắp xếp khoá học",
   filterFoundText: "Tìm thấy {count} khoá",
-  filterResetBtn: "Reset",
-  filterOpenCartBtn: "Mở cart",
-  filterOpenCartBtnSuffix: "{count}",
+  filterResetBtn: "Đặt lại",
   keywordLabel: "Từ khoá",
   keywordPlaceholder: "VD: skincare, vận hành, tư vấn...",
   topicLabel: "Chủ đề",
   topicAllLabel: "Tất cả",
-  prototypeNote: "Prototype: “Chi tiết” mở modal, “Thêm” vào cart.",
+  prototypeNote: "Prototype: “Chi tiết” mở modal, “Đăng ký” chuyển sang trang thanh toán.",
 
   listKicker: "Danh sách",
   listTitle: "Khoá học nổi bật",
-  listDesc: "Chọn khoá để xem chi tiết hoặc thêm vào cart.",
+  listDesc: "Chọn khoá để xem chi tiết hoặc đăng ký ngay.",
   scrollTopBtn: "Lên đầu",
-  listCartBtn: "Cart",
-  listCartBtnSuffix: "{count}",
   viewDetailBtn: "Chi tiết",
-  addBtn: "Thêm",
+  registerBtn: "Đăng ký",
 
   emptyTitle: "Không có khoá học phù hợp",
   emptyDesc: "Thử đổi từ khoá/chủ đề khác.",
-  emptyResetBtn: "Reset",
+  emptyResetBtn: "Đặt lại",
 
-  detailModalKicker: "Course",
-  detailAddBtn: "Thêm vào cart",
-  detailCloseAria: "close",
+  detailModalKicker: "Khoá học",
+  detailRegisterBtn: "Đăng ký ngay",
+  detailCloseAria: "Đóng",
   detailStudentsSuffix: "HV",
-  detailPriceNote: "Giá demo (có thể áp voucher)",
+  detailPriceNote: "Giá niêm yết (có thể áp voucher nếu có)",
 
-  cartModalKicker: "Cart",
-  cartModalTitle: "Giỏ khoá học (demo)",
-  cartClearBtn: "Xoá",
-  cartCloseAria: "close",
-  cartEmptyTitle: "Cart trống",
-  cartEmptyDesc: "Thêm khoá học để test checkout.",
-  cartSubtotalLabel: "Tạm tính",
-  cartCheckoutBtn: "Checkout (demo)",
-  cartContinueBtn: "Tiếp tục xem",
+  checkoutModalKicker: "Thanh toán",
+  checkoutModalTitle: "Xác nhận đăng ký khoá học",
+  checkoutCloseAria: "Đóng",
+  checkoutEmptyTitle: "Chưa chọn khoá học",
+  checkoutEmptyDesc: "Vui lòng chọn khoá học để tiếp tục.",
+  checkoutSubtotalLabel: "Tổng thanh toán",
+  checkoutConfirmBtn: "Xác nhận & Thanh toán",
+  checkoutContinueBtn: "Tiếp tục xem khoá học",
 
-  alertAddedToCart: "Đã thêm vào cart (demo): {id}",
-  confirmClearCart: "Xoá toàn bộ cart?",
-  alertCheckout: "Checkout (demo). Bạn có thể điều hướng sang trang thanh toán thật.",
+  alertRegistered: "Bạn đã đăng ký thành công khoá học: {title}",
+  confirmCancelRegistration: "Bạn có chắc muốn huỷ đăng ký khoá học này?",
+  alertCheckout: "Đang chuyển sang trang thanh toán...",
 };
-
 const HERO_CHIP_COLOR_BY_INDEX = ["text-amber-600", "text-emerald-600", "text-indigo-600"] as const;
 
 function tpl(text: string, vars: Record<string, string | number>) {
@@ -212,7 +205,7 @@ function CourseDetailModal({
             <div className="flex flex-wrap gap-2">
             <span className="chip">
               <i className="fa-solid fa-layer-group text-indigo-600" />
-              {course.topicName || topicLabel(course.topic)}
+              {course.topicName || "-"}
             </span>
               <span className="chip">
               <i className="fa-solid fa-clock text-amber-600" />
@@ -304,7 +297,7 @@ function CourseCartModal({
                             <div>
                               <div className="font-extrabold">{c.title}</div>
                               <div className="text-sm text-slate-600 mt-1">
-                                {c.topicName || topicLabel(c.topic)} • {money(c.price)}
+                                {c.topicName || "-"} • {money(c.price)}
                               </div>
                             </div>
                           </div>
@@ -407,7 +400,7 @@ export default function CoursesPage({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(8);
   const [totalCourses, setTotalCourses] = useState(0);
-  const [courses, setCourses] = useState<Course[]>(COURSES);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [topicOptions, setTopicOptions] = useState<ApiTopicOption[]>([]);
 
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -435,27 +428,37 @@ export default function CoursesPage({
 
         if (cancelled) return;
 
-        const items = Array.isArray(coursesRes.data?.items) ? coursesRes.data.items : [];
-        const mapped: Course[] = items.map((item: any) => ({
-          id: String(item.id),
-          title: item.title || "",
-          topic: "ops" as CourseTopic,
-          img: item.thumbnail || cms.heroImageSrc,
-          desc: item.shortDescription || item.description || "",
-          price: Number(item.price || 0),
-          hours: Number(item.time || 0),
-          rating: Number(item.ratingAvg || 0),
-          students: Number(item.enrollmentCount || 0),
-          popular: 0,
-          date: item.createdAt || "",
-          time: item.time || "",
-          topicName: item.topic?.name || topicLabel("ops"),
-          topicId: item.topic?.id || null,
-        } as Course));
+        const topicList: ApiTopicOption[] = Array.isArray(topicsRes.data) ? topicsRes.data : [];
+        const topicNameById = new Map(topicList.map((t) => [Number(t.id), t.name]));
+        const items = Array.isArray(coursesRes.data?.items)
+          ? coursesRes.data.items.filter((item: any) => item?.published !== false)
+          : [];
+        const mapped: Course[] = items.map((item: any) => {
+          const rawTopic = item.courseTopic || item.topic || null;
+          const topicId = rawTopic?.id ?? item.topicId ?? null;
+          const topicNameFromBe = rawTopic?.name || (topicId != null ? topicNameById.get(Number(topicId)) : undefined);
+
+          return {
+            id: String(item.id),
+            title: item.title || "",
+            topic: "ops" as CourseTopic,
+            img: item.thumbnail || cms.heroImageSrc,
+            desc: item.shortDescription || item.description || "",
+            price: Number(item.price || 0),
+            hours: Number(item.time || 0),
+            rating: Number(item.ratingAvg || 0),
+            students: Number(item.enrollmentCount || 0),
+            popular: 0,
+            date: item.createdAt || "",
+            time: item.time || "",
+            topicName: topicNameFromBe || "",
+            topicId: topicId != null ? Number(topicId) : null,
+          } as Course;
+        });
 
         setCourses(mapped);
-        setTotalCourses(Number(coursesRes.data?.total || 0));
-        setTopicOptions(Array.isArray(topicsRes.data) ? topicsRes.data : []);
+        setTotalCourses(Number(coursesRes.data?.total || mapped.length));
+        setTopicOptions(topicList);
       } catch (err) {
         console.error("Fetch courses failed:", err);
       }
@@ -529,18 +532,6 @@ export default function CoursesPage({
                   {cms.heroTitle.replace(cms.heroTitleHighlight, "")}
                   <span className="text-amber-300">{cms.heroTitleHighlight}</span>
                 </h1>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button className="btn btn-accent" type="button" onClick={() => setCartOpen(true)}>
-                    <i className="fa-solid fa-cart-shopping" />
-                    {cms.heroCartBtn}
-                    <span className="chip ml-1">{cartIds.length}</span>
-                  </button>
-                  <Link className="btn btn-primary hover:text-purple-800" to="/cart">
-                    <i className="fa-solid fa-bag-shopping" />
-                    {cms.heroProductCartLink}
-                  </Link>
-                </div>
               </div>
             </div>
           </section>
@@ -561,12 +552,7 @@ export default function CoursesPage({
                   <div className="flex gap-2 flex-wrap">
                     <button className="btn" type="button" onClick={reset} aria-label="reset">
                       <i className="fa-solid fa-rotate-left" /> {cms.filterResetBtn}
-                    </button>
-                    <button className="btn btn-primary hover:text-purple-800" type="button" onClick={() => setCartOpen(true)}>
-                      <i className="fa-solid fa-cart-shopping" /> {cms.filterOpenCartBtn}{" "}
-                      <span className="chip ml-1">{tpl(cms.filterOpenCartBtnSuffix, { count: cartIds.length })}</span>
-                    </button>
-                  </div>
+                    </button>                  </div>
                 </div>
 
                 <div className="mt-4 grid gap-3 md:grid-cols-12">
@@ -633,59 +619,48 @@ export default function CoursesPage({
                 <div className="flex gap-2">
                   <button className="btn" type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
                     <i className="fa-solid fa-arrow-up" /> {cms.scrollTopBtn}
-                  </button>
-                  <button className="btn btn-primary hover:text-purple-800" type="button" onClick={() => setCartOpen(true)}>
-                    <i className="fa-solid fa-cart-shopping" />
-                    {cms.listCartBtn}{" "}
-                    <span className="chip ml-1">{tpl(cms.listCartBtnSuffix, { count: cartIds.length })}</span>
-                  </button>
-                </div>
+                  </button>                </div>
               </div>
 
-              <div className="mt-5 card overflow-x-auto p-4">
+              <div className="mt-5">
                 {courses.length ? (
-                  <table className="w-full min-w-[900px] text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-200 text-left">
-                        <th className="py-3 pr-3">Khóa học</th>
-                        <th className="py-3 pr-3">Chủ đề</th>
-                        <th className="py-3 pr-3">Time</th>
-                        <th className="py-3 pr-3">Đánh giá</th>
-                        <th className="py-3 pr-3">Giá</th>
-                        <th className="py-3 text-right">Thao tác</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {courses.map((c) => (
-                        <tr key={c.id} className="border-b border-slate-100 align-top">
-                          <td className="py-3 pr-3">
-                            <div className="font-extrabold">{c.title}</div>
-                            <div className="text-slate-600 mt-1 line-clamp-2">{c.desc}</div>
-                          </td>
-                          <td className="py-3 pr-3">
-                            <span className="chip">{c.topicName || topicLabel(c.topic)}</span>
-                          </td>
-                          <td className="py-3 pr-3">{c.time || "-"}</td>
-                          <td className="py-3 pr-3">
-                            <div className="flex items-center gap-2 text-slate-600">
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    {courses.map((c) => (
+                      <article key={c.id} className="card overflow-hidden">
+                        <img
+                          src={c.img}
+                          alt={c.title}
+                          className="h-48 w-full object-cover"
+                        />
+
+                        <div className="p-4">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="chip">{c.topicName || "-"}</span>
+                            <span className="text-sm font-bold text-slate-600">{c.time || "-"}</span>
+                          </div>
+
+                          <h3 className="mt-3 text-lg font-extrabold line-clamp-2">{c.title}</h3>
+                          <p className="mt-2 text-sm text-slate-600 line-clamp-2">{c.desc}</p>
+
+                          <div className="mt-3 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 text-slate-600 text-sm">
                               <Stars rating={c.rating} /> <b>{c.rating.toFixed(1)}</b>
                             </div>
-                          </td>
-                          <td className="py-3 pr-3 font-extrabold text-indigo-700">{money(c.price)}</td>
-                          <td className="py-3 text-right">
-                            <div className="flex gap-2 justify-end">
-                              <button className="btn text-sm" type="button" onClick={() => setDetailId(c.id)}>
-                                <i className="fa-solid fa-eye" /> {cms.viewDetailBtn}
-                              </button>
-                              <button className="btn btn-primary text-sm hover:text-purple-800" type="button" onClick={() => addToCart(c.id)}>
-                                <i className="fa-solid fa-cart-plus" /> {cms.addBtn}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                            <div className="font-extrabold text-indigo-700">{money(c.price)}</div>
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-2 gap-2">
+                            <button className="btn text-sm" type="button" onClick={() => setDetailId(c.id)}>
+                              <i className="fa-solid fa-eye" /> {cms.viewDetailBtn}
+                            </button>
+                            <button className="btn btn-primary text-sm hover:text-purple-800" type="button" onClick={() => addToCart(c.id)}>
+                              <i className="fa-solid fa-user-plus" /> {cms.addBtn}
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
                 ) : (
                     <div className="card p-8 text-center text-slate-600">
                       <div className="text-4xl">

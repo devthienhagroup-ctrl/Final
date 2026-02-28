@@ -311,7 +311,7 @@ function ReviewImageSlider({ images, alt }: { images: string[]; alt: string }) {
 
   return (
     <div className="relative">
-      <img src={current} alt={alt} className="w-full h-full max-h-[400px] object-cover" />
+      <img src={current} alt={alt} className="w-full h-full max-h-[300px] object-cover" />
       <div className="absolute inset-0 bg-gradient-to-t from-slate-900/55 to-transparent" />
       {hasMultiple && (
         <>

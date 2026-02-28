@@ -69,7 +69,7 @@ const uiText: Record<AdminLang, Record<string, string>> = {
     ratingCol: 'Rating',
     enrollmentCol: 'Đăng ký',
     lessonCol: 'Bài học',
-    videoCountCol: 'Số video',
+    videoCountCol: 'Video',
     createdAtCol: 'Tạo lúc',
     updatedAtCol: 'Sửa lúc',
     statusCol: 'Trạng thái',

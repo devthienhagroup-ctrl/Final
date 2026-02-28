@@ -10,6 +10,7 @@ export class LessonsMediaService {
   private readonly s3Bucket = process.env.CLOUDFLY_BUCKET || 'ayanavita-dev'
   private readonly s3Region = process.env.CLOUDFLY_REGION || 'auto'
   private readonly s3Endpoint = process.env.CLOUDFLY_ENDPOINT || 'https://s3.cloudfly.vn'
+  private readonly s3PublicBaseUrl = process.env.CLOUDFLY_PUBLIC_BASE_URL
   private readonly s3AccessKey = process.env.CLOUDFLY_ACCESS_KEY || '67NZA2R2X53AYJU5I036'
   private readonly s3SecretKey = process.env.CLOUDFLY_SECRET_KEY || '56f8Erg7KoBiIedMrvbe0cBNjy3OIPKHdX0vAW4N'
 
@@ -19,6 +20,68 @@ export class LessonsMediaService {
 
   private hmac(key: string | Buffer, msg: string) {
     return createHmac('sha256', key).update(msg).digest()
+  }
+
+  private toCanonicalUri(key: string) {
+    return `/${this.s3Bucket}/${key.split('/').map((part) => encodeURIComponent(part)).join('/')}`
+  }
+
+  private normalizeObjectKey(urlOrKey: string) {
+    const value = (urlOrKey || '').trim()
+    if (!value) return ''
+    if (!value.startsWith('http://') && !value.startsWith('https://')) return value.replace(/^\/+/, '')
+
+    try {
+      const parsed = new URL(value)
+      const path = parsed.pathname.replace(/^\/+/, '')
+      const bucketPrefix = `${this.s3Bucket}/`
+      if (path.startsWith(bucketPrefix)) return path.slice(bucketPrefix.length)
+      return path
+    } catch {
+      return value
+    }
+  }
+
+  private publicCloudUrl(key: string) {
+    const baseUrl = this.s3PublicBaseUrl?.trim().replace(/\/$/, '') || this.s3Endpoint.replace(/\/$/, '')
+    return `${baseUrl}/${this.s3Bucket}/${key}`
+  }
+
+  buildSingleMediaUrl(urlOrKey: string, expiresInSec = 60 * 60) {
+    const key = this.normalizeObjectKey(urlOrKey)
+    if (!key) return ''
+    if (!this.s3AccessKey || !this.s3SecretKey) return this.publicCloudUrl(key)
+
+    const now = new Date()
+    const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '')
+    const dateStamp = amzDate.slice(0, 8)
+    const host = new URL(this.s3Endpoint).host
+    const credentialScope = `${dateStamp}/${this.s3Region}/s3/aws4_request`
+
+    const query = new URLSearchParams({
+      'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
+      'X-Amz-Credential': `${this.s3AccessKey}/${credentialScope}`,
+      'X-Amz-Date': amzDate,
+      'X-Amz-Expires': String(expiresInSec),
+      'X-Amz-SignedHeaders': 'host',
+    })
+
+    const canonicalQuery = Array.from(query.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join('&')
+
+    const canonicalRequest = ['GET', this.toCanonicalUri(key), canonicalQuery, `host:${host}\n`, 'host', 'UNSIGNED-PAYLOAD'].join('\n')
+    const stringToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${credentialScope}\n${this.hash(canonicalRequest)}`
+
+    const kDate = this.hmac(`AWS4${this.s3SecretKey}`, dateStamp)
+    const kRegion = this.hmac(kDate, this.s3Region)
+    const kService = this.hmac(kRegion, 's3')
+    const kSigning = this.hmac(kService, 'aws4_request')
+    const signature = createHmac('sha256', kSigning).update(stringToSign).digest('hex')
+    query.set('X-Amz-Signature', signature)
+
+    return `${this.s3Endpoint.replace(/\/$/, '')}${this.toCanonicalUri(key)}?${query.toString()}`
   }
 
   private async uploadPrivateObject(key: string, body: Buffer, contentType: string) {
@@ -32,7 +95,7 @@ export class LessonsMediaService {
     const host = new URL(this.s3Endpoint).host
     const payloadHash = this.hash(body)
 
-    const headers = {
+    const headers: Record<string, string> = {
       host,
       'x-amz-content-sha256': payloadHash,
       'x-amz-date': amzDate,
@@ -40,10 +103,9 @@ export class LessonsMediaService {
       'content-type': contentType,
     }
 
-    const signedHeaders = 'content-type;host;x-amz-acl;x-amz-content-sha256;x-amz-date'
-    const canonicalHeaders = Object.entries(headers)
-      .map(([k, v]) => `${k}:${String(v).trim()}\n`)
-      .join('')
+    const sortedHeaderKeys = Object.keys(headers).sort()
+    const signedHeaders = sortedHeaderKeys.join(';')
+    const canonicalHeaders = sortedHeaderKeys.map((keyName) => `${keyName}:${headers[keyName].trim()}`).join('\n') + '\n'
 
     const canonicalRequest = ['PUT', `/${this.s3Bucket}/${key}`, '', canonicalHeaders, signedHeaders, payloadHash].join('\n')
     const credentialScope = `${dateStamp}/${this.s3Region}/s3/aws4_request`
@@ -58,12 +120,17 @@ export class LessonsMediaService {
     const authorization = `AWS4-HMAC-SHA256 Credential=${this.s3AccessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`
     const uploadUrl = `${this.s3Endpoint.replace(/\/$/, '')}/${this.s3Bucket}/${key}`
 
+    const requestHeaders: Record<string, string> = {
+      Authorization: authorization,
+      'x-amz-content-sha256': payloadHash,
+      'x-amz-date': amzDate,
+      'x-amz-acl': 'private',
+      'content-type': contentType,
+    }
+
     const res = await fetch(uploadUrl, {
       method: 'PUT',
-      headers: {
-        Authorization: authorization,
-        ...headers,
-      },
+      headers: requestHeaders,
       body: new Uint8Array(body),
     })
 

@@ -44,7 +44,7 @@ export type LessonPayload = {
   published?: boolean
 }
 
-export type LessonVideoAdmin = LessonVideoPayload & { id: number; hlsPlaylistKey?: string }
+export type LessonVideoAdmin = LessonVideoPayload & { id: number; hlsPlaylistKey?: string; playbackUrl?: string }
 export type LessonModuleAdmin = LessonModulePayload & { id: number; videos: LessonVideoAdmin[] }
 
 export type LessonAdmin = {

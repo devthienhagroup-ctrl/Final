@@ -34,7 +34,17 @@ export class LessonsService {
         if (!prevProgress || prevProgress.status !== ProgressStatus.COMPLETED) throw new ForbiddenException('Complete previous lesson first')
       }
     }
-    return lesson
+
+    return {
+      ...lesson,
+      modules: lesson.modules.map((module) => ({
+        ...module,
+        videos: module.videos.map((video) => ({
+          ...video,
+          playbackUrl: this.media.buildSingleMediaUrl(video.sourceUrl || video.hlsPlaylistKey || ''),
+        })),
+      })),
+    }
   }
 
   async create(courseId: number, dto: CreateLessonDto) {

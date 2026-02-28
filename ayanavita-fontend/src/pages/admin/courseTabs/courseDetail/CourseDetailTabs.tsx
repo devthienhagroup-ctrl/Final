@@ -64,6 +64,13 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated }
     }
   }
 
+  const resolveMediaUrl = (value?: string) => {
+    const raw = (value || '').trim()
+    if (!raw) return ''
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
+    return ''
+  }
+
   const loadLessonDetail = async (lessonId: number) => {
     if (lessonDetails[lessonId] || loadingDetailIds[lessonId]) return
     setLoadingDetailIds((prev) => ({ ...prev, [lessonId]: true }))
@@ -126,19 +133,19 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated }
                       {!loadingDetailIds[lesson.id] && lessonDetails[lesson.id]?.modules?.map((module) => {
                         const moduleText = getLocalizedText(module)
                         return (
-                          <div key={module.id} className='admin-card' style={{ marginTop: 8 }}>
-                            <strong>{moduleText.title}</strong>
-                            <div className='admin-helper'>{moduleText.description}</div>
+                          <div key={module.id} style={{ marginTop: 12, border: '1px solid #23335f', borderRadius: 12, padding: 12 }}>
+                            <div style={{ fontWeight: 700 }}>{moduleText.title}</div>
+                            <div className='admin-helper' style={{ marginBottom: 8 }}>{moduleText.description}</div>
 
-                            <div style={{ marginTop: 6 }}>
+                            <div style={{ display: 'grid', gap: 10 }}>
                               {module.videos.map((media) => {
                                 const mediaText = getLocalizedText(media)
-                                const mediaUrl = media.sourceUrl || media.hlsPlaylistKey || ''
+                                const mediaUrl = resolveMediaUrl(media.playbackUrl || media.sourceUrl || media.hlsPlaylistKey || '')
                                 const isImage = media.mediaType === 'IMAGE'
                                 return (
-                                  <div key={media.id} className='admin-card' style={{ marginTop: 8 }}>
-                                    <strong>{mediaText.title}</strong>
-                                    <div className='admin-helper'>{mediaText.description}</div>
+                                  <div key={media.id} style={{ border: '1px solid #1d2a52', borderRadius: 10, padding: 10 }}>
+                                    <strong style={{ display: 'block' }}>{mediaText.title}</strong>
+                                    <div className='admin-helper' style={{ marginBottom: 6 }}>{mediaText.description}</div>
                                     {mediaUrl ? (
                                       <>
                                         {isImage ? (
@@ -146,9 +153,6 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated }
                                         ) : (
                                           <video src={mediaUrl} controls style={{ width: '100%', maxWidth: 360, marginTop: 6 }} />
                                         )}
-                                        <a href={mediaUrl} target='_blank' rel='noreferrer' style={{ display: 'block', marginTop: 6 }}>
-                                          {mediaUrl}
-                                        </a>
                                       </>
                                     ) : (
                                       <div className='admin-helper'>--</div>

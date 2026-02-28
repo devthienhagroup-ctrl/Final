@@ -60,6 +60,7 @@ const textByLang = {
     moduleMissingMedia: 'Mỗi module cần ít nhất 1 media (ảnh hoặc video).',
     invalidFile: 'Vui lòng chọn đúng file ảnh/video cho từng media.',
     creating: 'Đang tạo bài học...',
+    uploadingMedia: 'Đang tải media {current}/{total}...',
     success: 'Đã tạo bài học mới.',
   },
   en: {
@@ -84,6 +85,7 @@ const textByLang = {
     moduleMissingMedia: 'Each module must include at least one media file.',
     invalidFile: 'Please attach a valid image/video file for each media item.',
     creating: 'Creating lesson...',
+    uploadingMedia: 'Uploading media {current}/{total}...',
     success: 'Created lesson successfully.',
   },
   de: {
@@ -108,6 +110,7 @@ const textByLang = {
     moduleMissingMedia: 'Jedes Modul muss mindestens eine Mediendatei enthalten.',
     invalidFile: 'Bitte wählen Sie für jedes Medium eine gültige Bild-/Videodatei aus.',
     creating: 'Lektion wird erstellt...',
+    uploadingMedia: 'Medien werden hochgeladen {current}/{total}...',
     success: 'Lektion erfolgreich erstellt.',
   },
 } as const
@@ -149,6 +152,7 @@ const inferMediaTypeFromFile = (file: File | null): MediaType => {
 export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: Props) {
   const t = textByLang[lang]
   const [submitting, setSubmitting] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null)
   const [inputLang, setInputLang] = useState<AdminLang>('vi')
   const [form, setForm] = useState<FormState>(initialForm)
 
@@ -350,6 +354,9 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: 
       })
 
       const detail = await adminCoursesApi.getLessonDetail(createdLesson.id)
+      const totalMediaCount = form.modules.reduce((sum, module) => sum + module.medias.filter((media) => Boolean(media.file)).length, 0)
+      setUploadProgress(totalMediaCount > 0 ? { current: 0, total: totalMediaCount } : null)
+      let uploadedCount = 0
 
       for (let moduleIndex = 0; moduleIndex < form.modules.length; moduleIndex += 1) {
         const inputModule = form.modules[moduleIndex]
@@ -361,6 +368,8 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: 
           if (!media.file) continue
           const uploadType = media.mediaType === 'IMAGE' ? 'image' : 'video'
           await adminCoursesApi.uploadModuleMedia(createdLesson.id, createdModule.id, media.file, uploadType, mediaIndex)
+          uploadedCount += 1
+          setUploadProgress(totalMediaCount > 0 ? { current: uploadedCount, total: totalMediaCount } : null)
         }
       }
 
@@ -371,8 +380,15 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: 
       await onCreated()
     } finally {
       setSubmitting(false)
+      setUploadProgress(null)
     }
   }
+
+  const uploadProgressText = uploadProgress
+    ? t.uploadingMedia
+        .replace('{current}', String(uploadProgress.current))
+        .replace('{total}', String(uploadProgress.total))
+    : t.creating
 
   return (
     <div className='admin-modal-backdrop' role='dialog' aria-modal='true'>
@@ -484,7 +500,7 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: 
 
         <div className='admin-row create-course-footer'>
           <button type='button' className='admin-btn admin-btn-save' disabled={submitting} onClick={() => void submit()}>
-            <i className='fa-solid fa-floppy-disk' /> {submitting ? t.creating : t.save}
+            <i className={`fa-solid ${submitting ? 'fa-spinner fa-spin' : 'fa-floppy-disk'}`} /> {submitting ? uploadProgressText : t.save}
           </button>
         </div>
       </div>

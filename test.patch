@@ -1,55 +1,71 @@
-diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx
-index ed63c8ffb2b21075944b148c862b536d04d3db3a..7bcbecac9763087ce1826dd71c7e74feeb1a31bf 100644
---- a/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx
-+++ b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx
-@@ -1,108 +1,184 @@
- import { useEffect, useState } from 'react'
- import {
-   adminCoursesApi,
-   type CourseDetailAdmin,
-+  type LessonDetailAdmin,
-   type CourseTopic,
-   type LessonOutlineAdmin,
- } from '../../../../api/adminCourses.api'
- import { CourseDetailInfoTab } from './CourseDetailInfoTab'
- import { CreateLessonModal } from './CreateLessonModal'
-
- type Props = {
-   course: CourseDetailAdmin
-   lang: 'vi' | 'en' | 'de'
-   text: Record<string, string>
-   topics: CourseTopic[]
-   onCourseUpdated: () => Promise<void> | void
+diff --git a/ayanavita-fontend/src/api/adminCourses.api.ts b/ayanavita-fontend/src/api/adminCourses.api.ts
+index 19d7d3e91709fb90f848d77d2c928da10e6ed3a3..7274b1059cf8346f35ffaee9eee0d34b6c01ed0d 100644
+--- a/ayanavita-fontend/src/api/adminCourses.api.ts
++++ b/ayanavita-fontend/src/api/adminCourses.api.ts
+@@ -22,51 +22,51 @@ export type LessonVideoPayload = {
+   order?: number
+   published?: boolean
  }
 
- type DetailTabKey = 'info' | 'lessons'
+ export type LessonModulePayload = {
+   title: string
+   description?: string
+   translations?: Record<string, { title: string; shortDescription?: string; description?: string }>
+   order?: number
+   published?: boolean
+   videos?: LessonVideoPayload[]
+ }
 
- const labels = {
-   vi: {
-     info: 'Thông tin khóa học',
-     lessons: 'Danh sách bài học',
-     add: 'Thêm bài học mới',
-     noData: 'Chưa có bài học nào.',
-   },
-   en: {
-     info: 'Course Information',
-     lessons: 'Lesson list',
-     add: 'Add new lesson',
-     noData: 'No lessons yet.',
-   },
-   de: {
-     info: 'Kursinformationen',
-     lessons: 'Lektionsliste',
-     add: 'Neue Lektion',
-     noData: 'Noch keine Lektionen.',
-   },
- } as const
+ export type LessonPayload = {
+   title: string
+   slug: string
+   description?: string
+   translations?: Record<string, { title: string; shortDescription?: string; description?: string; objectives?: string[]; targetAudience?: string[]; benefits?: string[] }>
+   content?: string
+   videoUrl?: string
+   modules?: LessonModulePayload[]
+   order?: number
+   published?: boolean
+ }
+
+-export type LessonVideoAdmin = LessonVideoPayload & { id: number; hlsPlaylistKey?: string }
++export type LessonVideoAdmin = LessonVideoPayload & { id: number; hlsPlaylistKey?: string; playbackUrl?: string }
+ export type LessonModuleAdmin = LessonModulePayload & { id: number; videos: LessonVideoAdmin[] }
+
+ export type LessonAdmin = {
+   id: number
+   courseId: number
+   title: string
+   slug: string
+   description?: string
+   translations?: Record<string, { title: string; description?: string }>
+   content?: string
+   order?: number
+   published: boolean
+   createdAt?: string
+   updatedAt?: string
+ }
+
+ export type LessonOutlineAdmin = LessonAdmin & {
+   localizedTitle?: string
+   localizedDescription?: string
+ }
+
+ export type LessonDetailAdmin = LessonAdmin & { modules: LessonModuleAdmin[] }
+
+ export type CourseAdmin = {
+   id: number
+diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx
+index 7bcbecac9763087ce1826dd71c7e74feeb1a31bf..a12ca2e1abb792affbf789949377757013fe0e62 100644
+--- a/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx
++++ b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx
+@@ -42,50 +42,57 @@ const labels = {
 
  export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated }: Props) {
    const [activeTab, setActiveTab] = useState<DetailTabKey>('info')
    const [lessons, setLessons] = useState<LessonOutlineAdmin[]>([])
-+  const [lessonDetails, setLessonDetails] = useState<Record<number, LessonDetailAdmin>>({})
-+  const [loadingDetailIds, setLoadingDetailIds] = useState<Record<number, boolean>>({})
+   const [lessonDetails, setLessonDetails] = useState<Record<number, LessonDetailAdmin>>({})
+   const [loadingDetailIds, setLoadingDetailIds] = useState<Record<number, boolean>>({})
    const [openCreateLesson, setOpenCreateLesson] = useState(false)
 
    const t = labels[lang]
@@ -57,27 +73,34 @@ index ed63c8ffb2b21075944b148c862b536d04d3db3a..7bcbecac9763087ce1826dd71c7e74fe
    const loadLessons = async () => {
      const data = await adminCoursesApi.listCourseLessons(course.id, lang)
      setLessons(data)
-+    setLessonDetails({})
-+    setLoadingDetailIds({})
+     setLessonDetails({})
+     setLoadingDetailIds({})
+   }
+
+   const getLocalizedText = <T extends { title?: string; description?: string; translations?: Record<string, { title?: string; description?: string }> }>(item: T) => {
+     const localeText = item.translations?.[lang]
+     return {
+       title: localeText?.title || item.title || '--',
+       description: localeText?.description || item.description || '--',
+     }
+   }
+
++  const resolveMediaUrl = (value?: string) => {
++    const raw = (value || '').trim()
++    if (!raw) return ''
++    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
++    return ''
 +  }
 +
-+  const getLocalizedText = <T extends { title?: string; description?: string; translations?: Record<string, { title?: string; description?: string }> }>(item: T) => {
-+    const localeText = item.translations?.[lang]
-+    return {
-+      title: localeText?.title || item.title || '--',
-+      description: localeText?.description || item.description || '--',
-+    }
-+  }
-+
-+  const loadLessonDetail = async (lessonId: number) => {
-+    if (lessonDetails[lessonId] || loadingDetailIds[lessonId]) return
-+    setLoadingDetailIds((prev) => ({ ...prev, [lessonId]: true }))
-+    try {
-+      const detail = await adminCoursesApi.getLessonDetail(lessonId)
-+      setLessonDetails((prev) => ({ ...prev, [lessonId]: detail }))
-+    } finally {
-+      setLoadingDetailIds((prev) => ({ ...prev, [lessonId]: false }))
-+    }
+   const loadLessonDetail = async (lessonId: number) => {
+     if (lessonDetails[lessonId] || loadingDetailIds[lessonId]) return
+     setLoadingDetailIds((prev) => ({ ...prev, [lessonId]: true }))
+     try {
+       const detail = await adminCoursesApi.getLessonDetail(lessonId)
+       setLessonDetails((prev) => ({ ...prev, [lessonId]: detail }))
+     } finally {
+       setLoadingDetailIds((prev) => ({ ...prev, [lessonId]: false }))
+     }
    }
 
    useEffect(() => {
@@ -94,83 +117,76 @@ index ed63c8ffb2b21075944b148c862b536d04d3db3a..7bcbecac9763087ce1826dd71c7e74fe
          </button>
          <button className={`admin-tab ${activeTab === 'lessons' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('lessons')}>
            <i className='fa-solid fa-list-check' /> {t.lessons}
-         </button>
-       </div>
-
-       {activeTab === 'info' && <CourseDetailInfoTab course={course} text={text} lang={lang} topics={topics} onUpdated={onCourseUpdated} />}
-
-       {activeTab === 'lessons' && (
-         <div className='admin-card'>
-           <div className='admin-row' style={{ justifyContent: 'space-between', marginBottom: 12 }}>
-             <h4 style={{ margin: 0 }}><i className='fa-solid fa-list' /> {t.lessons}</h4>
-             <button className='admin-btn admin-btn-save' type='button' onClick={() => setOpenCreateLesson(true)}>
-               <i className='fa-solid fa-circle-plus' /> {t.add}
-             </button>
+@@ -104,73 +111,70 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated }
            </div>
 
            {!lessons.length && <p className='admin-helper'>{t.noData}</p>}
            {!!lessons.length && (
--            <ul style={{ margin: 0, paddingLeft: 20 }}>
-+            <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
+             <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
                {lessons.map((lesson) => (
--                <li key={lesson.id} style={{ marginBottom: 8 }}>
--                  <strong>{lesson.localizedTitle || lesson.title}</strong>
--                  <div className='admin-helper'>{lesson.localizedDescription || lesson.description || '--'}</div>
-+                <li key={lesson.id} style={{ marginBottom: 10 }}>
-+                  <details className='admin-card' onToggle={(e) => {
-+                    const target = e.currentTarget
-+                    if (target.open) {
-+                      void loadLessonDetail(lesson.id)
-+                    }
-+                  }}>
-+                    <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
-+                      {lesson.localizedTitle || lesson.title}
-+                    </summary>
-+
-+                    <div style={{ marginTop: 8 }}>
-+                      <div className='admin-helper'>{lesson.localizedDescription || lesson.description || '--'}</div>
-+
-+                      {loadingDetailIds[lesson.id] && <div className='admin-helper'>Loading...</div>}
-+
-+                      {!loadingDetailIds[lesson.id] && lessonDetails[lesson.id]?.modules?.map((module) => {
-+                        const moduleText = getLocalizedText(module)
-+                        return (
-+                          <div key={module.id} className='admin-card' style={{ marginTop: 8 }}>
-+                            <strong>{moduleText.title}</strong>
-+                            <div className='admin-helper'>{moduleText.description}</div>
-+
-+                            <div style={{ marginTop: 6 }}>
-+                              {module.videos.map((media) => {
-+                                const mediaText = getLocalizedText(media)
-+                                const mediaUrl = media.sourceUrl || media.hlsPlaylistKey || ''
-+                                const isImage = media.mediaType === 'IMAGE'
-+                                return (
-+                                  <div key={media.id} className='admin-card' style={{ marginTop: 8 }}>
-+                                    <strong>{mediaText.title}</strong>
-+                                    <div className='admin-helper'>{mediaText.description}</div>
-+                                    {mediaUrl ? (
-+                                      <>
-+                                        {isImage ? (
-+                                          <img src={mediaUrl} alt={mediaText.title} style={{ width: '100%', maxWidth: 360, borderRadius: 8, marginTop: 6 }} />
-+                                        ) : (
-+                                          <video src={mediaUrl} controls style={{ width: '100%', maxWidth: 360, marginTop: 6 }} />
-+                                        )}
-+                                        <a href={mediaUrl} target='_blank' rel='noreferrer' style={{ display: 'block', marginTop: 6 }}>
-+                                          {mediaUrl}
-+                                        </a>
-+                                      </>
-+                                    ) : (
-+                                      <div className='admin-helper'>--</div>
-+                                    )}
-+                                  </div>
-+                                )
-+                              })}
-+                            </div>
-+                          </div>
-+                        )
-+                      })}
-+                    </div>
-+                  </details>
+                 <li key={lesson.id} style={{ marginBottom: 10 }}>
+                   <details className='admin-card' onToggle={(e) => {
+                     const target = e.currentTarget
+                     if (target.open) {
+                       void loadLessonDetail(lesson.id)
+                     }
+                   }}>
+                     <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
+                       {lesson.localizedTitle || lesson.title}
+                     </summary>
+
+                     <div style={{ marginTop: 8 }}>
+                       <div className='admin-helper'>{lesson.localizedDescription || lesson.description || '--'}</div>
+
+                       {loadingDetailIds[lesson.id] && <div className='admin-helper'>Loading...</div>}
+
+                       {!loadingDetailIds[lesson.id] && lessonDetails[lesson.id]?.modules?.map((module) => {
+                         const moduleText = getLocalizedText(module)
+                         return (
+-                          <div key={module.id} className='admin-card' style={{ marginTop: 8 }}>
+-                            <strong>{moduleText.title}</strong>
+-                            <div className='admin-helper'>{moduleText.description}</div>
++                          <div key={module.id} style={{ marginTop: 12, border: '1px solid #23335f', borderRadius: 12, padding: 12 }}>
++                            <div style={{ fontWeight: 700 }}>{moduleText.title}</div>
++                            <div className='admin-helper' style={{ marginBottom: 8 }}>{moduleText.description}</div>
+
+-                            <div style={{ marginTop: 6 }}>
++                            <div style={{ display: 'grid', gap: 10 }}>
+                               {module.videos.map((media) => {
+                                 const mediaText = getLocalizedText(media)
+-                                const mediaUrl = media.sourceUrl || media.hlsPlaylistKey || ''
++                                const mediaUrl = resolveMediaUrl(media.playbackUrl || media.sourceUrl || media.hlsPlaylistKey || '')
+                                 const isImage = media.mediaType === 'IMAGE'
+                                 return (
+-                                  <div key={media.id} className='admin-card' style={{ marginTop: 8 }}>
+-                                    <strong>{mediaText.title}</strong>
+-                                    <div className='admin-helper'>{mediaText.description}</div>
++                                  <div key={media.id} style={{ border: '1px solid #1d2a52', borderRadius: 10, padding: 10 }}>
++                                    <strong style={{ display: 'block' }}>{mediaText.title}</strong>
++                                    <div className='admin-helper' style={{ marginBottom: 6 }}>{mediaText.description}</div>
+                                     {mediaUrl ? (
+                                       <>
+                                         {isImage ? (
+                                           <img src={mediaUrl} alt={mediaText.title} style={{ width: '100%', maxWidth: 360, borderRadius: 8, marginTop: 6 }} />
+                                         ) : (
+                                           <video src={mediaUrl} controls style={{ width: '100%', maxWidth: 360, marginTop: 6 }} />
+                                         )}
+-                                        <a href={mediaUrl} target='_blank' rel='noreferrer' style={{ display: 'block', marginTop: 6 }}>
+-                                          {mediaUrl}
+-                                        </a>
+                                       </>
+                                     ) : (
+                                       <div className='admin-helper'>--</div>
+                                     )}
+                                   </div>
+                                 )
+                               })}
+                             </div>
+                           </div>
+                         )
+                       })}
+                     </div>
+                   </details>
                  </li>
                ))}
              </ul>
@@ -183,19 +199,169 @@ index ed63c8ffb2b21075944b148c862b536d04d3db3a..7bcbecac9763087ce1826dd71c7e74fe
          lang={lang}
          courseId={course.id}
          onClose={() => setOpenCreateLesson(false)}
-         onCreated={async () => {
-           await loadLessons()
-           await onCourseUpdated()
-         }}
-       />
-     </section>
-   )
- }
 diff --git a/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CreateLessonModal.tsx b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CreateLessonModal.tsx
-index 06d3d8233479aea15d7d35657cdd0d23707d55b1..877e38a8608c2d9a300cf28a3cf06800da8a61e8 100644
+index 877e38a8608c2d9a300cf28a3cf06800da8a61e8..91e79e997fe98ff5c5368d631aada9e593fe075b 100644
 --- a/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CreateLessonModal.tsx
 +++ b/ayanavita-fontend/src/pages/admin/courseTabs/courseDetail/CreateLessonModal.tsx
-@@ -342,55 +342,55 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }:
+@@ -38,139 +38,143 @@ type FormState = {
+ const emptyI18n = (): I18nText => ({ vi: '', en: '', de: '' })
+
+ const textByLang = {
+   vi: {
+     title: 'Tạo bài học mới',
+     inputLang: 'Ngôn ngữ nhập liệu',
+     lessonTitle: 'Tiêu đề bài học *',
+     slug: 'Slug',
+     lessonDescription: 'Mô tả bài học *',
+     moduleTitle: 'Tên module *',
+     moduleDescription: 'Mô tả module *',
+     mediaTitle: 'Tiêu đề video/ảnh *',
+     mediaDescription: 'Mô tả video/ảnh *',
+     mediaType: 'Loại media *',
+     mediaFile: 'File video/ảnh *',
+     addModule: 'Thêm module',
+     removeModule: 'Xóa module',
+     addMedia: 'Thêm media',
+     removeMedia: 'Xóa media',
+     save: 'Tạo bài học',
+     close: 'Đóng',
+     missing: 'Vui lòng nhập đầy đủ thông tin tiếng Việt cho bài học, module và media.',
+     moduleMissingMedia: 'Mỗi module cần ít nhất 1 media (ảnh hoặc video).',
+     invalidFile: 'Vui lòng chọn đúng file ảnh/video cho từng media.',
+     creating: 'Đang tạo bài học...',
++    uploadingMedia: 'Đang tải media {current}/{total}...',
+     success: 'Đã tạo bài học mới.',
+   },
+   en: {
+     title: 'Create new lesson',
+     inputLang: 'Input language',
+     lessonTitle: 'Lesson title *',
+     slug: 'Slug',
+     lessonDescription: 'Lesson description *',
+     moduleTitle: 'Module title *',
+     moduleDescription: 'Module description *',
+     mediaTitle: 'Video/Image title *',
+     mediaDescription: 'Video/Image description *',
+     mediaType: 'Media type *',
+     mediaFile: 'Video/Image file *',
+     addModule: 'Add module',
+     removeModule: 'Remove module',
+     addMedia: 'Add media',
+     removeMedia: 'Remove media',
+     save: 'Create lesson',
+     close: 'Close',
+     missing: 'Please complete Vietnamese content for lesson, module, and media.',
+     moduleMissingMedia: 'Each module must include at least one media file.',
+     invalidFile: 'Please attach a valid image/video file for each media item.',
+     creating: 'Creating lesson...',
++    uploadingMedia: 'Uploading media {current}/{total}...',
+     success: 'Created lesson successfully.',
+   },
+   de: {
+     title: 'Neue Lektion erstellen',
+     inputLang: 'Eingabesprache',
+     lessonTitle: 'Lektionstitel *',
+     slug: 'Slug',
+     lessonDescription: 'Lektionsbeschreibung *',
+     moduleTitle: 'Modulname *',
+     moduleDescription: 'Modulbeschreibung *',
+     mediaTitle: 'Video/Bild-Titel *',
+     mediaDescription: 'Video/Bild-Beschreibung *',
+     mediaType: 'Medientyp *',
+     mediaFile: 'Video/Bild-Datei *',
+     addModule: 'Modul hinzufügen',
+     removeModule: 'Modul löschen',
+     addMedia: 'Medium hinzufügen',
+     removeMedia: 'Medium löschen',
+     save: 'Lektion erstellen',
+     close: 'Schließen',
+     missing: 'Bitte füllen Sie die vietnamesischen Inhalte für Lektion, Modul und Medien aus.',
+     moduleMissingMedia: 'Jedes Modul muss mindestens eine Mediendatei enthalten.',
+     invalidFile: 'Bitte wählen Sie für jedes Medium eine gültige Bild-/Videodatei aus.',
+     creating: 'Lektion wird erstellt...',
++    uploadingMedia: 'Medien werden hochgeladen {current}/{total}...',
+     success: 'Lektion erfolgreich erstellt.',
+   },
+ } as const
+
+ const slugify = (value: string) =>
+   value
+     .toLowerCase()
+     .normalize('NFD')
+     .replace(/[\u0300-\u036f]/g, '')
+     .replace(/[^a-z0-9\s-]/g, '')
+     .trim()
+     .replace(/\s+/g, '-')
+
+ const createEmptyMedia = (): MediaForm => ({
+   title: emptyI18n(),
+   description: emptyI18n(),
+   mediaType: 'VIDEO',
+   file: null,
+ })
+
+ const createEmptyModule = (): ModuleForm => ({
+   title: emptyI18n(),
+   description: emptyI18n(),
+   medias: [createEmptyMedia()],
+ })
+
+ const initialForm: FormState = {
+   title: emptyI18n(),
+   slug: '',
+   description: emptyI18n(),
+   modules: [createEmptyModule()],
+ }
+
+ const inferMediaTypeFromFile = (file: File | null): MediaType => {
+   if (!file) return 'VIDEO'
+   return file.type.startsWith('image/') ? 'IMAGE' : 'VIDEO'
+ }
+
+ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }: Props) {
+   const t = textByLang[lang]
+   const [submitting, setSubmitting] = useState(false)
++  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null)
+   const [inputLang, setInputLang] = useState<AdminLang>('vi')
+   const [form, setForm] = useState<FormState>(initialForm)
+
+   const slug = useMemo(() => slugify(form.title.vi), [form.title.vi])
+
+   if (!open) return null
+
+   const translateVietnameseToOthers = async (value: string, updater: (en: string, de: string) => void) => {
+     const [en, de] = await Promise.all([
+       autoTranslateFromVietnamese(value, 'en-US').catch(() => ''),
+       autoTranslateFromVietnamese(value, 'de').catch(() => ''),
+     ])
+     updater(en || '', de || '')
+   }
+
+   const updateLessonField = (field: 'title' | 'description', value: string) => {
+     setForm((prev) => ({ ...prev, [field]: { ...prev[field], [inputLang]: value }, ...(field === 'title' ? { slug: slugify(value) } : {}) }))
+     if (inputLang !== 'vi') return
+     void translateVietnameseToOthers(value, (en, de) => {
+       setForm((prev) => ({
+         ...prev,
+         [field]: {
+           ...prev[field],
+           en,
+           de,
+@@ -328,74 +332,86 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }:
+         modules: form.modules.map((module, moduleIndex) => ({
+           title: module.title.vi.trim(),
+           description: module.description.vi.trim(),
+           order: moduleIndex,
+           translations: {
+             vi: { title: module.title.vi.trim(), description: module.description.vi.trim() },
+             en: { title: module.title.en.trim(), description: module.description.en.trim() },
+             de: { title: module.title.de.trim(), description: module.description.de.trim() },
+           },
+           videos: module.medias.map((media, mediaIndex) => ({
+             title: media.title.vi.trim(),
+             description: media.description.vi.trim(),
+             mediaType: media.mediaType,
+             sourceUrl: `pending-upload-${moduleIndex}-${mediaIndex}`,
              order: mediaIndex,
              translations: {
                vi: { title: media.title.vi.trim(), description: media.description.vi.trim() },
@@ -207,6 +373,9 @@ index 06d3d8233479aea15d7d35657cdd0d23707d55b1..877e38a8608c2d9a300cf28a3cf06800
        })
 
        const detail = await adminCoursesApi.getLessonDetail(createdLesson.id)
++      const totalMediaCount = form.modules.reduce((sum, module) => sum + module.medias.filter((media) => Boolean(media.file)).length, 0)
++      setUploadProgress(totalMediaCount > 0 ? { current: 0, total: totalMediaCount } : null)
++      let uploadedCount = 0
 
        for (let moduleIndex = 0; moduleIndex < form.modules.length; moduleIndex += 1) {
          const inputModule = form.modules[moduleIndex]
@@ -218,20 +387,28 @@ index 06d3d8233479aea15d7d35657cdd0d23707d55b1..877e38a8608c2d9a300cf28a3cf06800
            if (!media.file) continue
            const uploadType = media.mediaType === 'IMAGE' ? 'image' : 'video'
            await adminCoursesApi.uploadModuleMedia(createdLesson.id, createdModule.id, media.file, uploadType, mediaIndex)
++          uploadedCount += 1
++          setUploadProgress(totalMediaCount > 0 ? { current: uploadedCount, total: totalMediaCount } : null)
          }
        }
 
--      await onCreated()
        await AlertJs.success(t.success)
        setForm(initialForm)
        setInputLang('vi')
        onClose()
-+      await onCreated()
+       await onCreated()
      } finally {
        setSubmitting(false)
++      setUploadProgress(null)
      }
    }
 
++  const uploadProgressText = uploadProgress
++    ? t.uploadingMedia
++        .replace('{current}', String(uploadProgress.current))
++        .replace('{total}', String(uploadProgress.total))
++    : t.creating
++
    return (
      <div className='admin-modal-backdrop' role='dialog' aria-modal='true'>
        <div className='admin-modal create-course-modal'>
@@ -252,3 +429,281 @@ index 06d3d8233479aea15d7d35657cdd0d23707d55b1..877e38a8608c2d9a300cf28a3cf06800
          </div>
 
          <div className='admin-form-grid admin-form-grid-2col'>
+           <label className='admin-field'>
+             <span className='admin-label'>{t.lessonTitle}</span>
+             <input className='admin-input' value={form.title[inputLang]} onChange={(e) => updateLessonField('title', e.target.value)} />
+           </label>
+           <label className='admin-field'>
+@@ -462,32 +478,32 @@ export function CreateLessonModal({ open, lang, courseId, onClose, onCreated }:
+                           onChange={(e) => updateMediaFile(moduleIndex, mediaIndex, e.target.files?.[0] || null)}
+                         />
+                       </label>
+                     </div>
+                   </div>
+                 ))}
+
+                 <div className='admin-field admin-field-full'>
+                   <button type='button' className='admin-btn admin-btn-ghost' onClick={() => addMedia(moduleIndex)}>
+                     <i className='fa-solid fa-plus' /> {t.addMedia}
+                   </button>
+                 </div>
+               </div>
+             </div>
+           ))}
+
+           <div className='admin-field admin-field-full'>
+             <button type='button' className='admin-btn admin-btn-ghost' onClick={addModule}>
+               <i className='fa-solid fa-plus' /> {t.addModule}
+             </button>
+           </div>
+         </div>
+
+         <div className='admin-row create-course-footer'>
+           <button type='button' className='admin-btn admin-btn-save' disabled={submitting} onClick={() => void submit()}>
+-            <i className='fa-solid fa-floppy-disk' /> {submitting ? t.creating : t.save}
++            <i className={`fa-solid ${submitting ? 'fa-spinner fa-spin' : 'fa-floppy-disk'}`} /> {submitting ? uploadProgressText : t.save}
+           </button>
+         </div>
+       </div>
+     </div>
+   )
+ }
+diff --git a/backend/ayanavitabackend/app/api/src/lessons/lessons-media.service.ts b/backend/ayanavitabackend/app/api/src/lessons/lessons-media.service.ts
+index ce3fbb96d9935349e3365b38cfacd08ec7ab1ba6..0f630ffbd09c4ca5a36a1902595ef95e16de3edd 100644
+--- a/backend/ayanavitabackend/app/api/src/lessons/lessons-media.service.ts
++++ b/backend/ayanavitabackend/app/api/src/lessons/lessons-media.service.ts
+@@ -1,91 +1,158 @@
+ import { Injectable, InternalServerErrorException } from '@nestjs/common'
+ import { createHash, createHmac, randomUUID } from 'crypto'
+ import { mkdir, readFile, rm, writeFile } from 'fs/promises'
+ import { join } from 'path'
+ import { tmpdir } from 'os'
+ import { spawn } from 'child_process'
+
+ @Injectable()
+ export class LessonsMediaService {
+   private readonly s3Bucket = process.env.CLOUDFLY_BUCKET || 'ayanavita-dev'
+   private readonly s3Region = process.env.CLOUDFLY_REGION || 'auto'
+   private readonly s3Endpoint = process.env.CLOUDFLY_ENDPOINT || 'https://s3.cloudfly.vn'
++  private readonly s3PublicBaseUrl = process.env.CLOUDFLY_PUBLIC_BASE_URL
+   private readonly s3AccessKey = process.env.CLOUDFLY_ACCESS_KEY || '67NZA2R2X53AYJU5I036'
+   private readonly s3SecretKey = process.env.CLOUDFLY_SECRET_KEY || '56f8Erg7KoBiIedMrvbe0cBNjy3OIPKHdX0vAW4N'
+
+   private hash(input: string | Buffer) {
+     return createHash('sha256').update(input).digest('hex')
+   }
+
+   private hmac(key: string | Buffer, msg: string) {
+     return createHmac('sha256', key).update(msg).digest()
+   }
+
++  private toCanonicalUri(key: string) {
++    return `/${this.s3Bucket}/${key.split('/').map((part) => encodeURIComponent(part)).join('/')}`
++  }
++
++  private normalizeObjectKey(urlOrKey: string) {
++    const value = (urlOrKey || '').trim()
++    if (!value) return ''
++    if (!value.startsWith('http://') && !value.startsWith('https://')) return value.replace(/^\/+/, '')
++
++    try {
++      const parsed = new URL(value)
++      const path = parsed.pathname.replace(/^\/+/, '')
++      const bucketPrefix = `${this.s3Bucket}/`
++      if (path.startsWith(bucketPrefix)) return path.slice(bucketPrefix.length)
++      return path
++    } catch {
++      return value
++    }
++  }
++
++  private publicCloudUrl(key: string) {
++    const baseUrl = this.s3PublicBaseUrl?.trim().replace(/\/$/, '') || this.s3Endpoint.replace(/\/$/, '')
++    return `${baseUrl}/${this.s3Bucket}/${key}`
++  }
++
++  buildSingleMediaUrl(urlOrKey: string, expiresInSec = 60 * 60) {
++    const key = this.normalizeObjectKey(urlOrKey)
++    if (!key) return ''
++    if (!this.s3AccessKey || !this.s3SecretKey) return this.publicCloudUrl(key)
++
++    const now = new Date()
++    const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '')
++    const dateStamp = amzDate.slice(0, 8)
++    const host = new URL(this.s3Endpoint).host
++    const credentialScope = `${dateStamp}/${this.s3Region}/s3/aws4_request`
++
++    const query = new URLSearchParams({
++      'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
++      'X-Amz-Credential': `${this.s3AccessKey}/${credentialScope}`,
++      'X-Amz-Date': amzDate,
++      'X-Amz-Expires': String(expiresInSec),
++      'X-Amz-SignedHeaders': 'host',
++    })
++
++    const canonicalQuery = Array.from(query.entries())
++      .sort(([a], [b]) => a.localeCompare(b))
++      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
++      .join('&')
++
++    const canonicalRequest = ['GET', this.toCanonicalUri(key), canonicalQuery, `host:${host}\n`, 'host', 'UNSIGNED-PAYLOAD'].join('\n')
++    const stringToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${credentialScope}\n${this.hash(canonicalRequest)}`
++
++    const kDate = this.hmac(`AWS4${this.s3SecretKey}`, dateStamp)
++    const kRegion = this.hmac(kDate, this.s3Region)
++    const kService = this.hmac(kRegion, 's3')
++    const kSigning = this.hmac(kService, 'aws4_request')
++    const signature = createHmac('sha256', kSigning).update(stringToSign).digest('hex')
++    query.set('X-Amz-Signature', signature)
++
++    return `${this.s3Endpoint.replace(/\/$/, '')}${this.toCanonicalUri(key)}?${query.toString()}`
++  }
++
+   private async uploadPrivateObject(key: string, body: Buffer, contentType: string) {
+     if (!this.s3AccessKey || !this.s3SecretKey) {
+       throw new InternalServerErrorException('Cloudfly credentials are not configured')
+     }
+
+     const now = new Date()
+     const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '')
+     const dateStamp = amzDate.slice(0, 8)
+     const host = new URL(this.s3Endpoint).host
+     const payloadHash = this.hash(body)
+
+-    const headers = {
++    const headers: Record<string, string> = {
+       host,
+       'x-amz-content-sha256': payloadHash,
+       'x-amz-date': amzDate,
+       'x-amz-acl': 'private',
+       'content-type': contentType,
+     }
+
+-    const signedHeaders = 'content-type;host;x-amz-acl;x-amz-content-sha256;x-amz-date'
+-    const canonicalHeaders = Object.entries(headers)
+-      .map(([k, v]) => `${k}:${String(v).trim()}\n`)
+-      .join('')
++    const sortedHeaderKeys = Object.keys(headers).sort()
++    const signedHeaders = sortedHeaderKeys.join(';')
++    const canonicalHeaders = sortedHeaderKeys.map((keyName) => `${keyName}:${headers[keyName].trim()}`).join('\n') + '\n'
+
+     const canonicalRequest = ['PUT', `/${this.s3Bucket}/${key}`, '', canonicalHeaders, signedHeaders, payloadHash].join('\n')
+     const credentialScope = `${dateStamp}/${this.s3Region}/s3/aws4_request`
+     const stringToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${credentialScope}\n${this.hash(canonicalRequest)}`
+
+     const kDate = this.hmac(`AWS4${this.s3SecretKey}`, dateStamp)
+     const kRegion = this.hmac(kDate, this.s3Region)
+     const kService = this.hmac(kRegion, 's3')
+     const kSigning = this.hmac(kService, 'aws4_request')
+     const signature = createHmac('sha256', kSigning).update(stringToSign).digest('hex')
+
+     const authorization = `AWS4-HMAC-SHA256 Credential=${this.s3AccessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`
+     const uploadUrl = `${this.s3Endpoint.replace(/\/$/, '')}/${this.s3Bucket}/${key}`
+
++    const requestHeaders: Record<string, string> = {
++      Authorization: authorization,
++      'x-amz-content-sha256': payloadHash,
++      'x-amz-date': amzDate,
++      'x-amz-acl': 'private',
++      'content-type': contentType,
++    }
++
+     const res = await fetch(uploadUrl, {
+       method: 'PUT',
+-      headers: {
+-        Authorization: authorization,
+-        ...headers,
+-      },
++      headers: requestHeaders,
+       body: new Uint8Array(body),
+     })
+
+     if (!res.ok) {
+       const text = await res.text()
+       throw new InternalServerErrorException(`Upload video failed: ${res.status} ${text}`)
+     }
+
+     return key
+   }
+
+   private runFfmpeg(args: string[]) {
+     return new Promise<void>((resolve, reject) => {
+       const ffmpeg = spawn('ffmpeg', args)
+       let settled = false
+       let stderr = ''
+       ffmpeg.stderr.on('data', (chunk) => {
+         stderr += chunk.toString()
+       })
+       ffmpeg.on('error', (error) => {
+         if (settled) return
+         settled = true
+         reject(error)
+       })
+       ffmpeg.on('close', (code) => {
+diff --git a/backend/ayanavitabackend/app/api/src/lessons/lessons.service.ts b/backend/ayanavitabackend/app/api/src/lessons/lessons.service.ts
+index ed8a22d6ad37276c3b74099946bd6f7f50fb521c..93f5a0a8dc73bf18246c3ab71bfe868f9027b012 100644
+--- a/backend/ayanavitabackend/app/api/src/lessons/lessons.service.ts
++++ b/backend/ayanavitabackend/app/api/src/lessons/lessons.service.ts
+@@ -12,51 +12,61 @@ export class LessonsService {
+   constructor(private readonly prisma: PrismaService, private readonly enrollments: EnrollmentsService, private readonly media: LessonsMediaService) {}
+
+   async findOne(user: JwtUser, id: number) {
+     const lesson = await this.prisma.lesson.findUnique({
+       where: { id },
+       select: {
+         id: true, courseId: true, title: true, slug: true, description: true, order: true, published: true, content: true, videoUrl: true, createdAt: true, updatedAt: true,
+         translations: { select: { locale: true, title: true, description: true } },
+         modules: { where: user.role === 'ADMIN' ? {} : { published: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }], select: {
+           id: true, title: true, description: true, order: true, published: true,
+           translations: { select: { locale: true, title: true, description: true } },
+           videos: { where: user.role === 'ADMIN' ? {} : { published: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }], select: { id: true, title: true, description: true, sourceUrl: true, hlsPlaylistKey: true, mediaType: true, durationSec: true, order: true, published: true, translations: { select: { locale: true, title: true, description: true } } } },
+         } },
+       },
+     })
+     if (!lesson) throw new NotFoundException('Lesson not found')
+     await this.enrollments.assertEnrolledOrAdmin(user, lesson.courseId)
+     if (user.role !== 'ADMIN' && !lesson.published) throw new NotFoundException('Lesson not found')
+     if (user.role !== 'ADMIN') {
+       const prev = await this.prisma.lesson.findFirst({ where: { courseId: lesson.courseId, published: true, OR: [{ order: { lt: lesson.order ?? 0 } }, { order: lesson.order ?? 0, id: { lt: lesson.id } }] }, select: { id: true }, orderBy: [{ order: 'desc' }, { id: 'desc' }] })
+       if (prev) {
+         const prevProgress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId: prev.id } }, select: { status: true } })
+         if (!prevProgress || prevProgress.status !== ProgressStatus.COMPLETED) throw new ForbiddenException('Complete previous lesson first')
+       }
+     }
+-    return lesson
++
++    return {
++      ...lesson,
++      modules: lesson.modules.map((module) => ({
++        ...module,
++        videos: module.videos.map((video) => ({
++          ...video,
++          playbackUrl: this.media.buildSingleMediaUrl(video.sourceUrl || video.hlsPlaylistKey || ''),
++        })),
++      })),
++    }
+   }
+
+   async create(courseId: number, dto: CreateLessonDto) {
+     return this.prisma.$transaction(async (tx) => {
+       const lesson = await tx.lesson.create({ data: { courseId, title: dto.title, slug: dto.slug, description: dto.description, content: dto.content, videoUrl: dto.videoUrl, order: dto.order, published: dto.published } as any })
+       await this.upsertLessonTranslations(tx, lesson.id, dto)
+       if (dto.modules?.length) {
+         for (const m of dto.modules) {
+           const mod = await tx.lessonModule.create({ data: { lessonId: lesson.id, title: m.title, description: m.description, order: m.order, published: m.published } as any })
+           await this.upsertModuleTranslations(tx, mod.id, m)
+           if (m.videos?.length) {
+             for (const [idx, v] of m.videos.entries()) {
+               if (!v.sourceUrl?.trim()) throw new BadRequestException('Video/Image sourceUrl is required')
+               const video = await tx.lessonVideo.create({ data: { moduleId: mod.id, title: v.title, description: v.description, sourceUrl: v.sourceUrl, mediaType: v.mediaType === 'IMAGE' ? LessonMediaType.IMAGE : LessonMediaType.VIDEO, durationSec: v.durationSec ?? 0, order: v.order ?? idx, published: v.published ?? true } as any })
+               await this.upsertVideoTranslations(tx, video.id, v)
+             }
+           }
+         }
+       }
+       return lesson
+     })
+   }
+
+   async uploadModuleMedia(lessonId: number, moduleId: string, type: 'video' | 'image', file: { buffer: Buffer; originalname?: string }, order?: number) {
+     const lesson = await this.prisma.lesson.findUnique({ where: { id: lessonId }, select: { id: true } })

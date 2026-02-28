@@ -33,10 +33,6 @@ type CourseTranslationItem = {
   title?: string
   shortDescription?: string
   description?: string
-}
-
-type CourseContentTranslationItem = {
-  locale: string
   objectives?: string[]
   targetAudience?: string[]
   benefits?: string[]
@@ -57,12 +53,6 @@ const slugify = (input: string) =>
 const normalizeTranslations = (value: CourseDetailAdmin['translations']): CourseTranslationItem[] => {
   if (!value) return []
   if (Array.isArray(value)) return value as CourseTranslationItem[]
-  return Object.entries(value).map(([locale, item]) => ({ locale, ...item }))
-}
-
-const normalizeContentTranslations = (value: CourseDetailAdmin['contentTranslations']): CourseContentTranslationItem[] => {
-  if (!value) return []
-  if (Array.isArray(value)) return value as CourseContentTranslationItem[]
   return Object.entries(value).map(([locale, item]) => ({ locale, ...item }))
 }
 
@@ -206,7 +196,7 @@ const createEditForm = (course: CourseDetailAdmin): EditForm => {
     }
   })
 
-  normalizeContentTranslations(course.contentTranslations).forEach((translation) => {
+  normalizeTranslations(course.translations).forEach((translation) => {
     if (translation.locale === 'vi' || translation.locale === 'en' || translation.locale === 'de') {
       form.objectives[translation.locale] = translation.objectives?.length ? [...translation.objectives] : form.objectives[translation.locale]
       form.targetAudience[translation.locale] = translation.targetAudience?.length ? [...translation.targetAudience] : form.targetAudience[translation.locale]
@@ -214,14 +204,55 @@ const createEditForm = (course: CourseDetailAdmin): EditForm => {
     }
   })
 
+  const contentTranslations = course.contentTranslations
+  if (contentTranslations) {
+    const legacyContent = Array.isArray(contentTranslations)
+      ? contentTranslations
+      : Object.entries(contentTranslations).map(([locale, item]) => ({ locale, ...item }))
+    legacyContent.forEach((translation: any) => {
+      if (translation.locale === 'vi' || translation.locale === 'en' || translation.locale === 'de') {
+        form.objectives[translation.locale] = translation.objectives?.length ? [...translation.objectives] : form.objectives[translation.locale]
+        form.targetAudience[translation.locale] = translation.targetAudience?.length ? [...translation.targetAudience] : form.targetAudience[translation.locale]
+        form.benefits[translation.locale] = translation.benefits?.length ? [...translation.benefits] : form.benefits[translation.locale]
+      }
+    })
+  }
+
   return form
 }
+
+
+const cloneEditForm = (form: EditForm): EditForm => ({
+  ...form,
+  title: { ...form.title },
+  shortDescription: { ...form.shortDescription },
+  description: { ...form.description },
+  objectives: {
+    vi: [...form.objectives.vi],
+    en: [...form.objectives.en],
+    de: [...form.objectives.de],
+  },
+  targetAudience: {
+    vi: [...form.targetAudience.vi],
+    en: [...form.targetAudience.en],
+    de: [...form.targetAudience.de],
+  },
+  benefits: {
+    vi: [...form.benefits.vi],
+    en: [...form.benefits.en],
+    de: [...form.benefits.de],
+  },
+  thumbnailFile: null,
+})
 
 export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated }: Props) {
   const [editing, setEditing] = useState(false)
   const [inputLang, setInputLang] = useState<AdminLang>('vi')
   const [submitting, setSubmitting] = useState(false)
+  const [loadingEditData, setLoadingEditData] = useState(false)
   const [form, setForm] = useState<EditForm>(() => createEditForm(course))
+  const [initialEditForm, setInitialEditForm] = useState<EditForm | null>(null)
+  const [initialEditCourseId, setInitialEditCourseId] = useState<number | null>(null)
 
   const t = i18n[lang]
   const canPublish = (course._count?.lessons ?? 0) > 0 && (course.videoCount ?? 0) > 0
@@ -242,17 +273,35 @@ export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated }: P
     return tr?.shortDescription || course.shortDescription || '--'
   })()
 
-  const startEdit = () => {
-    setForm(createEditForm(course))
+  const startEdit = async () => {
     setInputLang('vi')
-    setEditing(true)
+
+    if (initialEditForm && initialEditCourseId === course.id) {
+      setForm(cloneEditForm(initialEditForm))
+      setEditing(true)
+      return
+    }
+
+    try {
+      setLoadingEditData(true)
+      const detail = await adminCoursesApi.getCourseDetail(course.id)
+      const prepared = createEditForm(detail)
+      setInitialEditForm(prepared)
+      setInitialEditCourseId(course.id)
+      setForm(cloneEditForm(prepared))
+    } catch {
+      setForm(createEditForm(course))
+    } finally {
+      setLoadingEditData(false)
+      setEditing(true)
+    }
   }
 
   const slug = useMemo(() => slugify(form.title.vi || ''), [form.title.vi])
 
   const translateVietnameseToOthers = async (value: string, updater: (en: string, de: string) => void) => {
     const [en, de] = await Promise.all([
-      autoTranslateFromVietnamese(value, 'en').catch(() => ''),
+      autoTranslateFromVietnamese(value, 'en-US').catch(() => ''),
       autoTranslateFromVietnamese(value, 'de').catch(() => ''),
     ])
     updater(en || '', de || '')
@@ -260,18 +309,17 @@ export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated }: P
 
   const updateI18nField = (field: 'title' | 'shortDescription' | 'description', value: string) => {
     setForm((prev) => ({ ...prev, [field]: { ...prev[field], [inputLang]: value } }))
-    if (inputLang === 'vi' && value.trim()) {
-      void translateVietnameseToOthers(value, (en, de) => {
-        setForm((prev) => ({
-          ...prev,
-          [field]: {
-            ...prev[field],
-            en: prev[field].en?.trim() ? prev[field].en : en,
-            de: prev[field].de?.trim() ? prev[field].de : de,
-          },
-        }))
-      })
-    }
+    if (inputLang !== 'vi') return
+    void translateVietnameseToOthers(value, (en, de) => {
+      setForm((prev) => ({
+        ...prev,
+        [field]: {
+          ...prev[field],
+          en,
+          de,
+        },
+      }))
+    })
   }
 
   const updateI18nListItem = (field: 'objectives' | 'targetAudience' | 'benefits', index: number, value: string) => {
@@ -279,6 +327,17 @@ export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated }: P
       const list = [...prev[field][inputLang]]
       list[index] = value
       return { ...prev, [field]: { ...prev[field], [inputLang]: list } }
+    })
+
+    if (inputLang !== 'vi') return
+    void translateVietnameseToOthers(value, (en, de) => {
+      setForm((prev) => {
+        const nextEn = [...prev[field].en]
+        const nextDe = [...prev[field].de]
+        nextEn[index] = en
+        nextDe[index] = de
+        return { ...prev, [field]: { ...prev[field], en: nextEn, de: nextDe } }
+      })
     })
   }
 
@@ -322,9 +381,30 @@ export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated }: P
       payload.append('targetAudience', JSON.stringify(form.targetAudience.vi.filter((v) => v.trim())))
       payload.append('benefits', JSON.stringify(form.benefits.vi.filter((v) => v.trim())))
       payload.append('translations', JSON.stringify({
-        vi: { title: form.title.vi.trim(), shortDescription: form.shortDescription.vi.trim(), description: form.description.vi.trim() },
-        en: { title: form.title.en.trim(), shortDescription: form.shortDescription.en.trim(), description: form.description.en.trim() },
-        de: { title: form.title.de.trim(), shortDescription: form.shortDescription.de.trim(), description: form.description.de.trim() },
+        vi: {
+          title: form.title.vi.trim(),
+          shortDescription: form.shortDescription.vi.trim(),
+          description: form.description.vi.trim(),
+          objectives: form.objectives.vi.filter((v) => v.trim()),
+          targetAudience: form.targetAudience.vi.filter((v) => v.trim()),
+          benefits: form.benefits.vi.filter((v) => v.trim()),
+        },
+        en: {
+          title: form.title.en.trim(),
+          shortDescription: form.shortDescription.en.trim(),
+          description: form.description.en.trim(),
+          objectives: form.objectives.en.filter((v) => v.trim()),
+          targetAudience: form.targetAudience.en.filter((v) => v.trim()),
+          benefits: form.benefits.en.filter((v) => v.trim()),
+        },
+        de: {
+          title: form.title.de.trim(),
+          shortDescription: form.shortDescription.de.trim(),
+          description: form.description.de.trim(),
+          objectives: form.objectives.de.filter((v) => v.trim()),
+          targetAudience: form.targetAudience.de.filter((v) => v.trim()),
+          benefits: form.benefits.de.filter((v) => v.trim()),
+        },
       }))
       payload.append('contentTranslations', JSON.stringify({
         vi: {
@@ -348,6 +428,8 @@ export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated }: P
       await adminCoursesApi.updateCourse(course.id, payload)
       await onUpdated()
       await AlertJs.success(t.updateSuccessTitle, t.updateSuccessBody)
+      setInitialEditForm(null)
+      setInitialEditCourseId(null)
       setEditing(false)
     } finally {
       setSubmitting(false)
@@ -423,13 +505,16 @@ export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated }: P
   }
 
   const topic = topics.find((item) => item.id === course.topicId)
-  const currentContent = normalizeContentTranslations(course.contentTranslations).find((item) => item.locale === lang)
+  const currentTranslation = normalizeTranslations(course.translations).find((item) => item.locale === lang)
+  const listItems = (items?: string[]) => (
+    items?.length ? <ul style={{ margin: '6px 0 0', paddingInlineStart: 18 }}>{items.map((item, idx) => <li key={`${item}-${idx}`}>{item}</li>)}</ul> : '--'
+  )
 
   return (
     <div className='admin-row' style={{ gap: 14, flexWrap: 'wrap', alignItems: 'stretch' }}>
       <div style={{ flex: '1 1 100%', display: 'flex', justifyContent: 'flex-end' }}>
-        <button type='button' className='admin-btn admin-btn-ghost' onClick={startEdit}>
-          <i className='fa-solid fa-pen' /> {t.edit}
+        <button type='button' className='admin-btn admin-btn-ghost' onClick={() => void startEdit()} disabled={loadingEditData}>
+          <i className='fa-solid fa-pen' /> {loadingEditData ? t.saving : t.edit}
         </button>
       </div>
       <div style={{ flex: '1 1 100%', borderBottom: '1px dashed rgba(148, 163, 184, 0.35)', paddingBottom: 12 }}>
@@ -478,10 +563,10 @@ export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated }: P
           <span style={{ fontSize: 13, color: '#94a3b8' }}>{t.translations}</span>
         </div>
         <div className='admin-row' style={{ gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-          <div style={{ flex: '1 1 320px' }}><b>{t.description}:</b> {course.description || '--'}</div>
-          <div style={{ flex: '1 1 320px' }}><b>{t.objective}:</b> {(currentContent?.objectives || course.objectives || []).join(' • ') || '--'}</div>
-          <div style={{ flex: '1 1 320px' }}><b>{t.audience}:</b> {(currentContent?.targetAudience || course.targetAudience || []).join(' • ') || '--'}</div>
-          <div style={{ flex: '1 1 320px' }}><b>{t.benefits}:</b> {(currentContent?.benefits || course.benefits || []).join(' • ') || '--'}</div>
+          <div style={{ flex: '1 1 100%' }}><b>{t.description}:</b> {currentTranslation?.description || course.description || '--'}</div>
+          <div style={{ flex: '1 1 320px' }}><b>{t.objective}:</b>{listItems(currentTranslation?.objectives || course.objectives || [])}</div>
+          <div style={{ flex: '1 1 320px' }}><b>{t.audience}:</b>{listItems(currentTranslation?.targetAudience || course.targetAudience || [])}</div>
+          <div style={{ flex: '1 1 320px' }}><b>{t.benefits}:</b>{listItems(currentTranslation?.benefits || course.benefits || [])}</div>
         </div>
       </div>
     </div>

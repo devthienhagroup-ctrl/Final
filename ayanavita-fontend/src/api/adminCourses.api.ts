@@ -35,7 +35,7 @@ export type LessonPayload = {
   title: string
   slug: string
   description?: string
-  translations?: Record<string, { title: string; description?: string }>
+  translations?: Record<string, { title: string; shortDescription?: string; description?: string; objectives?: string[]; targetAudience?: string[]; benefits?: string[] }>
   content?: string
   videoUrl?: string
   modules?: LessonModulePayload[]
@@ -78,7 +78,7 @@ export type CourseAdmin = {
   published: boolean
   price: number
   topic?: { id: number; name: string } | null
-  translations?: Record<string, { title: string; description?: string }>
+  translations?: Record<string, { title: string; shortDescription?: string; description?: string; objectives?: string[]; targetAudience?: string[]; benefits?: string[] }>
   objectives?: string[]
   targetAudience?: string[]
   benefits?: string[]
@@ -111,7 +111,7 @@ export type CoursePayload = {
   thumbnail?: string
   price?: number
   published?: boolean
-  translations?: Record<string, { title: string; description?: string }>
+  translations?: Record<string, { title: string; shortDescription?: string; description?: string; objectives?: string[]; targetAudience?: string[]; benefits?: string[] }>
   objectives?: string[]
   targetAudience?: string[]
   benefits?: string[]

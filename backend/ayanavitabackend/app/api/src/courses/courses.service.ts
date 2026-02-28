@@ -162,7 +162,7 @@ export class CoursesService {
         where,
         select: {
           ...this.baseCourseSelect,
-          translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, title: true, shortDescription: true, description: true } },
+          translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, title: true, shortDescription: true, description: true, objectives: true, targetAudience: true, benefits: true } },
           contentTranslations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, objectives: true, targetAudience: true, benefits: true } },
           topic: { select: { id: true, name: true, translations: { where: { locale: { in: [topicLocale, 'vi'] } }, select: { locale: true, name: true } } } },
         },
@@ -176,9 +176,10 @@ export class CoursesService {
     const videoCountMap = new Map(videoRows.map((r) => [Number(r.courseId), Number(r.videoCount)]))
     const items = rows.map((row: any) => {
       const tr = row.translations?.find((x: any) => x.locale === courseLocale) || row.translations?.find((x: any) => x.locale === 'vi')
-      const ct = row.contentTranslations?.find((x: any) => x.locale === courseLocale) || row.contentTranslations?.find((x: any) => x.locale === 'vi')
+      const ct = row.translations?.find((x: any) => x.locale === courseLocale) || row.translations?.find((x: any) => x.locale === 'vi')
+      const legacyCt = row.contentTranslations?.find((x: any) => x.locale === courseLocale) || row.contentTranslations?.find((x: any) => x.locale === 'vi')
       const tt = row.topic?.translations?.find((x: any) => x.locale === topicLocale) || row.topic?.translations?.find((x: any) => x.locale === 'vi')
-      return { ...row, title: tr?.title || row.title, shortDescription: tr?.shortDescription || row.shortDescription, description: tr?.description || row.description, objectives: ct?.objectives || row.objectives, targetAudience: ct?.targetAudience || row.targetAudience, benefits: ct?.benefits || row.benefits, topic: row.topic ? { id: row.topic.id, name: tt?.name || row.topic.name } : null, videoCount: videoCountMap.get(row.id) || 0 }
+      return { ...row, title: tr?.title || row.title, shortDescription: tr?.shortDescription || row.shortDescription, description: tr?.description || row.description, objectives: ct?.objectives || legacyCt?.objectives || row.objectives, targetAudience: ct?.targetAudience || legacyCt?.targetAudience || row.targetAudience, benefits: ct?.benefits || legacyCt?.benefits || row.benefits, topic: row.topic ? { id: row.topic.id, name: tt?.name || row.topic.name } : null, videoCount: videoCountMap.get(row.id) || 0 }
     })
     return { items, total, page, pageSize }
   }
@@ -193,14 +194,15 @@ export class CoursesService {
       where: { id },
       select: {
         ...this.baseCourseSelect,
-        translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, title: true, shortDescription: true, description: true } },
-        contentTranslations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, objectives: true, targetAudience: true, benefits: true } },
+        translations: { select: { locale: true, title: true, shortDescription: true, description: true, objectives: true, targetAudience: true, benefits: true } },
+        contentTranslations: { select: { locale: true, objectives: true, targetAudience: true, benefits: true } },
         topic: { select: { id: true, name: true, translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, name: true } } } },
       },
     })
     if (!c) throw new NotFoundException('Course not found')
     const tr = (c as any).translations?.find((x: any) => x.locale === courseLocale) || (c as any).translations?.find((x: any) => x.locale === 'vi')
-    const ct = (c as any).contentTranslations?.find((x: any) => x.locale === courseLocale) || (c as any).contentTranslations?.find((x: any) => x.locale === 'vi')
+    const ct = (c as any).translations?.find((x: any) => x.locale === courseLocale) || (c as any).translations?.find((x: any) => x.locale === 'vi')
+    const legacyCt = (c as any).contentTranslations?.find((x: any) => x.locale === courseLocale) || (c as any).contentTranslations?.find((x: any) => x.locale === 'vi')
     const tt = (c as any).topic?.translations?.find((x: any) => x.locale === courseLocale) || (c as any).topic?.translations?.find((x: any) => x.locale === 'vi')
 
     const videoRows = await this.prisma.$queryRaw<Array<{ videoCount: bigint | number }>>`
@@ -216,9 +218,9 @@ export class CoursesService {
       title: tr?.title || c.title,
       shortDescription: tr?.shortDescription || c.shortDescription,
       description: tr?.description || c.description,
-      objectives: ct?.objectives || c.objectives,
-      targetAudience: ct?.targetAudience || c.targetAudience,
-      benefits: ct?.benefits || c.benefits,
+      objectives: ct?.objectives || legacyCt?.objectives || c.objectives,
+      targetAudience: ct?.targetAudience || legacyCt?.targetAudience || c.targetAudience,
+      benefits: ct?.benefits || legacyCt?.benefits || c.benefits,
       topic: (c as any).topic ? { id: (c as any).topic.id, name: tt?.name || (c as any).topic.name } : null,
       videoCount: Number(videoRows[0]?.videoCount || 0),
     }
@@ -308,6 +310,9 @@ export class CoursesService {
             title: title.trim(),
             shortDescription: tr?.shortDescription?.trim() || (locale === 'vi' ? dto.shortDescription?.trim() || null : null),
             description: tr?.description?.trim() || (locale === 'vi' ? dto.description?.trim() || null : null),
+            objectives: (tr?.objectives || dto.contentTranslations?.[locale]?.objectives || objectivesByLocale[locale] || []) as any,
+            targetAudience: (tr?.targetAudience || dto.contentTranslations?.[locale]?.targetAudience || targetAudienceByLocale[locale] || []) as any,
+            benefits: (tr?.benefits || dto.contentTranslations?.[locale]?.benefits || benefitsByLocale[locale] || []) as any,
           },
           create: {
             courseId,
@@ -315,6 +320,9 @@ export class CoursesService {
             title: title.trim(),
             shortDescription: tr?.shortDescription?.trim() || (locale === 'vi' ? dto.shortDescription?.trim() || null : null),
             description: tr?.description?.trim() || (locale === 'vi' ? dto.description?.trim() || null : null),
+            objectives: (tr?.objectives || dto.contentTranslations?.[locale]?.objectives || objectivesByLocale[locale] || []) as any,
+            targetAudience: (tr?.targetAudience || dto.contentTranslations?.[locale]?.targetAudience || targetAudienceByLocale[locale] || []) as any,
+            benefits: (tr?.benefits || dto.contentTranslations?.[locale]?.benefits || benefitsByLocale[locale] || []) as any,
           },
         })
       }

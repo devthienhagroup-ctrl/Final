@@ -12,6 +12,21 @@ class TranslationDto {
   @IsOptional()
   @IsString()
   description?: string
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  objectives?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  targetAudience?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  benefits?: string[]
 }
 
 class ContentTranslationDto {

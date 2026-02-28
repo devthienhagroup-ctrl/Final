@@ -1,652 +1,482 @@
-diff --git a/ayanavita-fontend/src/api/courses.api.ts b/ayanavita-fontend/src/api/courses.api.ts
-index 41ade49f8b7af4675241bc5b8fc590103da36130..c3a7921a641132abcf7916141994767fec5482e7 100644
---- a/ayanavita-fontend/src/api/courses.api.ts
-+++ b/ayanavita-fontend/src/api/courses.api.ts
-@@ -1,37 +1,42 @@
- // src/api/courses.api.ts
--import { get } from "./http";
-+import { get, post } from "./http";
+diff --git a/ayanavita-fontend/src/api/enrollments.api.ts b/ayanavita-fontend/src/api/enrollments.api.ts
+index 042ca04828d9592b82dc97304af643b7b0946559..47d1a67453f8ac6a611a0cb0c6236388e1b06157 100644
+--- a/ayanavita-fontend/src/api/enrollments.api.ts
++++ b/ayanavita-fontend/src/api/enrollments.api.ts
+@@ -1,43 +1,44 @@
+ // src/api/enrollments.api.ts
+ import { get, post } from "./http";
 
- export type Course = {
-   id: number;
-   title: string;
-   slug: string;
-   description: string;
-   thumbnail: string | null;
-   price: number;
-   published: boolean;
-+  ratingAvg?: number;
-+  ratingCount?: number;
-   _count?: { lessons: number };
+ export type EnrollmentStatus = "ACTIVE" | "CANCELLED" | "PENDING";
+
+ export type MyCourse = {
+   id: number; // enrollment id
+   courseId: number;
+   status: EnrollmentStatus;
+   course: {
+     id: number;
+     title: string;
+     thumbnail: string | null;
+     price: number;
+   };
  };
 
- export type Lesson = {
-   id: number;
-   title: string;
-   content: string | null; // thường outline sẽ null
-   videoUrl: string | null;
-   order: number;
--  // nếu BE có courseId/slug/published... có thể bổ sung sau
-+};
-+
-+export type CourseReview = {
-+  id: number;
-+  stars: number;
-+  comment: string | null;
-+  customerName: string;
-+  createdAt: string;
-+  updatedAt: string;
+ export const enrollmentsApi = {
+   /**
+    * GET /me/courses
+    * Trả danh sách khóa học user đã enroll (kèm status).
+    */
+-  myCourses() {
+-    return get<MyCourse[]>("/me/courses", { auth: true });
++  myCourses(lang?: string) {
++    const query = lang ? `?lang=${encodeURIComponent(lang)}` : "";
++    return get<MyCourse[]>(`/me/courses${query}`, { auth: true });
+   },
+
+   /**
+    * POST /courses/:id/cancel
+    * Hủy enrollment (thường chuyển CANCELLED).
+    */
+   cancel(courseId: number) {
+     return post<{ ok: boolean }>(`/courses/${courseId}/cancel`, {}, { auth: true });
+   },
+
+   /**
+    * POST /courses/:id/order
+    * Nếu backend của bạn endpoint này tạo order, nên ưu tiên gọi ordersApi.create(courseId)
+    * để lấy đủ thông tin order (id, code, totals...). Hàm này giữ lại để backward-compatible.
+    */
+   order(courseId: number) {
+     return post<{ ok: boolean }>(`/courses/${courseId}/order`, {}, { auth: true });
+   },
  };
-
- export const coursesApi = {
--  // GET /courses
-   list: () => get<Course[]>("/courses", { auth: true }),
--
--  // GET /courses/:id
-   detail: (id: number) => get<Course>(`/courses/${id}`, { auth: true }),
--
--  // GET /courses/:courseId/lessons  (gated theo Enrollment ACTIVE)
-   lessons: (courseId: number) => get<Lesson[]>(`/courses/${courseId}/lessons`, { auth: true }),
--
--  // GET /courses/:courseId/lessons-outline (fallback khi bị gate)
--  lessonsOutline: (courseId: number) =>
--    get<Lesson[]>(`/courses/${courseId}/lessons-outline`, { auth: true }),
-+  lessonsOutline: (courseId: number) => get<Lesson[]>(`/courses/${courseId}/lessons-outline`, { auth: true }),
-+  reviews: (courseId: number) => get<CourseReview[]>(`/courses/${courseId}/reviews`, { auth: true }),
-+  submitReview: (courseId: number, body: { stars: number; comment?: string; customerName?: string }) =>
-+    post<CourseReview & { ratingAvg: number; ratingCount: number }>(`/courses/${courseId}/reviews`, body, { auth: true }),
- };
-diff --git a/ayanavita-fontend/src/pages/CourseDetailPage.tsx b/ayanavita-fontend/src/pages/CourseDetailPage.tsx
-index 4029a63dbe5596f6eb1db890cbfcb48a539b3a96..f6c0c239ab75d161b512efa8ea967c4f76bb968f 100644
---- a/ayanavita-fontend/src/pages/CourseDetailPage.tsx
-+++ b/ayanavita-fontend/src/pages/CourseDetailPage.tsx
-@@ -1,29 +1,29 @@
- import React, { useEffect, useMemo, useState } from "react";
- import { Link, useNavigate, useParams } from "react-router-dom";
-
--import { coursesApi, type Course, type Lesson } from "../api/courses.api";
-+import { coursesApi, type Course, type CourseReview, type Lesson } from "../api/courses.api";
- import { enrollmentsApi } from "../api/enrollments.api";
- import { progressApi, type CourseProgressRes } from "../api/progress.api";
-
- import { LessonsSidebar } from "../components/LessonsSidebar";
- import { buildSequentialRows, pickContinueLessonId } from "../shared/lessons";
- import { useEnrollmentGate } from "../hooks/useEnrollmentGate";
- import { studentLanguageMeta, useStudentViewPrefs, type StudentLang } from "../hooks/useStudentViewPrefs";
-
- import {
-   AppShell,
-   Badge,
-   Button,
-   Card,
-   Container,
-   Hr,
-   Muted,
-   SubTitle,
-   Title,
-   Tooltip,
-   theme,
- } from "../ui/ui";
-
- import { IconArrowLeft, IconInfo, IconPlay, IconRefresh } from "../ui/icons";
- import "./StudentCoursesTheme.css";
-
-@@ -90,65 +90,71 @@ function fmtVND(v: number) {
-     return String(v) + "đ";
-   }
+diff --git a/ayanavita-fontend/src/pages/MyCoursesPage.tsx b/ayanavita-fontend/src/pages/MyCoursesPage.tsx
+index c744c06e73e25c2a81f5ddd71315e9f11f04ffb7..0368c95c5fcaab136d6cdcbcabd449c4975e8735 100644
+--- a/ayanavita-fontend/src/pages/MyCoursesPage.tsx
++++ b/ayanavita-fontend/src/pages/MyCoursesPage.tsx
+@@ -82,71 +82,71 @@ function ProgressBar({ percent, label }: { percent: number; label: string }) {
+           <span className="student-progress-value">{p.toFixed(0)}%</span>
+         </div>
+         <div className="student-progress-track">
+           <div className="student-progress-fill" style={{ width: `${p}%` }} />
+         </div>
+       </div>
+   );
  }
 
- function sortLessons(ls: LessonView[]) {
-   return [...ls].sort((a, b) => {
-     const ao = a.order ?? 0;
-     const bo = b.order ?? 0;
-     if (ao !== bo) return ao - bo;
-     return a.id - b.id;
-   });
- }
-
- export function CourseDetailPage() {
+ export function MyCoursesPage() {
    const nav = useNavigate();
-   const { id } = useParams();
-   const courseId = Number(id);
-   const { lang, setLang, theme: uiTheme, setTheme } = useStudentViewPrefs();
-   const t = tx[lang];
+   const { lang, setLang, theme, setTheme } = useStudentViewPrefs();
+   const t = i18n[lang];
 
-   const gate = useEnrollmentGate(courseId, { adminBypass: false });
-
-   const [course, setCourse] = useState<Course | null>(null);
-   const [lessons, setLessons] = useState<LessonView[]>([]);
-   const [progress, setProgress] = useState<CourseProgressRes | null>(null);
-+  const [reviews, setReviews] = useState<CourseReview[]>([]);
-+  const [reviewStars, setReviewStars] = useState(5);
-+  const [reviewComment, setReviewComment] = useState("");
-+  const [submittingReview, setSubmittingReview] = useState(false);
-
+   const [items, setItems] = useState<MyCourse[]>([]);
    const [loading, setLoading] = useState(true);
    const [err, setErr] = useState<string | null>(null);
    const [info, setInfo] = useState<string | null>(null);
+   const [progressMap, setProgressMap] = useState<Record<number, CourseProgressRes>>({});
 
    async function load() {
-     if (!Number.isFinite(courseId) || courseId <= 0) return;
      setLoading(true);
      setErr(null);
      setInfo(null);
-
      try {
--      const c = await coursesApi.detail(courseId);
-+      const [c, rs] = await Promise.all([coursesApi.detail(courseId), coursesApi.reviews(courseId)]);
-       setCourse(c);
-+      setReviews(rs);
+-      const data = await enrollmentsApi.myCourses();
++      const data = await enrollmentsApi.myCourses(lang);
+       setItems(data);
+
+       const activeCourseIds = data.filter((d) => d.status === "ACTIVE").map((d) => d.courseId);
+       const results = await Promise.allSettled(
+           activeCourseIds.map(async (cid) => ({ cid, p: await progressApi.courseProgress(cid) }))
+       );
+
+       const next: Record<number, CourseProgressRes> = {};
+       for (const r of results) if (r.status === "fulfilled") next[r.value.cid] = r.value.p;
+       setProgressMap(next);
      } catch (e: any) {
-+      setReviews([]);
-       setCourse(null);
-       setLessons([]);
-       setProgress(null);
-       setErr(e?.message || "Cannot load course.");
+       setErr(e?.message || "Load my courses failed");
+     } finally {
        setLoading(false);
-       return;
-     }
-
-     if (gate.canAccess) {
-       try {
-         const ls = await coursesApi.lessons(courseId);
-         setLessons(sortLessons(ls as LessonView[]));
-       } catch (e: any) {
-         setLessons([]);
-         setErr(e?.message || "Cannot load lessons.");
-       }
-       try {
-         const p = await progressApi.courseProgress(courseId);
-         setProgress(p);
-       } catch {
-         setProgress(null);
-       }
-     } else {
-       try {
-         const outline = await coursesApi.lessonsOutline(courseId);
-@@ -175,50 +181,72 @@ export function CourseDetailPage() {
-     setInfo(null);
-     try {
-       await enrollmentsApi.order(courseId);
-       setInfo("Order created. Wait for admin paid confirmation to unlock content.");
-       await gate.refresh();
-       await load();
-     } catch (e: any) {
-       setErr(e?.message || "Order failed");
      }
    }
 
-   async function onCancel() {
-     if (!Number.isFinite(courseId) || courseId <= 0) return;
+   useEffect(() => {
+     load();
+-  }, []);
++  }, [lang]);
+
+   async function onCancel(courseId: number) {
      setErr(null);
      setInfo(null);
      try {
        await enrollmentsApi.cancel(courseId);
-       setInfo("Enrollment cancelled.");
-       await gate.refresh();
+       setInfo(`Course #${courseId} cancelled.`);
        await load();
      } catch (e: any) {
        setErr(e?.message || "Cancel failed");
      }
    }
 
-+  async function onSubmitReview() {
-+    if (!Number.isFinite(courseId) || courseId <= 0) return;
-+    setErr(null);
-+    setInfo(null);
-+    setSubmittingReview(true);
-+    try {
-+      const saved = await coursesApi.submitReview(courseId, {
-+        stars: reviewStars,
-+        comment: reviewComment,
-+      });
-+      setInfo("Đã gửi đánh giá khóa học thành công.");
-+      setReviewComment("");
-+      setCourse((prev) => (prev ? { ...prev, ratingAvg: saved.ratingAvg, ratingCount: saved.ratingCount } : prev));
-+      const rs = await coursesApi.reviews(courseId);
-+      setReviews(rs);
-+    } catch (e: any) {
-+      setErr(e?.message || "Gửi đánh giá thất bại");
-+    } finally {
-+      setSubmittingReview(false);
-+    }
-+  }
+   async function onContinue(courseId: number) {
+     setErr(null);
+     setInfo(null);
+     try {
+       const lessons = await coursesApi.lessons(courseId);
+       if (!lessons || lessons.length === 0) {
+         setInfo("Course has no lesson yet.");
+         return;
+       }
+
+       const lessonId = sortLessons(lessons)[0]?.id;
+       if (!lessonId) return;
+@@ -221,42 +221,50 @@ export function MyCoursesPage() {
+                       <span className="student-meta-label">{t.price}:</span>
+                       <span className="student-meta-value">
+                     {enr.course.price.toLocaleString("vi-VN")}đ
+                   </span>
+                     </div>
+
+                     {enr.status === "ACTIVE" && prog && (
+                         <>
+                           <ProgressBar percent={percent} label={t.progress} />
+                           <div className="student-mini">
+                             {t.completed}: {prog.completedLessons}/{prog.totalLessons}
+                           </div>
+                         </>
+                     )}
+
+                     <div className="student-card-actions">
+                       <button
+                           type="button"
+                           className="student-btn student-btn-primary"
+                           onClick={() => onContinue(enr.courseId)}
+                           disabled={enr.status !== "ACTIVE"}
+                       >
+                         {t.continue}
+                       </button>
+
++                      <button
++                          type="button"
++                          className="student-btn student-btn-ghost"
++                          onClick={() => nav(`/courses/${enr.courseId}`)}
++                      >
++                        {t.detail}
++                      </button>
 +
-   function goLesson(lessonId: number) {
-     nav(`/lessons/${lessonId}?courseId=${courseId}`);
-   }
-
-   const seqRows = useMemo(() => buildSequentialRows(lessons as any, progress as any), [lessons, progress]);
-   const continueLessonId = useMemo(() => {
-     if (!gate.canAccess) return 0;
-     return pickContinueLessonId(seqRows);
-   }, [seqRows, gate.canAccess]);
-
-   const percent = gate.canAccess ? progress?.percent ?? 0 : 0;
-
-   return (
-     <div className={`student-page student-courses-theme ${uiTheme === "dark" ? "student-courses-theme-dark" : ""}`}>
-       <div className="student-shell" style={{ marginBottom: 12 }}>
-         <div className="student-topbar">
-           <div>
-             <h2 style={{ margin: 0 }}>{course?.title || t.courses}</h2>
+                       <button
+                           type="button"
+                           className="student-btn student-btn-danger"
+                           onClick={() => onCancel(enr.courseId)}
+                           disabled={enr.status !== "ACTIVE" && enr.status !== "PENDING"}
+                       >
+                         {t.cancel}
+                       </button>
+                     </div>
+                   </div>
+               );
+             })}
            </div>
-           <div className="student-control-group">
-             <button className="student-theme-toggle" onClick={() => setTheme(uiTheme === "dark" ? "light" : "dark")}>
-               {t.darkMode}: {uiTheme === "dark" ? "ON" : "OFF"}
-             </button>
-             <div className="student-lang-switch">
-               {(Object.keys(studentLanguageMeta) as StudentLang[]).map((code) => (
-@@ -283,49 +311,101 @@ export function CourseDetailPage() {
-                       <span>
-                         <Button tone="success" onClick={() => continueLessonId && goLesson(continueLessonId)} disabled={!continueLessonId} leftIcon={<IconPlay />}>
-                           {t.continue}
-                         </Button>
-                       </span>
-                     </Tooltip>
-                   </div>
-                   <Hr />
-                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-                     <div style={{ fontWeight: 900 }}>{t.progress}</div>
-                     <div style={{ color: theme.colors.muted, fontSize: 13 }}>{gate.canAccess ? `${percent}%` : "—"}</div>
-                   </div>
-                   <div style={{ marginTop: 10, height: 10, borderRadius: 999, background: theme.shadow.soft, overflow: "hidden", border: `1px solid ${theme.colors.border}`, opacity: gate.canAccess ? 1 : 0.45 }}>
-                     <div style={{ width: `${Math.max(0, Math.min(100, percent))}%`, height: "100%", background: theme.colors.brand }} />
-                   </div>
-                   {gate.canAccess && progress ? (
-                     <Muted><div style={{ marginTop: 10, fontSize: 12 }}>{t.completed}: <b style={{ color: theme.colors.text }}>{progress.completedLessons}/{progress.totalLessons}</b></div></Muted>
-                   ) : (
-                     <Muted><div style={{ marginTop: 10, fontSize: 12 }}>Progress only available when enrollment is ACTIVE.</div></Muted>
-                   )}
-                 </div>
-               </div>
-             </Card>
-           )}
-
-+          <Card style={{ marginBottom: 12 }}>
-+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-+              <Title>Đánh giá khóa học</Title>
-+              <Badge tone="info">{course?.ratingAvg?.toFixed?.(1) || "0.0"} ⭐ ({course?.ratingCount || 0})</Badge>
-+            </div>
-+            <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
-+              <label style={{ display: "grid", gap: 6 }}>
-+                <span style={{ fontSize: 13, color: theme.colors.muted }}>Số sao (1-5)</span>
-+                <input
-+                  min={1}
-+                  max={5}
-+                  type="number"
-+                  value={reviewStars}
-+                  onChange={(e) => setReviewStars(Math.max(1, Math.min(5, Number(e.target.value) || 1)))}
-+                  style={{ background: "transparent", color: theme.colors.text, border: `1px solid ${theme.colors.border}`, borderRadius: 10, padding: "10px 12px" }}
-+                />
-+              </label>
-+              <label style={{ display: "grid", gap: 6 }}>
-+                <span style={{ fontSize: 13, color: theme.colors.muted }}>Nhận xét</span>
-+                <textarea
-+                  rows={3}
-+                  value={reviewComment}
-+                  onChange={(e) => setReviewComment(e.target.value)}
-+                  placeholder="Chia sẻ trải nghiệm của bạn..."
-+                  style={{ background: "transparent", color: theme.colors.text, border: `1px solid ${theme.colors.border}`, borderRadius: 10, padding: "10px 12px", resize: "vertical" }}
-+                />
-+              </label>
-+              <div>
-+                <Button tone="primary" onClick={onSubmitReview} disabled={submittingReview || loading}>
-+                  {submittingReview ? "Đang gửi..." : "Gửi đánh giá"}
-+                </Button>
-+              </div>
-+            </div>
-+            <Hr />
-+            <div style={{ display: "grid", gap: 10 }}>
-+              {reviews.length === 0 ? (
-+                <Muted>Chưa có đánh giá nào cho khóa học này.</Muted>
-+              ) : (
-+                reviews.map((rv) => (
-+                  <div key={rv.id} style={{ border: `1px solid ${theme.colors.border}`, borderRadius: 10, padding: 12 }}>
-+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-+                      <b>{rv.customerName}</b>
-+                      <Muted>{new Date(rv.createdAt).toLocaleDateString("vi-VN")}</Muted>
-+                    </div>
-+                    <div style={{ marginTop: 4, color: theme.colors.warn }}>{"★".repeat(rv.stars)}{"☆".repeat(5 - rv.stars)}</div>
-+                    {rv.comment ? <div style={{ marginTop: 6 }}>{rv.comment}</div> : null}
-+                  </div>
-+                ))
-+              )}
-+            </div>
-+          </Card>
-+
-           <Card style={{ marginBottom: 12 }}>
-             <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-               <div style={{ marginTop: 2 }}><IconInfo /></div>
-               <div><Title>{t.lockedRule}</Title><SubTitle>Complete previous lesson to unlock next one.</SubTitle></div>
-             </div>
-           </Card>
-
-           <LessonsSidebar
-             title={t.lessonList}
-             lessons={lessons as any}
-             progress={progress as any}
-             rows={seqRows}
-             courseId={courseId}
-             primaryLabel={t.continue}
-             onPrimary={(id2) => goLesson(id2)}
-             secondaryLabel="Detail"
-             secondaryHref={(id2) => `/lessons/${id2}?courseId=${courseId}`}
-             emptyText="No lesson available."
-           />
-         </Container>
-       </AppShell>
-     </div>
+         </div>
+       </div>
    );
  }
-diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-index db39f4b4c1d51e48ffdbcaf36e0cd397e9e9947f..204ae962c7d1ba9f2b131c06f11e9082527f4a11 100644
---- a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-+++ b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-@@ -1,50 +1,51 @@
- import {
-   Body,
-   Controller,
-   Delete,
-   Get,
-   Param,
-   ParseIntPipe,
-   Patch,
-   Post,
-   Query,
-   UploadedFile,
-   UseGuards,
-   UseInterceptors,
- } from '@nestjs/common'
- import { FileInterceptor } from '@nestjs/platform-express'
- import { memoryStorage } from 'multer'
- import { CreateCourseDto } from './dto/create-course.dto'
- import { UpdateCourseDto } from './dto/update-course.dto'
- import { CurrentUser } from '../auth/decorators/current-user.decorator'
+\ No newline at end of file
+diff --git a/backend/ayanavitabackend/app/api/src/enrollments/enrollments.controller.ts b/backend/ayanavitabackend/app/api/src/enrollments/enrollments.controller.ts
+index 5e0172abcf59544ae0749a9e0e95252a151b50ac..2bceb1f55681c26cf9a5dcdf03d101f5e864c725 100644
+--- a/backend/ayanavitabackend/app/api/src/enrollments/enrollments.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/enrollments/enrollments.controller.ts
+@@ -1,42 +1,42 @@
+ import { Controller, Get, Param, ParseIntPipe, Post, Query, UseGuards } from '@nestjs/common'
  import { AccessTokenGuard } from '../auth/guards/access-token.guard'
- import { OptionalAccessTokenGuard } from '../auth/guards/optional-access-token.guard'
- import { RolesGuard } from '../auth/guards/roles.guard'
- import { Roles } from '../auth/decorators/roles.decorator'
- import { CoursesService } from './courses.service'
- import { CourseQueryDto } from './dto/course-query.dto'
-+import { UpsertCourseReviewDto } from './dto/upsert-course-review.dto'
+ import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
+ import { EnrollmentsService } from './enrollments.service'
+ import { CourseAccessStatus } from '@prisma/client'
 
- type JwtUser = { sub: number; role: string }
+ @UseGuards(AccessTokenGuard)
+ @Controller()
+ export class EnrollmentsController {
+   constructor(private readonly enrollments: EnrollmentsService) {}
 
-
- const parseMultipartData = (input: Record<string, any>) => {
-   const data = { ...input }
-   for (const [key, value] of Object.entries(data)) {
-     if (typeof value !== 'string') continue
-     const trimmed = value.trim()
-     if (trimmed === 'true' || trimmed === 'false') {
-       data[key] = trimmed === 'true'
-       continue
-     }
-     if (/^-?\d+(\.\d+)?$/.test(trimmed) && key !== 'slug') {
-       data[key] = Number(trimmed)
-       continue
-     }
-     if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
-       try {
-         data[key] = JSON.parse(trimmed)
-       } catch {
-         data[key] = value
-       }
-     }
+   /**
+    * Danh sách khóa học đã mua + progress
+    */
+   @Get('me/courses')
+-  myCourses(@CurrentUser() user: JwtUser) {
+-    return this.enrollments.myCoursesWithProgress(user)
++  myCourses(@CurrentUser() user: JwtUser, @Query('lang') lang?: string) {
++    return this.enrollments.myCoursesWithProgress(user, lang)
    }
-@@ -67,50 +68,66 @@ export class CoursesController {
-
-   @Get()
-   @UseGuards(OptionalAccessTokenGuard)
-   findAll(@CurrentUser() user: JwtUser | null, @Query() query: CourseQueryDto) {
-     return this.courses.findAll(query, user)
-   }
-
-   @Get('topics')
-   @UseGuards(OptionalAccessTokenGuard)
-   listTopics(@CurrentUser() user: JwtUser | null, @Query('lang') lang?: string) {
-     return this.courses.listTopics(lang, user)
-   }
-
-   @UseGuards(AccessTokenGuard)
-   @Get(':id')
-   findOne(@Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
-     return this.courses.findOne(id, lang)
-   }
-
-   @UseGuards(AccessTokenGuard)
-   @Get(':id/lessons')
-   listLessons(@CurrentUser() user: any, @Param('id', ParseIntPipe) id: number) {
-     return this.courses.listLessons(user, id)
-   }
-
-+  @UseGuards(AccessTokenGuard)
-+  @Get(':id/reviews')
-+  listReviews(@Param('id', ParseIntPipe) id: number) {
-+    return this.courses.listReviews(id)
-+  }
-+
-+  @UseGuards(AccessTokenGuard)
-+  @Post(':id/reviews')
-+  upsertReview(
-+    @CurrentUser() user: JwtUser,
-+    @Param('id', ParseIntPipe) id: number,
-+    @Body() dto: UpsertCourseReviewDto,
-+  ) {
-+    return this.courses.upsertReview(user, id, dto)
-+  }
-+
-   @UseGuards(AccessTokenGuard)
-   @Get(':id/lessons/:lessonId')
-   getLesson(
-     @CurrentUser() user: any,
-     @Param('id', ParseIntPipe) courseId: number,
-     @Param('lessonId', ParseIntPipe) lessonId: number,
+   // route mới: GET /me/enrollments?status=ACTIVE|CANCELED|ALL
+   @Get('me/enrollments')
+   myEnrollments(
+     @CurrentUser() user: JwtUser,
+     @Query('status') status?: 'ACTIVE' | 'CANCELED' | 'ALL',
    ) {
-     return this.courses.getLessonDetail(user, courseId, lessonId)
+     // default ACTIVE nếu không truyền
+     const normalized = (status ?? 'ACTIVE').toUpperCase() as 'ACTIVE' | 'CANCELED' | 'ALL'
+
+     if (!['ACTIVE', 'CANCELED', 'ALL'].includes(normalized)) {
+       // tránh 400 quá phức tạp, trả về mặc định ACTIVE
+       return this.enrollments.myEnrollments(user.sub, CourseAccessStatus.ACTIVE)
+     }
+
+     if (normalized === 'ALL') return this.enrollments.myEnrollments(user.sub, 'ALL')
+     return this.enrollments.myEnrollments(user.sub, normalized as CourseAccessStatus)
    }
 
-   @UseGuards(AccessTokenGuard, RolesGuard)
-   @Roles('ADMIN')
-   @Post('thumbnail/upload')
-   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
-   uploadThumbnail(@UploadedFile() file?: any) {
-     if (!file) return { message: 'Missing thumbnail file' }
-     return this.courses.uploadThumbnail(file)
-   }
 
-   @UseGuards(AccessTokenGuard, RolesGuard)
-   @Roles('ADMIN')
-   @Post()
-   @UseInterceptors(FileInterceptor('thumbnail', { storage: memoryStorage() }))
-   create(@Body() rawData: any, @UploadedFile() thumbnail?: any) {
-     return this.courses.create(parseMultipartData(rawData) as CreateCourseDto, thumbnail)
-diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-index b8b30057eac7d998e087ed101a6cfc6b73fe4b30..4062589b026b2e2f15494563449fcccb9829b738 100644
---- a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-@@ -1,33 +1,34 @@
- import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+   /**
+    * Hủy enrollment (soft cancel)
+    */
+   @Post('courses/:id/cancel')
+   cancel(
+diff --git a/backend/ayanavitabackend/app/api/src/enrollments/enrollments.service.ts b/backend/ayanavitabackend/app/api/src/enrollments/enrollments.service.ts
+index d8cf90995483dc766228bd6983604eb6f0694a31..1490686b854c28374cd11bb7a9787d2f1a95d4d1 100644
+--- a/backend/ayanavitabackend/app/api/src/enrollments/enrollments.service.ts
++++ b/backend/ayanavitabackend/app/api/src/enrollments/enrollments.service.ts
+@@ -1,153 +1,180 @@
+ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+ import { CourseAccessStatus, Prisma, Role } from '@prisma/client'
  import { PrismaService } from '../prisma/prisma.service'
- import { EnrollmentsService } from '../enrollments/enrollments.service'
- import { CreateCourseDto } from './dto/create-course.dto'
- import { UpdateCourseDto } from './dto/update-course.dto'
- import { Prisma, ProgressStatus } from '@prisma/client'
- import { CourseQueryDto } from './dto/course-query.dto'
- import { CoursesMediaService } from './courses-media.service'
-+import { UpsertCourseReviewDto } from './dto/upsert-course-review.dto'
 
- type JwtUser = { sub: number; role: string }
- type Locale = 'vi' | 'en' | 'de'
- type MultiLingualStringList = Record<Locale, string[]>
+ type JwtUser = { sub: number; role: Role | string }
 
  @Injectable()
- export class CoursesService {
-   constructor(
-     private readonly prisma: PrismaService,
-     private readonly enrollments: EnrollmentsService,
-     private readonly courseMedia: CoursesMediaService,
-   ) {}
+ export class EnrollmentsService {
+   constructor(private readonly prisma: PrismaService) {}
 
-   private readonly baseCourseSelect = {
-     id: true,
-     topicId: true,
-     title: true,
-     time: true,
-     shortDescription: true,
-     slug: true,
-     description: true,
-     thumbnail: true,
-     price: true,
-     published: true,
-     objectives: true,
-@@ -305,50 +306,126 @@ export class CoursesService {
-     if (existing.thumbnail) {
-       await this.courseMedia.deleteThumbnailByUrl(existing.thumbnail)
++  private resolveLocale(lang?: string) {
++    const normalized = (lang || 'vi').toLowerCase()
++    if (normalized === 'en' || normalized === 'de') return normalized
++    return 'vi'
++  }
++
+   async myEnrollments(userId: number, status?: CourseAccessStatus | 'ALL') {
+     const where: Prisma.CourseAccessWhereInput = {
+       userId,
+       ...(status && status !== 'ALL' ? { status } : {}),
      }
 
-     return this.prisma.course.delete({ where: { id }, select: { id: true } })
-   }
-
-   async listLessons(user: { sub: number; role: string }, courseId: number) { /* kept */
-     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } }); if (!course) throw new NotFoundException('Course not found'); await this.enrollments.assertEnrolledOrAdmin(user, courseId); if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
-     const lessons = await this.prisma.lesson.findMany({ where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) }, select: { id: true, courseId: true, title: true, slug: true, order: true, published: true, createdAt: true, updatedAt: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] })
-     if (user.role === 'ADMIN') return lessons.map((l) => ({ ...l, locked: false, lockReason: null, progress: null }))
-     const progressRows = await this.prisma.lessonProgress.findMany({ where: { userId: user.sub, lessonId: { in: lessons.map((l) => l.id) } }, select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true } })
-     const progressMap = new Map(progressRows.map((p) => [p.lessonId, p])); let prevCompleted = true
-     return lessons.map((lesson, idx) => { const progress = progressMap.get(lesson.id) ?? null; const locked = idx === 0 ? false : prevCompleted === false; const lockReason = locked ? 'PREV_NOT_COMPLETED' : null; prevCompleted = progress?.status === ProgressStatus.COMPLETED; return { ...lesson, locked, lockReason, progress } })
-   }
-
-   async getLessonDetail(user: { sub: number; role: string }, courseId: number, lessonId: number) { /* kept */
-     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } }); if (!course) throw new NotFoundException('Course not found'); await this.enrollments.assertEnrolledOrAdmin(user, courseId); if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
-     const lesson = await this.prisma.lesson.findFirst({ where: { id: lessonId, courseId }, select: { id: true, courseId: true, title: true, slug: true, content: true, videoUrl: true, order: true, published: true, createdAt: true, updatedAt: true } }); if (!lesson) throw new NotFoundException('Lesson not found')
-     if (user.role !== 'ADMIN' && !lesson.published) throw new NotFoundException('Lesson not found')
-     if (user.role !== 'ADMIN') { const orderedLessons = await this.prisma.lesson.findMany({ where: { courseId, published: true }, select: { id: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] }); const idx = orderedLessons.findIndex((l) => l.id === lessonId); if (idx < 0) throw new NotFoundException('Lesson not found'); if (idx > 0) { const prevLessonId = orderedLessons[idx - 1].id; const prevProgress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId: prevLessonId } }, select: { status: true } }); if (prevProgress?.status !== ProgressStatus.COMPLETED) throw new ForbiddenException('Lesson locked') } }
-     const progress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId } }, select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true } })
-     return { ...lesson, progress: progress ?? null }
-   }
-
-+  async listReviews(courseId: number) {
-+    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } })
-+    if (!course) throw new NotFoundException('Course not found')
-+
-+    const rows = await this.prisma.courseReview.findMany({
-+      where: { courseId },
-+      orderBy: { createdAt: 'desc' },
-+      take: 50,
-+      select: {
-+        id: true,
-+        stars: true,
-+        comment: true,
-+        customerName: true,
-+        createdAt: true,
-+        updatedAt: true,
-+        user: { select: { name: true, email: true } },
-+      },
-+    })
-+
-+    return rows.map((row) => ({
-+      id: row.id,
-+      stars: row.stars,
-+      comment: row.comment,
-+      customerName: row.customerName || row.user?.name || row.user?.email || 'Học viên',
-+      createdAt: row.createdAt,
-+      updatedAt: row.updatedAt,
-+    }))
-+  }
-+
-+  async upsertReview(user: JwtUser, courseId: number, dto: UpsertCourseReviewDto) {
-+    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } })
-+    if (!course) throw new NotFoundException('Course not found')
-+    await this.enrollments.assertEnrolledOrAdmin(user, courseId)
-+
-+    const profile = await this.prisma.user.findUnique({
-+      where: { id: user.sub },
-+      select: { name: true, email: true },
-+    })
-+
-+    const customerName = dto.customerName?.trim() || profile?.name || profile?.email || 'Học viên'
-+    const comment = dto.comment?.trim() || null
-+
-+    const existing = await this.prisma.courseReview.findFirst({
-+      where: { courseId, userId: user.sub },
-+      select: { id: true },
-+    })
-+
-+    const review = existing
-+      ? await this.prisma.courseReview.update({
-+          where: { id: existing.id },
-+          data: { stars: dto.stars, comment, customerName },
-+          select: { id: true, stars: true, comment: true, customerName: true, createdAt: true, updatedAt: true },
-+        })
-+      : await this.prisma.courseReview.create({
-+          data: { courseId, userId: user.sub, stars: dto.stars, comment, customerName },
-+          select: { id: true, stars: true, comment: true, customerName: true, createdAt: true, updatedAt: true },
-+        })
-+
-+    const aggregate = await this.prisma.courseReview.aggregate({
-+      where: { courseId },
-+      _avg: { stars: true },
-+      _count: { id: true },
-+    })
-+
-+    const ratingAvg = Number((aggregate._avg.stars || 0).toFixed(1))
-+    const ratingCount = aggregate._count.id
-+
-+    await this.prisma.course.update({
-+      where: { id: courseId },
-+      data: { ratingAvg, ratingCount },
-+      select: { id: true },
-+    })
-+
-+    return { ...review, ratingAvg, ratingCount }
-+  }
-+
-
-   private async syncCourseTranslations(courseId: number, dto: Partial<CreateCourseDto>) {
-     const locales: Array<'vi' | 'en' | 'de'> = ['vi', 'en', 'de']
-     const objectivesByLocale = this.normalizeLocalizedList(dto.objectives)
-     const targetAudienceByLocale = this.normalizeLocalizedList(dto.targetAudience)
-     const benefitsByLocale = this.normalizeLocalizedList(dto.benefits)
-
-     await Promise.all(locales.map(async (locale) => {
-       const tr = dto.translations?.[locale]
-       const title = tr?.title || (locale === 'vi' ? dto.title : undefined)
-
-       if (title?.trim()) {
-         await this.prisma.courseTranslation.upsert({
-           where: { courseId_locale: { courseId, locale } },
-           update: {
-             title: title.trim(),
-             shortDescription: tr?.shortDescription?.trim() || (locale === 'vi' ? dto.shortDescription?.trim() || null : null),
-             description: tr?.description?.trim() || (locale === 'vi' ? dto.description?.trim() || null : null),
-             objectives: (tr?.objectives || dto.contentTranslations?.[locale]?.objectives || objectivesByLocale[locale] || []) as any,
-             targetAudience: (tr?.targetAudience || dto.contentTranslations?.[locale]?.targetAudience || targetAudienceByLocale[locale] || []) as any,
-             benefits: (tr?.benefits || dto.contentTranslations?.[locale]?.benefits || benefitsByLocale[locale] || []) as any,
+     return this.prisma.courseAccess.findMany({
+       where,
+       select: {
+         id: true,
+         userId: true,
+         courseId: true,
+         status: true,
+         grantedAt: true,
+         createdAt: true,
+         updatedAt: true,
+         course: {
+           select: {
+             id: true,
+             title: true,
+             slug: true,
+             description: true,
+             thumbnail: true,
+             price: true,
+             published: true,
+             _count: { select: { lessons: true } },
            },
-           create: {
-             courseId,
-             locale,
-diff --git a/backend/ayanavitabackend/app/api/src/courses/dto/upsert-course-review.dto.ts b/backend/ayanavitabackend/app/api/src/courses/dto/upsert-course-review.dto.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..8f3fd4c09aab39cb28b71a55a7b47c23a5d70bef
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/courses/dto/upsert-course-review.dto.ts
-@@ -0,0 +1,16 @@
-+import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
+         },
+       },
+       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+     })
+   }
+
+   async grantAccess(userId: number, courseId: number) {
+     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } })
+     if (!course) throw new NotFoundException('Course not found')
+
+     return this.prisma.courseAccess.upsert({
+       where: { userId_courseId: { userId, courseId } },
+       update: { status: CourseAccessStatus.ACTIVE, grantedAt: new Date() },
+       create: { userId, courseId, status: CourseAccessStatus.ACTIVE },
+       select: { id: true, userId: true, courseId: true, status: true, grantedAt: true, updatedAt: true },
+     })
+   }
+
+-  myCourses(userId: number) {
++  myCourses(userId: number, lang?: string) {
++    const locale = this.resolveLocale(lang)
 +
-+export class UpsertCourseReviewDto {
-+  @IsInt()
-+  @Min(1)
-+  @Max(5)
-+  stars: number
+     return this.prisma.courseAccess.findMany({
+       where: { userId, status: CourseAccessStatus.ACTIVE },
+       select: {
+         id: true,
+         courseId: true,
+         status: true,
+         grantedAt: true,
+         course: {
+           select: {
+             id: true,
+             title: true,
++            translations: {
++              where: { locale: { in: [locale, 'vi'] } },
++              select: {
++                locale: true,
++                title: true,
++                description: true,
++              },
++            },
+             slug: true,
+             description: true,
+             thumbnail: true,
+             price: true,
+             published: true,
+             createdAt: true,
+             updatedAt: true,
+             _count: { select: { lessons: true } },
+           },
+         },
+       },
+       orderBy: { grantedAt: 'desc' },
+     })
+   }
+
+-  async myCoursesWithProgress(user: JwtUser) {
++  async myCoursesWithProgress(user: JwtUser, lang?: string) {
+     const userId = user.sub
+     const isAdmin = user.role === 'ADMIN'
+-    const accesses = await this.myCourses(userId)
++    const locale = this.resolveLocale(lang)
++    const accesses = await this.myCourses(userId, locale)
+
+     if (accesses.length === 0) return []
+
+     const completed = await this.prisma.lessonProgress.findMany({
+       where: {
+         userId,
+         status: 'COMPLETED',
+         ...(isAdmin ? {} : { lesson: { published: true } }),
+       },
+       select: {
+         lesson: { select: { courseId: true } },
+       },
+     })
+
+     const completedCountByCourse = new Map<number, number>()
+     for (const x of completed) {
+       const courseId = x.lesson.courseId
+       completedCountByCourse.set(courseId, (completedCountByCourse.get(courseId) || 0) + 1)
+     }
+
+     const courseIds = accesses.map((e) => e.course.id)
+     const totals = await this.prisma.lesson.groupBy({
+       by: ['courseId'],
+       where: {
+         courseId: { in: courseIds },
+         ...(isAdmin ? {} : { published: true }),
+       },
+       _count: { _all: true },
+     })
+     const totalByCourse = new Map<number, number>(totals.map((t) => [t.courseId, t._count._all]))
+
+     return accesses.map((e) => {
+       const totalLessons = totalByCourse.get(e.course.id) || 0
+       const completedLessons = completedCountByCourse.get(e.course.id) || 0
+       const percent = totalLessons === 0 ? 0 : Math.round((completedLessons / totalLessons) * 100)
+
+       return {
+         id: e.id,
+         courseId: e.courseId,
+         status: e.status,
+         grantedAt: e.grantedAt,
+-        course: e.course,
++        course: {
++          ...e.course,
++          title:
++            (e.course as any).translations?.find((item: any) => item.locale === locale)?.title ||
++            (e.course as any).translations?.find((item: any) => item.locale === 'vi')?.title ||
++            e.course.title,
++          description:
++            (e.course as any).translations?.find((item: any) => item.locale === locale)?.description ||
++            (e.course as any).translations?.find((item: any) => item.locale === 'vi')?.description ||
++            e.course.description,
++        },
+         progress: { totalLessons, completedLessons, percent },
+       }
+     })
+   }
+
+   async cancel(userId: number, courseId: number) {
+     const access = await this.prisma.courseAccess.findUnique({
+       where: { userId_courseId: { userId, courseId } },
+       select: { id: true, status: true },
+     })
+     if (!access) throw new NotFoundException('Course access not found')
+
+     return this.prisma.courseAccess.update({
+       where: { userId_courseId: { userId, courseId } },
+       data: { status: CourseAccessStatus.CANCELED },
+       select: { id: true, status: true, updatedAt: true },
+     })
+   }
+
+   async assertEnrolledOrAdmin(user: JwtUser, courseId: number) {
+     if (user.role === 'ADMIN') return
+
+     const e = await this.prisma.courseAccess.findUnique({
+       where: { userId_courseId: { userId: user.sub, courseId } },
+       select: { status: true },
+diff --git a/backend/ayanavitabackend/app/api/src/progress/progress.service.ts b/backend/ayanavitabackend/app/api/src/progress/progress.service.ts
+index 050bcb98e4dff7cd0fcbf540ab01a2546f42a00c..3bb418900d2535ec163c4f99bdf1ee4463d692d9 100644
+--- a/backend/ayanavitabackend/app/api/src/progress/progress.service.ts
++++ b/backend/ayanavitabackend/app/api/src/progress/progress.service.ts
+@@ -56,52 +56,56 @@ export class ProgressService {
+
+     if (prevProgress?.status !== ProgressStatus.COMPLETED) {
+       throw new ForbiddenException('Lesson locked')
+     }
+   }
+
+   private async recalculateLessonProgress(userId: number, lessonId: number) {
+     const lessonVideos = await this.prisma.lessonVideo.findMany({
+       where: { module: { lessonId, published: true }, published: true, mediaType: 'VIDEO' },
+       select: { id: true, durationSec: true },
+     })
+     const totalDurationSec = lessonVideos.reduce((sum, item) => sum + Math.max(0, item.durationSec || 0), 0)
+
+     const videoProgress = await this.prisma.lessonVideoProgress.findMany({
+       where: { userId, lessonId },
+       select: { videoId: true, watchedSec: true, completed: true },
+     })
+
+     const progressMap = new Map(videoProgress.map((item) => [item.videoId, item]))
+     const watchedDurationSec = lessonVideos.reduce((sum, video) => {
+       const row = progressMap.get(video.id)
+       const capped = Math.min(video.durationSec || 0, Math.max(0, row?.watchedSec || 0))
+       return sum + capped
+     }, 0)
+
+-    const percent = totalDurationSec <= 0 ? 0 : Math.min(100, Math.round((watchedDurationSec / totalDurationSec) * 100))
+-    const isCompleted = totalDurationSec > 0 && percent >= 100
++    const completedVideos = lessonVideos.filter((video) => progressMap.get(video.id)?.completed).length
++    const percentByDuration = totalDurationSec <= 0 ? 0 : Math.min(100, Math.round((watchedDurationSec / totalDurationSec) * 100))
++    const percentByCompletion = lessonVideos.length === 0 ? 0 : Math.min(100, Math.round((completedVideos / lessonVideos.length) * 100))
 +
-+  @IsOptional()
-+  @IsString()
-+  comment?: string
-+
-+  @IsOptional()
-+  @IsString()
-+  customerName?: string
-+}
++    const percent = totalDurationSec > 0 ? percentByDuration : percentByCompletion
++    const isCompleted = lessonVideos.length > 0 && percent >= 100
+
+     const lessonProgress = await this.prisma.lessonProgress.upsert({
+       where: { userId_lessonId: { userId, lessonId } },
+       create: {
+         userId,
+         lessonId,
+         status: isCompleted ? ProgressStatus.COMPLETED : ProgressStatus.IN_PROGRESS,
+         percent,
+         lastPositionSec: watchedDurationSec,
+         lastOpenedAt: new Date(),
+         completedAt: isCompleted ? new Date() : null,
+       },
+       update: {
+         status: isCompleted ? ProgressStatus.COMPLETED : ProgressStatus.IN_PROGRESS,
+         percent,
+         lastPositionSec: watchedDurationSec,
+         lastOpenedAt: new Date(),
+         completedAt: isCompleted ? new Date() : null,
+       },
+       select: {
+         lessonId: true,
+         status: true,
+         percent: true,
+         lastPositionSec: true,
+         lastOpenedAt: true,

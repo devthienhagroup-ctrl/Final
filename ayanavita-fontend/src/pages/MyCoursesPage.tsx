@@ -104,7 +104,7 @@ export function MyCoursesPage() {
     setErr(null);
     setInfo(null);
     try {
-      const data = await enrollmentsApi.myCourses();
+      const data = await enrollmentsApi.myCourses(lang);
       setItems(data);
 
       const activeCourseIds = data.filter((d) => d.status === "ACTIVE").map((d) => d.courseId);
@@ -124,7 +124,7 @@ export function MyCoursesPage() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [lang]);
 
   async function onCancel(courseId: number) {
     setErr(null);
@@ -241,6 +241,14 @@ export function MyCoursesPage() {
                           disabled={enr.status !== "ACTIVE"}
                       >
                         {t.continue}
+                      </button>
+
+                      <button
+                          type="button"
+                          className="student-btn student-btn-ghost"
+                          onClick={() => nav(`/courses/${enr.courseId}`)}
+                      >
+                        {t.detail}
                       </button>
 
                       <button

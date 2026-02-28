@@ -20,8 +20,9 @@ export const enrollmentsApi = {
    * GET /me/courses
    * Trả danh sách khóa học user đã enroll (kèm status).
    */
-  myCourses() {
-    return get<MyCourse[]>("/me/courses", { auth: true });
+  myCourses(lang?: string) {
+    const query = lang ? `?lang=${encodeURIComponent(lang)}` : "";
+    return get<MyCourse[]>(`/me/courses${query}`, { auth: true });
   },
 
   /**

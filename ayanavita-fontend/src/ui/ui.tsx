@@ -48,10 +48,7 @@ export function AppShell({
     <div
       style={{
         ...baseFont,
-        minHeight: "100vh",
-        background:
-          "radial-gradient(1200px 600px at 20% 0%, rgba(124,58,237,.22), transparent 60%), radial-gradient(900px 500px at 80% 10%, rgba(79,70,229,.18), transparent 55%), linear-gradient(180deg, #050816, #070a12 60%, #050816)",
-        color: theme.colors.text,
+        minHeight: "100vh", color: theme.colors.text,
       }}
     >
       <Container>
@@ -82,7 +79,7 @@ export function Container({ children }: { children: React.ReactNode }) {
     <div
       style={{
         ...baseFont,
-        width: "min(1100px, calc(100% - 32px))",
+        width: "min(1400px, calc(100% - 32px))",
         margin: "0 auto",
       }}
     >

@@ -78,8 +78,12 @@ export class ProgressService {
       return sum + capped
     }, 0)
 
-    const percent = totalDurationSec <= 0 ? 0 : Math.min(100, Math.round((watchedDurationSec / totalDurationSec) * 100))
-    const isCompleted = totalDurationSec > 0 && percent >= 100
+    const completedVideos = lessonVideos.filter((video) => progressMap.get(video.id)?.completed).length
+    const percentByDuration = totalDurationSec <= 0 ? 0 : Math.min(100, Math.round((watchedDurationSec / totalDurationSec) * 100))
+    const percentByCompletion = lessonVideos.length === 0 ? 0 : Math.min(100, Math.round((completedVideos / lessonVideos.length) * 100))
+
+    const percent = totalDurationSec > 0 ? percentByDuration : percentByCompletion
+    const isCompleted = lessonVideos.length > 0 && percent >= 100
 
     const lessonProgress = await this.prisma.lessonProgress.upsert({
       where: { userId_lessonId: { userId, lessonId } },

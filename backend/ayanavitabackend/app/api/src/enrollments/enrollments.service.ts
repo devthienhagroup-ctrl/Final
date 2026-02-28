@@ -8,6 +8,12 @@ type JwtUser = { sub: number; role: Role | string }
 export class EnrollmentsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private resolveLocale(lang?: string) {
+    const normalized = (lang || 'vi').toLowerCase()
+    if (normalized === 'en' || normalized === 'de') return normalized
+    return 'vi'
+  }
+
   async myEnrollments(userId: number, status?: CourseAccessStatus | 'ALL') {
     const where: Prisma.CourseAccessWhereInput = {
       userId,
@@ -53,7 +59,9 @@ export class EnrollmentsService {
     })
   }
 
-  myCourses(userId: number) {
+  myCourses(userId: number, lang?: string) {
+    const locale = this.resolveLocale(lang)
+
     return this.prisma.courseAccess.findMany({
       where: { userId, status: CourseAccessStatus.ACTIVE },
       select: {
@@ -65,6 +73,14 @@ export class EnrollmentsService {
           select: {
             id: true,
             title: true,
+            translations: {
+              where: { locale: { in: [locale, 'vi'] } },
+              select: {
+                locale: true,
+                title: true,
+                description: true,
+              },
+            },
             slug: true,
             description: true,
             thumbnail: true,
@@ -80,10 +96,11 @@ export class EnrollmentsService {
     })
   }
 
-  async myCoursesWithProgress(user: JwtUser) {
+  async myCoursesWithProgress(user: JwtUser, lang?: string) {
     const userId = user.sub
     const isAdmin = user.role === 'ADMIN'
-    const accesses = await this.myCourses(userId)
+    const locale = this.resolveLocale(lang)
+    const accesses = await this.myCourses(userId, locale)
 
     if (accesses.length === 0) return []
 
@@ -125,7 +142,17 @@ export class EnrollmentsService {
         courseId: e.courseId,
         status: e.status,
         grantedAt: e.grantedAt,
-        course: e.course,
+        course: {
+          ...e.course,
+          title:
+            (e.course as any).translations?.find((item: any) => item.locale === locale)?.title ||
+            (e.course as any).translations?.find((item: any) => item.locale === 'vi')?.title ||
+            e.course.title,
+          description:
+            (e.course as any).translations?.find((item: any) => item.locale === locale)?.description ||
+            (e.course as any).translations?.find((item: any) => item.locale === 'vi')?.description ||
+            e.course.description,
+        },
         progress: { totalLessons, completedLessons, percent },
       }
     })

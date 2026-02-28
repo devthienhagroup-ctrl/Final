@@ -13,8 +13,8 @@ export class EnrollmentsController {
    * Danh sách khóa học đã mua + progress
    */
   @Get('me/courses')
-  myCourses(@CurrentUser() user: JwtUser) {
-    return this.enrollments.myCoursesWithProgress(user)
+  myCourses(@CurrentUser() user: JwtUser, @Query('lang') lang?: string) {
+    return this.enrollments.myCoursesWithProgress(user, lang)
   }
   // route mới: GET /me/enrollments?status=ACTIVE|CANCELED|ALL
   @Get('me/enrollments')

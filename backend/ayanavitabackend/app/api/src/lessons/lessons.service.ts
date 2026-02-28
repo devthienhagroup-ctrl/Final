@@ -43,23 +43,49 @@ export class LessonsService {
       }
     }
 
+    const videoProgressRows = await this.prisma.lessonVideoProgress.findMany({
+      where: { userId: user.sub, lessonId: lesson.id },
+      select: { videoId: true, watchedSec: true, completed: true },
+    })
+    const videoProgressMap = new Map(videoProgressRows.map((item) => [item.videoId, item]))
+
     return {
       ...lesson,
       localizedTitle: lesson.translations.find((item) => item.locale === locale)?.title || lesson.title,
       localizedDescription: lesson.translations.find((item) => item.locale === locale)?.description || lesson.description,
-      modules: lesson.modules.map((module) => ({
-        ...module,
-        localizedTitle: module.translations.find((item) => item.locale === locale)?.title || module.title,
-        localizedDescription: module.translations.find((item) => item.locale === locale)?.description || module.description,
-        videos: module.videos.map((video) => ({
-          ...video,
-          localizedTitle: video.translations.find((item) => item.locale === locale)?.title || video.title,
-          localizedDescription: video.translations.find((item) => item.locale === locale)?.description || video.description,
-          playbackUrl: this.media.buildSingleMediaUrl(video.sourceUrl || video.hlsPlaylistKey || ''),
-        })),
-      })),
+      modules: lesson.modules.map((module) => {
+        const normalizedVideos = module.videos.map((video) => {
+          const progress = videoProgressMap.get(video.id)
+          const duration = Math.max(0, video.durationSec || 0)
+          const watchedSec = Math.min(duration, Math.max(0, progress?.watchedSec || 0))
+          const completed = progress?.completed === true || (duration > 0 && watchedSec >= duration)
+          return {
+            ...video,
+            localizedTitle: video.translations.find((item) => item.locale === locale)?.title || video.title,
+            localizedDescription: video.translations.find((item) => item.locale === locale)?.description || video.description,
+            playbackUrl: this.media.buildSingleMediaUrl(video.sourceUrl || video.hlsPlaylistKey || ''),
+            progress: { watchedSec, durationSec: duration, completed },
+          }
+        })
+        const moduleDuration = normalizedVideos.reduce((sum, video) => sum + (video.progress.durationSec || 0), 0)
+        const moduleWatched = normalizedVideos.reduce((sum, video) => sum + (video.progress.watchedSec || 0), 0)
+        const modulePercent = moduleDuration <= 0 ? 0 : Math.round((moduleWatched / moduleDuration) * 100)
+        return {
+          ...module,
+          localizedTitle: module.translations.find((item) => item.locale === locale)?.title || module.title,
+          localizedDescription: module.translations.find((item) => item.locale === locale)?.description || module.description,
+          videos: normalizedVideos,
+          progress: {
+            completed: normalizedVideos.length > 0 && normalizedVideos.every((video) => video.progress.completed),
+            watchedSec: moduleWatched,
+            durationSec: moduleDuration,
+            percent: Math.min(100, modulePercent),
+          },
+        }
+      }),
     }
   }
+
 
   async create(courseId: number, dto: CreateLessonDto) {
     return this.prisma.$transaction(async (tx) => {

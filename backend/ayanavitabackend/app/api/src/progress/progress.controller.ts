@@ -19,9 +19,6 @@ type JwtUser = { sub: number; role: string }
 export class ProgressController {
   constructor(private readonly progress: ProgressService) {}
 
-  // Update progress trong lúc học (idempotent)
-  // POST /lessons/:id/progress
-  // body: { lastPositionSec?: number, percent?: number }
   @Post('lessons/:id/progress')
   upsert(
     @CurrentUser() user: JwtUser,
@@ -31,8 +28,25 @@ export class ProgressController {
     return this.progress.upsertLessonProgress(user, id, dto)
   }
 
-  // Mark complete (shortcut)
-  // POST /lessons/:id/complete
+  @Post('lessons/:id/videos/:videoId/progress')
+  upsertVideoProgress(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) lessonId: number,
+    @Param('videoId', ParseIntPipe) videoId: number,
+    @Body() dto: UpsertProgressDto,
+  ) {
+    return this.progress.upsertVideoProgress(user, lessonId, videoId, dto)
+  }
+
+  @Post('lessons/:id/modules/:moduleId/complete')
+  completeModule(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) lessonId: number,
+    @Param('moduleId', ParseIntPipe) moduleId: number,
+  ) {
+    return this.progress.completeModule(user, lessonId, moduleId)
+  }
+
   @Post('lessons/:id/complete')
   complete(
     @CurrentUser() user: JwtUser,
@@ -41,15 +55,11 @@ export class ProgressController {
     return this.progress.completeLesson(user, id)
   }
 
-  // Progress list của user (My learning)
-  // GET /me/progress
   @Get('me/progress')
   my(@CurrentUser() user: JwtUser) {
     return this.progress.myProgress(user.sub)
   }
 
-  // Course progress (để FE Continue đúng bài đang dở)
-  // GET /me/courses/:courseId/progress
   @Get('me/courses/:courseId/progress')
   courseProgress(
     @CurrentUser() user: JwtUser,

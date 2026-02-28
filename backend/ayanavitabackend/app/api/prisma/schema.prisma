@@ -22,7 +22,9 @@ model User {
 
   // ✅ ADD
   enrollments    Enrollment[]
+  courseAccesses CourseAccess[]
   lessonProgress LessonProgress[]
+  lessonVideoProgress LessonVideoProgress[]
   orders         Order[] // <— opposite for Order.user
 
   // ✅ CMS (optional relations)
@@ -263,6 +265,7 @@ model Course {
 
   lessons     Lesson[]
   enrollments Enrollment[]
+  accesses    CourseAccess[]
   topic       CourseTopic? @relation(fields: [topicId], references: [id], onDelete: Restrict)
   translations CourseTranslation[]
   contentTranslations CourseContentTranslation[]
@@ -355,6 +358,7 @@ model Lesson {
   updatedAt       DateTime         @updatedAt
   course          Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
   progress        LessonProgress[]
+  videoProgress   LessonVideoProgress[]
   modules         LessonModule[]
   translations    LessonTranslation[]
 
@@ -374,6 +378,7 @@ model LessonModule {
 
   lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   videos LessonVideo[]
+  videoProgress LessonVideoProgress[]
   translations LessonModuleTranslation[]
 
   @@index([lessonId, order])
@@ -396,6 +401,7 @@ model LessonVideo {
 
   module LessonModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   translations LessonVideoTranslation[]
+  progress LessonVideoProgress[]
 
   @@index([moduleId, order])
 }
@@ -482,6 +488,24 @@ model Enrollment {
   @@index([orderId])
 }
 
+
+
+model CourseAccess {
+  id         Int              @id @default(autoincrement())
+  userId     Int
+  courseId   Int
+  status     CourseAccessStatus @default(ACTIVE)
+  grantedAt  DateTime         @default(now())
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+}
+
 model LessonProgress {
   id           Int      @id @default(autoincrement())
   userId       Int
@@ -502,6 +526,28 @@ model LessonProgress {
 
   @@unique([userId, lessonId])
   @@index([lessonId])
+}
+
+model LessonVideoProgress {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  lessonId    Int
+  moduleId    Int
+  videoId     Int
+  watchedSec  Int      @default(0)
+  completed   Boolean  @default(false)
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson      @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  module LessonModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  video  LessonVideo @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, videoId])
+  @@index([userId, lessonId])
+  @@index([userId, moduleId])
 }
 
 enum ProgressStatus {
@@ -537,6 +583,11 @@ enum Role {
 
 
 enum EnrollmentStatus {
+  ACTIVE
+  CANCELED
+}
+
+enum CourseAccessStatus {
   ACTIVE
   CANCELED
 }

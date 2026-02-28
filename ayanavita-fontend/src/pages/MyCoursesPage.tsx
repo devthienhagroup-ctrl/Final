@@ -177,7 +177,7 @@ export function MyCoursesPage() {
         return;
       }
 
-      nav(`/lessons/${lessonId}`);
+      nav(`/lessons/${lessonId}?courseId=${courseId}`);
     } catch (e: any) {
       setErr(
         e?.message ||

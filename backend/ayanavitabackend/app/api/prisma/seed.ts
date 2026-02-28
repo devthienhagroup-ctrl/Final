@@ -601,6 +601,256 @@ async function main() {
     }
   }
 
+
+
+  const demoUser = await prisma.user.upsert({
+    where: { email: 'isuuser12@ayanavita.local' },
+    update: { name: 'Isuuser 12' },
+    create: {
+      email: 'isuuser12@ayanavita.local',
+      password: passwordHash,
+      name: 'Isuuser 12',
+      role: 'USER',
+    },
+  })
+
+  const [fundamentalCourse] = await prisma.course.findMany({ where: { slug: 'co-ban-cham-soc-da' }, take: 1 })
+  if (fundamentalCourse) {
+    const lessonOne = await prisma.lesson.upsert({
+      where: { courseId_slug: { courseId: fundamentalCourse.id, slug: 'lam-sach-da' } },
+      update: { title: 'Bài 1: Làm sạch da đúng cách', published: true, order: 1 },
+      create: {
+        courseId: fundamentalCourse.id,
+        title: 'Bài 1: Làm sạch da đúng cách',
+        slug: 'lam-sach-da',
+        description: 'Quy trình làm sạch da sáng và tối',
+        order: 1,
+        published: true,
+      },
+    })
+
+    const lessonTwo = await prisma.lesson.upsert({
+      where: { courseId_slug: { courseId: fundamentalCourse.id, slug: 'duong-am-phuc-hoi' } },
+      update: { title: 'Bài 2: Dưỡng ẩm & phục hồi', published: true, order: 2 },
+      create: {
+        courseId: fundamentalCourse.id,
+        title: 'Bài 2: Dưỡng ẩm & phục hồi',
+        slug: 'duong-am-phuc-hoi',
+        description: 'Thực hành cấp ẩm theo loại da',
+        order: 2,
+        published: true,
+      },
+    })
+
+    await prisma.lessonVideo.deleteMany({ where: { module: { lessonId: { in: [lessonOne.id, lessonTwo.id] } } } })
+    await prisma.lessonModule.deleteMany({ where: { lessonId: { in: [lessonOne.id, lessonTwo.id] } } })
+
+    const moduleOne = await prisma.lessonModule.create({ data: { lessonId: lessonOne.id, title: 'Module 1: Chuẩn bị', order: 1, published: true } })
+    const moduleTwo = await prisma.lessonModule.create({ data: { lessonId: lessonOne.id, title: 'Module 2: Thực hành', order: 2, published: true } })
+
+    await prisma.lessonVideo.createMany({
+      data: [
+        { moduleId: moduleOne.id, title: 'Video 1', sourceUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', durationSec: 180, order: 1, published: true },
+        { moduleId: moduleOne.id, title: 'Video 2', sourceUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4', durationSec: 240, order: 2, published: true },
+        { moduleId: moduleTwo.id, title: 'Video 3', sourceUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4', durationSec: 300, order: 1, published: true },
+      ],
+      skipDuplicates: true,
+    })
+
+    const moduleThree = await prisma.lessonModule.create({ data: { lessonId: lessonTwo.id, title: 'Module 3: Bài tập', order: 1, published: true } })
+    await prisma.lessonVideo.createMany({
+      data: [
+        { moduleId: moduleThree.id, title: 'Video 4', sourceUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4', durationSec: 360, order: 1, published: true },
+      ],
+      skipDuplicates: true,
+    })
+
+    const demoOrder = await prisma.order.upsert({
+      where: { code: 'DEMO-ORDER-ISU12' },
+      update: { userId: demoUser.id, status: 'PAID', subtotal: fundamentalCourse.price, total: fundamentalCourse.price, currency: 'VND' },
+      create: { code: 'DEMO-ORDER-ISU12', userId: demoUser.id, status: 'PAID', subtotal: fundamentalCourse.price, total: fundamentalCourse.price, currency: 'VND', paidAt: new Date() },
+    })
+
+    await prisma.orderItem.upsert({
+      where: { orderId_courseId: { orderId: demoOrder.id, courseId: fundamentalCourse.id } },
+      update: { price: fundamentalCourse.price, courseTitle: fundamentalCourse.title },
+      create: { orderId: demoOrder.id, courseId: fundamentalCourse.id, price: fundamentalCourse.price, courseTitle: fundamentalCourse.title },
+    })
+
+    await prisma.enrollment.upsert({
+      where: { userId_courseId: { userId: demoUser.id, courseId: fundamentalCourse.id } },
+      update: { status: 'ACTIVE', orderId: demoOrder.id },
+      create: { userId: demoUser.id, courseId: fundamentalCourse.id, orderId: demoOrder.id, status: 'ACTIVE' },
+    })
+  }
+
+
+
+  const demoUserById = await prisma.user.findUnique({ where: { id: 13 } })
+  const demoUserByEmail = await prisma.user.findUnique({ where: { email: 'isuuser12@ayanavita.local' } })
+
+  if (!demoUserById && demoUserByEmail && demoUserByEmail.id !== 13) {
+    throw new Error('Seed conflict: email isuuser12@ayanavita.local đang thuộc userId khác 13')
+  }
+
+  const demoUser = await prisma.user.upsert({
+    where: { id: 13 },
+    update: {
+      email: 'isuuser12@ayanavita.local',
+      password: passwordHash,
+      name: 'Isuuser 12',
+      role: 'USER',
+      isActive: true,
+    },
+    create: {
+      id: 13,
+      email: 'isuuser12@ayanavita.local',
+      password: passwordHash,
+      name: 'Isuuser 12',
+      role: 'USER',
+      isActive: true,
+    },
+  })
+
+  const [fundamentalCourse] = await prisma.course.findMany({ where: { slug: 'co-ban-cham-soc-da' }, take: 1 })
+  if (fundamentalCourse) {
+    const lessonOne = await prisma.lesson.upsert({
+      where: { courseId_slug: { courseId: fundamentalCourse.id, slug: 'lam-sach-da' } },
+      update: { title: 'Bài 1: Làm sạch da đúng cách', published: true, order: 1 },
+      create: {
+        courseId: fundamentalCourse.id,
+        title: 'Bài 1: Làm sạch da đúng cách',
+        slug: 'lam-sach-da',
+        description: 'Quy trình làm sạch da sáng và tối',
+        order: 1,
+        published: true,
+      },
+    })
+
+    const lessonTwo = await prisma.lesson.upsert({
+      where: { courseId_slug: { courseId: fundamentalCourse.id, slug: 'duong-am-phuc-hoi' } },
+      update: { title: 'Bài 2: Dưỡng ẩm & phục hồi', published: true, order: 2 },
+      create: {
+        courseId: fundamentalCourse.id,
+        title: 'Bài 2: Dưỡng ẩm & phục hồi',
+        slug: 'duong-am-phuc-hoi',
+        description: 'Thực hành cấp ẩm theo loại da',
+        order: 2,
+        published: true,
+      },
+    })
+
+    await prisma.lessonVideo.deleteMany({ where: { module: { lessonId: { in: [lessonOne.id, lessonTwo.id] } } } })
+    await prisma.lessonModule.deleteMany({ where: { lessonId: { in: [lessonOne.id, lessonTwo.id] } } })
+
+    const moduleOne = await prisma.lessonModule.create({ data: { lessonId: lessonOne.id, title: 'Module 1: Chuẩn bị', order: 1, published: true } })
+    const moduleTwo = await prisma.lessonModule.create({ data: { lessonId: lessonOne.id, title: 'Module 2: Thực hành', order: 2, published: true } })
+
+    await prisma.lessonVideo.createMany({
+      data: [
+        { moduleId: moduleOne.id, title: 'Video 1', sourceUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', durationSec: 180, order: 1, published: true },
+        { moduleId: moduleOne.id, title: 'Video 2', sourceUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4', durationSec: 240, order: 2, published: true },
+        { moduleId: moduleTwo.id, title: 'Video 3', sourceUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4', durationSec: 300, order: 1, published: true },
+      ],
+      skipDuplicates: true,
+    })
+
+    const moduleThree = await prisma.lessonModule.create({ data: { lessonId: lessonTwo.id, title: 'Module 3: Bài tập', order: 1, published: true } })
+    await prisma.lessonVideo.createMany({
+      data: [
+        { moduleId: moduleThree.id, title: 'Video 4', sourceUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4', durationSec: 360, order: 1, published: true },
+      ],
+      skipDuplicates: true,
+    })
+
+    const demoOrder = await prisma.order.upsert({
+      where: { code: 'DEMO-ORDER-ISU12' },
+      update: { userId: demoUser.id, status: 'PAID', subtotal: fundamentalCourse.price, total: fundamentalCourse.price, currency: 'VND' },
+      create: { code: 'DEMO-ORDER-ISU12', userId: demoUser.id, status: 'PAID', subtotal: fundamentalCourse.price, total: fundamentalCourse.price, currency: 'VND', paidAt: new Date() },
+    })
+
+    await prisma.orderItem.upsert({
+      where: { orderId_courseId: { orderId: demoOrder.id, courseId: fundamentalCourse.id } },
+      update: { price: fundamentalCourse.price, courseTitle: fundamentalCourse.title },
+      create: { orderId: demoOrder.id, courseId: fundamentalCourse.id, price: fundamentalCourse.price, courseTitle: fundamentalCourse.title },
+    })
+
+    await prisma.enrollment.upsert({
+      where: { userId_courseId: { userId: demoUser.id, courseId: fundamentalCourse.id } },
+      update: { status: 'ACTIVE', orderId: demoOrder.id },
+      create: { userId: demoUser.id, courseId: fundamentalCourse.id, orderId: demoOrder.id, status: 'ACTIVE' },
+    })
+  }
+
+
+
+  // Isolated scope để tránh lỗi redeclare khi merge/cherry-pick trùng block seed demo.
+  {
+    const demoUser = await prisma.user.findUnique({ where: { id: 13 }, select: { id: true } })
+    if (!demoUser) {
+      throw new Error('Không tìm thấy user có sẵn id=13 để cấp quyền khóa học mẫu')
+    }
+
+    const [fundamentalCourse] = await prisma.course.findMany({ where: { slug: 'co-ban-cham-soc-da' }, take: 1 })
+    if (fundamentalCourse) {
+      const lessonOne = await prisma.lesson.upsert({
+        where: { courseId_slug: { courseId: fundamentalCourse.id, slug: 'lam-sach-da' } },
+        update: { title: 'Bài 1: Làm sạch da đúng cách', published: true, order: 1 },
+        create: {
+          courseId: fundamentalCourse.id,
+          title: 'Bài 1: Làm sạch da đúng cách',
+          slug: 'lam-sach-da',
+          description: 'Quy trình làm sạch da sáng và tối',
+          order: 1,
+          published: true,
+        },
+      })
+
+      const lessonTwo = await prisma.lesson.upsert({
+        where: { courseId_slug: { courseId: fundamentalCourse.id, slug: 'duong-am-phuc-hoi' } },
+        update: { title: 'Bài 2: Dưỡng ẩm & phục hồi', published: true, order: 2 },
+        create: {
+          courseId: fundamentalCourse.id,
+          title: 'Bài 2: Dưỡng ẩm & phục hồi',
+          slug: 'duong-am-phuc-hoi',
+          description: 'Thực hành cấp ẩm theo loại da',
+          order: 2,
+          published: true,
+        },
+      })
+
+      await prisma.lessonVideo.deleteMany({ where: { module: { lessonId: { in: [lessonOne.id, lessonTwo.id] } } } })
+      await prisma.lessonModule.deleteMany({ where: { lessonId: { in: [lessonOne.id, lessonTwo.id] } } })
+
+      const moduleOne = await prisma.lessonModule.create({ data: { lessonId: lessonOne.id, title: 'Module 1: Chuẩn bị', order: 1, published: true } })
+      const moduleTwo = await prisma.lessonModule.create({ data: { lessonId: lessonOne.id, title: 'Module 2: Thực hành', order: 2, published: true } })
+
+      await prisma.lessonVideo.createMany({
+        data: [
+          { moduleId: moduleOne.id, title: 'Video 1', sourceUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', durationSec: 180, order: 1, published: true },
+          { moduleId: moduleOne.id, title: 'Video 2', sourceUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4', durationSec: 240, order: 2, published: true },
+          { moduleId: moduleTwo.id, title: 'Video 3', sourceUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4', durationSec: 300, order: 1, published: true },
+        ],
+        skipDuplicates: true,
+      })
+
+      const moduleThree = await prisma.lessonModule.create({ data: { lessonId: lessonTwo.id, title: 'Module 3: Bài tập', order: 1, published: true } })
+      await prisma.lessonVideo.createMany({
+        data: [
+          { moduleId: moduleThree.id, title: 'Video 4', sourceUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4', durationSec: 360, order: 1, published: true },
+        ],
+        skipDuplicates: true,
+      })
+
+      await prisma.courseAccess.upsert({
+        where: { userId_courseId: { userId: demoUser.id, courseId: fundamentalCourse.id } },
+        update: { status: 'ACTIVE', grantedAt: new Date() },
+        create: { userId: demoUser.id, courseId: fundamentalCourse.id, status: 'ACTIVE' },
+      })
+    }
+  }
+
+
   const courses = await prisma.course.findMany({ orderBy: { id: 'asc' } })
   console.log('🌱 Seed OK')
   console.log({ userId: user.id, coursesCount: courses.length, branches: branches.length, services: services.length, specialists: specialists.length })

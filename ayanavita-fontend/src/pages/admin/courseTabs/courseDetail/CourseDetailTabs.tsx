@@ -17,6 +17,7 @@ type Props = {
   text: Record<string, string>
   topics: CourseTopic[]
   onCourseUpdated: () => Promise<void> | void
+  onCourseDeleted: () => Promise<void> | void
 }
 
 type DetailTabKey = 'info' | 'lessons'
@@ -86,7 +87,7 @@ const normalizeTranslations = (translations?: LessonI18n) => {
   return translations
 }
 
-export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated }: Props) {
+export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated, onCourseDeleted }: Props) {
   const [activeTab, setActiveTab] = useState<DetailTabKey>('info')
   const [lessons, setLessons] = useState<LessonOutlineAdmin[]>([])
   const [lessonDetails, setLessonDetails] = useState<Record<number, LessonDetailAdmin>>({})
@@ -149,22 +150,13 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated }
         </button>
       </div>
 
-      {activeTab === 'info' && <CourseDetailInfoTab course={course} text={text} lang={lang} topics={topics} onUpdated={onCourseUpdated} />}
+      {activeTab === 'info' && <CourseDetailInfoTab course={course} text={text} lang={lang} topics={topics} onUpdated={onCourseUpdated} onDeleted={onCourseDeleted} />}
 
       {activeTab === 'lessons' && (
         <div className='admin-card'>
           <div className='admin-row' style={{ justifyContent: 'space-between', marginBottom: 12 }}>
             <h4 style={{ margin: 0 }}><i className='fa-solid fa-list' /> {t.lessons}</h4>
             <div className='admin-row' style={{ gap: 8 }}>
-              <button className='admin-btn admin-btn-danger' type='button' onClick={async () => {
-                const confirmed = await AlertJs.confirm(t.confirmDeleteCourse)
-                if (!confirmed) return
-                await adminCoursesApi.deleteCourse(course.id)
-                await AlertJs.success(t.courseDeleted)
-                await onCourseUpdated()
-              }}>
-                <i className='fa-solid fa-trash' /> {t.deleteCourse}
-              </button>
               <button className='admin-btn admin-btn-save' type='button' onClick={() => {
                 setEditingLesson(null)
                 setOpenLessonModal(true)
@@ -191,6 +183,7 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated }
                         <div className='admin-helper'>{t.lessonOrder}: {lesson.order ?? 0}</div>
                       </div>
                       <div className='admin-row' style={{ gap: 8 }}>
+                        <i className='fa-solid fa-chevron-down lesson-outline-chevron' aria-hidden='true' />
                         <button type='button' className='admin-btn admin-btn-ghost' onClick={async (e) => {
                           e.preventDefault()
                           e.stopPropagation()

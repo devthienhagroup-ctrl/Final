@@ -35,12 +35,6 @@ export class ProgressService {
     return lesson
   }
 
-  /**
-   * Sequential lock gate:
-   * - ADMIN bypass
-   * - USER: lesson i chỉ mở nếu lesson i-1 COMPLETED
-   * - USER: chỉ xét lesson published=true
-   */
   private async assertLessonUnlockedOrAdmin(user: JwtUser, lessonId: number, courseId: number) {
     if (user.role === 'ADMIN') return
 
@@ -52,8 +46,6 @@ export class ProgressService {
 
     const idx = orderedLessons.findIndex((l) => l.id === lessonId)
     if (idx === -1) throw new NotFoundException('Lesson not found')
-
-    // lesson đầu tiên luôn mở
     if (idx === 0) return
 
     const prevLessonId = orderedLessons[idx - 1].id
@@ -67,48 +59,93 @@ export class ProgressService {
     }
   }
 
-  // POST /lessons/:id/progress  { percent?, lastPositionSec? }
+  private async recalculateLessonProgress(userId: number, lessonId: number) {
+    const lessonVideos = await this.prisma.lessonVideo.findMany({
+      where: { module: { lessonId, published: true }, published: true, mediaType: 'VIDEO' },
+      select: { id: true, durationSec: true },
+    })
+    const totalDurationSec = lessonVideos.reduce((sum, item) => sum + Math.max(0, item.durationSec || 0), 0)
+
+    const videoProgress = await this.prisma.lessonVideoProgress.findMany({
+      where: { userId, lessonId },
+      select: { videoId: true, watchedSec: true, completed: true },
+    })
+
+    const progressMap = new Map(videoProgress.map((item) => [item.videoId, item]))
+    const watchedDurationSec = lessonVideos.reduce((sum, video) => {
+      const row = progressMap.get(video.id)
+      const capped = Math.min(video.durationSec || 0, Math.max(0, row?.watchedSec || 0))
+      return sum + capped
+    }, 0)
+
+    const percent = totalDurationSec <= 0 ? 0 : Math.min(100, Math.round((watchedDurationSec / totalDurationSec) * 100))
+    const isCompleted = totalDurationSec > 0 && percent >= 100
+
+    const lessonProgress = await this.prisma.lessonProgress.upsert({
+      where: { userId_lessonId: { userId, lessonId } },
+      create: {
+        userId,
+        lessonId,
+        status: isCompleted ? ProgressStatus.COMPLETED : ProgressStatus.IN_PROGRESS,
+        percent,
+        lastPositionSec: watchedDurationSec,
+        lastOpenedAt: new Date(),
+        completedAt: isCompleted ? new Date() : null,
+      },
+      update: {
+        status: isCompleted ? ProgressStatus.COMPLETED : ProgressStatus.IN_PROGRESS,
+        percent,
+        lastPositionSec: watchedDurationSec,
+        lastOpenedAt: new Date(),
+        completedAt: isCompleted ? new Date() : null,
+      },
+      select: {
+        lessonId: true,
+        status: true,
+        percent: true,
+        lastPositionSec: true,
+        lastOpenedAt: true,
+        completedAt: true,
+        updatedAt: true,
+      },
+    })
+
+    return { lessonProgress, watchedDurationSec, totalDurationSec, percent }
+  }
+
   async upsertLessonProgress(user: JwtUser, lessonId: number, dto: UpsertProgressDto) {
     const lesson = await this.getLessonOrThrow(lessonId)
-
-    // Gate enroll (ADMIN bypass)
     await this.enrollments.assertEnrolledOrAdmin(user, lesson.courseId)
 
-    // USER không truy cập course/lesson unpublished (ẩn 404)
     if (user.role !== 'ADMIN') {
       if (!lesson.course.published) throw new NotFoundException('Lesson not found')
       if (!lesson.published) throw new NotFoundException('Lesson not found')
     }
 
-    // Gate lock (ADMIN bypass)
     await this.assertLessonUnlockedOrAdmin(user, lessonId, lesson.courseId)
 
     const percent = this.clampPercent(dto.percent)
-    const lastPositionSec = dto.lastPositionSec
     const shouldComplete = percent !== undefined && percent >= 100
 
     return this.prisma.lessonProgress.upsert({
       where: { userId_lessonId: { userId: user.sub, lessonId } },
-
       create: {
         userId: user.sub,
         lessonId,
         status: shouldComplete ? ProgressStatus.COMPLETED : ProgressStatus.IN_PROGRESS,
         percent: percent ?? 0,
-        lastPositionSec: lastPositionSec ?? 0,
+        lastPositionSec: dto.lastPositionSec ?? 0,
         lastOpenedAt: new Date(),
         completedAt: shouldComplete ? new Date() : null,
       },
-
       update: {
         ...(percent !== undefined ? { percent } : {}),
-        ...(lastPositionSec !== undefined ? { lastPositionSec } : {}),
+        ...(dto.lastPositionSec !== undefined ? { lastPositionSec: dto.lastPositionSec } : {}),
         lastOpenedAt: new Date(),
         ...(shouldComplete
           ? { status: ProgressStatus.COMPLETED, completedAt: new Date() }
           : { status: ProgressStatus.IN_PROGRESS, completedAt: null }),
       },
-
       select: {
         lessonId: true,
         status: true,
@@ -121,12 +158,80 @@ export class ProgressService {
     })
   }
 
-  // POST /lessons/:id/complete
+  async upsertVideoProgress(user: JwtUser, lessonId: number, videoId: number, dto: UpsertProgressDto) {
+    const lesson = await this.getLessonOrThrow(lessonId)
+    await this.enrollments.assertEnrolledOrAdmin(user, lesson.courseId)
+    if (user.role !== 'ADMIN') {
+      if (!lesson.course.published) throw new NotFoundException('Lesson not found')
+      if (!lesson.published) throw new NotFoundException('Lesson not found')
+    }
+    await this.assertLessonUnlockedOrAdmin(user, lessonId, lesson.courseId)
+
+    const video = await this.prisma.lessonVideo.findFirst({
+      where: { id: videoId, module: { lessonId }, mediaType: 'VIDEO' },
+      select: { id: true, durationSec: true, moduleId: true },
+    })
+    if (!video) throw new NotFoundException('Video not found')
+
+    const watchedSec = Math.min(video.durationSec || 0, Math.max(0, dto.watchedSec ?? 0))
+    const isCompleted = dto.completed === true || (video.durationSec > 0 && watchedSec >= video.durationSec)
+
+    await this.prisma.lessonVideoProgress.upsert({
+      where: { userId_videoId: { userId: user.sub, videoId } },
+      create: {
+        userId: user.sub,
+        lessonId,
+        moduleId: video.moduleId,
+        videoId,
+        watchedSec,
+        completed: isCompleted,
+        completedAt: isCompleted ? new Date() : null,
+      },
+      update: {
+        watchedSec,
+        completed: isCompleted,
+        completedAt: isCompleted ? new Date() : null,
+      },
+    })
+
+    return this.recalculateLessonProgress(user.sub, lessonId)
+  }
+
+  async completeModule(user: JwtUser, lessonId: number, moduleId: number) {
+    const lesson = await this.getLessonOrThrow(lessonId)
+    await this.enrollments.assertEnrolledOrAdmin(user, lesson.courseId)
+
+    const videos = await this.prisma.lessonVideo.findMany({
+      where: { moduleId, module: { lessonId }, mediaType: 'VIDEO', published: true },
+      select: { id: true, durationSec: true },
+    })
+    if (videos.length === 0) throw new NotFoundException('Module not found')
+
+    await Promise.all(videos.map((video) => this.prisma.lessonVideoProgress.upsert({
+      where: { userId_videoId: { userId: user.sub, videoId: video.id } },
+      create: {
+        userId: user.sub,
+        lessonId,
+        moduleId,
+        videoId: video.id,
+        watchedSec: video.durationSec,
+        completed: true,
+        completedAt: new Date(),
+      },
+      update: {
+        watchedSec: video.durationSec,
+        completed: true,
+        completedAt: new Date(),
+      },
+    })))
+
+    return this.recalculateLessonProgress(user.sub, lessonId)
+  }
+
   async completeLesson(user: JwtUser, lessonId: number) {
     return this.upsertLessonProgress(user, lessonId, { percent: 100 })
   }
 
-  // GET /me/progress
   myProgress(userId: number) {
     return this.prisma.lessonProgress.findMany({
       where: { userId },
@@ -144,12 +249,6 @@ export class ProgressService {
     })
   }
 
-  // GET /me/courses/:courseId/progress
-  // Return đúng shape cho frontend:
-  // {
-  //   courseId, totalLessons, completedLessons, percent,
-  //   items: [{lessonId, status, seconds?, updatedAt?}]
-  // }
   async getCourseProgress(user: JwtUser, courseId: number) {
     await this.enrollments.assertEnrolledOrAdmin(user, courseId)
 
@@ -171,37 +270,27 @@ export class ProgressService {
         lessonId: true,
         status: true,
         lastPositionSec: true,
-        lastOpenedAt: true,
         updatedAt: true,
       },
-      orderBy: [{ lastOpenedAt: 'desc' }, { updatedAt: 'desc' }],
-      take: 2000,
     })
 
     const progMap = new Map(progress.map((p) => [p.lessonId, p]))
-
     const totalLessons = lessons.length
     const completedLessons = lessons.filter((l) => progMap.get(l.id)?.status === ProgressStatus.COMPLETED).length
     const percentCourse = totalLessons === 0 ? 0 : Math.round((completedLessons / totalLessons) * 100)
 
-    // items đúng kiểu LessonProgress[] cho FE Continue
     const items = lessons
       .map((l) => {
         const p = progMap.get(l.id)
         if (!p) return null
         return {
           lessonId: l.id,
-          status: p.status, // IN_PROGRESS | COMPLETED
+          status: p.status,
           seconds: p.lastPositionSec ?? undefined,
-          updatedAt: (p.updatedAt ?? p.lastOpenedAt)?.toISOString?.() ?? undefined,
+          updatedAt: p.updatedAt?.toISOString?.() ?? undefined,
         }
       })
-      .filter(Boolean) as Array<{
-      lessonId: number
-      status: ProgressStatus
-      seconds?: number
-      updatedAt?: string
-    }>
+      .filter(Boolean)
 
     return {
       courseId,

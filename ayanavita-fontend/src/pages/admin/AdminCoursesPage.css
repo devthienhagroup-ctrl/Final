@@ -898,6 +898,24 @@
   color: #0f172a;
 }
 
+
+.lesson-outline-summary::-webkit-details-marker {
+  display: none;
+}
+
+.lesson-outline-chevron {
+  color: #64748b;
+  transition: transform .2s ease;
+}
+
+.lesson-outline-card[open] .lesson-outline-chevron {
+  transform: rotate(180deg);
+}
+
+.admin-courses-theme-dark .lesson-outline-chevron {
+  color: #94a3b8;
+}
+
 .lesson-module-card {
   margin-top: 10px;
   border: 1px solid #bfdbfe;

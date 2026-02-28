@@ -9,6 +9,7 @@ type Props = {
   text: Record<string, string>
   topics: CourseTopic[]
   onUpdated: () => Promise<void> | void
+  onDeleted: () => Promise<void> | void
 }
 
 type AdminLang = 'vi' | 'en' | 'de'
@@ -100,6 +101,9 @@ const i18n = {
     updateSuccessTitle: 'Cập nhật thành công',
     updateSuccessBody: 'Khóa học đã được cập nhật.',
     translations: 'Nội dung ngôn ngữ hiện tại',
+    deleteCourse: 'Xóa khóa học',
+    confirmDeleteCourse: 'Bạn có chắc muốn xóa khóa học này?',
+    deleteSuccess: 'Đã xóa khóa học.',
   },
   en: {
     edit: 'Edit',
@@ -132,6 +136,9 @@ const i18n = {
     updateSuccessTitle: 'Updated',
     updateSuccessBody: 'Course updated successfully.',
     translations: 'Current language content',
+    deleteCourse: 'Delete course',
+    confirmDeleteCourse: 'Are you sure you want to delete this course?',
+    deleteSuccess: 'Course deleted.',
   },
   de: {
     edit: 'Bearbeiten',
@@ -164,6 +171,9 @@ const i18n = {
     updateSuccessTitle: 'Aktualisiert',
     updateSuccessBody: 'Kurs erfolgreich aktualisiert.',
     translations: 'Inhalt der aktuellen Sprache',
+    deleteCourse: 'Kurs löschen',
+    confirmDeleteCourse: 'Möchten Sie diesen Kurs wirklich löschen?',
+    deleteSuccess: 'Kurs gelöscht.',
   },
 } as const
 
@@ -245,7 +255,7 @@ const cloneEditForm = (form: EditForm): EditForm => ({
   thumbnailFile: null,
 })
 
-export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated }: Props) {
+export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated, onDeleted }: Props) {
   const [editing, setEditing] = useState(false)
   const [inputLang, setInputLang] = useState<AdminLang>('vi')
   const [submitting, setSubmitting] = useState(false)
@@ -512,7 +522,20 @@ export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated }: P
 
   return (
     <div className='admin-row' style={{ gap: 14, flexWrap: 'wrap', alignItems: 'stretch' }}>
-      <div style={{ flex: '1 1 100%', display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ flex: '1 1 100%', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <button
+          type='button'
+          className='admin-btn admin-btn-danger'
+          onClick={async () => {
+            const confirmed = await AlertJs.confirm(t.confirmDeleteCourse)
+            if (!confirmed) return
+            await adminCoursesApi.deleteCourse(course.id)
+            await AlertJs.success(t.deleteSuccess)
+            await onDeleted()
+          }}
+        >
+          <i className='fa-solid fa-trash' /> {t.deleteCourse}
+        </button>
         <button type='button' className='admin-btn admin-btn-ghost' onClick={() => void startEdit()} disabled={loadingEditData}>
           <i className='fa-solid fa-pen' /> {loadingEditData ? t.saving : t.edit}
         </button>

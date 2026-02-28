@@ -965,13 +965,6 @@ export function ReviewsAdminPage() {
             "Apple Color Emoji", "Segoe UI Emoji";
         }
 
-                .ar-entity-img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          border-radius: 12px;
-        }
-
         .ar-bad-img-rv {
                 width: 50px;
                 height: 50px;
@@ -1617,6 +1610,8 @@ export function ReviewsAdminPage() {
           .ar-stat{ grid-column: span 12; }
           .ar-kv{ grid-template-columns: 1fr; }
         }
+
+
       `}</style>
 
       <div className="ar-container">

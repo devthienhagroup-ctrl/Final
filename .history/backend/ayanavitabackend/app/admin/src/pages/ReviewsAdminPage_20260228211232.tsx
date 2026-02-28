@@ -965,13 +965,6 @@ export function ReviewsAdminPage() {
             "Apple Color Emoji", "Segoe UI Emoji";
         }
 
-                .ar-entity-img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          border-radius: 12px;
-        }
-
         .ar-bad-img-rv {
                 width: 50px;
                 height: 50px;
@@ -2008,7 +2001,7 @@ export function ReviewsAdminPage() {
               <div className="ar-section">
                 <h5><i className="fas fa-box" /> Sản phẩm</h5>
                 <div className="ar-entity">
-                  <img className="ar-entity-img" src={selected.entity.image} alt={selected.entity.name} />
+                  <img src={selected.entity.image} alt={selected.entity.name} />
                   <div>
                     <div className="ar-entity-name">{selected.entity.name}</div>
                     <div className="ar-entity-meta">{selected.entity.sku || 'Dịch vụ'} • {selected.entity.category}</div>

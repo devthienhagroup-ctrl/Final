@@ -2,11 +2,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import { AppShell, Badge, Button, Card, Container, Hr, Muted, SubTitle, Title } from "../ui/ui";
 
 import type { Review, ReviewsState, ReviewCategory } from "../features/reviews/reviews.types";
+import { ensureSeed } from "../features/reviews/reviews.seed";
 import {
   clearAllDemo,
-loadSavedIds,
+  loadReviews,
+  loadSavedIds,
   loadVoteMap,
-saveSavedIds,
+  saveReviews,
+  saveSavedIds,
   saveVoteMap,
 } from "../features/reviews/reviews.storage";
 import { calcStats, matches, sortReviews, starIconsCount } from "../features/reviews/reviews.utils";
@@ -206,22 +209,6 @@ type ProductOption = {
   reviewed: boolean;
 };
 
-
-type PublicReviewApi = {
-  id: string | number;
-  type?: "SERVICE" | "PRODUCT";
-  customerName?: string | null;
-  isAnonymous?: boolean;
-  stars?: number;
-  comment?: string;
-  createdAt?: string;
-  branch?: { name?: string };
-  service?: { name?: string } | null;
-  product?: { translations?: Array<{ name?: string }> } | null;
-  images?: Array<{ imageUrl?: string }>;
-};
-
-
 function isPlainObject(v: unknown): v is Record<string, any> {
   return !!v && typeof v === "object" && !Array.isArray(v);
 }
@@ -274,26 +261,6 @@ function Select({ value, onChange, children }: { value: string; onChange: (v: st
 function formatDateVi(iso: string) {
   return new Date(iso).toLocaleDateString("vi-VN", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
-
-
-function mapPublicReview(row: PublicReviewApi): Review {
-  const firstProductName = row.product?.translations?.[0]?.name;
-  return {
-    id: String(row.id),
-    name: row.customerName || "",
-    anonymous: !!row.isAnonymous,
-    category: row.type === "PRODUCT" ? "product" : "service",
-    item: row.service?.name || firstProductName || "",
-    branch: row.branch?.name || "",
-    rating: Number(row.stars || 0),
-    text: row.comment || "",
-    img: row.images?.[0]?.imageUrl || "",
-    verified: row.type === "PRODUCT",
-    helpful: 0,
-    createdAt: row.createdAt || new Date().toISOString(),
-  };
-}
-
 
 export default function ReviewsCenterPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -371,25 +338,17 @@ export default function ReviewsCenterPage() {
   const [fAnonymous, setFAnonymous] = useState(false);
   const [pickedStars, setPickedStars] = useState(5);
   const [imgPreview, setImgPreview] = useState(
-""  );
+      "https://images.unsplash.com/photo-1526948128573-703ee1aeb6fa?auto=format&fit=crop&w=1200&q=80"
+  );
   const [imgPreviews, setImgPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const isLoggedIn = !!localStorage.getItem("aya_access_token");
 
-  async function fetchPublicReviews() {
-    const res = await http.get<PublicReviewApi[]>("/reviews");
-    const normalized = (res.data || []).map(mapPublicReview);
-    setReviews(normalized);
-  }
-
-
   useEffect(() => {
+    ensureSeed();
+    setReviews(loadReviews());
     setSavedIds(loadSavedIds());
     setVoteMap(loadVoteMap());
-    fetchPublicReviews().catch((e) => {
-      console.error("Failed to load public reviews", e);
-      setReviews([]);
-    });
   }, []);
 
 
@@ -459,7 +418,8 @@ export default function ReviewsCenterPage() {
     setVoteMap(nextMap);
     setReviews(next);
     saveVoteMap(nextMap);
-}
+    saveReviews(next);
+  }
 
   function resetFilters() {
     setFilters({ q: "", category: "all", sort: "new", star: "all", verifiedOnly: false });
@@ -468,10 +428,11 @@ export default function ReviewsCenterPage() {
   function clearDemo() {
     if (!confirm(cmsData.system.confirmClearDemo)) return;
     clearAllDemo();
-    setReviews([]);
+    ensureSeed();
+    const r = loadReviews();
+    setReviews(r);
     setSavedIds(loadSavedIds());
     setVoteMap(loadVoteMap());
-    fetchPublicReviews().catch((e) => console.error("Failed to reload reviews", e));
     resetFilters();
   }
 
@@ -530,9 +491,30 @@ export default function ReviewsCenterPage() {
 
       await http.post("/reviews", payload, { headers: { "Content-Type": "multipart/form-data" } });
 
+      const item =
+        fCat === "service"
+          ? services.find((x) => String(x.id) === fServiceId)?.name || fItem
+          : reviewableProducts.find((x) => `${x.orderId}-${x.productId}` === fProduct)?.productName || fItem;
 
-      await fetchPublicReviews();
-setModalOpen(false);
+      const review: Review = {
+        id: "RV-" + Math.random().toString(16).slice(2, 8).toUpperCase(),
+        name,
+        anonymous: fAnonymous,
+        category: fCat,
+        item,
+        branch: branches.find((x) => String(x.id) === fBranchId)?.name || "",
+        rating: pickedStars,
+        text,
+        img: imgPreviews[0] || imgPreview,
+        verified: fCat === "product",
+        helpful: 0,
+        createdAt: new Date().toISOString(),
+      };
+
+      const next = [review, ...reviews];
+      setReviews(next);
+      saveReviews(next);
+      setModalOpen(false);
       setFName("");
       setFItem("");
       setFBranch("");
@@ -608,9 +590,9 @@ setModalOpen(false);
                   >
                     {cmsData.hero.actions[0]}
                   </Button>
-                  {/* <Button tone="brand" variant="solid" onClick={openWrite}>
+                  <Button tone="brand" variant="solid" onClick={openWrite}>
                     {cmsData.hero.actions[1]}
-                  </Button> */}
+                  </Button>
                 </div>
 
                 <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -791,7 +773,7 @@ setModalOpen(false);
                     </button>
                 ))}
 
-                {/* <button
+                <button
                     className={
                         "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-extrabold " +
                         (filters.verifiedOnly
@@ -802,7 +784,7 @@ setModalOpen(false);
                     type="button"
                 >
                   {cmsData.list.filters.verifiedTogglePrefix} {filters.verifiedOnly ? cmsData.list.filters.verifiedOn : cmsData.list.filters.verifiedOff}
-                </button> */}
+                </button>
               </div>
             </Card>
 
@@ -861,18 +843,27 @@ setModalOpen(false);
                               </div>
 
                               <p className="mt-3 text-slate-700 leading-relaxed whitespace-pre-line">{r.text}</p>
+
+                              {r.reply && (
+                                  <div className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                                    <div className="text-sm font-extrabold text-slate-800">
+                                      {interpolate(cmsData.reviewCard.replyTitleTemplate, { brand: cmsData.brandName })}
+                                    </div>
+                                    <div className="text-sm text-slate-700 mt-2 whitespace-pre-line">{r.reply.text}</div>
+                                  </div>
+                              )}
                             </div>
 
-                            <div className="text-right mt-6">
+                            <div className="grid grid-cols-2 gap-2 mt-6">
                               <Button tone={voted ? "brand" : "muted"} variant={voted ? "solid" : "ghost"} onClick={() => toggleHelpful(r.id)}>
                                 {cmsData.reviewCard.helpful} ({r.helpful || 0})
                               </Button>
-                              {/* <Button
+                              <Button
                                   variant="ghost"
                                   onClick={() => alert(interpolate(cmsData.reviewCard.reportAlertTemplate, { id: r.id }))}
                               >
                                 {cmsData.reviewCard.report}
-                              </Button> */}
+                              </Button>
                             </div>
                           </div>
                         </Card>

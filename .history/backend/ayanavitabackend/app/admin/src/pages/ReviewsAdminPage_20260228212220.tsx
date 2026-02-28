@@ -965,7 +965,7 @@ export function ReviewsAdminPage() {
             "Apple Color Emoji", "Segoe UI Emoji";
         }
 
-                .ar-entity-img {
+                ar-entity-img {
           width: 100%;
           height: 100%;
           object-fit: cover;

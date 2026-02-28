@@ -33,16 +33,6 @@ export function saveVoteMap(map: Record<string, boolean>) {
   localStorage.setItem(VOTE_KEY, JSON.stringify(map));
 }
 
-export function clearVoteMap() {
-  localStorage.removeItem(VOTE_KEY);
-}
-
-export function getActiveHelpfulReviewIds(map: Record<string, boolean>) {
-  return Object.entries(map)
-    .filter(([, active]) => !!active)
-    .map(([reviewId]) => reviewId);
-}
-
 export function clearAllDemo() {
   localStorage.removeItem(REVIEWS_KEY);
   localStorage.removeItem(SAVED_KEY);

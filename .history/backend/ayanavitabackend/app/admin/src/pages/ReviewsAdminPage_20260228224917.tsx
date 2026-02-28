@@ -1350,12 +1350,12 @@ export function ReviewsAdminPage() {
         }
         .ar-sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
 
-.ar-table-actions {
-    display: grid;
-    grid-template-columns: repeat(2, auto);
-    gap: 8px;
-    justify-content: end;
-}
+        .ar-table-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
         .ar-icon-btn {
           width: 38px;
           height: 38px;

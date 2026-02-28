@@ -1,0 +1,1013 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "mysql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+model User {
+  id                 Int      @id @default(autoincrement())
+  email              String   @unique
+  password           String
+  name               String?
+  phone              String?
+  birthDate          DateTime?
+  gender             Gender?
+  address            String?  @db.VarChar(500)
+  role               Role     @default(USER)
+  isActive           Boolean  @default(true)
+  hashedRefreshToken String?  @db.Text
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // ✅ ADD
+  enrollments    Enrollment[]
+  lessonProgress LessonProgress[]
+  orders         Order[] // <— opposite for Order.user
+  productOrders  ProductOrder[]
+  carts          Cart[]
+
+  // ✅ CMS (optional relations)
+  cmsSectionVersions CmsSectionVersion[]
+  mediaAssets        MediaAsset[]
+  serviceReviews     ServiceReview[]
+  reviews            Review[]
+  specialistProfile  Specialist?
+  reviewHelpfulVotes ReviewHelpful[]
+}
+
+model Branch {
+  id          Int                @id @default(autoincrement())
+  code        String             @unique @db.VarChar(32)
+  name        String             @db.VarChar(255)
+  address     String             @db.VarChar(255)
+  phone       String?            @db.VarChar(30)
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  services    BranchService[]
+  specialists Specialist[]
+  appointments Appointment[]
+  translations BranchTranslation[]
+  reviews      Review[]
+}
+
+model ServiceCategory {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(255)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  services  Service[]
+  translations ServiceCategoryTranslation[]
+}
+
+model Service {
+  id           Int                 @id @default(autoincrement())
+  name         String              @db.VarChar(255)
+  description  String?             @db.Text
+  categoryId   Int?
+  goals        Json?
+  suitableFor  Json?
+  process      Json?
+  durationMin  Int
+  price        Int                 @default(0)
+  ratingAvg    Float               @default(5)
+  bookedCount  Int                 @default(0)
+  tag          String?             @db.VarChar(80)
+  imageUrl     String?             @db.VarChar(500)
+  isActive     Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  category     ServiceCategory?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  branches     BranchService[]
+  appointments Appointment[]
+  reviews      ServiceReview[]
+  unifiedReviews Review[]
+  translations ServiceTranslation[]
+
+  @@index([categoryId])
+}
+
+model Specialist {
+  id          Int                 @id @default(autoincrement())
+  userId      Int                 @unique
+  name        String              @db.VarChar(255)
+  branchId    Int
+  level       SpecialistLevel     @default(SENIOR)
+  bio         String?             @db.Text
+  avatarUrl   String?             @db.VarChar(500)
+  isActive    Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch      Branch              @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  serviceLinks SpecialistBranchService[]
+  appointments Appointment[]
+  translations SpecialistTranslation[]
+
+  @@index([branchId])
+}
+
+model BranchTranslation {
+  id        Int      @id @default(autoincrement())
+  branchId  Int
+  locale    String   @db.VarChar(10)
+  name      String   @db.VarChar(255)
+  address   String   @db.VarChar(255)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, locale])
+  @@index([locale])
+}
+
+model ServiceCategoryTranslation {
+  id         Int      @id @default(autoincrement())
+  categoryId Int
+  locale     String   @db.VarChar(10)
+  name       String   @db.VarChar(255)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  category ServiceCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, locale])
+  @@index([locale])
+}
+
+model ServiceTranslation {
+  id          Int      @id @default(autoincrement())
+  serviceId   Int
+  locale      String   @db.VarChar(10)
+  name        String   @db.VarChar(255)
+  description String?  @db.Text
+  goals       Json?
+  suitableFor Json?
+  process     Json?
+  tag         String?  @db.VarChar(80)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, locale])
+  @@index([locale])
+}
+
+model SpecialistTranslation {
+  id           Int      @id @default(autoincrement())
+  specialistId Int
+  locale       String   @db.VarChar(10)
+  name         String   @db.VarChar(255)
+  bio          String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  specialist Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+
+  @@unique([specialistId, locale])
+  @@index([locale])
+}
+
+model BranchService {
+  branchId  Int
+  serviceId Int
+  createdAt DateTime @default(now())
+
+  branch  Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  specialistLinks SpecialistBranchService[]
+
+  @@id([branchId, serviceId])
+  @@index([serviceId])
+}
+
+model SpecialistBranchService {
+  specialistId Int
+  branchId     Int
+  serviceId    Int
+  createdAt    DateTime @default(now())
+
+  specialist Specialist   @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  branchService BranchService @relation(fields: [branchId, serviceId], references: [branchId, serviceId], onDelete: Cascade)
+
+  @@id([specialistId, branchId, serviceId])
+  @@index([branchId, serviceId])
+}
+
+model Appointment {
+  id            Int               @id @default(autoincrement())
+  code          String            @unique @db.VarChar(40)
+  customerName  String            @db.VarChar(255)
+  customerPhone String            @db.VarChar(30)
+  customerEmail String?           @db.VarChar(255)
+  appointmentAt DateTime
+  note          String?           @db.Text
+  status        AppointmentStatus @default(PENDING)
+  branchId      Int
+  serviceId     Int
+  specialistId  Int?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  branch     Branch      @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  service    Service     @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  specialist Specialist? @relation(fields: [specialistId], references: [id], onDelete: SetNull)
+
+  @@index([branchId, appointmentAt])
+  @@index([serviceId])
+  @@index([specialistId])
+}
+
+model ServiceReview {
+  id         Int      @id @default(autoincrement())
+  serviceId  Int
+  userId     Int?
+  stars      Int
+  comment    String?  @db.Text
+  customerName String? @db.VarChar(255)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([serviceId])
+}
+
+
+model RegistrationOtp {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  code      String   @db.VarChar(6)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Course {
+  id                  Int      @id @default(autoincrement())
+  topicId             Int?
+  title               String
+  slug                String   @unique
+  description         String?
+  thumbnail           String?
+  price               Int      @default(0)
+  published           Boolean  @default(false)
+  titleI18n           Json?
+  descriptionI18n     Json?
+  shortDescriptionI18n Json?
+  objectives          Json?
+  targetAudience      Json?
+  benefits            Json?
+  ratingAvg           Float    @default(0)
+  ratingCount         Int      @default(0)
+  enrollmentCount     Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  lessons     Lesson[]
+  enrollments Enrollment[]
+  topic       CourseTopic? @relation(fields: [topicId], references: [id], onDelete: Restrict)
+
+  // ✅ ADD
+  orderItems OrderItem[] // <— opposite for OrderItem.course
+
+  @@index([topicId])
+}
+
+model CourseTopic {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(120)
+  description String?  @db.VarChar(255)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  courses      Course[]
+  translations CourseTopicTranslation[]
+}
+
+model CourseTopicTranslation {
+  id          Int      @id @default(autoincrement())
+  topicId     Int
+  locale      String   @db.VarChar(10)
+  name        String   @db.VarChar(120)
+  description String?  @db.VarChar(255)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  topic CourseTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([topicId, locale])
+  @@index([locale])
+}
+
+
+model Product {
+  id               Int      @id @default(autoincrement())
+  sku              String   @unique @db.VarChar(40)
+  slug             String   @unique @db.VarChar(120)
+  name             String   @db.VarChar(255)
+  description      String?  @db.LongText
+  shortDescription String?  @db.VarChar(500)
+  imageUrl         String?  @db.Text
+  type             String   @default("cleanser") @db.VarChar(40)
+  concerns         String   @default("") @db.VarChar(255)
+  rating           Float    @default(4.5)
+  sold             Int      @default(0)
+  price            Int      @default(0)
+  published        Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([type])
+  @@index([published])
+  @@index([price])
+}
+
+enum CartStatus {
+  ACTIVE
+  ORDERED
+}
+
+model Cart {
+  id        Int        @id @default(autoincrement())
+  userId    Int
+  status    CartStatus @default(ACTIVE)
+  currency  String     @default("VND") @db.VarChar(3)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartDetail[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model CartDetail {
+  id            Int      @id @default(autoincrement())
+  cartId        Int
+  productId     BigInt
+  nameSnapshot  String   @db.VarChar(255)
+  priceSnapshot Decimal  @default(0.00) @db.Decimal(18, 2)
+  quantity      Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product CatalogProduct @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([cartId, productId])
+  @@index([productId])
+}
+
+model Lesson {
+  id              Int              @id @default(autoincrement())
+  courseId        Int
+  title           String
+  slug            String
+  description     String?
+  content         String?          @db.LongText
+  videoUrl        String?
+  titleI18n       Json?
+  descriptionI18n Json?
+  order           Int              @default(0)
+  published       Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  course          Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  progress        LessonProgress[]
+  modules         LessonModule[]
+
+  @@unique([courseId, slug])
+  @@index([courseId, order])
+}
+
+model LessonModule {
+  id              Int          @id @default(autoincrement())
+  lessonId        Int
+  title           String
+  description     String?
+  titleI18n       Json?
+  descriptionI18n Json?
+  order           Int          @default(0)
+  published       Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  videos LessonVideo[]
+
+  @@index([lessonId, order])
+}
+
+model LessonVideo {
+  id              Int          @id @default(autoincrement())
+  moduleId        Int
+  title           String
+  description     String?
+  titleI18n       Json?
+  descriptionI18n Json?
+  sourceUrl       String?
+  hlsPlaylistKey  String?
+  durationSec     Int          @default(0)
+  order           Int          @default(0)
+  published       Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  module LessonModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@index([moduleId, order])
+}
+
+model Enrollment {
+  id       Int @id @default(autoincrement())
+  userId   Int
+  courseId Int
+  orderId  Int
+
+  createdAt DateTime @default(now())
+
+  status     EnrollmentStatus @default(ACTIVE)
+  enrolledAt DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course     Course           @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  order      Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+  @@index([orderId])
+}
+
+model LessonProgress {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  lessonId     Int
+  completed    Boolean  @default(false)
+  lastOpenedAt DateTime @default(now())
+
+  // tiến độ
+  status          ProgressStatus @default(IN_PROGRESS)
+  percent         Int            @default(0) // 0..100
+  lastPositionSec Int            @default(0)
+  completedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([lessonId])
+}
+
+enum ProgressStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum SpecialistLevel {
+  JUNIOR
+  SENIOR
+  EXPERT
+  THERAPIST
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  DONE
+  CANCELED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  STAFF
+  USER
+}
+
+
+enum EnrollmentStatus {
+  ACTIVE
+  CANCELED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELED
+  EXPIRED
+}
+
+model Order {
+  id          Int          @id @default(autoincrement())
+  code        String       @unique @db.VarChar(32) // mã đơn
+  userId      Int
+  status      OrderStatus  @default(PENDING)
+  enrollments Enrollment[]
+
+  currency String @default("VND") @db.VarChar(3)
+  subtotal Int    @default(0)
+  discount Int    @default(0)
+  total    Int    @default(0)
+
+  paidAt     DateTime?
+  canceledAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items OrderItem[]
+
+  @@index([status])
+}
+
+model OrderItem {
+  id       Int @id @default(autoincrement())
+  orderId  Int
+  courseId Int
+
+  price       Int    @default(0)
+  courseTitle String @db.VarChar(255) // snapshot (khuyến nghị)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, courseId])
+  @@index([courseId])
+}
+
+// ===================== CMS (Landing / Public Pages) =====================
+
+enum CmsStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum CmsLocale {
+  vi
+  en
+  de
+}
+
+model CmsPage {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique @db.VarChar(80) // "landing"
+  title     String   @db.VarChar(255)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sections CmsSection[]
+}
+
+model CmsSection {
+  id        Int      @id @default(autoincrement())
+  pageId    Int
+  key       String   @db.VarChar(50) // "hero" | "about" | "cards" | ...
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  page     CmsPage             @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  locales  CmsSectionLocale[]
+  versions CmsSectionVersion[]
+
+  @@unique([pageId, key])
+  @@index([pageId, sortOrder])
+}
+
+model CmsSectionLocale {
+  id        Int       @id @default(autoincrement())
+  sectionId Int
+  locale    CmsLocale
+  status    CmsStatus @default(DRAFT)
+
+  draftData     Json?
+  publishedData Json?
+  publishedAt   DateTime?
+
+  updatedAt DateTime @updatedAt
+
+  section CmsSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId, locale])
+  @@index([locale, status])
+}
+
+model CmsSectionVersion {
+  id        Int       @id @default(autoincrement())
+  sectionId Int
+  locale    CmsLocale
+  status    CmsStatus // snapshot loại gì (draft/published)
+  data      Json
+  note      String?   @db.VarChar(255)
+  createdBy Int?
+  createdAt DateTime  @default(now())
+
+  section CmsSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  user    User?      @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([sectionId, locale, createdAt])
+  @@index([createdBy])
+}
+
+model MediaAsset {
+  id       Int     @id @default(autoincrement())
+  url      String  @db.Text
+  filename String  @db.VarChar(255)
+  mimeType String  @db.VarChar(100)
+  size     Int
+  width    Int?
+  height   Int?
+  alt      String? @db.VarChar(255)
+  tags     String? @db.Text
+
+  createdBy Int?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([createdBy, createdAt])
+}
+
+model PublicLead {
+  id        Int      @id @default(autoincrement())
+  type      String   @db.VarChar(30) // "book" | "talk"
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+}
+
+model Language {
+  code     String  @id @db.VarChar(10)
+  name     String  @db.VarChar(50)
+  isActive Boolean @default(true) @map("is_active")
+
+  categoryTranslations     CategoryTranslation[]
+  productTranslations      ProductTranslation[]
+  attributeKeyTranslations AttributeKeyTranslation[]
+  ingredientKeyTranslations IngredientKeyTranslation[]
+
+  @@map("languages")
+}
+
+model Category {
+  id       BigInt   @id @default(autoincrement())
+  parentId BigInt?  @map("parent_id")
+  status   String   @default("active") @db.VarChar(20)
+
+  parent   Category?  @relation("CategoryParent", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryParent")
+
+  translations CategoryTranslation[]
+  products     CatalogProduct[]
+
+  @@map("categories")
+}
+
+model CategoryTranslation {
+  categoryId   BigInt @map("category_id")
+  languageCode String @map("language_code") @db.VarChar(10)
+  name         String @db.VarChar(255)
+  slug         String @db.VarChar(255)
+  description  String? @db.Text
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  language Language @relation(fields: [languageCode], references: [code], onDelete: Restrict)
+
+  @@id([categoryId, languageCode])
+  @@unique([languageCode, slug], map: "uq_category_slug_per_lang")
+  @@map("category_translations")
+}
+
+model CatalogProduct {
+  id         BigInt   @id @default(autoincrement())
+  sku        String   @unique @db.VarChar(64)
+  categoryId BigInt?  @map("category_id")
+  price      Decimal  @default(0) @db.Decimal(18, 2)
+  status     String   @default("active") @db.VarChar(20)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  category     Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  translations ProductTranslation[]
+  attributes   ProductAttribute[]
+  ingredients  ProductIngredient[]
+  images       ProductImage[]
+  cartItems    CartDetail[]
+  orderDetails ProductOrderDetail[]
+  reviews      Review[]
+
+  @@map("products")
+}
+
+enum ProductOrderStatus {
+  PENDING_PAYMENT
+  PROCESSING
+  PAID
+  CANCELLED
+  EXPIRED
+}
+
+enum ProductPaymentMethod {
+  COD
+  SEPAY
+}
+
+enum ProductPaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  NOT_REQUIRED
+  EXPIRED
+}
+
+model ProductOrder {
+  id              BigInt               @id @default(autoincrement())
+  code            String               @unique @db.VarChar(32)
+  userId          Int
+  status          ProductOrderStatus   @default(PENDING_PAYMENT)
+  paymentMethod   ProductPaymentMethod @default(COD)
+  paymentStatus   ProductPaymentStatus @default(NOT_REQUIRED)
+  paymentCode     String?              @unique @db.VarChar(64)
+
+  receiverName    String               @db.VarChar(255)
+  receiverPhone   String               @db.VarChar(30)
+  receiverEmail   String?              @db.VarChar(255)
+  shippingAddress String               @db.VarChar(500)
+  district        String               @db.VarChar(255)
+  city            String               @db.VarChar(255)
+  note            String?              @db.Text
+
+  shippingUnit    String               @default("-") @db.VarChar(120)
+  trackingCode    String               @default("-") @db.VarChar(120)
+  expectedDelivery String              @default("-") @db.VarChar(120)
+
+  subtotal        Decimal              @default(0) @db.Decimal(18, 2)
+  shippingFee     Decimal              @default(0) @db.Decimal(18, 2)
+  discount        Decimal              @default(0) @db.Decimal(18, 2)
+  total           Decimal              @default(0) @db.Decimal(18, 2)
+  currency        String               @default("VND") @db.VarChar(3)
+
+  paidAt          DateTime?
+  cancelledAt     DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  details         ProductOrderDetail[]
+  payments        ProductOrderPayment[]
+  reviews         Review[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+model ProductOrderDetail {
+  id              BigInt         @id @default(autoincrement())
+  orderId         BigInt
+  productId       BigInt
+  productName     String         @db.VarChar(255)
+  productSku      String         @db.VarChar(64)
+  unitPrice       Decimal        @default(0) @db.Decimal(18, 2)
+  quantity        Int            @default(1)
+  lineTotal       Decimal        @default(0) @db.Decimal(18, 2)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  order           ProductOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product         CatalogProduct @relation(fields: [productId], references: [id], onDelete: Restrict)
+  reviews         Review[]
+
+  @@unique([orderId, productId])
+  @@index([productId])
+}
+
+enum ReviewType {
+  SERVICE
+  PRODUCT
+}
+
+enum ReviewVisibility {
+  VISIBLE
+  HIDDEN
+  DELETED
+}
+
+model Review {
+  id                   BigInt           @id @default(autoincrement())
+  type                 ReviewType
+  visibility           ReviewVisibility @default(VISIBLE)
+  branchId             Int
+  serviceId            Int?
+  productId            BigInt?
+  productOrderId       BigInt?
+  productOrderDetailId BigInt?
+  userId               Int?
+  isAnonymous          Boolean          @default(false)
+  customerName         String?          @db.VarChar(255)
+  stars                Int
+  comment              String           @db.Text
+  ipAddress            String?          @db.VarChar(64)
+  userAgent            String?          @db.VarChar(512)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  branch             Branch             @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  service            Service?           @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  product            CatalogProduct?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productOrder       ProductOrder?      @relation(fields: [productOrderId], references: [id], onDelete: SetNull)
+  productOrderDetail ProductOrderDetail? @relation(fields: [productOrderDetailId], references: [id], onDelete: SetNull)
+  user               User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  images             ReviewImage[]
+  helpfulVotes       ReviewHelpful[]
+
+  @@index([type, visibility, createdAt])
+  @@index([branchId, createdAt])
+  @@index([serviceId])
+  @@index([productId])
+  @@index([userId])
+  @@index([ipAddress, createdAt])
+  @@unique([userId, productOrderId, productId], map: "uniq_product_review_per_user_order_product")
+}
+
+model ReviewHelpful {
+  id        BigInt   @id @default(autoincrement())
+  reviewId  BigInt
+  userId    Int
+  createdAt DateTime @default(now())
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, userId], map: "uniq_review_helpful_user")
+  @@index([userId, createdAt])
+  @@index([reviewId])
+}
+
+model ReviewImage {
+  id        BigInt   @id @default(autoincrement())
+  reviewId  BigInt
+  fileName  String?  @db.VarChar(255)
+  imageUrl  String   @db.VarChar(500)
+  createdAt DateTime @default(now())
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+}
+
+model ProductOrderPayment {
+  id            BigInt               @id @default(autoincrement())
+  orderId       BigInt
+  provider      String               @default("SEPAY") @db.VarChar(32)
+  status        ProductPaymentStatus @default(PENDING)
+  amount        Decimal              @default(0) @db.Decimal(18, 2)
+  transferCode  String               @db.VarChar(64)
+  paidAt        DateTime?
+  expiredAt     DateTime?
+  rawResponse   Json?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  order         ProductOrder         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, status])
+  @@index([transferCode])
+}
+
+model ProductImage {
+  id          BigInt   @id @default(autoincrement())
+  productId   BigInt   @map("product_id")
+  imageUrl    String   @map("image_url") @db.VarChar(500)
+  isPrimary   Boolean  @default(false) @map("is_primary")
+  sortOrder   Int      @default(0) @map("sort_order")
+  primaryFlag BigInt?  @unique(map: "ux_one_primary_per_product") @map("primary_flag")
+
+  product CatalogProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, sortOrder], map: "idx_product_images_sort")
+  @@map("product_images")
+}
+
+model ProductTranslation {
+  productId         BigInt @map("product_id")
+  languageCode      String @map("language_code") @db.VarChar(10)
+  name              String @db.VarChar(255)
+  slug              String @db.VarChar(255)
+  shortDescription  String? @map("short_description") @db.VarChar(500)
+  description       String? @db.Text
+  guideContent      Json?   @map("guide_content")
+
+  product  CatalogProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  language Language       @relation(fields: [languageCode], references: [code], onDelete: Restrict)
+
+  @@id([productId, languageCode])
+  @@unique([languageCode, slug], map: "uq_product_slug_per_lang")
+  @@index([languageCode], map: "idx_product_translation_lang")
+  @@map("product_translations")
+}
+
+model AttributeKey {
+  id        BigInt  @id @default(autoincrement())
+  code      String  @unique @db.VarChar(100)
+  valueType String  @default("text") @map("value_type") @db.VarChar(20)
+  isActive  Boolean @default(true) @map("is_active")
+
+  translations AttributeKeyTranslation[]
+  products     ProductAttribute[]
+
+  @@map("attribute_keys")
+}
+
+model AttributeKeyTranslation {
+  attributeKeyId BigInt @map("attribute_key_id")
+  languageCode   String @map("language_code") @db.VarChar(10)
+  displayName    String @map("display_name") @db.VarChar(255)
+  description    String? @db.Text
+
+  attributeKey AttributeKey @relation(fields: [attributeKeyId], references: [id], onDelete: Cascade)
+  language     Language     @relation(fields: [languageCode], references: [code], onDelete: Restrict)
+
+  @@id([attributeKeyId, languageCode])
+  @@map("attribute_key_translations")
+}
+
+model ProductAttribute {
+  productId      BigInt @map("product_id")
+  attributeKeyId BigInt @map("attribute_key_id")
+  valueText      String? @map("value_text") @db.Text
+  valueNumber    Decimal? @map("value_number") @db.Decimal(18, 4)
+  valueBoolean   Boolean? @map("value_boolean")
+  valueJson      String? @map("value_json") @db.Text
+
+  product      CatalogProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attributeKey AttributeKey   @relation(fields: [attributeKeyId], references: [id], onDelete: Restrict)
+
+  @@id([productId, attributeKeyId])
+  @@index([attributeKeyId], map: "idx_product_attribute_key")
+  @@map("product_attributes")
+}
+
+model IngredientKey {
+  id       BigInt  @id @default(autoincrement())
+  code     String  @unique @db.VarChar(100)
+  isActive Boolean @default(true) @map("is_active")
+
+  translations IngredientKeyTranslation[]
+  products     ProductIngredient[]
+
+  @@map("ingredient_keys")
+}
+
+model IngredientKeyTranslation {
+  ingredientKeyId BigInt @map("ingredient_key_id")
+  languageCode    String @map("language_code") @db.VarChar(10)
+  displayName     String @map("display_name") @db.VarChar(255)
+  description     String? @db.Text
+
+  ingredientKey IngredientKey @relation(fields: [ingredientKeyId], references: [id], onDelete: Cascade)
+  language      Language      @relation(fields: [languageCode], references: [code], onDelete: Restrict)
+
+  @@id([ingredientKeyId, languageCode])
+  @@map("ingredient_key_translations")
+}
+
+model ProductIngredient {
+  productId       BigInt @map("product_id")
+  ingredientKeyId BigInt @map("ingredient_key_id")
+  value           String? @db.VarChar(255)
+  note            String? @db.Text
+  sortOrder       Int @default(0) @map("sort_order")
+
+  product       CatalogProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ingredientKey IngredientKey  @relation(fields: [ingredientKeyId], references: [id], onDelete: Restrict)
+
+  @@id([productId, ingredientKeyId])
+  @@index([productId, sortOrder], map: "idx_product_ingredient_sort")
+  @@map("product_ingredients")
+}

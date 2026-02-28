@@ -27,7 +27,7 @@ services:
     volumes:
       - ./backend/ayanavitabackend/app/api:/app
       - /app/node_modules
-    command: sh -c "npm install && (npx prisma migrate resolve --rolled-back 20260226130000_add_product_images || true) && npx prisma migrate deploy && npx prisma generate && npx prisma db seed && npm run start:dev"
+    # command: sh -c "npm install && (npx prisma migrate resolve --rolled-back 20260226130000_add_product_images || true) && npx prisma migrate deploy && npx prisma generate && npx prisma db seed && npm run start:dev"
     env_file:
       - ./backend/ayanavitabackend/app/api/.env
     environment:

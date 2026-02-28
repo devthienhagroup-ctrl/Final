@@ -1126,13 +1126,12 @@ export function ReviewsAdminPage() {
           border-color: rgba(124, 58, 237, 0.45);
         }
 
-        .ar-actions{
-          display:flex;
-          gap:10px;
-          justify-content:flex-end;
-          margin-top:10px;
-          flex-wrap:wrap;
-        }
+.ar-table-actions {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    gap: 8px;
+    justify-content: end;
+}
         .ar-btn{
           border:1px solid var(--border);
           background: rgba(255,255,255,0.9);
@@ -1350,12 +1349,12 @@ export function ReviewsAdminPage() {
         }
         .ar-sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
 
-.ar-table-actions {
-    display: grid;
-    grid-template-columns: repeat(2, auto);
-    gap: 8px;
-    justify-content: end;
-}
+        .ar-table-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
         .ar-icon-btn {
           width: 38px;
           height: 38px;

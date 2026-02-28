@@ -328,7 +328,7 @@ function ToastStack({
   };
 
   return (
-    <div className="fixed right-5 top-[75px] z-100 flex w-[360px] max-w-[calc(100vw-40px)] flex-col gap-3">
+    <div className="fixed right-5 top-5 z-100 flex w-[360px] max-w-[calc(100vw-40px)] flex-col gap-3">
       {toasts.map((t) => (
         <div
           key={t.id}

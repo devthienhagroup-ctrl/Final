@@ -3,7 +3,7 @@ import React, { useMemo } from "react";
 import { Link } from "react-router-dom";
 import type { CategoryProduct } from "../../data/productCategory.data";
 import { money } from "../../services/booking.utils";
-import { useCart } from "../../contexts/CartContext";
+import { addProductToCart } from "../../services/productCart.utils";
 
 export type ProductCardCmsData = {
     soldLabel: string;
@@ -53,8 +53,6 @@ export function ProductCard({
     cmsData?: Partial<ProductCardCmsData>;
     onCompare?: (productId: string) => void;
 }) {
-    const { addItem } = useCart();
-
     const soldText = useMemo(
         () => new Intl.NumberFormat("vi-VN").format(p.sold),
         [p.sold]
@@ -111,9 +109,7 @@ export function ProductCard({
                     className="flex-1 px-3 py-1 text-xs font-semibold rounded-md
                      bg-purple-600 text-white hover:bg-purple-700"
                     onClick={() => {
-                        const productId = Number((p as any).id);
-                        if (!Number.isFinite(productId)) return;
-                        void addItem({ productId, quantity: 1, name: p.name, price: p.price, image: p.img });
+                        addProductToCart(p.sku, 1);
                         window.alert(cms.addToCartSuccessAlert);
                     }}
                 >

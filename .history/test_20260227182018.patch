@@ -1,0 +1,40 @@
+diff --git a/package.json b/package.json
+index a00b3252195adf29d77c7207376d8bb1e89d359d..478984da23e163c762ae7c2afa1c3460c5a6d06d 100644
+--- a/package.json
++++ b/package.json
+@@ -1,33 +1,22 @@
+ {
+-<<<<<<< HEAD
+-  "name": "host",
+-=======
+   "name": "ayanavita",
+->>>>>>> 4b948bf2ec400ab59f778729e8a1a257d3282303
+   "version": "1.0.0",
+   "description": "",
+   "main": "index.js",
+   "scripts": {
+     "test": "echo \"Error: no test specified\" && exit 1"
+   },
+   "repository": {
+     "type": "git",
+     "url": "https://github.com/devthienhagroup-ctrl/Ayanavita.git"
+   },
+   "private": true,
+-<<<<<<< HEAD
+   "dependencies": {
++    "@prisma/client": "^7.4.1",
++    "prisma": "^7.4.1",
+     "vite": "^7.3.1"
+   },
+   "devDependencies": {
+     "@vitejs/plugin-react": "^5.1.4"
+-=======
+-  "devDependencies": {
+-    "vite": "^7.3.1"
+-  },
+-  "dependencies": {
+-    "@prisma/client": "^7.4.1",
+-    "prisma": "^7.4.1"
+->>>>>>> 4b948bf2ec400ab59f778729e8a1a257d3282303
+   }
+ }

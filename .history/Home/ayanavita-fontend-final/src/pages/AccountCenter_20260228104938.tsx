@@ -1,7 +1,6 @@
-// AccountCenter.tsx
 import React, { FormEvent, useEffect, useMemo, useState } from "react";
 import { authApi } from "../api/auth.api";
-import { http } from "../api/http";
+import {http} from "../api/http";
 
 type ToastKind = "success" | "error" | "info";
 type ActiveSection = "profile" | "changePassword" | "forgotPassword";
@@ -136,8 +135,8 @@ type CmsData = {
   };
 };
 
-// ✅ CMS mặc định
-const defaultCmsData: CmsData = {
+// ✅ CMS mặc định (sau này bạn có thể gọi API lấy cms rồi merge/override)
+const cmsData: CmsData = {
   page: {
     title: "Quản lý tài khoản",
     subtitle: "Cập nhật thông tin cá nhân và bảo mật tài khoản",
@@ -192,12 +191,7 @@ const defaultCmsData: CmsData = {
     fields: {
       fullName: { label: "Họ và tên", placeholder: "Nhập họ và tên", iconClass: "fa-regular fa-user" },
       phone: { label: "Số điện thoại", placeholder: "Nhập số điện thoại", iconClass: "fa-solid fa-phone" },
-      email: {
-        label: "Email",
-        placeholder: "Email",
-        iconClass: "fa-regular fa-envelope",
-        helper: "Email không thể thay đổi tại đây.",
-      },
+      email: { label: "Email", placeholder: "Email", iconClass: "fa-regular fa-envelope", helper: "Email không thể thay đổi tại đây." },
       birthDate: { label: "Ngày sinh", placeholder: "Chọn ngày sinh", iconClass: "fa-regular fa-calendar" },
       gender: {
         label: "Giới tính",
@@ -287,33 +281,6 @@ function classNames(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
 }
 
-/** ✅ Deep merge: object merge sâu, array bị override bởi server */
-function isPlainObject(v: any): v is Record<string, any> {
-  return !!v && typeof v === "object" && !Array.isArray(v);
-}
-function deepMerge<T>(base: T, override: any): T {
-  if (Array.isArray(base)) return (Array.isArray(override) ? override : base) as any;
-
-  if (isPlainObject(base)) {
-    const out: Record<string, any> = { ...(base as any) };
-
-    if (isPlainObject(override)) {
-      for (const k of Object.keys(override)) {
-        const bv = (base as any)[k];
-        const ov = override[k];
-
-        if (bv === undefined) out[k] = ov;
-        else if (Array.isArray(bv)) out[k] = Array.isArray(ov) ? ov : bv;
-        else if (isPlainObject(bv) && isPlainObject(ov)) out[k] = deepMerge(bv, ov);
-        else out[k] = ov;
-      }
-    }
-    return out as T;
-  }
-
-  return (override ?? base) as T;
-}
-
 function ToastStack({
   toasts,
   onClose,
@@ -328,11 +295,14 @@ function ToastStack({
   };
 
   return (
-    <div className="fixed right-5 top-[75px] z-100 flex w-[360px] max-w-[calc(100vw-40px)] flex-col gap-3">
+    <div className="fixed right-5 top-5 z-50 flex w-[360px] max-w-[calc(100vw-40px)] flex-col gap-3">
       {toasts.map((t) => (
         <div
           key={t.id}
-          className={classNames("rounded-2xl border px-4 py-3 shadow-sm backdrop-blur", kindStyles[t.kind].wrap)}
+          className={classNames(
+            "rounded-2xl border px-4 py-3 shadow-sm backdrop-blur",
+            kindStyles[t.kind].wrap
+          )}
           role="status"
         >
           <div className="flex items-start gap-3">
@@ -411,10 +381,7 @@ export default function AccountCenter() {
 
   const [loading, setLoading] = useState<boolean>(false);
 
-  // ✅ CMS runtime (render UI bằng state này)
-  const [cms, setCms] = useState<CmsData>(defaultCmsData);
-
-  // ✅ Toast system
+  // ✅ Toast system (thay cho message/error hard-coded)
   const [toasts, setToasts] = useState<Array<{ id: string; kind: ToastKind; title: string; message: string }>>([]);
 
   const pushToast = (kind: ToastKind, title: string, message: string) => {
@@ -427,48 +394,39 @@ export default function AccountCenter() {
 
   const closeToast = (id: string) => setToasts((prev) => prev.filter((t) => t.id !== id));
 
-  const activeMeta = useMemo(() => cms.sidebar.items.find((x) => x.key === active), [active, cms]);
+  const activeMeta = useMemo(() => cmsData.sidebar.items.find((x) => x.key === active), [active]);
 
-  const [currentLanguage, setCurrentLanguage] = useState<string>(() => {
-    return localStorage.getItem("preferred-language") || "vi";
-  });
+    const [currentLanguage, setCurrentLanguage] = useState<string>(() => {
+        return localStorage.getItem("preferred-language") || "vi";
+    });
 
-  // Lắng nghe sự kiện thay đổi ngôn ngữ
-  useEffect(() => {
-    const handleLanguageChange = (event: Event) => {
-      const e = event as CustomEvent<{ language: string }>;
-      if (e?.detail?.language) setCurrentLanguage(e.detail.language);
-    };
+    // Lắng nghe sự kiện thay đổi ngôn ngữ
+    useEffect(() => {
+        const handleLanguageChange = (event: CustomEvent) => {
+            setCurrentLanguage(event.detail.language);
+        };
 
-    window.addEventListener("languageChange", handleLanguageChange as EventListener);
-    return () => {
-      window.removeEventListener("languageChange", handleLanguageChange as EventListener);
-    };
-  }, []);
+        window.addEventListener('languageChange', handleLanguageChange as EventListener);
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange as EventListener);
+        };
+    }, []);
 
-  // ✅ Gọi API global khi ngôn ngữ thay đổi -> ghi đè CMS
-  useEffect(() => {
-    const fetchGlobal = async () => {
-      try {
-        const res = await http.get(`/public/pages/accountCenter?lang=${currentLanguage}`);
-        const remoteCms = res.data?.sections?.[0]?.data;
+    // Gọi API global khi ngôn ngữ thay đổi
+    useEffect(() => {
+        const fetchGlobal = async () => {
+            try {
+                console.log(`Gọi API global với ngôn ngữ: ${currentLanguage}`);
+                const res = await http.get(`/public/pages/accountCenter?lang=${currentLanguage}`);
+                console.log("Global data:", res.data);
+                //Ghi đè lên cms
+            } catch (error) {
+                console.error("Lỗi gọi API global:", error);
+            }
+        };
 
-        if (remoteCms && typeof remoteCms === "object") {
-          // reset về default theo lang, rồi merge dữ liệu server
-          setCms(deepMerge(defaultCmsData, remoteCms));
-        } else {
-          // nếu server trả rỗng, vẫn reset về default cho an toàn
-          setCms(defaultCmsData);
-        }
-      } catch (error) {
-        console.error("Lỗi gọi API global:", error);
-        // optional: toast nếu muốn
-        // pushToast("error", cms.profile.toasts.loadFailed.title, cms.profile.toasts.loadFailed.message);
-      }
-    };
-
-    fetchGlobal();
-  }, [currentLanguage]);
+        fetchGlobal();
+    }, [currentLanguage]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -490,18 +448,13 @@ export default function AccountCenter() {
 
         setForgotForm((prev) => ({ ...prev, email: "" }));
       } catch (e: any) {
-        pushToast(
-          "error",
-          cms.profile.toasts.loadFailed.title,
-          e?.response?.data?.message || cms.profile.toasts.loadFailed.message
-        );
+        pushToast("error", cmsData.profile.toasts.loadFailed.title, e?.response?.data?.message || cmsData.profile.toasts.loadFailed.message);
       } finally {
         setLoading(false);
       }
     };
 
     fetchProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onProfileSubmit = async (e: FormEvent) => {
@@ -517,13 +470,9 @@ export default function AccountCenter() {
         address: profile.address,
       });
 
-      pushToast("success", cms.profile.toasts.saveSuccess.title, cms.profile.toasts.saveSuccess.message);
+      pushToast("success", cmsData.profile.toasts.saveSuccess.title, cmsData.profile.toasts.saveSuccess.message);
     } catch (e: any) {
-      pushToast(
-        "error",
-        cms.profile.toasts.saveFailed.title,
-        e?.response?.data?.message || cms.profile.toasts.saveFailed.message
-      );
+      pushToast("error", cmsData.profile.toasts.saveFailed.title, e?.response?.data?.message || cmsData.profile.toasts.saveFailed.message);
     } finally {
       setLoading(false);
     }
@@ -533,7 +482,7 @@ export default function AccountCenter() {
     e.preventDefault();
 
     if (!passwordForm.currentPassword.trim()) {
-      pushToast("error", "Validate", cms.changePassword.validates.currentRequired);
+      pushToast("error", "Validate", cmsData.changePassword.validates.currentRequired);
       return;
     }
 
@@ -543,14 +492,14 @@ export default function AccountCenter() {
       setPasswordStep("setNew");
       pushToast(
         "success",
-        cms.changePassword.toasts.verifiedOk.title,
-        res?.message || cms.changePassword.toasts.verifiedOk.message
+        cmsData.changePassword.toasts.verifiedOk.title,
+        res?.message || cmsData.changePassword.toasts.verifiedOk.message
       );
     } catch (e: any) {
       pushToast(
         "error",
-        cms.changePassword.toasts.verifyFailed.title,
-        e?.response?.data?.message || cms.changePassword.toasts.verifyFailed.message
+        cmsData.changePassword.toasts.verifyFailed.title,
+        e?.response?.data?.message || cmsData.changePassword.toasts.verifyFailed.message
       );
     } finally {
       setLoading(false);
@@ -561,7 +510,7 @@ export default function AccountCenter() {
     e.preventDefault();
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      pushToast("error", "Validate", cms.changePassword.validates.confirmMismatch);
+      pushToast("error", "Validate", cmsData.changePassword.validates.confirmMismatch);
       return;
     }
 
@@ -572,15 +521,19 @@ export default function AccountCenter() {
         newPassword: passwordForm.newPassword,
       });
 
-      pushToast("success", cms.changePassword.toasts.changeOk.title, res?.message || cms.changePassword.toasts.changeOk.message);
+      pushToast(
+        "success",
+        cmsData.changePassword.toasts.changeOk.title,
+        res?.message || cmsData.changePassword.toasts.changeOk.message
+      );
 
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
       setPasswordStep("verifyCurrent");
     } catch (e: any) {
       pushToast(
         "error",
-        cms.changePassword.toasts.changeFailed.title,
-        e?.response?.data?.message || cms.changePassword.toasts.changeFailed.message
+        cmsData.changePassword.toasts.changeFailed.title,
+        e?.response?.data?.message || cmsData.changePassword.toasts.changeFailed.message
       );
     } finally {
       setLoading(false);
@@ -592,12 +545,12 @@ export default function AccountCenter() {
 
     const enteredEmail = forgotForm.email.trim().toLowerCase();
     if (!enteredEmail) {
-      pushToast("error", "Validate", cms.forgotPassword.validates.emailRequired);
+      pushToast("error", "Validate", cmsData.forgotPassword.validates.emailRequired);
       return;
     }
 
     if (!accountEmail || enteredEmail !== accountEmail.trim().toLowerCase()) {
-      pushToast("error", "Validate", cms.forgotPassword.validates.emailMismatch);
+      pushToast("error", "Validate", cmsData.forgotPassword.validates.emailMismatch);
       return;
     }
 
@@ -605,13 +558,17 @@ export default function AccountCenter() {
     try {
       const res = await authApi.sendForgotPasswordOtp({ email: enteredEmail });
       setForgotStep("otp");
-      pushToast("success", cms.forgotPassword.toasts.otpSent.title, res?.message || cms.forgotPassword.toasts.otpSent.message);
+      pushToast(
+        "success",
+        cmsData.forgotPassword.toasts.otpSent.title,
+        res?.message || cmsData.forgotPassword.toasts.otpSent.message
+      );
     } catch (e: any) {
       const serverMessage = e?.response?.data?.message;
       pushToast(
         "error",
-        cms.forgotPassword.toasts.otpSendFailed.title,
-        serverMessage || cms.forgotPassword.toasts.otpSendFailed.message
+        cmsData.forgotPassword.toasts.otpSendFailed.title,
+        serverMessage || cmsData.forgotPassword.toasts.otpSendFailed.message
       );
     } finally {
       setLoading(false);
@@ -622,7 +579,7 @@ export default function AccountCenter() {
     e.preventDefault();
 
     if (!forgotForm.otp.trim()) {
-      pushToast("error", "Validate", cms.forgotPassword.validates.otpRequired);
+      pushToast("error", "Validate", cmsData.forgotPassword.validates.otpRequired);
       return;
     }
 
@@ -636,14 +593,14 @@ export default function AccountCenter() {
       setForgotStep("newPassword");
       pushToast(
         "success",
-        cms.forgotPassword.toasts.otpVerified.title,
-        res?.message || cms.forgotPassword.toasts.otpVerified.message
+        cmsData.forgotPassword.toasts.otpVerified.title,
+        res?.message || cmsData.forgotPassword.toasts.otpVerified.message
       );
     } catch (e: any) {
       pushToast(
         "error",
-        cms.forgotPassword.toasts.otpVerifyFailed.title,
-        e?.response?.data?.message || cms.forgotPassword.toasts.otpVerifyFailed.message
+        cmsData.forgotPassword.toasts.otpVerifyFailed.title,
+        e?.response?.data?.message || cmsData.forgotPassword.toasts.otpVerifyFailed.message
       );
     } finally {
       setLoading(false);
@@ -654,7 +611,7 @@ export default function AccountCenter() {
     e.preventDefault();
 
     if (forgotForm.newPassword !== forgotForm.confirmPassword) {
-      pushToast("error", "Validate", cms.forgotPassword.validates.confirmMismatch);
+      pushToast("error", "Validate", cmsData.forgotPassword.validates.confirmMismatch);
       return;
     }
 
@@ -666,15 +623,19 @@ export default function AccountCenter() {
         newPassword: forgotForm.newPassword,
       });
 
-      pushToast("success", cms.forgotPassword.toasts.resetOk.title, res?.message || cms.forgotPassword.toasts.resetOk.message);
+      pushToast(
+        "success",
+        cmsData.forgotPassword.toasts.resetOk.title,
+        res?.message || cmsData.forgotPassword.toasts.resetOk.message
+      );
 
       setForgotForm((prev) => ({ ...prev, otp: "", newPassword: "", confirmPassword: "" }));
       setForgotStep("email");
     } catch (e: any) {
       pushToast(
         "error",
-        cms.forgotPassword.toasts.resetFailed.title,
-        e?.response?.data?.message || cms.forgotPassword.toasts.resetFailed.message
+        cmsData.forgotPassword.toasts.resetFailed.title,
+        e?.response?.data?.message || cmsData.forgotPassword.toasts.resetFailed.message
       );
     } finally {
       setLoading(false);
@@ -691,22 +652,22 @@ export default function AccountCenter() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <h1 className="flex items-center gap-3 text-2xl font-extrabold text-slate-900">
-                <i className={classNames(cms.page.icons.page, "text-slate-700")} />
-                {cms.page.title}
+                <i className={classNames(cmsData.page.icons.page, "text-slate-700")} />
+                {cmsData.page.title}
               </h1>
-              {cms.page.subtitle ? <p className="mt-1 text-sm text-slate-600">{cms.page.subtitle}</p> : null}
+              {cmsData.page.subtitle ? <p className="mt-1 text-sm text-slate-600">{cmsData.page.subtitle}</p> : null}
             </div>
 
             <div className="hidden items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 md:flex">
-              <i className={classNames(cms.ui.badges.secure.iconClass, "text-slate-500")} />
-              {cms.ui.badges.secure.text}
+              <i className={classNames(cmsData.ui.badges.secure.iconClass, "text-slate-500")} />
+              {cmsData.ui.badges.secure.text}
             </div>
           </div>
 
           {loading ? (
             <div className="mt-2 flex items-center gap-2 text-sm text-slate-500">
               <i className="fa-solid fa-spinner animate-spin" />
-              {cms.common.loadingText}
+              {cmsData.common.loadingText}
             </div>
           ) : null}
         </div>
@@ -716,12 +677,14 @@ export default function AccountCenter() {
           {/* Sidebar */}
           <aside className="rounded-3xl border border-slate-200 bg-white p-4">
             <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <p className="text-sm font-extrabold text-slate-900">{cms.sidebar.header.title}</p>
-              {cms.sidebar.header.subtitle ? <p className="mt-1 text-xs text-slate-600">{cms.sidebar.header.subtitle}</p> : null}
+              <p className="text-sm font-extrabold text-slate-900">{cmsData.sidebar.header.title}</p>
+              {cmsData.sidebar.header.subtitle ? (
+                <p className="mt-1 text-xs text-slate-600">{cmsData.sidebar.header.subtitle}</p>
+              ) : null}
             </div>
 
             <nav className="space-y-2">
-              {cms.sidebar.items.map((item) => {
+              {cmsData.sidebar.items.map((item) => {
                 const isActive = item.key === active;
                 return (
                   <button
@@ -730,7 +693,9 @@ export default function AccountCenter() {
                     onClick={() => setActive(item.key)}
                     className={classNames(
                       "w-full rounded-2xl border px-4 py-3 text-left transition",
-                      isActive ? "border-indigo-200 bg-indigo-50" : "border-slate-200 bg-white hover:bg-slate-50"
+                      isActive
+                        ? "border-indigo-200 bg-indigo-50"
+                        : "border-slate-200 bg-white hover:bg-slate-50"
                     )}
                   >
                     <div className="flex items-start gap-3">
@@ -757,10 +722,10 @@ export default function AccountCenter() {
               })}
             </nav>
 
-            {cms.sidebar.footerHint ? (
+            {cmsData.sidebar.footerHint ? (
               <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
                 <i className="fa-regular fa-lightbulb mr-2 text-slate-500" />
-                {cms.sidebar.footerHint}
+                {cmsData.sidebar.footerHint}
               </div>
             ) : null}
           </aside>
@@ -770,21 +735,23 @@ export default function AccountCenter() {
             <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-6">
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{activeMeta?.label}</p>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    {activeMeta?.label}
+                  </p>
                   <h2 className="mt-1 text-xl font-extrabold text-slate-900">
                     {active === "profile"
-                      ? cms.profile.cardTitle
+                      ? cmsData.profile.cardTitle
                       : active === "changePassword"
-                      ? cms.changePassword.cardTitle
-                      : cms.forgotPassword.cardTitle}
+                        ? cmsData.changePassword.cardTitle
+                        : cmsData.forgotPassword.cardTitle}
                   </h2>
 
                   <p className="mt-1 text-sm text-slate-600">
                     {active === "profile"
-                      ? cms.profile.cardDesc
+                      ? cmsData.profile.cardDesc
                       : active === "changePassword"
-                      ? cms.changePassword.cardDesc
-                      : cms.forgotPassword.cardDesc}
+                        ? cmsData.changePassword.cardDesc
+                        : cmsData.forgotPassword.cardDesc}
                   </p>
                 </div>
 
@@ -797,35 +764,39 @@ export default function AccountCenter() {
               {/* PROFILE */}
               {active === "profile" && (
                 <form className="grid gap-4 md:grid-cols-2" onSubmit={onProfileSubmit}>
-                  <Field label={cms.profile.fields.fullName.label} iconClass={cms.profile.fields.fullName.iconClass}>
+                  <Field label={cmsData.profile.fields.fullName.label} iconClass={cmsData.profile.fields.fullName.iconClass}>
                     <input
                       className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                      placeholder={cms.profile.fields.fullName.placeholder}
+                      placeholder={cmsData.profile.fields.fullName.placeholder}
                       value={profile.fullName}
                       onChange={(e) => setProfile((prev) => ({ ...prev, fullName: e.target.value }))}
                     />
                   </Field>
 
-                  <Field label={cms.profile.fields.phone.label} iconClass={cms.profile.fields.phone.iconClass}>
+                  <Field label={cmsData.profile.fields.phone.label} iconClass={cmsData.profile.fields.phone.iconClass}>
                     <input
                       className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                      placeholder={cms.profile.fields.phone.placeholder}
+                      placeholder={cmsData.profile.fields.phone.placeholder}
                       value={profile.phone}
                       onChange={(e) => setProfile((prev) => ({ ...prev, phone: e.target.value }))}
                     />
                   </Field>
 
-                  <Field label={cms.profile.fields.email.label} iconClass={cms.profile.fields.email.iconClass} helper={cms.profile.fields.email.helper}>
+                  <Field
+                    label={cmsData.profile.fields.email.label}
+                    iconClass={cmsData.profile.fields.email.iconClass}
+                    helper={cmsData.profile.fields.email.helper}
+                  >
                     <input
                       className="w-full cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"
                       type="text"
-                      placeholder={cms.profile.fields.email.placeholder}
+                      placeholder={cmsData.profile.fields.email.placeholder}
                       value={profile.email}
                       readOnly
                     />
                   </Field>
 
-                  <Field label={cms.profile.fields.birthDate.label} iconClass={cms.profile.fields.birthDate.iconClass}>
+                  <Field label={cmsData.profile.fields.birthDate.label} iconClass={cmsData.profile.fields.birthDate.iconClass}>
                     <input
                       className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
                       type="date"
@@ -834,23 +805,23 @@ export default function AccountCenter() {
                     />
                   </Field>
 
-                  <Field label={cms.profile.fields.gender.label} iconClass={cms.profile.fields.gender.iconClass}>
+                  <Field label={cmsData.profile.fields.gender.label} iconClass={cmsData.profile.fields.gender.iconClass}>
                     <select
                       className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
                       value={profile.gender}
                       onChange={(e) => setProfile((prev) => ({ ...prev, gender: e.target.value }))}
                     >
-                      <option value="MALE">{cms.profile.fields.gender.options.male}</option>
-                      <option value="FEMALE">{cms.profile.fields.gender.options.female}</option>
-                      <option value="OTHER">{cms.profile.fields.gender.options.other}</option>
+                      <option value="MALE">{cmsData.profile.fields.gender.options.male}</option>
+                      <option value="FEMALE">{cmsData.profile.fields.gender.options.female}</option>
+                      <option value="OTHER">{cmsData.profile.fields.gender.options.other}</option>
                     </select>
                   </Field>
 
                   <div className="md:col-span-2">
-                    <Field label={cms.profile.fields.address.label} iconClass={cms.profile.fields.address.iconClass}>
+                    <Field label={cmsData.profile.fields.address.label} iconClass={cmsData.profile.fields.address.iconClass}>
                       <input
                         className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                        placeholder={cms.profile.fields.address.placeholder}
+                        placeholder={cmsData.profile.fields.address.placeholder}
                         value={profile.address}
                         onChange={(e) => setProfile((prev) => ({ ...prev, address: e.target.value }))}
                       />
@@ -860,7 +831,7 @@ export default function AccountCenter() {
                   <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-3 pt-2">
                     <div className="text-xs text-slate-500">
                       <i className="fa-solid fa-circle-exclamation mr-2 text-slate-400" />
-                      {cms.profile.fields.email.helper}
+                      {cmsData.profile.fields.email.helper}
                     </div>
                     <button
                       type="submit"
@@ -868,7 +839,7 @@ export default function AccountCenter() {
                       disabled={loading}
                     >
                       <i className="fa-regular fa-floppy-disk" />
-                      {cms.common.actions.save}
+                      {cmsData.common.actions.save}
                     </button>
                   </div>
                 </form>
@@ -881,13 +852,13 @@ export default function AccountCenter() {
                     <form className="grid gap-4 md:grid-cols-2" onSubmit={onVerifyCurrentPassword}>
                       <div className="md:col-span-2">
                         <Field
-                          label={cms.changePassword.steps.verifyCurrent.currentPassword.label}
-                          iconClass={cms.changePassword.steps.verifyCurrent.currentPassword.iconClass}
+                          label={cmsData.changePassword.steps.verifyCurrent.currentPassword.label}
+                          iconClass={cmsData.changePassword.steps.verifyCurrent.currentPassword.iconClass}
                         >
                           <input
                             className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
                             type="password"
-                            placeholder={cms.changePassword.steps.verifyCurrent.currentPassword.placeholder}
+                            placeholder={cmsData.changePassword.steps.verifyCurrent.currentPassword.placeholder}
                             value={passwordForm.currentPassword}
                             onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
                           />
@@ -901,30 +872,33 @@ export default function AccountCenter() {
                           disabled={loading}
                         >
                           <i className="fa-solid fa-magnifying-glass" />
-                          {cms.changePassword.steps.verifyCurrent.buttonText}
+                          {cmsData.changePassword.steps.verifyCurrent.buttonText}
                         </button>
                       </div>
                     </form>
                   ) : (
                     <form className="grid gap-4 md:grid-cols-2" onSubmit={onChangePassword}>
-                      <Field label={cms.changePassword.steps.setNew.newPassword.label} iconClass={cms.changePassword.steps.setNew.newPassword.iconClass}>
+                      <Field
+                        label={cmsData.changePassword.steps.setNew.newPassword.label}
+                        iconClass={cmsData.changePassword.steps.setNew.newPassword.iconClass}
+                      >
                         <input
                           className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
                           type="password"
-                          placeholder={cms.changePassword.steps.setNew.newPassword.placeholder}
+                          placeholder={cmsData.changePassword.steps.setNew.newPassword.placeholder}
                           value={passwordForm.newPassword}
                           onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
                         />
                       </Field>
 
                       <Field
-                        label={cms.changePassword.steps.setNew.confirmPassword.label}
-                        iconClass={cms.changePassword.steps.setNew.confirmPassword.iconClass}
+                        label={cmsData.changePassword.steps.setNew.confirmPassword.label}
+                        iconClass={cmsData.changePassword.steps.setNew.confirmPassword.iconClass}
                       >
                         <input
                           className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
                           type="password"
-                          placeholder={cms.changePassword.steps.setNew.confirmPassword.placeholder}
+                          placeholder={cmsData.changePassword.steps.setNew.confirmPassword.placeholder}
                           value={passwordForm.confirmPassword}
                           onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
                         />
@@ -938,7 +912,7 @@ export default function AccountCenter() {
                           disabled={loading}
                         >
                           <i className="fa-solid fa-arrow-left" />
-                          {cms.common.actions.back}
+                          {cmsData.common.actions.back}
                         </button>
 
                         <button
@@ -947,7 +921,7 @@ export default function AccountCenter() {
                           disabled={loading}
                         >
                           <i className="fa-solid fa-key" />
-                          {cms.common.actions.updatePassword}
+                          {cmsData.common.actions.updatePassword}
                         </button>
                       </div>
                     </form>
@@ -961,11 +935,14 @@ export default function AccountCenter() {
                   {/* Step: email */}
                   {forgotStep === "email" && (
                     <form className="space-y-4" onSubmit={onSendForgotOtp}>
-                      <Field label={cms.forgotPassword.steps.email.email.label} iconClass={cms.forgotPassword.steps.email.email.iconClass}>
+                      <Field
+                        label={cmsData.forgotPassword.steps.email.email.label}
+                        iconClass={cmsData.forgotPassword.steps.email.email.iconClass}
+                      >
                         <input
                           className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
                           type="email"
-                          placeholder={cms.forgotPassword.steps.email.email.placeholder}
+                          placeholder={cmsData.forgotPassword.steps.email.email.placeholder}
                           value={forgotForm.email}
                           onChange={(e) => setForgotForm((prev) => ({ ...prev, email: e.target.value }))}
                         />
@@ -973,7 +950,7 @@ export default function AccountCenter() {
 
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                         <i className="fa-regular fa-envelope mr-2 text-slate-500" />
-                        {cms.forgotPassword.noteRegisteredEmail}:{" "}
+                        {cmsData.forgotPassword.noteRegisteredEmail}:{" "}
                         <span className="font-extrabold">{profile.email || "(chưa có)"}</span>
                       </div>
 
@@ -984,7 +961,7 @@ export default function AccountCenter() {
                           disabled={loading}
                         >
                           <i className="fa-solid fa-paper-plane" />
-                          {cms.common.actions.sendOtp}
+                          {cmsData.common.actions.sendOtp}
                         </button>
                       </div>
                     </form>
@@ -994,11 +971,14 @@ export default function AccountCenter() {
                   {forgotStep === "otp" && (
                     <form className="flex flex-col gap-3 md:flex-row md:items-end" onSubmit={onVerifyForgotOtp}>
                       <div className="flex-1">
-                        <Field label={cms.forgotPassword.steps.otp.otp.label} iconClass={cms.forgotPassword.steps.otp.otp.iconClass}>
+                        <Field
+                          label={cmsData.forgotPassword.steps.otp.otp.label}
+                          iconClass={cmsData.forgotPassword.steps.otp.otp.iconClass}
+                        >
                           <input
                             className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
                             type="text"
-                            placeholder={cms.forgotPassword.steps.otp.otp.placeholder}
+                            placeholder={cmsData.forgotPassword.steps.otp.otp.placeholder}
                             value={forgotForm.otp}
                             onChange={(e) => setForgotForm((prev) => ({ ...prev, otp: e.target.value }))}
                           />
@@ -1013,7 +993,7 @@ export default function AccountCenter() {
                           disabled={loading}
                         >
                           <i className="fa-solid fa-arrow-left" />
-                          {cms.common.actions.back}
+                          {cmsData.common.actions.back}
                         </button>
 
                         <button
@@ -1022,7 +1002,7 @@ export default function AccountCenter() {
                           disabled={loading}
                         >
                           <i className="fa-solid fa-badge-check" />
-                          {cms.common.actions.verifyOtp}
+                          {cmsData.common.actions.verifyOtp}
                         </button>
                       </div>
                     </form>
@@ -1032,26 +1012,26 @@ export default function AccountCenter() {
                   {forgotStep === "newPassword" && (
                     <form className="grid gap-4 md:grid-cols-2" onSubmit={onForgotPassword}>
                       <Field
-                        label={cms.forgotPassword.steps.newPassword.newPassword.label}
-                        iconClass={cms.forgotPassword.steps.newPassword.newPassword.iconClass}
+                        label={cmsData.forgotPassword.steps.newPassword.newPassword.label}
+                        iconClass={cmsData.forgotPassword.steps.newPassword.newPassword.iconClass}
                       >
                         <input
                           className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
                           type="password"
-                          placeholder={cms.forgotPassword.steps.newPassword.newPassword.placeholder}
+                          placeholder={cmsData.forgotPassword.steps.newPassword.newPassword.placeholder}
                           value={forgotForm.newPassword}
                           onChange={(e) => setForgotForm((prev) => ({ ...prev, newPassword: e.target.value }))}
                         />
                       </Field>
 
                       <Field
-                        label={cms.forgotPassword.steps.newPassword.confirmPassword.label}
-                        iconClass={cms.forgotPassword.steps.newPassword.confirmPassword.iconClass}
+                        label={cmsData.forgotPassword.steps.newPassword.confirmPassword.label}
+                        iconClass={cmsData.forgotPassword.steps.newPassword.confirmPassword.iconClass}
                       >
                         <input
                           className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
                           type="password"
-                          placeholder={cms.forgotPassword.steps.newPassword.confirmPassword.placeholder}
+                          placeholder={cmsData.forgotPassword.steps.newPassword.confirmPassword.placeholder}
                           value={forgotForm.confirmPassword}
                           onChange={(e) => setForgotForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
                         />
@@ -1065,7 +1045,7 @@ export default function AccountCenter() {
                           disabled={loading}
                         >
                           <i className="fa-solid fa-arrow-left" />
-                          {cms.common.actions.back}
+                          {cmsData.common.actions.back}
                         </button>
 
                         <button
@@ -1074,7 +1054,7 @@ export default function AccountCenter() {
                           disabled={loading}
                         >
                           <i className="fa-solid fa-rotate" />
-                          {cms.common.actions.resetPassword}
+                          {cmsData.common.actions.resetPassword}
                         </button>
                       </div>
                     </form>
@@ -1082,6 +1062,7 @@ export default function AccountCenter() {
                 </div>
               )}
             </div>
+
           </main>
         </div>
       </div>
@@ -1089,5 +1070,5 @@ export default function AccountCenter() {
   );
 }
 
-// Export CMS mặc định (để update DB / tái sử dụng)
-export { defaultCmsData as cmsData, defaultCmsData, deepMerge };
+// Export cmsData nếu bạn muốn tái sử dụng / hoặc để sau này gọi API ghi đè:
+export { cmsData };

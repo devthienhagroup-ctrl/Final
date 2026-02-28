@@ -16,7 +16,6 @@ import { BookingModule } from './booking/booking.module';
 
 import { CmsModule } from './cms/cms.module';
 import { CatalogModule } from './catalog/catalog.module';
-import { CartModule } from './cart/cart.module';
 
 @Module({
   imports: [
@@ -36,7 +35,6 @@ import { CartModule } from './cart/cart.module';
 
     CmsModule,
     CatalogModule,
-    CartModule,
   ],
 })
 export class AppModule {}

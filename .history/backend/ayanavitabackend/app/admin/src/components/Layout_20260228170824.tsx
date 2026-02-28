@@ -33,10 +33,10 @@ export function Layout() {
             <NavItem to="/" label="Trang chủ" />
             <NavItem to="/cms/pages" label="CMS Pages" />
             <NavItem to="/leads" label="Leads" />
-            <NavItem to="/catalog/products" label="Quản lý sản phẩm" />
+            <NavItem to="/catalog/products" label="Products" />
             <NavItem to="/catalog/crud" label="Catalog CRUD" />
-            <NavItem to="/orders" label="Quản lý đơn hàng" />
-            <NavItem to="/reviews" label="Quản lý đánh giá" />
+            <NavItem to="/orders" label="Orders" />
+            <NavItem to="/reviews" label="
           </div>
 
           <div className="side-footer">

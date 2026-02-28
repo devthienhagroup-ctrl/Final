@@ -265,12 +265,7 @@ const defaultCmsData: CmsData = {
         desc: "OTP qua email",
         iconClass: "fa-solid fa-shield-halved",
       },
-      {
-        key: "myOrders",
-        label: "Đơn hàng của tôi",
-        desc: "Xem & lọc các đơn đã đặt",
-        iconClass: "fa-solid fa-box-open",
-      },
+
     ],
     footerHint: "Tip: Hãy đặt mật khẩu mạnh và không chia sẻ OTP.",
   },

@@ -15,7 +15,6 @@ import { ProductAdminDetailPage } from "./pages/ProductAdminDetailPage";
 import { CatalogCrudPage } from "./pages/CatalogCrudPage";
 import { HomePage } from "./pages/HomePage";
 import OrderAdminPage from "./pages/OrderAdminPage";
-import { ReviewsAdminPage } from "./pages/ReviewsAdminPage";
 
 export default function App() {
   return (
@@ -39,7 +38,7 @@ export default function App() {
           <Route path="catalog/products/:productId" element={<ProductAdminDetailPage />} />
           <Route path="catalog/crud" element={<CatalogCrudPage />} />
           <Route path="orders" element={<OrderAdminPage />} />
-          <Route path="reviews" element={<ReviewsAdminPage />} />
+          <Route
         </Route>
 
         <Route path="*" element={<NotFound />} />

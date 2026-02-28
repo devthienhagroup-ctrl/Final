@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, Post } from '@nestjs/common'
+import { Body, Controller, Headers, Post, UnauthorizedException } from '@nestjs/common'
 import { OrdersService } from './orders.service'
 
 @Controller('hooks')
@@ -7,13 +7,22 @@ export class SepayWebhookController {
 
   @Post('sepay-payment')
   async handlePayment(
-    @Headers('authorization') authorization?: string,
-    @Headers('x-sepay-key') xSepayKey?: string,
-    @Headers('x-api-key') xApiKey?: string,
-    @Body() payload?: any,
+      @Headers('authorization') authorization?: string,
+      @Body() payload?: any,
   ) {
-    const token = xSepayKey ?? xApiKey ?? authorization?.replace(/^Bearer\s+/i, '').trim()
-    await this.orders.assertWebhookKey(token)
+    if (!authorization) {
+      throw new UnauthorizedException('Missing Authorization header')
+    }
+
+    // SePay gửi: Authorization: Apikey YOUR_KEY
+    const match = authorization.match(/^Apikey\s+(.+)$/i)
+    if (!match) {
+      throw new UnauthorizedException('Invalid Authorization format')
+    }
+
+    const apiKey = match[1].trim()
+
+    await this.orders.assertWebhookKey(apiKey)
 
     return this.orders.handleSepayWebhook(payload)
   }

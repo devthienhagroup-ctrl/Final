@@ -8,8 +8,9 @@ export class OrdersService {
   constructor(private readonly prisma: PrismaService) {}
 
   private readonly sepayKeyHash =
-    process.env.SEPAY_WEBHOOK_KEY_HASH ?? '$2b$10$EalbSO88wwwkz0Y54ZUW4ux1n98rJEPyW6coC8odiInDUET3HARCO'
+      process.env.SEPAY_WEBHOOK_KEY_HASH ?? '$2a$12$2yvupTSA/.mZSjt1.gto2OqcfxoBiUzskasi7zpYogBDZMMWA8uXa'
 
+  // Bank nhận tiền
   private readonly bankInfo = {
     gateway: 'BIDV',
     accountNumber: '8810091561',
@@ -20,10 +21,13 @@ export class OrdersService {
     return `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`
   }
 
+  // Nội dung chuyển khoản sẽ nhét vào QR: RQA:<email>::<slug>
+  // (encodeURIComponent để an toàn ký tự)
   private buildSepayCode(email: string, courseSlug: string) {
     return `RQA:${encodeURIComponent(email)}::${encodeURIComponent(courseSlug)}`
   }
 
+  // Parse được dù ngân hàng thêm chữ trước/sau vì mình match theo pattern có RQA:
   private parseSepayCode(content?: string | null): { email: string; courseSlug: string } | null {
     if (!content) return null
 
@@ -40,7 +44,11 @@ export class OrdersService {
     }
   }
 
-  private withSepayMeta(order: { id: number; status: OrderStatus; total: number; createdAt: Date }, email: string, courseSlug: string) {
+  private withSepayMeta(
+      order: { id: number; status: OrderStatus; total: number; createdAt: Date },
+      email: string,
+      courseSlug: string,
+  ) {
     return {
       ...order,
       payment: {
@@ -67,10 +75,10 @@ export class OrdersService {
     const q = (params.q ?? '').toString().trim()
 
     const status = statusRaw
-      ? Object.values(OrderStatus).includes(statusRaw as OrderStatus)
-        ? (statusRaw as OrderStatus)
+        ? Object.values(OrderStatus).includes(statusRaw as OrderStatus)
+            ? (statusRaw as OrderStatus)
+            : undefined
         : undefined
-      : undefined
 
     const qNum = Number(q)
     const qIsNum = q.length > 0 && Number.isFinite(qNum)
@@ -142,6 +150,7 @@ export class OrdersService {
       throw new ForbiddenException('Already enrolled')
     }
 
+    // FREE course: auto enroll
     if ((course.price ?? 0) === 0) {
       const paid = await this.prisma.$transaction(async (tx) => {
         const paidOrder = await tx.order.create({
@@ -178,6 +187,7 @@ export class OrdersService {
       return { mode: 'FREE', enrolled: true, orderId: paid.id }
     }
 
+    // Nếu đã có pending order thì trả lại để dùng lại QR/nội dung
     const pending = await this.prisma.order.findFirst({
       where: {
         userId,
@@ -220,10 +230,20 @@ export class OrdersService {
   }
 
   async handleSepayWebhook(payload: any) {
+    // 1) chỉ nhận tiền vào
     if (String(payload?.transferType || '').toLowerCase() !== 'in') {
       return { ok: true, ignored: true, message: 'Ignore transferType != in' }
     }
 
+    // 2) verify đúng ngân hàng + đúng STK (chống fake webhook)
+    if (
+        String(payload?.gateway || '').toUpperCase() !== this.bankInfo.gateway ||
+        String(payload?.accountNumber || '') !== this.bankInfo.accountNumber
+    ) {
+      throw new ForbiddenException('Invalid bank account information')
+    }
+
+    // 3) parse content để ra email + courseSlug
     const parsed = this.parseSepayCode(payload?.content)
     if (!parsed) {
       return { ok: true, ignored: true, message: 'Missing RQA code in content' }
@@ -252,16 +272,19 @@ export class OrdersService {
     })
     if (!order) throw new NotFoundException('Order not found for SePay webhook')
 
-    if (order.status === OrderStatus.PAID) {
-      return { ok: true, alreadyPaid: true, orderId: order.id, message: 'Order already paid' }
-    }
-
+    // 4) tiền chuyển phải đủ
     const transferAmount = Number(payload?.transferAmount ?? 0)
-    if (!Number.isFinite(transferAmount) || transferAmount < order.total) {
+    if (!Number.isFinite(transferAmount) || transferAmount < (order.total ?? 0)) {
       throw new ForbiddenException('Transfer amount is not enough for this order')
     }
 
+    // 5) Mark paid idempotent (nếu webhook bắn lại cũng không bị double-enroll)
     const paid = await this.markPaid(order.id)
+
+    if (paid?.alreadyPaid) {
+      return { ok: true, alreadyPaid: true, orderId: order.id, message: 'Order already paid' }
+    }
+
     return {
       ok: true,
       message: 'Thanh toán SePay thành công, đã kích hoạt khóa học',
@@ -311,11 +334,15 @@ export class OrdersService {
     if (order.status === OrderStatus.PAID) return { ok: true, alreadyPaid: true }
 
     return this.prisma.$transaction(async (tx) => {
-      const paidOrder = await tx.order.update({
-        where: { id: orderId },
+      // idempotent: chỉ update nếu đang PENDING
+      const updated = await tx.order.updateMany({
+        where: { id: orderId, status: OrderStatus.PENDING },
         data: { status: OrderStatus.PAID },
-        select: { id: true, status: true, updatedAt: true },
       })
+      if (updated.count === 0) {
+        // có thể webhook bắn lại, order đã PAID bởi request khác
+        return { ok: true, alreadyPaid: true }
+      }
 
       for (const item of order.items) {
         await tx.courseAccess.upsert({
@@ -331,7 +358,7 @@ export class OrdersService {
 
       return {
         ok: true,
-        order: paidOrder,
+        orderId,
         enrolledCourses: order.items.map((i) => i.courseId),
       }
     })

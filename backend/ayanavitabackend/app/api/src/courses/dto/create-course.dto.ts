@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer'
+import { Transform, Type } from 'class-transformer'
 import { IsArray, IsBoolean, IsInt, IsNumber, IsObject, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator'
 
 class TranslationDto {
@@ -59,6 +59,10 @@ export class CreateCourseDto {
   shortDescription?: string
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') return undefined
+    return String(value)
+  })
   @IsString()
   time?: string
 

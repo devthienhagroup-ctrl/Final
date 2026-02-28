@@ -278,7 +278,6 @@ export default function CourseDetailPage() {
               <p><b>Chủ tài khoản:</b> {qrData.accountName}</p>
               <p><b>Số tiền:</b> {money(qrData.amount)}</p>
               <p><b>Nội dung CK:</b> <span className="font-mono">{qrData.content}</span></p>
-              <p className="text-emerald-700 font-semibold">Sau khi SePay nhận webhook thành công, hệ thống sẽ tự kích hoạt khóa học.</p>
             </div>
           </div>
         </div>

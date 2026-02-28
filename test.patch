@@ -1,1378 +1,165 @@
-diff --git a/Home/ayanavita-fontend-final/src/components/layout/Header.tsx b/Home/ayanavita-fontend-final/src/components/layout/Header.tsx
-index ac272ca67d2419e6760941093eb727cce70c7a0f..fbfd059ac946534762202914700ed888678fa16f 100644
---- a/Home/ayanavita-fontend-final/src/components/layout/Header.tsx
-+++ b/Home/ayanavita-fontend-final/src/components/layout/Header.tsx
-@@ -92,50 +92,64 @@ export function Header({
-     open: false,
-     message: "",
-   });
-   const [userMenuOpen, setUserMenuOpen] = useState<UserMenuItem>(null);
-   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => Boolean(localStorage.getItem("aya_access_token")));
-   const [miniCartOpen, setMiniCartOpen] = useState(false);
-   const { totalItems } = useCart();
-
-   const [language, setLanguage] = useState<Language>(() => {
-     const savedLang = localStorage.getItem("preferred-language") as Language;
-     return savedLang || "vi";
-   });
-   const [langOpen, setLangOpen] = useState(false);
-   const rootRef = useRef<HTMLDivElement | null>(null);
-
-   useEffect(() => {
-     localStorage.setItem("preferred-language", language);
-     window.dispatchEvent(new CustomEvent("languageChange", { detail: { language } }));
-   }, [language]);
-
-   const isActiveLink = (path: string) => {
-     if (path === "/") return location.pathname === "/";
-     return location.pathname.startsWith(path);
-   };
-
-+  useEffect(() => {
-+    const params = new URLSearchParams(location.search);
-+    const auth = params.get("auth");
-+    if (auth !== "login" && auth !== "register") return;
-+
-+    const langFromQuery = params.get("lang") as Language | null;
-+    if (langFromQuery === "vi" || langFromQuery === "en" || langFromQuery === "de") {
-+      setLanguage(langFromQuery);
-+    }
-+
-+    setAuthTab(auth);
-+    setAuthOpen(true);
-+  }, [location.search]);
-+
-   const isProductsActive = useMemo(() => {
-     return cms.productsDropdownItems.some(
-       (item) => !("separator" in item) && location.pathname.startsWith(item.to),
-     );
-   }, [location.pathname, cms.productsDropdownItems]);
-
-   const isPricingActive = useMemo(() => {
-     return cms.pricingDropdownItems.some(
-       (item) => !("separator" in item) && location.pathname.startsWith(item.to),
-     );
-   }, [location.pathname, cms.pricingDropdownItems]);
-
-   useEffect(() => {
-     const onDown = (e: MouseEvent) => {
-       const root = rootRef.current;
-       if (!root) return;
-       if (!root.contains(e.target as Node)) {
-         setOpenDd(null);
-         setDrawerOpen(false);
-         setLangOpen(false);
-         setUserMenuOpen(null);
-       }
-     };
-     const onKey = (e: KeyboardEvent) => {
-       if (e.key === "Escape") {
-diff --git a/Home/ayanavita-fontend-final/src/contexts/CartContext.tsx b/Home/ayanavita-fontend-final/src/contexts/CartContext.tsx
-index 64ba3cefaed24e2c7aaeb7f00052b186e601cb9e..4b8635ca6fcdcb8e03bc3c86b5b94c74938c92a0 100644
---- a/Home/ayanavita-fontend-final/src/contexts/CartContext.tsx
-+++ b/Home/ayanavita-fontend-final/src/contexts/CartContext.tsx
-@@ -44,151 +44,177 @@ function mapGuestToState(items: GuestCartItem[]): CartState {
-     itemId: null,
-     productId: item.productId,
-     name: item.name || `Product #${item.productId}`,
-     price: item.price ?? 0,
-     quantity: item.quantity,
-     image: item.image,
-   }))
-   const subtotal = mapped.reduce((sum, item) => sum + item.price * item.quantity, 0)
-   const totalItems = mapped.reduce((sum, item) => sum + item.quantity, 0)
-   return { cartId: null, items: mapped, subtotal, totalItems }
- }
-
- function mapServerToState(cart: CartResponse): CartState {
-   return {
-     cartId: cart.cartId,
-     items: cart.items.map((item) => ({ ...item })),
-     subtotal: cart.subtotal,
-     totalItems: cart.totalItems,
-   }
- }
-
- export function CartProvider({ children }: { children: React.ReactNode }) {
-   const [state, setState] = useState<CartState>(emptyState)
-   const [loading, setLoading] = useState(true)
-   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => Boolean(localStorage.getItem('aya_access_token')))
-+  const [serverCartEnabled, setServerCartEnabled] = useState(true)
-   const prevAuthRef = useRef(isAuthenticated)
-
-+  const disableServerCartAndUseGuest = useCallback(() => {
-+    setServerCartEnabled(false)
-+    setState(mapGuestToState(readGuestCart()))
-+  }, [])
-+
-+  const canUseServerCart = isAuthenticated && serverCartEnabled
-+
-   const refresh = useCallback(async () => {
--    if (!isAuthenticated) {
-+    if (!canUseServerCart) {
-       setState(mapGuestToState(readGuestCart()))
-       return
+diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
+index f40a924e01934cfa314feded1479b860a923c830..b8b30057eac7d998e087ed101a6cfc6b73fe4b30 100644
+--- a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
++++ b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
+@@ -60,71 +60,71 @@ export class CoursesService {
      }
--    const cart = await cartApi.getCart()
--    setState(mapServerToState(cart))
--  }, [isAuthenticated])
-+    try {
-+      const cart = await cartApi.getCart()
-+      setState(mapServerToState(cart))
-+    } catch {
-+      disableServerCartAndUseGuest()
-+    }
-+  }, [canUseServerCart, disableServerCartAndUseGuest])
+   }
 
-   useEffect(() => {
-     const syncToken = () => setIsAuthenticated(Boolean(localStorage.getItem('aya_access_token')))
-     syncToken()
-     const id = window.setInterval(syncToken, 600)
-     const onChange = () => {
-       if (!isAuthenticated) setState(mapGuestToState(readGuestCart()))
+
+   private hydratePrimaryContent(dto: Partial<CreateCourseDto>): Partial<CreateCourseDto> {
+     const objectivesByLocale = this.normalizeLocalizedList(dto.objectives)
+     const targetAudienceByLocale = this.normalizeLocalizedList(dto.targetAudience)
+     const benefitsByLocale = this.normalizeLocalizedList(dto.benefits)
+
+     const viContent = dto.contentTranslations?.vi
+
+     return {
+       ...dto,
+       objectives: (dto.objectives !== undefined ? objectivesByLocale.vi : (viContent?.objectives || objectivesByLocale.vi)) as any,
+       targetAudience: (dto.targetAudience !== undefined ? targetAudienceByLocale.vi : (viContent?.targetAudience || targetAudienceByLocale.vi)) as any,
+       benefits: (dto.benefits !== undefined ? benefitsByLocale.vi : (viContent?.benefits || benefitsByLocale.vi)) as any,
      }
-     window.addEventListener('aya_cart_changed', onChange)
-     return () => {
-       window.clearInterval(id)
-       window.removeEventListener('aya_cart_changed', onChange)
+   }
+
+   private buildCreateCoursePayload(dto: CreateCourseDto & { title: string }): Prisma.CourseUncheckedCreateInput {
+     return {
+       title: dto.title,
+       slug: dto.slug,
+       ...(dto.description !== undefined ? { description: dto.description } : {}),
+       ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
+-      ...(dto.time !== undefined ? { time: dto.time } : {}),
++      ...(dto.time !== undefined ? { time: String(dto.time) } : {}),
+       ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
+       ...(dto.price !== undefined ? { price: dto.price } : {}),
+       ...(dto.published !== undefined ? { published: dto.published } : {}),
+       ...(dto.topicId !== undefined ? { topicId: dto.topicId } : {}),
+       ...(dto.objectives !== undefined ? { objectives: dto.objectives as any } : {}),
+       ...(dto.targetAudience !== undefined ? { targetAudience: dto.targetAudience as any } : {}),
+       ...(dto.benefits !== undefined ? { benefits: dto.benefits as any } : {}),
+       ...(dto.ratingAvg !== undefined ? { ratingAvg: dto.ratingAvg } : {}),
+       ...(dto.ratingCount !== undefined ? { ratingCount: dto.ratingCount } : {}),
+       ...(dto.enrollmentCount !== undefined ? { enrollmentCount: dto.enrollmentCount } : {}),
      }
-   }, [isAuthenticated])
+   }
 
-   useEffect(() => {
-     const handleAuthTransition = async () => {
-       try {
-         setLoading(true)
--        if (!prevAuthRef.current && isAuthenticated) {
-+        if (!prevAuthRef.current && canUseServerCart) {
-           const guest = readGuestCart()
-           if (guest.length) {
-             await cartApi.merge(
-               guest.map((item) => ({ productId: item.productId, quantity: item.quantity })),
-             )
-             clearGuestCart()
-           }
-         }
-         await refresh()
-+      } catch {
-+        disableServerCartAndUseGuest()
-       } finally {
-         prevAuthRef.current = isAuthenticated
-         setLoading(false)
-       }
+   private buildUpdateCoursePayload(dto: UpdateCourseDto): Prisma.CourseUncheckedUpdateInput {
+     return {
+       ...(dto.title !== undefined ? { title: dto.title } : {}),
+       ...(dto.slug !== undefined ? { slug: dto.slug } : {}),
+       ...(dto.description !== undefined ? { description: dto.description } : {}),
+       ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
+-      ...(dto.time !== undefined ? { time: dto.time } : {}),
++      ...(dto.time !== undefined ? { time: String(dto.time) } : {}),
+       ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
+       ...(dto.price !== undefined ? { price: dto.price } : {}),
+       ...(dto.published !== undefined ? { published: dto.published } : {}),
+       ...(dto.topicId !== undefined ? { topicId: dto.topicId } : {}),
+       ...(dto.objectives !== undefined ? { objectives: dto.objectives as any } : {}),
+       ...(dto.targetAudience !== undefined ? { targetAudience: dto.targetAudience as any } : {}),
+       ...(dto.benefits !== undefined ? { benefits: dto.benefits as any } : {}),
+       ...(dto.ratingAvg !== undefined ? { ratingAvg: dto.ratingAvg } : {}),
+       ...(dto.ratingCount !== undefined ? { ratingCount: dto.ratingCount } : {}),
+       ...(dto.enrollmentCount !== undefined ? { enrollmentCount: dto.enrollmentCount } : {}),
      }
-
-     handleAuthTransition()
--  }, [isAuthenticated, refresh])
-+  }, [canUseServerCart, disableServerCartAndUseGuest, isAuthenticated, refresh])
-
-   const addItem = useCallback(
-     async (input: AddItemInput) => {
-       const quantity = input.quantity ?? 1
--      if (isAuthenticated) {
--        const cart = await cartApi.addItem({
--          productId: input.productId,
--          quantity,
--        })
--        setState(mapServerToState(cart))
--        return
-+      if (canUseServerCart) {
-+        try {
-+          const cart = await cartApi.addItem({
-+            productId: input.productId,
-+            quantity,
-+          })
-+          setState(mapServerToState(cart))
-+          return
-+        } catch {
-+          setServerCartEnabled(false)
-+        }
-       }
-
-       const current = readGuestCart()
-       const existing = current.find((it) => it.productId === input.productId)
-       if (existing) {
-         existing.quantity += quantity
-       } else {
-         current.push({
-           productId: input.productId,
-           quantity,
-           name: input.name,
-           price: input.price,
-           image: input.image,
-         })
-       }
-       writeGuestCart(current)
-       setState(mapGuestToState(current))
-     },
--    [isAuthenticated],
-+    [canUseServerCart],
-   )
-
-   const updateQuantity = useCallback(
-     async (itemIdOrProductId: number, quantity: number) => {
--      if (isAuthenticated) {
--        const cart = await cartApi.updateItem(itemIdOrProductId, quantity)
--        setState(mapServerToState(cart))
--        return
-+      if (canUseServerCart) {
-+        try {
-+          const cart = await cartApi.updateItem(itemIdOrProductId, quantity)
-+          setState(mapServerToState(cart))
-+          return
-+        } catch {
-+          setServerCartEnabled(false)
-+        }
-       }
-
-       const current = readGuestCart()
-       const next = current
-         .map((item) =>
-           item.productId === itemIdOrProductId ? { ...item, quantity: Math.max(0, quantity) } : item,
-         )
-         .filter((item) => item.quantity > 0)
-       writeGuestCart(next)
-       setState(mapGuestToState(next))
-     },
--    [isAuthenticated],
-+    [canUseServerCart],
-   )
-
-   const removeItem = useCallback(
-     async (itemIdOrProductId: number) => {
--      if (isAuthenticated) {
--        const cart = await cartApi.removeItem(itemIdOrProductId)
--        setState(mapServerToState(cart))
--        return
-+      if (canUseServerCart) {
-+        try {
-+          const cart = await cartApi.removeItem(itemIdOrProductId)
-+          setState(mapServerToState(cart))
-+          return
-+        } catch {
-+          setServerCartEnabled(false)
-+        }
-       }
-       const next = readGuestCart().filter((item) => item.productId !== itemIdOrProductId)
-       writeGuestCart(next)
-       setState(mapGuestToState(next))
-     },
--    [isAuthenticated],
-+    [canUseServerCart],
-   )
-
-   const value = useMemo(
-     () => ({ ...state, isAuthenticated, loading, addItem, updateQuantity, removeItem, refresh }),
-     [state, isAuthenticated, loading, addItem, updateQuantity, removeItem, refresh],
-   )
-
-   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
- }
-
- export function useCart() {
-   const context = useContext(CartContext)
-   if (!context) throw new Error('useCart must be used inside CartProvider')
-   return context
- }
-diff --git a/Home/ayanavita-fontend-final/src/pages/CourseDetailPage.tsx b/Home/ayanavita-fontend-final/src/pages/CourseDetailPage.tsx
-index 8fe565d2c6990453932e1d0831ee3ebab8bab4fb..3350d2d24a1495f85732bcc1ca7cd3a36d72639d 100644
---- a/Home/ayanavita-fontend-final/src/pages/CourseDetailPage.tsx
-+++ b/Home/ayanavita-fontend-final/src/pages/CourseDetailPage.tsx
-@@ -9,108 +9,191 @@ type LessonItem = { id: number; order: number; title: string; modules: ModuleIte
- type ReviewItem = {
-   id: number;
-   stars: number;
-   comment?: string | null;
-   customerName?: string | null;
-   createdAt: string;
- };
-
- type CourseDetail = {
-   id: number;
-   slug: string;
-   title: string;
-   shortDescription?: string | null;
-   description?: string | null;
-   time?: string | null;
-   thumbnail?: string | null;
-   price: number;
-   ratingAvg: number;
-   ratingCount: number;
-   enrollmentCount: number;
-   topic?: { id: number; name: string } | null;
-   lessons: LessonItem[];
-   reviews: ReviewItem[];
- };
-
-+type SepayOrderResponse = {
-+  id?: number;
-+  orderId?: number;
-+  status?: string;
-+  mode?: string;
-+  enrolled?: boolean;
-+  total?: number;
-+  payment?: {
-+    provider?: string;
-+    bank?: {
-+      gateway?: string;
-+      accountNumber?: string;
-+      accountName?: string;
-+    };
-+    transferContent?: string;
-+  };
-+};
-+
- const money = (n: number) =>
-   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n || 0);
-
- const formatHour = (value?: string | null) => {
-   if (!value) return "-";
-   const n = Number(String(value).replace(/[^0-9.]/g, ""));
-   if (Number.isFinite(n) && n > 0) return `${n} Hour`;
-   return `${value} Hour`;
- };
-
- const COURSE_THUMBNAIL_FALLBACK =
-   "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?auto=format&fit=crop&w=1600&q=80";
-
-+const REGISTER_LABEL: Record<string, string> = {
-+  vi: "Đăng ký",
-+  en: "Register",
-+  de: "Registrieren",
-+};
-+
-+const toRegisterUrl = (courseSlug: string, lang: string) => {
-+  const qs = new URLSearchParams({ auth: "login", lang, course: courseSlug });
-+  return `/?${qs.toString()}`;
-+};
-+
-+function buildQrUrl(bankCode: string, accountNumber: string, amount: number, content: string, accountName: string) {
-+  const qs = new URLSearchParams({
-+    amount: String(Math.max(0, amount || 0)),
-+    addInfo: content,
-+    accountName,
-+  });
-+  return `https://img.vietqr.io/image/${encodeURIComponent(bankCode)}-${encodeURIComponent(accountNumber)}-compact2.png?${qs.toString()}`;
-+}
-+
- export default function CourseDetailPage() {
-   const { slug = "" } = useParams<{ slug: string }>();
-   const nav = useNavigate();
-
-   const [lang, setLang] = useState(() => localStorage.getItem("preferred-language") || "vi");
-   const [course, setCourse] = useState<CourseDetail | null>(null);
-   const [loading, setLoading] = useState(true);
-+  const [ordering, setOrdering] = useState(false);
-+  const [qrOpen, setQrOpen] = useState(false);
-+  const [qrData, setQrData] = useState<{ bankCode: string; accountNumber: string; accountName: string; content: string; amount: number } | null>(null);
-
-   useEffect(() => {
-     const onLangChange = (event: Event) => {
-       const customEvent = event as CustomEvent<{ language?: string }>;
-       if (customEvent.detail?.language) setLang(customEvent.detail.language);
-     };
-     window.addEventListener("languageChange", onLangChange as EventListener);
-     return () => window.removeEventListener("languageChange", onLangChange as EventListener);
-   }, []);
-
-   useEffect(() => {
-     let cancelled = false;
-     if (!slug) return;
-
-     (async () => {
-       setLoading(true);
-       try {
-         const res = await http.get(`/public/courses/slug/${encodeURIComponent(slug)}`, { params: { lang } });
-         if (!cancelled) setCourse(res.data);
-       } catch {
-         if (!cancelled) setCourse(null);
-       } finally {
-         if (!cancelled) setLoading(false);
-       }
-     })();
-
-     return () => {
-       cancelled = true;
-     };
-   }, [slug, lang]);
-
-   const totalModules = useMemo(
-     () => (course?.lessons || []).reduce((sum, lesson) => sum + lesson.modules.length, 0),
-     [course?.lessons],
-   );
-
-   const thumbnail = course?.thumbnail || COURSE_THUMBNAIL_FALLBACK;
-
-+  const onRegister = async () => {
-+    if (!course) return;
-+    const token = localStorage.getItem("aya_access_token");
-+    if (!token) {
-+      nav(toRegisterUrl(course.slug, lang));
-+      return;
-+    }
-+
-+    try {
-+      setOrdering(true);
-+      const res = await http.post<SepayOrderResponse>(`/courses/${course.id}/order`);
-+      const payload = res.data || {};
-+
-+      if (payload.mode === "FREE" || payload.enrolled) {
-+        window.alert("Đăng ký thành công. Khóa học miễn phí đã được kích hoạt.");
-+        return;
-+      }
-+
-+      const bankCode = payload.payment?.bank?.gateway || "BIDV";
-+      const accountNumber = payload.payment?.bank?.accountNumber || "8810091561";
-+      const accountName = payload.payment?.bank?.accountName || "LE MINH HIEU";
-+      const content = payload.payment?.transferContent || "";
-+      const amount = Number(payload.total || course.price || 0);
-+
-+      if (!content) {
-+        window.alert("Không lấy được thông tin chuyển khoản từ hệ thống.");
-+        return;
-+      }
-+
-+      setQrData({ bankCode, accountNumber, accountName, content, amount });
-+      setQrOpen(true);
-+    } catch (error: any) {
-+      if (error?.response?.status === 401) {
-+        nav(toRegisterUrl(course.slug, lang));
-+        return;
-+      }
-+      window.alert(error?.response?.data?.message || "Không thể tạo đơn đăng ký. Vui lòng thử lại.");
-+    } finally {
-+      setOrdering(false);
-+    }
-+  };
-+
-   return (
-     <div className="text-slate-900">
-       <SiteHeader />
-       <main className="px-4 py-8">
-         <div className="max-w-6xl mx-auto grid gap-4">
-           <button className="btn w-fit" type="button" onClick={() => nav("/courses")}>← Khóa học</button>
-
-           {loading ? (
-             <div className="card p-8">Đang tải...</div>
-           ) : !course ? (
-             <div className="card p-8">Không tìm thấy khóa học.</div>
-           ) : (
-             <section className="grid gap-4 lg:grid-cols-10">
-               <div className="lg:col-span-7 grid gap-4">
-                 <article className="card p-6">
-                   <div className="chip w-fit">{course.topic?.name || "Course"}</div>
-                   <h1 className="text-3xl font-extrabold mt-3">{course.title}</h1>
-                   <p className="text-slate-700 mt-2">{course.shortDescription || course.description}</p>
-                 </article>
-
-                 <article className="card p-6">
-                   <h2 className="text-xl font-extrabold">Nội dung khóa học</h2>
-                   <p className="text-sm text-slate-600 mt-1">{course.lessons.length} bài học • {totalModules} module</p>
-
-                   <div className="mt-4 grid gap-3">
-@@ -122,58 +205,85 @@ export default function CourseDetailPage() {
-                             <li key={module.id}>• Module {module.order + 1}: {module.title}</li>
-                           ))}
-                         </ul>
-                       </article>
-                     ))}
-                   </div>
-                 </article>
-               </div>
-
-               <aside className="lg:col-span-3 grid gap-4">
-                 <article className="card overflow-hidden">
-                   <img src={thumbnail} alt={course.title} className="w-full h-48 object-cover" />
-                   <div className="p-4 text-xs text-slate-500">Thumbnail khóa học</div>
-                 </article>
-
-                 <article className="card p-5">
-                   <div className="text-2xl font-extrabold text-indigo-700">{money(course.price)}</div>
-                   <div className="mt-3 flex flex-wrap gap-2 text-sm">
-                     <span className="chip">⏱ {formatHour(course.time)}</span>
-                     <span className="chip">⭐ {course.ratingAvg.toFixed(1)} ({course.ratingCount})</span>
-                     <span className="chip">👥 {course.enrollmentCount}</span>
-                   </div>
-                   <button
-                     className="btn btn-primary w-full mt-4"
-                     type="button"
--                    onClick={() => window.alert("Đăng ký khóa học thành công (demo).")}
-+                    onClick={onRegister}
-+                    disabled={ordering}
-                   >
--                    Đăng ký
-+                    {ordering ? "Đang tạo mã QR..." : REGISTER_LABEL[lang] || REGISTER_LABEL.vi}
-                   </button>
-                 </article>
-
-                 <article className="card p-5">
-                   <h2 className="text-lg font-extrabold">Đánh giá khóa học</h2>
-                   <div className="mt-3 grid gap-3">
-                     {course.reviews.length ? (
-                       course.reviews.slice(0, 3).map((review) => (
-                         <article key={review.id} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
-                           <div className="font-bold">{review.customerName || "Học viên"}</div>
-                           <div className="text-sm text-amber-600">
-                             {"★".repeat(Math.max(1, Math.min(5, review.stars)))}
-                           </div>
-                           <div className="text-sm text-slate-700 mt-1">{review.comment || "-"}</div>
-                         </article>
-                       ))
-                     ) : (
-                       <div className="text-sm text-slate-600">Chưa có đánh giá.</div>
-                     )}
-                   </div>
-                 </article>
-               </aside>
-             </section>
-           )}
-         </div>
-       </main>
-+
-+      {qrOpen && qrData ? (
-+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4" onMouseDown={(e) => {
-+          if (e.target === e.currentTarget) setQrOpen(false);
-+        }}>
-+          <div className="card w-full max-w-md p-5">
-+            <div className="flex items-center justify-between gap-2">
-+              <h3 className="text-lg font-extrabold">Quét QR để thanh toán</h3>
-+              <button className="btn h-9 w-9 p-0" onClick={() => setQrOpen(false)} type="button">✕</button>
-+            </div>
-+            <img
-+              className="mt-4 w-full rounded-2xl ring-1 ring-slate-200"
-+              src={buildQrUrl(qrData.bankCode, qrData.accountNumber, qrData.amount, qrData.content, qrData.accountName)}
-+              alt="SePay QR"
-+            />
-+            <div className="mt-4 space-y-2 text-sm">
-+              <p><b>Ngân hàng:</b> {qrData.bankCode}</p>
-+              <p><b>Số tài khoản:</b> {qrData.accountNumber}</p>
-+              <p><b>Chủ tài khoản:</b> {qrData.accountName}</p>
-+              <p><b>Số tiền:</b> {money(qrData.amount)}</p>
-+              <p><b>Nội dung CK:</b> <span className="font-mono">{qrData.content}</span></p>
-+              <p className="text-emerald-700 font-semibold">Sau khi SePay nhận webhook thành công, hệ thống sẽ tự kích hoạt khóa học.</p>
-+            </div>
-+          </div>
-+        </div>
-+      ) : null}
-       <Footer />
-     </div>
-   );
- }
-diff --git a/Home/ayanavita-fontend-final/src/pages/CoursesPage.tsx b/Home/ayanavita-fontend-final/src/pages/CoursesPage.tsx
-index 629767023de707b8d25bdd0304ea0b53e4084293..bb1d09c96761d6eceb91fff6ec44a97b3a653531 100644
---- a/Home/ayanavita-fontend-final/src/pages/CoursesPage.tsx
-+++ b/Home/ayanavita-fontend-final/src/pages/CoursesPage.tsx
-@@ -1,44 +1,58 @@
- // src/pages/CoursesPage.tsx
- import React, { useEffect, useMemo, useState } from "react";
- import { useNavigate } from "react-router-dom";
-
- // NOTE: chỉnh lại path nếu project của bạn đặt http client ở chỗ khác.
- // Mục tiêu: dùng được mẫu `await http.get(...)` như yêu cầu.
- import {http} from "../api/http";
-
- import { type Course, type CourseTopic } from "../data/courses.data";
- import { money } from "../services/booking.utils";
- import {
-   readCourseCart,
-   addCourseToCart,
-   removeCourseFromCart,
-   clearCourseCart,
- } from "../services/courseCart.utils";
-
- type ApiTopicOption = { id: number; name: string };
-
-+type SepayOrderResponse = {
-+  mode?: string;
-+  enrolled?: boolean;
-+  total?: number;
-+  payment?: {
-+    bank?: {
-+      gateway?: string;
-+      accountNumber?: string;
-+      accountName?: string;
-+    };
-+    transferContent?: string;
-+  };
-+};
-+
- export type CoursesPageCmsData = {
-   // HERO
-   heroImageSrc: string;
-   heroImageAlt: string;
-   heroChips: { iconClass: string; text: string }[]; // icons can be customized from CMS (colors remain in code)
-   heroTitle: string;
-   heroTitleHighlight: string;
-   heroCartBtn: string;
-   heroProductCartLink: string;
-
-   // FILTER
-   filterKicker: string;
-   filterTitle: string;
-   filterFoundText: string; // use {count}
-   filterResetBtn: string;
-   filterOpenCartBtn: string;
-   filterOpenCartBtnSuffix: string; // use {count}
-   keywordLabel: string;
-   keywordPlaceholder: string;
-   topicLabel: string;
-   topicAllLabel: string;
-   prototypeNote: string;
-
-   // LIST
-   listKicker: string;
-@@ -113,50 +127,64 @@ export const defaultCmsData: CoursesPageCmsData = {
-   emptyTitle: "Không có khoá học phù hợp",
-   emptyDesc: "Thử đổi từ khoá/chủ đề khác.",
-   emptyResetBtn: "Đặt lại",
-
-   detailModalKicker: "Khoá học",
-   detailRegisterBtn: "Đăng ký ngay",
-   detailCloseAria: "Đóng",
-   detailStudentsSuffix: "HV",
-   detailPriceNote: "Giá niêm yết (có thể áp voucher nếu có)",
-
-   checkoutModalKicker: "Thanh toán",
-   checkoutModalTitle: "Xác nhận đăng ký khoá học",
-   checkoutCloseAria: "Đóng",
-   checkoutEmptyTitle: "Chưa chọn khoá học",
-   checkoutEmptyDesc: "Vui lòng chọn khoá học để tiếp tục.",
-   checkoutSubtotalLabel: "Tổng thanh toán",
-   checkoutConfirmBtn: "Xác nhận & Thanh toán",
-   checkoutContinueBtn: "Tiếp tục xem khoá học",
-
-   alertRegistered: "Bạn đã đăng ký thành công khoá học: {title}",
-   confirmCancelRegistration: "Bạn có chắc muốn huỷ đăng ký khoá học này?",
-   alertCheckout: "Đang chuyển sang trang thanh toán...",
- };
- const HERO_CHIP_COLOR_BY_INDEX = ["text-amber-600", "text-emerald-600", "text-indigo-600"] as const;
-
-+const toRegisterUrl = (courseSlug: string, language: string) => {
-+  const qs = new URLSearchParams({ auth: "login", lang: language, course: courseSlug });
-+  return `/?${qs.toString()}`;
-+};
-+
-+const buildQrUrl = (bankCode: string, accountNumber: string, amount: number, content: string, accountName: string) => {
-+  const qs = new URLSearchParams({
-+    amount: String(Math.max(0, amount || 0)),
-+    addInfo: content,
-+    accountName,
-+  });
-+  return `https://img.vietqr.io/image/${encodeURIComponent(bankCode)}-${encodeURIComponent(accountNumber)}-compact2.png?${qs.toString()}`;
-+};
-+
- function tpl(text: string, vars: Record<string, string | number>) {
-   let out = text;
-   for (const [k, v] of Object.entries(vars)) out = out.split(`{${k}}`).join(String(v));
-   return out;
- }
-
- function Stars({ rating }: { rating: number }) {
-   const full = Math.round(rating);
-   return (
-       <span className="inline-flex items-center gap-1">
-       {Array.from({ length: 5 }).map((_, i) => (
-           <i key={i} className={`fa-solid fa-star ${i < full ? "star" : "text-slate-300"}`} />
-       ))}
-     </span>
-   );
- }
-
-
- function CourseDetailModal({
-                              open,
-                              course,
-                              onClose,
-                              onAdd,
-                              cms,
-                            }: {
-@@ -385,50 +413,53 @@ export default function CoursesPage({
-           setCmsDataState((prev) => ({ ...prev, ...remoteCms }));
-         }
-       } catch (err) {
-         // Không phá UI nếu API fail
-         console.error("Fetch courses CMS failed:", err);
-       }
-     })();
-
-     return () => {
-       cancelled = true;
-     };
-   }, [currentLanguage]);
-
-   const cms = useMemo(() => ({ ...defaultCmsData, ...(cmsDataState || {}) }), [cmsDataState]);
-   const navigate = useNavigate();
-   const [q, setQ] = useState("");
-   const [topic, setTopic] = useState<"all" | number>("all");
-   const [page, setPage] = useState(1);
-   const [pageSize, setPageSize] = useState(8);
-   const [totalCourses, setTotalCourses] = useState(0);
-   const [courses, setCourses] = useState<Course[]>([]);
-   const [topicOptions, setTopicOptions] = useState<ApiTopicOption[]>([]);
-
-   const [detailId, setDetailId] = useState<string | null>(null);
-   const [cartOpen, setCartOpen] = useState(false);
-+  const [orderingId, setOrderingId] = useState<string | null>(null);
-+  const [qrOpen, setQrOpen] = useState(false);
-+  const [qrData, setQrData] = useState<{ bankCode: string; accountNumber: string; accountName: string; content: string; amount: number } | null>(null);
-
-   const [cartIds, setCartIds] = useState<string[]>(() => readCourseCart());
-
-   useEffect(() => {
-     let cancelled = false;
-
-     (async () => {
-       try {
-         const [coursesRes, topicsRes] = await Promise.all([
-           http.get("/courses", {
-             params: {
-               lang: currentLanguage,
-               page,
-               pageSize,
-               search: q.trim() || undefined,
-               topicId: topic === "all" ? undefined : topic,
-             },
-           }),
-           http.get("/courses/topics", { params: { lang: currentLanguage } }),
-         ]);
-
-         if (cancelled) return;
-
-         const topicList: ApiTopicOption[] = Array.isArray(topicsRes.data) ? topicsRes.data : [];
-         const topicNameById = new Map(topicList.map((t) => [Number(t.id), t.name]));
-@@ -485,50 +516,91 @@ export default function CoursesPage({
-   }, [cartIds, courses]);
-
-   function addToCart(id: string) {
-     const next = addCourseToCart(id);
-     setCartIds(next);
-     window.alert(tpl(cms.alertAddedToCart, { id }));
    }
 
-   function removeFromCart(id: string) {
-     const next = removeCourseFromCart(id);
-     setCartIds(next);
-   }
-
-   function clearCart() {
-     if (!window.confirm(cms.confirmClearCart)) return;
-     const next = clearCourseCart();
-     setCartIds(next);
-   }
-
-   function reset() {
-     setQ("");
-     setTopic("all");
-     setPage(1);
-   }
-
-+  async function registerCourse(c: Course) {
-+    const token = localStorage.getItem("aya_access_token");
-+    if (!token) {
-+      navigate(toRegisterUrl((c as any).slug || c.id, currentLanguage));
-+      return;
-+    }
-+
-+    try {
-+      setOrderingId(c.id);
-+      const res = await http.post<SepayOrderResponse>(`/courses/${c.id}/order`);
-+      const payload = res.data || {};
-+
-+      if (payload.mode === "FREE" || payload.enrolled) {
-+        window.alert("Đăng ký thành công. Khóa học miễn phí đã được kích hoạt.");
-+        return;
-+      }
-+
-+      const bankCode = payload.payment?.bank?.gateway || "BIDV";
-+      const accountNumber = payload.payment?.bank?.accountNumber || "8810091561";
-+      const accountName = payload.payment?.bank?.accountName || "LE MINH HIEU";
-+      const content = payload.payment?.transferContent || "";
-+      const amount = Number(payload.total || c.price || 0);
-+
-+      if (!content) {
-+        window.alert("Không lấy được thông tin chuyển khoản từ hệ thống.");
-+        return;
-+      }
-+
-+      setQrData({ bankCode, accountNumber, accountName, content, amount });
-+      setQrOpen(true);
-+    } catch (error: any) {
-+      if (error?.response?.status === 401) {
-+        navigate(toRegisterUrl((c as any).slug || c.id, currentLanguage));
-+        return;
-+      }
-+      window.alert(error?.response?.data?.message || "Không thể tạo đơn đăng ký. Vui lòng thử lại.");
-+    } finally {
-+      setOrderingId(null);
-+    }
-+  }
-+
-   return (
-       <div className="text-slate-900">
-         {/*<SiteHeader />*/}
-
-         <main className="pb-12">
-           {/* HERO full width */}
-           <section className="relative">
-             <img
-                 className="h-64 md:h-80 w-full object-cover"
-                 alt={cms.heroImageAlt}
-                 src={cms.heroImageSrc}
-             />
-             <div className="absolute inset-0 bg-gradient-to-r from-slate-950/75 to-indigo-700/25" />
-
-             <div className="absolute inset-0">
-               <div className="max-w-7xl mx-auto h-full px-4 py-8 flex flex-col justify-end">
-                 <div className="flex flex-wrap gap-2">
-                   {(cms.heroChips || []).slice(0, 3).map((chip, idx) => (
-                       <span key={idx} className="chip">
-                     <i className={`${chip.iconClass} ${HERO_CHIP_COLOR_BY_INDEX[idx] || ""}`} /> {chip.text}
-                   </span>
-                   ))}
-                 </div>
-
-                 <h1 className="mt-3 text-2xl md:text-4xl font-extrabold text-white">
-@@ -634,70 +706,96 @@ export default function CoursesPage({
-                           src={c.img}
-                           alt={c.title}
-                           className="h-48 w-full object-cover"
-                         />
-
-                         <div className="p-4">
-                           <div className="flex items-center justify-between gap-2">
-                             <span className="chip">{c.topicName || "-"}</span>
-                             <span className="text-sm font-bold text-slate-600">{`${c.time || c.hours || "-"} Hour`}</span>
-                           </div>
-
-                           <h3 className="mt-3 text-lg font-extrabold line-clamp-2">{c.title}</h3>
-                           <p className="mt-2 text-sm text-slate-600 line-clamp-2">{c.desc}</p>
-
-                           <div className="mt-3 flex items-center justify-between gap-2">
-                             <div className="flex items-center gap-2 text-slate-600 text-sm">
-                               <Stars rating={c.rating} /> <b>{c.rating.toFixed(1)}</b>
-                             </div>
-                             <div className="font-extrabold text-indigo-700">{money(c.price)}</div>
-                           </div>
-
-                           <div className="mt-4 grid grid-cols-2 gap-2">
-                             <button className="btn text-sm" type="button" onClick={() => navigate(`/courses/${encodeURIComponent((c as any).slug || c.id)}`)}>
-                               <i className="fa-solid fa-eye" /> {cms.viewDetailBtn}
-                             </button>
--                            <button className="btn btn-primary text-sm hover:text-purple-800" type="button" onClick={() => addToCart(c.id)}>
--                              <i className="fa-solid fa-user-plus" /> {cms.addBtn}
-+                            <button className="btn btn-primary text-sm hover:text-purple-800" type="button" onClick={() => registerCourse(c)} disabled={orderingId === c.id}>
-+                              <i className="fa-solid fa-user-plus" /> {orderingId === c.id ? "Đang tạo QR..." : cms.registerBtn}
-                             </button>
-                           </div>
-                         </div>
-                       </article>
-                     ))}
-                   </div>
-                 ) : (
-                     <div className="card p-8 text-center text-slate-600">
-                       <div className="text-4xl">
-                         <i className="fa-solid fa-box-open text-slate-400" />
-                       </div>
-                       <div className="mt-2 text-xl font-extrabold">{cms.emptyTitle}</div>
-                       <div className="mt-2">{cms.emptyDesc}</div>
-                       <button className="btn btn-primary hover:text-purple-800 mt-4" type="button" onClick={reset}>
-                         <i className="fa-solid fa-rotate" /> {cms.emptyResetBtn}
-                       </button>
-                     </div>
-                 )}
-
-                 <div className="mt-4 flex items-center justify-end gap-2">
-                   <button className="btn" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Trước</button>
-                   <span className="text-sm text-slate-600">Trang {page}/{totalPages}</span>
-                   <button className="btn" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Sau</button>
-                 </div>
-               </div>
-             </div>
-           </section>
-         </main>
-
-         {/*<Footer />*/}
-
-
-         <CourseCartModal
-             open={cartOpen}
-             onClose={() => setCartOpen(false)}
-             items={cartItems}
-             onRemove={removeFromCart}
-             onClear={clearCart}
-             cms={cms}
-         />
-+
-+        {qrOpen && qrData ? (
-+          <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4" onMouseDown={(e) => {
-+            if (e.target === e.currentTarget) setQrOpen(false);
-+          }}>
-+            <div className="card w-full max-w-md p-5">
-+              <div className="flex items-center justify-between gap-2">
-+                <h3 className="text-lg font-extrabold">Quét QR để thanh toán</h3>
-+                <button className="btn h-9 w-9 p-0" onClick={() => setQrOpen(false)} type="button">✕</button>
-+              </div>
-+              <img
-+                className="mt-4 w-full rounded-2xl ring-1 ring-slate-200"
-+                src={buildQrUrl(qrData.bankCode, qrData.accountNumber, qrData.amount, qrData.content, qrData.accountName)}
-+                alt="SePay QR"
-+              />
-+              <div className="mt-4 space-y-2 text-sm">
-+                <p><b>Ngân hàng:</b> {qrData.bankCode}</p>
-+                <p><b>Số tài khoản:</b> {qrData.accountNumber}</p>
-+                <p><b>Chủ tài khoản:</b> {qrData.accountName}</p>
-+                <p><b>Số tiền:</b> {money(qrData.amount)}</p>
-+                <p><b>Nội dung CK:</b> <span className="font-mono">{qrData.content}</span></p>
-+                <p className="text-emerald-700 font-semibold">Sau khi SePay nhận webhook thành công, hệ thống sẽ tự kích hoạt khóa học.</p>
-+              </div>
-+            </div>
-+          </div>
-+        ) : null}
-       </div>
-   );
- }
-diff --git a/backend/ayanavitabackend/app/api/src/orders/orders.controller.ts b/backend/ayanavitabackend/app/api/src/orders/orders.controller.ts
-index bc8e5dd6f92e38f6bd802665d87c112141d7df05..81062269c2331bf0b8fcaa03efb526c944c6fcc1 100644
---- a/backend/ayanavitabackend/app/api/src/orders/orders.controller.ts
-+++ b/backend/ayanavitabackend/app/api/src/orders/orders.controller.ts
-@@ -1,51 +1,71 @@
- import {
-+  Body,
-   Controller,
-   Get,
-+  Headers,
-   Param,
-   ParseIntPipe,
-   Post,
-   Query,
-   UseGuards,
- } from '@nestjs/common'
- import { OrdersService } from './orders.service'
- import { AccessTokenGuard } from '../auth/guards/access-token.guard'
- import { RolesGuard } from '../auth/guards/roles.guard'
- import { Roles } from '../auth/decorators/roles.decorator'
- import { CurrentUser } from '../auth/decorators/current-user.decorator'
-
- type JwtUser = { sub: number; role: string }
-
- @UseGuards(AccessTokenGuard)
- @Controller()
- export class OrdersController {
-   constructor(private readonly orders: OrdersService) {}
-
-   // USER: tạo order theo course
-   @Post('courses/:id/order')
-   create(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
-     return this.orders.createOrder(user.sub, id)
-   }
-
-   // USER: xem orders của tôi
-   @Get('me/orders')
-   myOrders(@CurrentUser() user: JwtUser) {
-     return this.orders.myOrders(user.sub)
-   }
-
-   // ADMIN: list orders cho Admin UI
-   // FE gọi: GET /orders?status=PENDING&q=abc
-   @UseGuards(RolesGuard)
-   @Roles('ADMIN')
-   @Get('orders')
-   list(@Query('status') status?: string, @Query('q') q?: string) {
-     return this.orders.list({ status, q })
-   }
-
-   // ADMIN: mark paid (kích hoạt enrollment)
-   @UseGuards(RolesGuard)
-   @Roles('ADMIN')
-   @Post('orders/:id/mark-paid')
-   markPaid(@Param('id', ParseIntPipe) id: number) {
-     return this.orders.markPaid(id)
-   }
- }
-+
-+@Controller('hooks')
-+export class SepayWebhookController {
-+  constructor(private readonly orders: OrdersService) {}
-+
-+  @Post('sepay-payment')
-+  async handlePayment(
-+    @Headers('authorization') authorization?: string,
-+    @Headers('x-sepay-key') xSepayKey?: string,
-+    @Headers('x-api-key') xApiKey?: string,
-+    @Body() payload?: any,
-+  ) {
-+    const token = xSepayKey ?? xApiKey ?? authorization?.replace(/^Bearer\s+/i, '').trim()
-+    await this.orders.assertWebhookKey(token)
-+
-+    return this.orders.handleSepayWebhook(payload)
-+  }
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/orders/orders.module.ts b/backend/ayanavitabackend/app/api/src/orders/orders.module.ts
-index d73890c365adfd135c70b4029401d55785834594..cbdbced768eefa72f2cf1da0a1ea40bb97b71825 100644
---- a/backend/ayanavitabackend/app/api/src/orders/orders.module.ts
-+++ b/backend/ayanavitabackend/app/api/src/orders/orders.module.ts
-@@ -1,11 +1,11 @@
- import { Module } from '@nestjs/common'
- import { PrismaModule } from '../prisma/prisma.module'
--import { OrdersController } from './orders.controller'
-+import { OrdersController, SepayWebhookController } from './orders.controller'
- import { OrdersService } from './orders.service'
-
- @Module({
-   imports: [PrismaModule],
--  controllers: [OrdersController],
-+  controllers: [OrdersController, SepayWebhookController],
-   providers: [OrdersService],
- })
- export class OrdersModule {}
-diff --git a/backend/ayanavitabackend/app/api/src/orders/orders.service.ts b/backend/ayanavitabackend/app/api/src/orders/orders.service.ts
-index 19c54f949f1d69bbac71eff3baadd9355ff02611..ba95a40a875334a4125f17c44d83306a860d7595 100644
---- a/backend/ayanavitabackend/app/api/src/orders/orders.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/orders/orders.service.ts
-@@ -1,37 +1,87 @@
--import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
-+import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common'
- import { CourseAccessStatus, OrderStatus, Prisma } from '@prisma/client'
-+import * as bcrypt from 'bcrypt'
- import { PrismaService } from 'src/prisma/prisma.service'
-
- @Injectable()
- export class OrdersService {
-   constructor(private readonly prisma: PrismaService) {}
-
-+  private readonly sepayKeyHash =
-+    process.env.SEPAY_WEBHOOK_KEY_HASH ?? '$2b$10$EalbSO88wwwkz0Y54ZUW4ux1n98rJEPyW6coC8odiInDUET3HARCO'
-+
-+  private readonly bankInfo = {
-+    gateway: 'BIDV',
-+    accountNumber: '8810091561',
-+    accountName: 'LE MINH HIEU',
-+  }
-+
-   private genOrderCode() {
-     return `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-   }
-
-+  private buildSepayCode(email: string, courseSlug: string) {
-+    return `RQA:${encodeURIComponent(email)}::${encodeURIComponent(courseSlug)}`
-+  }
-+
-+  private parseSepayCode(content?: string | null): { email: string; courseSlug: string } | null {
-+    if (!content) return null
-+
-+    const matched = content.match(/RQA:([A-Za-z0-9._%+\-]+)::([A-Za-z0-9._%+\-]+)/i)
-+    if (!matched) return null
-+
-+    try {
-+      const email = decodeURIComponent(matched[1]).trim().toLowerCase()
-+      const courseSlug = decodeURIComponent(matched[2]).trim().toLowerCase()
-+      if (!email || !courseSlug) return null
-+      return { email, courseSlug }
-+    } catch {
-+      return null
-+    }
-+  }
-+
-+  private withSepayMeta(order: { id: number; status: OrderStatus; total: number; createdAt: Date }, email: string, courseSlug: string) {
-+    return {
-+      ...order,
-+      payment: {
-+        provider: 'SEPAY',
-+        webhookUrl: '/hooks/sepay-payment',
-+        bank: this.bankInfo,
-+        transferContent: this.buildSepayCode(email, courseSlug),
-+      },
-+    }
-+  }
-+
-+  async assertWebhookKey(rawKey?: string) {
-+    const token = (rawKey ?? '').trim()
-+    if (!token) throw new UnauthorizedException('Missing SePay webhook key')
-+
-+    const ok = await bcrypt.compare(token, this.sepayKeyHash)
-+    if (!ok) throw new UnauthorizedException('Invalid SePay webhook key')
-+  }
-+
-   // ADMIN: list orders cho UI Admin Orders (GET /orders)
-   // Fix lỗi mode: 'insensitive' (MySQL không support mode trong Prisma contains)
-   async list(params: { status?: string; q?: string }) {
-     const statusRaw = (params.status ?? '').toString().trim()
-     const q = (params.q ?? '').toString().trim()
-
-     const status = statusRaw
-       ? Object.values(OrderStatus).includes(statusRaw as OrderStatus)
-         ? (statusRaw as OrderStatus)
-         : undefined
-       : undefined
-
-     const qNum = Number(q)
-     const qIsNum = q.length > 0 && Number.isFinite(qNum)
-
-     const OR: Prisma.OrderWhereInput[] = []
-     if (q) {
-       if (qIsNum) {
-         OR.push({ id: qNum })
-         OR.push({ userId: qNum })
-         OR.push({ items: { some: { courseId: qNum } } })
-       }
-       OR.push({ code: { contains: q } })
-       OR.push({ user: { email: { contains: q } } })
-       OR.push({ items: { some: { courseTitle: { contains: q } } } })
-@@ -51,172 +101,224 @@ export class OrdersService {
-         currency: true,
-         subtotal: true,
-         discount: true,
-         total: true,
-         createdAt: true,
-         updatedAt: true,
-         user: { select: { id: true, email: true, name: true } },
-         items: {
-           select: {
-             id: true,
-             courseId: true,
-             price: true,
-             courseTitle: true,
-             course: { select: { id: true, title: true, slug: true, price: true } },
-           },
-         },
-       },
-       orderBy: { id: 'desc' },
-       take: 200,
-     })
-   }
-
-   async createOrder(userId: number, courseId: number) {
-     const course = await this.prisma.course.findUnique({
-       where: { id: courseId },
--      select: { id: true, title: true, price: true, published: true },
-+      select: { id: true, title: true, price: true, published: true, slug: true },
-     })
+   async lessonsOutline(user: JwtUser, courseId: number, lang?: string) {
+     const lessonLocale = this.resolveCourseLocale(lang)
+     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } })
      if (!course) throw new NotFoundException('Course not found')
-     if (!course.published) throw new ForbiddenException('Course not published')
-
-+    const user = await this.prisma.user.findUnique({
-+      where: { id: userId },
-+      select: { email: true },
-+    })
-+    if (!user) throw new NotFoundException('User not found')
-+
-     const existingAccess = await this.prisma.courseAccess.findUnique({
-       where: { userId_courseId: { userId, courseId } },
-       select: { status: true },
-     })
-     if (existingAccess?.status === CourseAccessStatus.ACTIVE) {
-       throw new ForbiddenException('Already enrolled')
-     }
-
--    // FREE: tạo order PAID total=0 và ghi nhận quyền truy cập khóa học ở CourseAccess
-     if ((course.price ?? 0) === 0) {
-       const paid = await this.prisma.$transaction(async (tx) => {
-         const paidOrder = await tx.order.create({
-           data: {
-             code: this.genOrderCode(),
-             status: OrderStatus.PAID,
-             currency: 'VND',
-             subtotal: 0,
-             discount: 0,
-             total: 0,
-             user: { connect: { id: userId } },
-             items: {
-               create: [
-                 {
-                   courseId,
-                   price: 0,
-                   courseTitle: course.title ?? 'Untitled course',
-                 },
-               ],
-             },
-           },
-           select: { id: true },
-         })
-
-         await tx.courseAccess.upsert({
-           where: { userId_courseId: { userId, courseId } },
-           update: { status: CourseAccessStatus.ACTIVE, grantedAt: new Date() },
-           create: { userId, courseId, status: CourseAccessStatus.ACTIVE },
-         })
-
-         return paidOrder
-       })
-
-       return { mode: 'FREE', enrolled: true, orderId: paid.id }
-     }
-
--    // Nếu có order pending cho course này => trả lại order đó (tránh tạo trùng)
-     const pending = await this.prisma.order.findFirst({
-       where: {
-         userId,
-         status: OrderStatus.PENDING,
-         items: { some: { courseId } },
-       },
-       select: { id: true, status: true, total: true, createdAt: true },
-       orderBy: { id: 'desc' },
-     })
--    if (pending) return pending
-+    if (pending) return this.withSepayMeta(pending, user.email, course.slug)
-
--    // Create order + item (PENDING)
-     const order = await this.prisma.order.create({
-       data: {
-         code: this.genOrderCode(),
-         status: OrderStatus.PENDING,
-         currency: 'VND',
-         subtotal: course.price ?? 0,
-         discount: 0,
-         total: course.price ?? 0,
-         user: { connect: { id: userId } },
-         items: {
-           create: [
-             {
-               courseId,
-               price: course.price ?? 0,
-               courseTitle: course.title ?? 'Untitled course',
-             },
-           ],
-         },
-       },
+     if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
+     const lessons = await this.prisma.lesson.findMany({
+       where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) },
        select: {
          id: true,
-         status: true,
-         total: true,
-         createdAt: true,
--        items: { select: { id: true, courseId: true, price: true, courseTitle: true } },
-       },
-     })
+         courseId: true,
+         title: true,
+         slug: true,
+diff --git a/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts b/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts
+index 553610a6128976e6c010e5d50a041d73a7c37af7..a79b532a9fbd8a84ef0217a7ca7548943fc0bafd 100644
+--- a/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts
++++ b/backend/ayanavitabackend/app/api/src/courses/dto/create-course.dto.ts
+@@ -1,26 +1,26 @@
+-import { Type } from 'class-transformer'
++import { Transform, Type } from 'class-transformer'
+ import { IsArray, IsBoolean, IsInt, IsNumber, IsObject, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator'
 
--    return order
-+    return this.withSepayMeta(order, user.email, course.slug)
-+  }
-+
-+  async handleSepayWebhook(payload: any) {
-+    if (String(payload?.transferType || '').toLowerCase() !== 'in') {
-+      return { ok: true, ignored: true, message: 'Ignore transferType != in' }
-+    }
-+
-+    const parsed = this.parseSepayCode(payload?.content)
-+    if (!parsed) {
-+      return { ok: true, ignored: true, message: 'Missing RQA code in content' }
-+    }
-+
-+    const user = await this.prisma.user.findUnique({
-+      where: { email: parsed.email },
-+      select: { id: true },
-+    })
-+    if (!user) throw new NotFoundException('User not found from SePay content')
-+
-+    const course = await this.prisma.course.findUnique({
-+      where: { slug: parsed.courseSlug },
-+      select: { id: true },
-+    })
-+    if (!course) throw new NotFoundException('Course not found from SePay content')
-+
-+    const order = await this.prisma.order.findFirst({
-+      where: {
-+        userId: user.id,
-+        status: { in: [OrderStatus.PENDING, OrderStatus.PAID] },
-+        items: { some: { courseId: course.id } },
-+      },
-+      select: { id: true, status: true, total: true },
-+      orderBy: { id: 'desc' },
-+    })
-+    if (!order) throw new NotFoundException('Order not found for SePay webhook')
-+
-+    if (order.status === OrderStatus.PAID) {
-+      return { ok: true, alreadyPaid: true, orderId: order.id, message: 'Order already paid' }
-+    }
-+
-+    const transferAmount = Number(payload?.transferAmount ?? 0)
-+    if (!Number.isFinite(transferAmount) || transferAmount < order.total) {
-+      throw new ForbiddenException('Transfer amount is not enough for this order')
-+    }
-+
-+    const paid = await this.markPaid(order.id)
-+    return {
-+      ok: true,
-+      message: 'Thanh toán SePay thành công, đã kích hoạt khóa học',
-+      orderId: order.id,
-+      paid,
-+    }
-   }
+ class TranslationDto {
+   @IsString()
+   title: string
 
-   myOrders(userId: number) {
-     return this.prisma.order.findMany({
-       where: { userId },
-       select: {
-         id: true,
-         code: true,
-         status: true,
-         currency: true,
-         subtotal: true,
-         discount: true,
-         total: true,
-         createdAt: true,
-         updatedAt: true,
-         items: {
-           select: {
-             id: true,
-             courseId: true,
-             price: true,
-             courseTitle: true,
-             course: { select: { id: true, title: true, slug: true, price: true } },
-           },
-         },
-       },
-       orderBy: { id: 'desc' },
-     })
-   }
+   @IsOptional()
+   @IsString()
+   shortDescription?: string
 
--  // ADMIN mark-paid (mock payment)
-   async markPaid(orderId: number) {
-     const order = await this.prisma.order.findUnique({
-       where: { id: orderId },
-       select: {
-         id: true,
-         userId: true,
-         status: true,
-         items: { select: { courseId: true } },
-       },
-     })
-     if (!order) throw new NotFoundException('Order not found')
-     if (order.status === OrderStatus.PAID) return { ok: true, alreadyPaid: true }
+   @IsOptional()
+   @IsString()
+   description?: string
 
-     return this.prisma.$transaction(async (tx) => {
-       const paidOrder = await tx.order.update({
-         where: { id: orderId },
-         data: { status: OrderStatus.PAID },
-         select: { id: true, status: true, updatedAt: true },
-       })
+   @IsOptional()
+   @IsArray()
+   @IsString({ each: true })
+   objectives?: string[]
 
-       for (const item of order.items) {
-         await tx.courseAccess.upsert({
-           where: { userId_courseId: { userId: order.userId, courseId: item.courseId } },
-           update: { status: CourseAccessStatus.ACTIVE, grantedAt: new Date() },
-           create: {
-diff --git a/backend/ayanavitabackend/app/api/src/orders/sepay-webhook.controller.ts b/backend/ayanavitabackend/app/api/src/orders/sepay-webhook.controller.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..c19ac2cd49f0a2a325b82e28c787de3518d19d3f
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/orders/sepay-webhook.controller.ts
-@@ -0,0 +1,20 @@
-+import { Body, Controller, Headers, Post } from '@nestjs/common'
-+import { OrdersService } from './orders.service'
-+
-+@Controller('hooks')
-+export class SepayWebhookController {
-+  constructor(private readonly orders: OrdersService) {}
-+
-+  @Post('sepay-payment')
-+  async handlePayment(
-+    @Headers('authorization') authorization?: string,
-+    @Headers('x-sepay-key') xSepayKey?: string,
-+    @Headers('x-api-key') xApiKey?: string,
-+    @Body() payload?: any,
-+  ) {
-+    const token = xSepayKey ?? xApiKey ?? authorization?.replace(/^Bearer\s+/i, '').trim()
-+    await this.orders.assertWebhookKey(token)
-+
-+    return this.orders.handleSepayWebhook(payload)
-+  }
-+}
+   @IsOptional()
+   @IsArray()
+   @IsString({ each: true })
+   targetAudience?: string[]
+
+   @IsOptional()
+@@ -37,50 +37,54 @@ class ContentTranslationDto {
+
+   @IsOptional()
+   @IsArray()
+   @IsString({ each: true })
+   targetAudience?: string[]
+
+   @IsOptional()
+   @IsArray()
+   @IsString({ each: true })
+   benefits?: string[]
+ }
+
+ export class CreateCourseDto {
+   @IsString()
+   slug: string
+
+   @IsOptional()
+   @IsString()
+   title?: string
+
+   @IsOptional()
+   @IsString()
+   shortDescription?: string
+
+   @IsOptional()
++  @Transform(({ value }) => {
++    if (value === undefined || value === null || value === '') return undefined
++    return String(value)
++  })
+   @IsString()
+   time?: string
+
+   @IsOptional()
+   @IsString()
+   description?: string
+
+   @IsOptional()
+   @IsString()
+   thumbnail?: string
+
+   @IsOptional()
+   @IsInt()
+   @Min(0)
+   price?: number
+
+   @IsOptional()
+   @IsBoolean()
+   published?: boolean
+
+   @IsOptional()
+   @IsInt()
+   @Min(1)
+   topicId?: number
+

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 diff --git a/ayanavita-fontend/src/pages/CoursesPage.tsx b/ayanavita-fontend/src/pages/CoursesPage.tsx
 index e3232301f92a65d92d94c6c0bb06273866f1b9a0..e8e3d919b3a606db9e351876c955acab481ed2c8 100644
 --- a/ayanavita-fontend/src/pages/CoursesPage.tsx
@@ -2718,3 +2719,5 @@ index 48d462ebea25fe6493d059e0abbf142503559e0a..a71bcf370723a4cf88ec0f1800c84f4c
 -  )
 +  );
  }
+=======
+>>>>>>> main

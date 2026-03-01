@@ -1,0 +1,3 @@
+ALTER TABLE `CartDetail`
+  DROP COLUMN `variantId`,
+  MODIFY COLUMN `priceSnapshot` DECIMAL(18,2) NOT NULL DEFAULT 0.00;

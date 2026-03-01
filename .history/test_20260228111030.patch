@@ -1,0 +1,2208 @@
+diff --git a/Home/ayanavita-fontend-final/src/api/cart.api.ts b/Home/ayanavita-fontend-final/src/api/cart.api.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..c35be4e5dc3cd8271a30b548830819fca2fd6fea
+--- /dev/null
++++ b/Home/ayanavita-fontend-final/src/api/cart.api.ts
+@@ -0,0 +1,44 @@
++import { http } from './http'
++
++export type CartItemPayload = {
++  productId: number
++  quantity: number
++  variantId?: string
++}
++
++export type CartResponse = {
++  cartId: number | null
++  items: Array<{
++    itemId: number
++    productId: number
++    name: string
++    price: number
++    quantity: number
++    image?: string
++  }>
++  subtotal: number
++  totalItems: number
++}
++
++export const cartApi = {
++  async getCart() {
++    const { data } = await http.get<CartResponse>('/api/cart')
++    return data
++  },
++  async addItem(payload: Partial<CartItemPayload> & { productId: number }) {
++    const { data } = await http.post<CartResponse>('/api/cart/items', payload)
++    return data
++  },
++  async updateItem(itemId: number, quantity: number) {
++    const { data } = await http.patch<CartResponse>(`/api/cart/items/${itemId}`, { quantity })
++    return data
++  },
++  async removeItem(itemId: number) {
++    const { data } = await http.delete<CartResponse>(`/api/cart/items/${itemId}`)
++    return data
++  },
++  async merge(items: CartItemPayload[]) {
++    const { data } = await http.post<CartResponse>('/api/cart/merge', { items })
++    return data
++  },
++}
+diff --git a/Home/ayanavita-fontend-final/src/components/layout/Header.tsx b/Home/ayanavita-fontend-final/src/components/layout/Header.tsx
+index 1468ccfb0530f1be5706103078fbe73269202daa..c377823a3939e73896c5401b4f97ff70494318e7 100644
+--- a/Home/ayanavita-fontend-final/src/components/layout/Header.tsx
++++ b/Home/ayanavita-fontend-final/src/components/layout/Header.tsx
+@@ -1,30 +1,32 @@
+ import React, { useEffect, useMemo, useRef, useState } from "react";
+ import { Link, useLocation } from "react-router-dom";
+ import { AuthModal } from "../home/AuthModal";
+ import { SuccessModal } from "../home/SuccessModal";
+ import { authApi } from "../../api/auth.api";
++import { MiniCartModal } from "../shop/MiniCartModal";
++import { useCart } from "../../contexts/CartContext";
+ 
+ /** ✅ import type CMS của 2 modal (để props typed chuẩn) */
+ import type { defaultCmsData as _authDefault } from "../home/AuthModal";
+ import type { defaultCmsData as _successDefault } from "../home/SuccessModal";
+ 
+ /**
+  * Trick TS: lấy type từ defaultCmsData export ra
+  * (không ảnh hưởng runtime)
+  */
+ type AuthModalCmsData = typeof _authDefault;
+ type SuccessModalCmsData = typeof _successDefault;
+ 
+ type HeaderProps = {
+   brandHref?: string;
+   cmsData?: HeaderCMSData;
+ 
+   /** ✅ NEW: Header chỉ nhận và truyền xuống */
+   cmsAuth?: Partial<AuthModalCmsData>;
+   cmsSuccess?: Partial<SuccessModalCmsData>;
+ };
+ 
+ type DropdownKey = "products" | "pricing" | null;
+ type AuthTab = "login" | "register";
+ type Language = "vi" | "en" | "de";
+ type UserMenuItem = "desktop" | "mobile" | null;
+@@ -70,50 +72,52 @@ const defaultCMSData: HeaderCMSData = {
+     { code: "vi", label: "Tiếng Việt", flag: "fi-vn" },
+     { code: "en", label: "English", flag: "fi-gb" },
+     { code: "de", label: "Deutsch", flag: "fi-de" },
+   ],
+ };
+ 
+ export function Header({
+   brandHref = "/",
+   cmsData,
+   cmsAuth,
+   cmsSuccess,
+ }: HeaderProps) {
+   const cms = cmsData ?? defaultCMSData;
+ 
+   const location = useLocation();
+   const [openDd, setOpenDd] = useState<DropdownKey>(null);
+   const [drawerOpen, setDrawerOpen] = useState(false);
+   const [authOpen, setAuthOpen] = useState(false);
+   const [authTab, setAuthTab] = useState<AuthTab>("login");
+   const [success, setSuccess] = useState<{ open: boolean; message: string }>({
+     open: false,
+     message: "",
+   });
+   const [userMenuOpen, setUserMenuOpen] = useState<UserMenuItem>(null);
+   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => Boolean(localStorage.getItem("aya_access_token")));
++  const [miniCartOpen, setMiniCartOpen] = useState(false);
++  const { totalItems } = useCart();
+ 
+   const [language, setLanguage] = useState<Language>(() => {
+     const savedLang = localStorage.getItem("preferred-language") as Language;
+     return savedLang || "vi";
+   });
+   const [langOpen, setLangOpen] = useState(false);
+   const rootRef = useRef<HTMLDivElement | null>(null);
+ 
+   useEffect(() => {
+     localStorage.setItem("preferred-language", language);
+     window.dispatchEvent(new CustomEvent("languageChange", { detail: { language } }));
+   }, [language]);
+ 
+   const isActiveLink = (path: string) => {
+     if (path === "/") return location.pathname === "/";
+     return location.pathname.startsWith(path);
+   };
+ 
+   const isProductsActive = useMemo(() => {
+     return cms.productsDropdownItems.some(
+       (item) => !("separator" in item) && location.pathname.startsWith(item.to),
+     );
+   }, [location.pathname, cms.productsDropdownItems]);
+ 
+   const isPricingActive = useMemo(() => {
+@@ -203,50 +207,56 @@ export function Header({
+ 
+   return (
+     <>
+       <div
+         ref={rootRef}
+         className="sticky top-0 z-[80] border-b border-slate-200/60 bg-white/80 backdrop-blur-xl"
+       >
+         <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-3 px-4 py-3">
+           {/* Brand */}
+           <Link
+             to={brandHref}
+             className="flex min-w-[180px] items-center gap-3 transition-transform duration-300 hover:scale-[1.02]"
+           >
+             <div
+               className="flex h-10 w-10 items-center justify-center rounded-2xl font-black text-white shadow-lg transition-all duration-300 hover:shadow-xl hover:rotate-3"
+               style={{
+                 background: "linear-gradient(135deg,var(--aya-primary-1),var(--aya-primary-2))",
+                 boxShadow: "0 12px 24px rgba(79,70,229,.22)",
+               }}
+             >
+               A
+             </div>
+             <div className="font-black tracking-[0.3px] text-slate-900">{cms.brandText}</div>
+           </Link>
+ 
++          <button type="button" onClick={() => setMiniCartOpen(true)} className="relative rounded-xl border px-3 py-2 text-sm font-semibold hover:bg-slate-50">
++            <i className="fa-solid fa-cart-shopping" />
++            <span className="ml-2">Giỏ</span>
++            {totalItems > 0 && <span className="ml-2 rounded-full bg-rose-500 px-2 py-0.5 text-xs text-white">{totalItems}</span>}
++          </button>
++
+           {/* Desktop nav */}
+           <nav className="hidden flex-1 items-center justify-center gap-1 lg:flex">
+             {/* Products dropdown */}
+             <div className="relative">
+               <button
+                 type="button"
+                 className={`group inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[15px] font-extrabold transition-all duration-200 ${
+                   openDd === "products" || isProductsActive
+                     ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 border-indigo-200"
+                     : "border border-transparent text-slate-900 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md hover:scale-[1.02]"
+                 }`}
+                 aria-expanded={openDd === "products"}
+                 onClick={() => toggleDd("products")}
+               >
+                 <span className="relative">
+                   {cms.productsDropdownLabel}
+                   {(openDd === "products" || isProductsActive) && (
+                     <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" />
+                   )}
+                 </span>
+                 <span
+                   className={`text-xs transition-transform duration-200 group-hover:translate-y-0.5 ${
+                     openDd === "products" ? "rotate-180" : ""
+                   }`}
+                 >
+diff --git a/Home/ayanavita-fontend-final/src/components/products/ProductCard.tsx b/Home/ayanavita-fontend-final/src/components/products/ProductCard.tsx
+index 2cc023260408bac39e4b1e5dc8cfe0397940d160..0a8e0c9b2634cd3e65afe67486faf15e2b03b9f8 100644
+--- a/Home/ayanavita-fontend-final/src/components/products/ProductCard.tsx
++++ b/Home/ayanavita-fontend-final/src/components/products/ProductCard.tsx
+@@ -1,80 +1,82 @@
+ // src/components/products/ProductCard.tsx
+ import React, { useMemo } from "react";
+ import { Link } from "react-router-dom";
+ import type { CategoryProduct } from "../../data/productCategory.data";
+ import { money } from "../../services/booking.utils";
+-import { addProductToCart } from "../../services/productCart.utils";
++import { useCart } from "../../contexts/CartContext";
+ 
+ export type ProductCardCmsData = {
+     soldLabel: string;
+     updatedLabel: string;
+     infoButtonTitle: string;
+     addToCartButtonText: string;
+     addToCartSuccessAlert: string;
+     compareButtonText: string;
+     compareSuccessAlert: string;
+ };
+ 
+ const DEFAULT_CMS_DATA: ProductCardCmsData = {
+     soldLabel: "Đã bán",
+     updatedLabel: "Cập nhật:",
+     infoButtonTitle: "Xem chi tiết",
+     addToCartButtonText: "Thêm",
+     addToCartSuccessAlert: "Đã thêm vào giỏ (demo).",
+     compareButtonText: "So sánh",
+     compareSuccessAlert: "Đã thêm vào so sánh (demo).",
+ };
+ 
+ function Stars({ rating }: { rating: number }) {
+     const full = Math.floor(rating);
+     const half = rating - full >= 0.5;
+ 
+     return (
+         <div className="flex items-center gap-2">
+             <div className="flex items-center gap-1">
+                 {Array.from({ length: full }).map((_, i) => (
+                     <i key={i} className="fa-solid fa-star star" />
+                 ))}
+                 {half ? <i className="fa-solid fa-star-half-stroke star" /> : null}
+             </div>
+             <b>{rating.toFixed(1)}</b>
+         </div>
+     );
+ }
+ 
+ export function ProductCard({
+                                 p,
+                                 detailTo,
+                                 cmsData,
+                                 onCompare,
+                             }: {
+     p: CategoryProduct;
+     detailTo: string;
+     cmsData?: Partial<ProductCardCmsData>;
+     onCompare?: (productId: string) => void;
+ }) {
++    const { addItem } = useCart();
++
+     const soldText = useMemo(
+         () => new Intl.NumberFormat("vi-VN").format(p.sold),
+         [p.sold]
+     );
+ 
+     const cms = useMemo(
+         () => ({ ...DEFAULT_CMS_DATA, ...(cmsData ?? {}) }),
+         [cmsData]
+     );
+ 
+     return (
+         <article className="card p-4 flex flex-col gap-3">
+             {/* Image */}
+             <img
+                 className="h-36 w-full rounded-xl object-cover ring-1 ring-slate-200"
+                 src={p.img}
+                 alt={p.name}
+             />
+ 
+             {/* Title */}
+             <div>
+                 <div className="font-bold leading-tight">{p.name}</div>
+                 <div className="text-xs text-slate-500">
+                     {p.id} • {cms.soldLabel} {soldText}
+                 </div>
+@@ -87,51 +89,53 @@ export function ProductCard({
+ 
+             {/* Rating + updated */}
+             <div className="flex items-center justify-between text-xs text-slate-500">
+                 <Stars rating={p.rating} />
+                 <span>
+           {cms.updatedLabel} {p.updated}
+         </span>
+             </div>
+ 
+             {/* Actions */}
+             <div className="flex gap-2">
+                 <Link
+                     to={detailTo}
+                     className="flex items-center justify-center px-2 py-1 text-xs rounded-md
+                      ring-1 ring-slate-300 hover:bg-slate-100"
+                     title={cms.infoButtonTitle}
+                 >
+                     <i className="fa-solid fa-circle-info" />
+                 </Link>
+ 
+                 <button
+                     type="button"
+                     className="flex-1 px-3 py-1 text-xs font-semibold rounded-md
+                      bg-purple-600 text-white hover:bg-purple-700"
+                     onClick={() => {
+-                        addProductToCart(p.sku, 1);
++                        const productId = Number((p as any).id);
++                        if (!Number.isFinite(productId)) return;
++                        void addItem({ productId, quantity: 1, name: p.name, price: p.price, image: p.img });
+                         window.alert(cms.addToCartSuccessAlert);
+                     }}
+                 >
+                     <i className="fa-solid fa-cart-plus mr-1" />
+                     {cms.addToCartButtonText}
+                 </button>
+             </div>
+ 
+             {/* Compare */}
+             <button
+                 type="button"
+                 className="px-3 py-1 text-xs rounded-md
+                    ring-1 ring-slate-300 hover:bg-slate-100"
+                 onClick={() => {
+                     if (onCompare) {
+                         onCompare(String(p.sku || p.id));
+                         return;
+                     }
+                     window.alert(cms.compareSuccessAlert);
+                 }}
+             >
+                 <i className="fa-solid fa-scale-balanced mr-1" />
+                 {cms.compareButtonText}
+             </button>
+         </article>
+diff --git a/Home/ayanavita-fontend-final/src/components/shop/MiniCartModal.tsx b/Home/ayanavita-fontend-final/src/components/shop/MiniCartModal.tsx
+index e1e256923918909249e32a5693c8d62a45105dcb..dd06bca866b1f524116e16b77d9438ec9281484c 100644
+--- a/Home/ayanavita-fontend-final/src/components/shop/MiniCartModal.tsx
++++ b/Home/ayanavita-fontend-final/src/components/shop/MiniCartModal.tsx
+@@ -1,202 +1,51 @@
+-import React, { useEffect, useMemo, useState } from "react";
+-import { Link } from "react-router-dom";
++import React from 'react'
++import { Link } from 'react-router-dom'
++import { Modal } from '../common/Modal'
++import { money } from '../../services/booking.utils'
++import { useCart } from '../../contexts/CartContext'
+ 
+-import { Modal } from "../common/Modal";
+-import { PRODUCTS, type ProductSku } from "../../data/products.data";
+-import { money } from "../../services/booking.utils";
+-import {
+-  readProductCart,
+-  incProductQty,
+-  decProductQty,
+-  removeProductFromCart,
+-  clearProductCart,
+-  type ProductCartItem,
+-} from "../../services/productCart.utils";
+-import { shippingFeeDemo } from "../../services/shipping.demo";
+-
+-export function MiniCartModal({
+-                                open,
+-                                onClose,
+-                                cmsData,
+-                              }: {
+-  open: boolean;
+-  onClose: () => void;
+-  /** CMS content only (no colors/sizes/etc). */
+-  cmsData?: Partial<MiniCartModalCmsData>;
+-}) {
+-  const content = useMemo(() => ({ ...defaultMiniCartModalCmsData, ...(cmsData || {}) }), [cmsData]);
+-  const [cart, setCart] = useState<ProductCartItem[]>([]);
+-
+-  function refresh() {
+-    setCart(readProductCart());
+-  }
+-
+-  useEffect(() => {
+-    if (!open) return;
+-    refresh();
+-  }, [open]);
+-
+-  useEffect(() => {
+-    const onChanged = () => refresh();
+-    window.addEventListener("aya_product_cart_changed", onChanged as any);
+-    return () => window.removeEventListener("aya_product_cart_changed", onChanged as any);
+-  }, []);
+-
+-  const rows = useMemo(() => {
+-    return cart
+-        .map((it) => {
+-          const p = PRODUCTS[it.sku];
+-          if (!p) return null;
+-          return { ...it, product: p, line: p.price * it.qty };
+-        })
+-        .filter(Boolean) as Array<ProductCartItem & { product: any; line: number }>;
+-  }, [cart]);
+-
+-  const subtotal = useMemo(() => rows.reduce((s, x) => s + x.line, 0), [rows]);
+-  const ship = useMemo(() => shippingFeeDemo(subtotal), [subtotal]);
+-  const total = subtotal + ship;
+-
+-  function onInc(sku: ProductSku) {
+-    setCart(incProductQty(sku));
+-  }
+-  function onDec(sku: ProductSku) {
+-    setCart(decProductQty(sku));
+-  }
+-  function onDel(sku: ProductSku) {
+-    setCart(removeProductFromCart(sku));
+-  }
+-  function onClear() {
+-    if (!window.confirm(content.clearConfirm)) return;
+-    setCart(clearProductCart());
+-  }
++export function MiniCartModal({ open, onClose }: { open: boolean; onClose: () => void; cmsData?: any }) {
++  const { items, subtotal, totalItems, isAuthenticated, updateQuantity, removeItem } = useCart()
+ 
+   return (
+-      <Modal
+-          open={open}
+-          onClose={onClose}
+-          subTitle={content.modalSubTitle}
+-          title={content.modalTitle}
+-          maxWidthClass="max-w-3xl"
+-      >
+-        <div className="grid gap-3">
+-          {rows.length ? (
+-              rows.map((it) => (
+-                  <div key={it.sku} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+-                    <div className="flex items-start justify-between gap-3">
+-                      <div className="flex items-center gap-3">
+-                        <img
+-                            className="h-16 w-16 rounded-2xl object-cover border border-slate-200"
+-                            src={it.product.img}
+-                            alt={it.product.name}
+-                        />
+-                        <div className="min-w-0">
+-                          <div className="font-extrabold truncate">{it.product.name}</div>
+-                          <div className="text-sm text-slate-600">{it.product.id} • {money(it.product.price)}</div>
+-                        </div>
+-                      </div>
+-
+-                      <div className="text-right">
+-                        <div className="font-extrabold text-amber-600">{money(it.line)}</div>
+-                        <div className="mt-2 flex items-center justify-end gap-2">
+-                          <button className="btn w-11 h-11 p-0" type="button" onClick={() => onDec(it.sku)}>
+-                            <i className={content.iconMinusClass} />
+-                          </button>
+-                          <span className="chip">{content.qtyLabel} <b>{it.qty}</b></span>
+-                          <button className="btn w-11 h-11 p-0" type="button" onClick={() => onInc(it.sku)}>
+-                            <i className={content.iconPlusClass} />
+-                          </button>
+-                          <button className="btn" type="button" onClick={() => onDel(it.sku)}>
+-                            {content.deleteItemText}
+-                          </button>
+-                        </div>
+-                      </div>
+-                    </div>
+-                  </div>
+-              ))
+-          ) : (
+-              <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 text-sm text-slate-700">
+-                {content.emptyText}
++    <Modal open={open} onClose={onClose} maxWidthClass="max-w-xl">
++      <div className="p-4">
++        <h3 className="text-lg font-bold">Giỏ hàng nhanh</h3>
++        <p className="text-sm text-slate-500">{isAuthenticated ? 'Đang đồng bộ tài khoản' : 'Giỏ tạm localStorage'}</p>
++
++        {items.length === 0 ? (
++          <div className="mt-6 text-sm text-slate-500">Giỏ hàng đang trống.</div>
++        ) : (
++          <div className="mt-4 space-y-3">
++            {items.map((item) => (
++              <div key={`${item.itemId ?? 'guest'}-${item.productId}`} className="flex items-center gap-3 rounded-xl border p-3">
++                {item.image ? <img src={item.image} alt={item.name} className="h-12 w-12 rounded-lg object-cover" /> : <div className="h-12 w-12 rounded-lg bg-slate-100" />}
++                <div className="min-w-0 flex-1">
++                  <p className="truncate text-sm font-semibold">{item.name}</p>
++                  <p className="text-xs text-slate-500">{money(item.price)}</p>
++                </div>
++                <div className="flex items-center gap-2">
++                  <button className="rounded border px-2" onClick={() => updateQuantity(item.itemId ?? item.productId, item.quantity - 1)}>-</button>
++                  <span className="w-6 text-center text-sm">{item.quantity}</span>
++                  <button className="rounded border px-2" onClick={() => updateQuantity(item.itemId ?? item.productId, item.quantity + 1)}>+</button>
++                  <button className="ml-2 text-xs text-rose-600" onClick={() => removeItem(item.itemId ?? item.productId)}>Xoá</button>
++                </div>
+               </div>
+-          )}
+-
+-          <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
+-            <div className="flex items-center justify-between text-sm">
+-              <span className="text-slate-600 font-extrabold">{content.subtotalLabel}</span>
+-              <b>{money(subtotal)}</b>
+-            </div>
+-            <div className="mt-2 flex items-center justify-between text-sm">
+-              <span className="text-slate-600 font-extrabold">{content.shippingLabel}</span>
+-              <b>{money(ship)}</b>
+-            </div>
+-            <div className="border-t border-slate-200 my-3" />
+-            <div className="flex items-center justify-between">
+-              <span className="font-extrabold">{content.totalLabel}</span>
+-              <span className="text-2xl font-extrabold text-amber-600">{money(total)}</span>
+-            </div>
++            ))}
++          </div>
++        )}
+ 
+-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+-              <Link className="btn btn-primary hover:text-purple-800 text-center" to="/checkout" onClick={onClose}>
+-                <i className={content.iconCheckoutClass + " mr-2"} /> {content.checkoutCtaText}
+-              </Link>
+-              <button className="btn" type="button" onClick={onClear} disabled={!rows.length}>
+-                <i className={content.iconClearClass + " mr-2"} /> {content.clearCartText}
+-              </button>
+-            </div>
++        <div className="mt-5 flex items-center justify-between border-t pt-4 text-sm">
++          <span>{totalItems} sản phẩm</span>
++          <span className="font-bold">{money(subtotal)}</span>
++        </div>
+ 
+-            <div className="mt-3 text-xs text-slate-500">
+-              {content.footerNote}
+-            </div>
+-          </div>
++        <div className="mt-3 flex gap-2">
++          <Link to="/cart" onClick={onClose} className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-center text-sm font-semibold text-white">
++            Xem giỏ hàng
++          </Link>
+         </div>
+-      </Modal>
+-  );
++      </div>
++    </Modal>
++  )
+ }
+-
+-export type MiniCartModalCmsData = {
+-  modalSubTitle: string;
+-  modalTitle: string;
+-
+-  emptyText: string;
+-  qtyLabel: string;
+-  deleteItemText: string;
+-
+-  subtotalLabel: string;
+-  shippingLabel: string;
+-  totalLabel: string;
+-
+-  checkoutCtaText: string;
+-  clearCartText: string;
+-  clearConfirm: string;
+-
+-  footerNote: string;
+-
+-  /** FontAwesome (or any) icon class names */
+-  iconMinusClass: string;
+-  iconPlusClass: string;
+-  iconCheckoutClass: string;
+-  iconClearClass: string;
+-};
+-
+-export const defaultMiniCartModalCmsData: MiniCartModalCmsData = {
+-  modalSubTitle: "Giỏ hàng",
+-  modalTitle: "Sản phẩm đã chọn",
+-
+-  emptyText: "Giỏ hàng trống.",
+-  qtyLabel: "SL:",
+-  deleteItemText: "Xoá",
+-
+-  subtotalLabel: "Tạm tính",
+-  shippingLabel: "Phí vận chuyển (demo)",
+-  totalLabel: "Tổng",
+-
+-  checkoutCtaText: "Đi tới checkout",
+-  clearCartText: "Xóa giỏ",
+-  clearConfirm: "Xóa toàn bộ giỏ hàng?",
+-
+-  footerNote: "Prototype: giỏ dùng localStorage. Khi làm thật, nối API /orders.",
+-
+-  iconMinusClass: "fa-solid fa-minus",
+-  iconPlusClass: "fa-solid fa-plus",
+-  iconCheckoutClass: "fa-solid fa-credit-card",
+-  iconClearClass: "fa-solid fa-trash",
+-};
+diff --git a/Home/ayanavita-fontend-final/src/contexts/CartContext.tsx b/Home/ayanavita-fontend-final/src/contexts/CartContext.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..b57589909b0b7b66b67775441981998fe2d02149
+--- /dev/null
++++ b/Home/ayanavita-fontend-final/src/contexts/CartContext.tsx
+@@ -0,0 +1,197 @@
++import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
++import { cartApi, type CartResponse } from '../api/cart.api'
++import { clearGuestCart, readGuestCart, type GuestCartItem, writeGuestCart } from '../services/cart.storage'
++
++type CartItem = {
++  itemId: number | null
++  productId: number
++  name: string
++  price: number
++  quantity: number
++  image?: string
++}
++
++type CartState = {
++  cartId: number | null
++  items: CartItem[]
++  subtotal: number
++  totalItems: number
++}
++
++type AddItemInput = {
++  productId: number
++  quantity?: number
++  variantId?: string
++  name?: string
++  price?: number
++  image?: string
++}
++
++type CartContextValue = CartState & {
++  isAuthenticated: boolean
++  loading: boolean
++  addItem: (input: AddItemInput) => Promise<void>
++  updateQuantity: (itemIdOrProductId: number, quantity: number) => Promise<void>
++  removeItem: (itemIdOrProductId: number) => Promise<void>
++  refresh: () => Promise<void>
++}
++
++const CartContext = createContext<CartContextValue | null>(null)
++
++const emptyState: CartState = { cartId: null, items: [], subtotal: 0, totalItems: 0 }
++
++function mapGuestToState(items: GuestCartItem[]): CartState {
++  const mapped = items.map((item) => ({
++    itemId: null,
++    productId: item.productId,
++    name: item.name || `Product #${item.productId}`,
++    price: item.price ?? 0,
++    quantity: item.quantity,
++    image: item.image,
++  }))
++  const subtotal = mapped.reduce((sum, item) => sum + item.price * item.quantity, 0)
++  const totalItems = mapped.reduce((sum, item) => sum + item.quantity, 0)
++  return { cartId: null, items: mapped, subtotal, totalItems }
++}
++
++function mapServerToState(cart: CartResponse): CartState {
++  return {
++    cartId: cart.cartId,
++    items: cart.items.map((item) => ({ ...item })),
++    subtotal: cart.subtotal,
++    totalItems: cart.totalItems,
++  }
++}
++
++export function CartProvider({ children }: { children: React.ReactNode }) {
++  const [state, setState] = useState<CartState>(emptyState)
++  const [loading, setLoading] = useState(true)
++  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => Boolean(localStorage.getItem('aya_access_token')))
++  const prevAuthRef = useRef(isAuthenticated)
++
++  const refresh = useCallback(async () => {
++    if (!isAuthenticated) {
++      setState(mapGuestToState(readGuestCart()))
++      return
++    }
++    const cart = await cartApi.getCart()
++    setState(mapServerToState(cart))
++  }, [isAuthenticated])
++
++  useEffect(() => {
++    const syncToken = () => setIsAuthenticated(Boolean(localStorage.getItem('aya_access_token')))
++    syncToken()
++    const id = window.setInterval(syncToken, 600)
++    const onChange = () => {
++      if (!isAuthenticated) setState(mapGuestToState(readGuestCart()))
++    }
++    window.addEventListener('aya_cart_changed', onChange)
++    return () => {
++      window.clearInterval(id)
++      window.removeEventListener('aya_cart_changed', onChange)
++    }
++  }, [isAuthenticated])
++
++  useEffect(() => {
++    const handleAuthTransition = async () => {
++      try {
++        setLoading(true)
++        if (!prevAuthRef.current && isAuthenticated) {
++          const guest = readGuestCart()
++          if (guest.length) {
++            await cartApi.merge(
++              guest.map((item) => ({ productId: item.productId, quantity: item.quantity, variantId: item.variantId })),
++            )
++            clearGuestCart()
++          }
++        }
++        await refresh()
++      } finally {
++        prevAuthRef.current = isAuthenticated
++        setLoading(false)
++      }
++    }
++
++    handleAuthTransition()
++  }, [isAuthenticated, refresh])
++
++  const addItem = useCallback(
++    async (input: AddItemInput) => {
++      const quantity = input.quantity ?? 1
++      if (isAuthenticated) {
++        const cart = await cartApi.addItem({
++          productId: input.productId,
++          quantity,
++          variantId: input.variantId,
++        })
++        setState(mapServerToState(cart))
++        return
++      }
++
++      const current = readGuestCart()
++      const existing = current.find((it) => it.productId === input.productId)
++      if (existing) {
++        existing.quantity += quantity
++      } else {
++        current.push({
++          productId: input.productId,
++          quantity,
++          variantId: input.variantId,
++          name: input.name,
++          price: input.price,
++          image: input.image,
++        })
++      }
++      writeGuestCart(current)
++      setState(mapGuestToState(current))
++    },
++    [isAuthenticated],
++  )
++
++  const updateQuantity = useCallback(
++    async (itemIdOrProductId: number, quantity: number) => {
++      if (isAuthenticated) {
++        const cart = await cartApi.updateItem(itemIdOrProductId, quantity)
++        setState(mapServerToState(cart))
++        return
++      }
++
++      const current = readGuestCart()
++      const next = current
++        .map((item) =>
++          item.productId === itemIdOrProductId ? { ...item, quantity: Math.max(0, quantity) } : item,
++        )
++        .filter((item) => item.quantity > 0)
++      writeGuestCart(next)
++      setState(mapGuestToState(next))
++    },
++    [isAuthenticated],
++  )
++
++  const removeItem = useCallback(
++    async (itemIdOrProductId: number) => {
++      if (isAuthenticated) {
++        const cart = await cartApi.removeItem(itemIdOrProductId)
++        setState(mapServerToState(cart))
++        return
++      }
++      const next = readGuestCart().filter((item) => item.productId !== itemIdOrProductId)
++      writeGuestCart(next)
++      setState(mapGuestToState(next))
++    },
++    [isAuthenticated],
++  )
++
++  const value = useMemo(
++    () => ({ ...state, isAuthenticated, loading, addItem, updateQuantity, removeItem, refresh }),
++    [state, isAuthenticated, loading, addItem, updateQuantity, removeItem, refresh],
++  )
++
++  return <CartContext.Provider value={value}>{children}</CartContext.Provider>
++}
++
++export function useCart() {
++  const context = useContext(CartContext)
++  if (!context) throw new Error('useCart must be used inside CartProvider')
++  return context
++}
+diff --git a/Home/ayanavita-fontend-final/src/main.tsx b/Home/ayanavita-fontend-final/src/main.tsx
+index f6b2ee33a0cd7dd5cebc5f2f5b185c9f7a570c1c..2e46beea7f0acbe5326f699c9b7325a39795567e 100644
+--- a/Home/ayanavita-fontend-final/src/main.tsx
++++ b/Home/ayanavita-fontend-final/src/main.tsx
+@@ -1,21 +1,22 @@
+ // src/main.tsx
+ import React from "react";
+ import ReactDOM from "react-dom/client";
+ import { BrowserRouter } from "react-router-dom";
+ import "./index.css";
+ import App from "./App";
++import { CartProvider } from "./contexts/CartContext";
+ import "./styles/aya-course-player.css";
+ 
+ 
+ ReactDOM.createRoot(document.getElementById("root")!).render(
+   <React.StrictMode>
+     <BrowserRouter
+       future={{
+         v7_startTransition: true,
+         v7_relativeSplatPath: true,
+       }}
+     >
+-      <App />
++      <CartProvider><App /></CartProvider>
+     </BrowserRouter>
+   </React.StrictMode>
+ );
+diff --git a/Home/ayanavita-fontend-final/src/pages/CartPage.tsx b/Home/ayanavita-fontend-final/src/pages/CartPage.tsx
+index 85edc9f45602ea8afc815f539eed203fb723e0f4..10438019d56d883a995b5b0fc7ab06900066ca8f 100644
+--- a/Home/ayanavita-fontend-final/src/pages/CartPage.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/CartPage.tsx
+@@ -1,560 +1,55 @@
+-// src/pages/CartPage.tsx
+-import React, { useEffect, useMemo, useState } from "react";
+-import { Link } from "react-router-dom";
+-
+-import { SiteHeader } from "../components/layout/SiteHeader";
+-import { Footer } from "../components/layout/Footer";
+-import { http } from "../api/http";
+-
+-import {
+-  PRODUCTS,
+-  PRODUCT_CART_SEED,
+-  UPSELL,
+-  type ProductSku,
+-} from "../data/products.data";
+-
+-import { money } from "../services/booking.utils";
+-import {
+-  ensureProductCartSeed,
+-  readProductCart,
+-  writeProductCart,
+-  addProductToCart,
+-  incProductQty,
+-  decProductQty,
+-  removeProductFromCart,
+-  clearProductCart,
+-  type ProductCartItem,
+-} from "../services/productCart.utils";
+-
+-type CouponCode = "AYA10" | "FREESHIP" | null;
+-
+-// Giữ lại COUPONS chỉ chứa logic
+-const COUPONS: Record<
+-    Exclude<CouponCode, null>,
+-    { type: "percent" | "fixed" | "freeship"; value: number }
+-> = {
+-  AYA10: { type: "percent", value: 10 },
+-  FREESHIP: { type: "freeship", value: 0 },
+-};
+-
+-type Product = (typeof PRODUCTS)[keyof typeof PRODUCTS];
+-
+-// Định nghĩa kiểu dữ liệu cho CMS
+-interface CmsData {
+-  storeName: string;
+-  pageTitle: string;
+-  pageDescription: string;
+-  safeBadge: string;
+-  tableHeaders: {
+-    product: string;
+-    price: string;
+-    quantity: string;
+-    subtotal: string;
+-    remove: string;
+-  };
+-  emptyCartText: string;
+-  emptyCartLinkText: string;
+-  voucherTitle: string;
+-  voucherPlaceholder: string;
+-  applyButton: string;
+-  couponEmptyMessage: string;
+-  couponInvalidMessage: string;
+-  couponAya10Note: string;
+-  couponFreeshipNote: string;
+-  shippingTitle: string;
+-  cityPlaceholder: string;
+-  districtPlaceholder: string;
+-  calculateShippingButton: string;
+-  shipNoteTemplate: string;          // chứa {fee}
+-  freeshipActiveMessage: string;
+-  upsellTitle: string;
+-  upsellSubtitle: string;
+-  addButton: string;
+-  addToCartMessage: string;
+-  clearCartButton: string;
+-  confirmClearCart: string;
+-  syncButton: string;
+-  syncMessage: string;
+-  summaryTitle: string;
+-  summaryBadge: string;
+-  summaryLabels: {
+-    subtotal: string;
+-    discount: string;
+-    shipping: string;
+-    total: string;
+-  };
+-  checkoutButton: string;
+-  continueShoppingButton: string;
+-  commitmentTitle: string;
+-  commitmentItems: string[];
+-  footerText: string;
+-}
+-
+-// Nội dung mặc định (fallback)
+-const defaultCmsData: CmsData = {
+-  storeName: "Cửa hàng AYANAVITA",
+-  pageTitle: "Giỏ hàng",
+-  pageDescription: "Tối ưu chuyển đổi bằng combo, voucher và gợi ý mua kèm.",
+-  safeBadge: "Thanh toán an toàn",
+-  tableHeaders: {
+-    product: "Sản phẩm",
+-    price: "Giá",
+-    quantity: "Số lượng",
+-    subtotal: "Tạm tính",
+-    remove: "Xoá",
+-  },
+-  emptyCartText: "Giỏ hàng đang trống.",
+-  emptyCartLinkText: "Mua sắm ngay",
+-  voucherTitle: "Voucher",
+-  voucherPlaceholder: "VD: AYA10 hoặc FREESHIP",
+-  applyButton: "Áp dụng",
+-  couponEmptyMessage: "Nhập mã voucher để áp dụng.",
+-  couponInvalidMessage: "Voucher không hợp lệ (demo).",
+-  couponAya10Note: "Giảm 10% cho đơn hàng.",
+-  couponFreeshipNote: "Miễn phí ship (demo).",
+-  shippingTitle: "Ước tính vận chuyển",
+-  cityPlaceholder: "Tỉnh/Thành phố",
+-  districtPlaceholder: "Quận/Huyện",
+-  calculateShippingButton: "Tính phí ship",
+-  shipNoteTemplate: "Phí ship dự kiến: {fee} (demo).",
+-  freeshipActiveMessage: "FREESHIP đang bật → phí ship = 0 (demo).",
+-  upsellTitle: "Gợi ý mua kèm",
+-  upsellSubtitle: "Combo tăng hiệu quả chăm sóc",
+-  addButton: "Thêm",
+-  addToCartMessage: "Đã thêm vào giỏ (demo).",
+-  clearCartButton: "Xoá giỏ",
+-  confirmClearCart: "Xoá toàn bộ giỏ hàng?",
+-  syncButton: "Sync",
+-  syncMessage: "Đã đồng bộ lại giỏ từ localStorage (demo).",
+-  summaryTitle: "Tóm tắt thanh toán",
+-  summaryBadge: "Conversion",
+-  summaryLabels: {
+-    subtotal: "Tạm tính",
+-    discount: "Giảm giá",
+-    shipping: "Phí ship",
+-    total: "Tổng",
+-  },
+-  checkoutButton: "Đi tới thanh toán",
+-  continueShoppingButton: "Tiếp tục mua",
+-  commitmentTitle: "Cam kết AYANAVITA",
+-  commitmentItems: [
+-    "Sản phẩm chính hãng",
+-    "Đổi trả theo chính sách",
+-    "Tư vấn da miễn phí",
+-  ],
+-  footerText: "© 2025 AYANAVITA • Prototype Cart",
+-};
++import React from 'react'
++import { Link } from 'react-router-dom'
++import { useCart } from '../contexts/CartContext'
++import { money } from '../services/booking.utils'
+ 
+ export default function CartPage() {
+-  // State cho ngôn ngữ và dữ liệu CMS từ API
+-  const [currentLanguage, setCurrentLanguage] = useState<string>(() => {
+-    return localStorage.getItem("preferred-language") || "vi";
+-  });
+-  const [cmsDataFromAPI, setCmsDataFromAPI] = useState<CmsData | null>(null);
+-
+-  // Lắng nghe sự kiện thay đổi ngôn ngữ từ Header
+-  useEffect(() => {
+-    const handleLanguageChange = (event: CustomEvent) => {
+-      setCurrentLanguage(event.detail.language);
+-    };
+-    window.addEventListener('languageChange', handleLanguageChange as EventListener);
+-    return () => window.removeEventListener('languageChange', handleLanguageChange as EventListener);
+-  }, []);
+-
+-  // Gọi API lấy nội dung CMS cho trang giỏ hàng
+-  useEffect(() => {
+-    const fetchCms = async () => {
+-      try {
+-        const res = await http.get(`/public/pages/cart?lang=${currentLanguage}`);
+-        setCmsDataFromAPI(res.data.sections[0].data);
+-        console.log("dữ liệu cart", res.data.sections[0].data)
+-      } catch (error) {
+-        console.error("Lỗi gọi API cart:", error);
+-        // Nếu lỗi, vẫn giữ cmsDataFromAPI = null, sẽ dùng default
+-      }
+-    };
+-    fetchCms();
+-  }, [currentLanguage]);
+-
+-  // Merge dữ liệu từ API với default (API ghi đè lên default)
+-  const cms = useMemo(() => {
+-    return { ...defaultCmsData, ...cmsDataFromAPI };
+-  }, [cmsDataFromAPI]);
+-
+-  // State giỏ hàng
+-  const [cart, setCart] = useState<ProductCartItem[]>(() =>
+-      ensureProductCartSeed(PRODUCT_CART_SEED as any)
+-  );
+-
+-  const [couponInput, setCouponInput] = useState("");
+-  const [coupon, setCoupon] = useState<CouponCode>(null);
+-  const [couponNote, setCouponNote] = useState("");
+-
+-  const [city, setCity] = useState("");
+-  const [district, setDistrict] = useState("");
+-  const [shipBaseFee, setShipBaseFee] = useState(0);
+-  const [shipNote, setShipNote] = useState("");
+-
+-  // Đồng bộ giỏ hàng với localStorage
+-  function sync(next: ProductCartItem[]) {
+-    setCart(next);
+-    writeProductCart(next);
+-  }
+-
+-  // Lắng nghe thay đổi từ tab khác
+-  useEffect(() => {
+-    const onStorage = (e: StorageEvent) => {
+-      if (!e.key) return;
+-      try {
+-        const next = readProductCart();
+-        setCart(next);
+-      } catch {
+-        // ignore
+-      }
+-    };
+-    window.addEventListener("storage", onStorage);
+-    return () => window.removeEventListener("storage", onStorage);
+-  }, []);
+-
+-  // Tính toán các giá trị
+-  const items = useMemo(() => {
+-    return cart
+-        .map((it) => {
+-          const p = (PRODUCTS as any)[it.sku] as Product | undefined;
+-          if (!p) return null;
+-          return { ...it, product: p, line: p.price * it.qty };
+-        })
+-        .filter(Boolean) as Array<ProductCartItem & { product: Product; line: number }>;
+-  }, [cart]);
+-
+-  const subTotal = useMemo(() => items.reduce((s, x) => s + x.line, 0), [items]);
+-
+-  const discountValue = useMemo(() => {
+-    if (!coupon) return 0;
+-    const c = COUPONS[coupon];
+-    if (c.type === "percent") return Math.round(subTotal * (c.value / 100));
+-    if (c.type === "fixed") return Math.min(subTotal, c.value);
+-    return 0;
+-  }, [coupon, subTotal]);
+-
+-  const shipping = useMemo(() => {
+-    if (!subTotal) return 0;
+-    if (coupon === "FREESHIP") return 0;
+-    return shipBaseFee;
+-  }, [coupon, shipBaseFee, subTotal]);
+-
+-  const grandTotal = useMemo(
+-      () => Math.max(0, subTotal - discountValue) + shipping,
+-      [subTotal, discountValue, shipping]
+-  );
+-
+-  // Các hành động
+-  function onInc(sku: ProductSku) {
+-    const next = incProductQty(sku);
+-    sync(next);
+-  }
+-
+-  function onDec(sku: ProductSku) {
+-    const next = decProductQty(sku);
+-    sync(next);
+-  }
+-
+-  function onDel(sku: ProductSku) {
+-    const next = removeProductFromCart(sku);
+-    sync(next);
+-  }
+-
+-  function onUpsellAdd(sku: ProductSku) {
+-    const next = addProductToCart(sku, 1);
+-    sync(next);
+-    window.alert(cms.addToCartMessage);
+-  }
+-
+-  function applyCoupon() {
+-    const code = couponInput.trim().toUpperCase();
+-    setCoupon(null);
+-
+-    if (!code) {
+-      setCouponNote(cms.couponEmptyMessage);
+-      return;
+-    }
+-    if (code !== "AYA10" && code !== "FREESHIP") {
+-      setCouponNote(cms.couponInvalidMessage);
+-      return;
+-    }
+-
+-    setCoupon(code as CouponCode);
+-    if (code === "AYA10") {
+-      setCouponNote(cms.couponAya10Note);
+-    } else if (code === "FREESHIP") {
+-      setCouponNote(cms.couponFreeshipNote);
+-      setShipNote(cms.freeshipActiveMessage);
+-    }
+-  }
+-
+-  function calcShip() {
+-    const hasAddr = city.trim() && district.trim();
+-    const fee = hasAddr ? 25000 : 35000;
+-    setShipBaseFee(fee);
+-
+-    if (coupon === "FREESHIP") {
+-      setShipNote(cms.freeshipActiveMessage);
+-      return;
+-    }
+-
+-    setShipNote(cms.shipNoteTemplate.replace("{fee}", money(fee)));
+-  }
++  const { items, subtotal, totalItems, isAuthenticated, updateQuantity, removeItem, loading } = useCart()
+ 
+-  function clearAll() {
+-    if (!window.confirm(cms.confirmClearCart)) return;
+-    const next = clearProductCart();
+-    sync(next);
+-  }
+-
+-  function reloadFromLocal() {
+-    const next = readProductCart();
+-    setCart(next);
+-    window.alert(cms.syncMessage);
++  if (loading) {
++    return <div className="mx-auto max-w-4xl p-6">Đang tải giỏ hàng...</div>
+   }
+ 
+   return (
+-      <div className="text-slate-900">
+-        {/* Có thể thêm Header nếu cần */}
+-        <main className="mt-2 px-4 pb-10">
+-          <div className="max-w-6xl mx-auto grid gap-4 lg:grid-cols-3">
+-            {/* Left column */}
+-            <section className="card hover:translate-y-0 p-6 lg:col-span-2">
+-              <div className="flex items-end justify-between gap-3 flex-wrap">
+-                <div>
+-                  <div className="text-xs font-extrabold text-slate-500">{cms.storeName}</div>
+-                  <h1 className="text-2xl font-extrabold">{cms.pageTitle}</h1>
+-                  <div className="mt-1 text-sm text-slate-600">{cms.pageDescription}</div>
+-                </div>
+-                <span className="chip">
+-                <i className="fa-solid fa-lock text-emerald-600" />
+-                  {cms.safeBadge}
+-              </span>
+-              </div>
+-
+-              <div className="mt-5 overflow-auto">
+-                <table className="w-full min-w-[760px] text-sm">
+-                  <thead className="text-left text-slate-500">
+-                  <tr className="border-b border-slate-200">
+-                    <th className="py-3 pr-4">{cms.tableHeaders.product}</th>
+-                    <th className="py-3 pr-4">{cms.tableHeaders.price}</th>
+-                    <th className="py-3 pr-4">{cms.tableHeaders.quantity}</th>
+-                    <th className="py-3 pr-4">{cms.tableHeaders.subtotal}</th>
+-                    <th className="py-3 text-right">{cms.tableHeaders.remove}</th>
+-                  </tr>
+-                  </thead>
+-
+-                  <tbody className="text-slate-700">
+-                  {items.length ? (
+-                      items.map((it) => (
+-                          <tr key={it.sku} className="border-b border-slate-100 hover:bg-slate-50">
+-                            <td className="py-3 pr-4">
+-                              <div className="flex items-center gap-3">
+-                                <img
+-                                    className="h-14 w-14 rounded-xl object-cover ring-1 ring-slate-200"
+-                                    src={it.product.img}
+-                                    alt={it.product.name}
+-                                />
+-                                <div>
+-                                  <div className="font-extrabold">{it.product.name}</div>
+-                                  <div className="text-xs text-slate-500">{it.product.id}</div>
+-                                </div>
+-                              </div>
+-                            </td>
+-
+-                            <td className="py-3 pr-4 font-extrabold">{money(it.product.price)}</td>
+-
+-                            <td className="py-3 pr-4">
+-                              <div className="inline-flex items-center gap-2">
+-                                <button className="btn px-3 py-2" type="button" onClick={() => onDec(it.sku)}>
+-                                  <i className="fa-solid fa-minus" />
+-                                </button>
+-                                <span className="font-extrabold w-8 text-center">{it.qty}</span>
+-                                <button className="btn px-3 py-2" type="button" onClick={() => onInc(it.sku)}>
+-                                  <i className="fa-solid fa-plus" />
+-                                </button>
+-                              </div>
+-                            </td>
+-
+-                            <td className="py-3 pr-4 font-extrabold">{money(it.line)}</td>
+-
+-                            <td className="py-3 text-right">
+-                              <button className="btn px-3 py-2 text-rose-600" type="button" onClick={() => onDel(it.sku)}>
+-                                <i className="fa-solid fa-trash-can" />
+-                              </button>
+-                            </td>
+-                          </tr>
+-                      ))
+-                  ) : (
+-                      <tr>
+-                        <td className="py-6 text-center text-slate-600" colSpan={5}>
+-                          {cms.emptyCartText}{" "}
+-                          <Link className="font-extrabold text-indigo-600" to="/products">
+-                            {cms.emptyCartLinkText}
+-                          </Link>
+-                        </td>
+-                      </tr>
+-                  )}
+-                  </tbody>
+-                </table>
+-              </div>
+-
+-              {/* Voucher + Shipping */}
+-              <div className="mt-5 flex flex-col gap-3">
+-                <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+-                  <div className="font-extrabold">{cms.voucherTitle}</div>
+-                  <div className="mt-2 flex gap-2">
+-                    <input
+-                        className="field !w-3/4"
+-                        placeholder={cms.voucherPlaceholder}
+-                        value={couponInput}
+-                        onChange={(e) => setCouponInput(e.target.value)}
+-                        onKeyDown={(e) => {
+-                          if (e.key === "Enter") {
+-                            e.preventDefault();
+-                            applyCoupon();
+-                          }
+-                        }}
+-                    />
+-                    <button className="btn btn-accent flex-1" type="button" onClick={applyCoupon}>
+-                      <i className="fa-solid fa-ticket mr-2" />
+-                      {cms.applyButton}
+-                    </button>
+-                  </div>
+-                  {couponNote ? <div className="mt-2 text-sm text-slate-600">{couponNote}</div> : null}
+-                </div>
+-
+-                <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+-                  <div className="font-extrabold">{cms.shippingTitle}</div>
+-                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+-                    <input
+-                        className="field"
+-                        placeholder={cms.cityPlaceholder}
+-                        value={city}
+-                        onChange={(e) => setCity(e.target.value)}
+-                    />
+-                    <input
+-                        className="field"
+-                        placeholder={cms.districtPlaceholder}
+-                        value={district}
+-                        onChange={(e) => setDistrict(e.target.value)}
+-                    />
+-                  </div>
+-                  <button className="mt-2 btn" type="button" onClick={calcShip} disabled={!items.length}>
+-                    <i className="fa-solid fa-calculator mr-2" />
+-                    {cms.calculateShippingButton}
+-                  </button>
+-
+-                  {shipNote ? <div className="mt-2 text-sm text-slate-600">{shipNote}</div> : null}
+-                  {coupon === "FREESHIP" ? (
+-                      <div className="mt-2 text-sm text-emerald-700 font-extrabold">
+-                        {cms.freeshipActiveMessage}
+-                      </div>
+-                  ) : null}
+-                </div>
+-              </div>
+-
+-              {/* Upsell */}
+-              <div className="mt-6">
+-                <div className="flex items-center justify-between gap-3 flex-wrap">
+-                  <div className="font-extrabold">{cms.upsellTitle}</div>
+-                  <span className="text-sm text-slate-600">{cms.upsellSubtitle}</span>
+-                </div>
+-
+-                <div className="mt-3 grid gap-3 md:grid-cols-3">
+-                  {UPSELL.map((u) => {
+-                    const p = (PRODUCTS as any)[u.sku] as Product;
+-                    return (
+-                        <div key={u.sku} className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+-                          <img className="h-28 w-full object-cover rounded-xl" alt={p.name} src={p.img} />
+-                          <div className="mt-3 font-extrabold">{p.name}</div>
+-                          <div className="text-sm text-slate-600">{u.subtitle}</div>
+-                          <button className="mt-3 btn w-full" type="button" onClick={() => onUpsellAdd(u.sku)}>
+-                            <i className={`${u.icon} mr-2`} />
+-                            {cms.addButton}
+-                          </button>
+-                        </div>
+-                    );
+-                  })}
+-                </div>
+-
+-                <div className="mt-4 flex gap-2 flex-wrap">
+-                  <button className="btn" type="button" onClick={clearAll} disabled={!items.length}>
+-                    <i className="fa-solid fa-trash mr-2" />
+-                    {cms.clearCartButton}
+-                  </button>
+-                  <button className="btn" type="button" onClick={reloadFromLocal}>
+-                    <i className="fa-solid fa-rotate mr-2" />
+-                    {cms.syncButton}
+-                  </button>
+-                </div>
+-              </div>
+-            </section>
+-
+-            {/* Right column */}
+-            <aside className="card p-6">
+-              <div className="flex items-center justify-between">
+-                <div className="font-extrabold">{cms.summaryTitle}</div>
+-                <span className="chip">
+-                <i className="fa-solid fa-bolt text-amber-600" />
+-                  {cms.summaryBadge}
+-              </span>
+-              </div>
+-
+-              <div className="mt-4 grid gap-2 text-sm text-slate-700">
+-                <div className="flex justify-between">
+-                  <span>{cms.summaryLabels.subtotal}</span>
+-                  <b>{money(subTotal)}</b>
+-                </div>
+-                <div className="flex justify-between">
+-                  <span>{cms.summaryLabels.discount}</span>
+-                  <b>{money(discountValue)}</b>
+-                </div>
+-                <div className="flex justify-between">
+-                  <span>{cms.summaryLabels.shipping}</span>
+-                  <b>{money(shipping)}</b>
+-                </div>
+-                <div className="border-t border-slate-200 my-2" />
+-                <div className="flex justify-between text-base">
+-                  <span className="font-extrabold">{cms.summaryLabels.total}</span>
+-                  <b>{money(grandTotal)}</b>
+-                </div>
+-              </div>
+-
+-              <div className="mt-4 grid gap-2">
+-                <Link className="btn btn-primary hover:text-purple-800 w-full text-center" to="/product-checkout">
+-                  <i className="fa-solid fa-credit-card mr-2" />
+-                  {cms.checkoutButton}
+-                </Link>
+-
+-                <Link className="btn w-full text-center" to="/products">
+-                  <i className="fa-solid fa-arrow-left mr-2" />
+-                  {cms.continueShoppingButton}
+-                </Link>
+-              </div>
+-
+-              <div className="mt-5 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+-                <div className="text-sm font-extrabold">{cms.commitmentTitle}</div>
+-                <ul className="mt-2 text-sm text-slate-700 space-y-2">
+-                  {cms.commitmentItems.map((item, idx) => (
+-                      <li key={idx} className="flex gap-2">
+-                        <span className="text-emerald-600 font-extrabold">•</span>
+-                        {item}
+-                      </li>
+-                  ))}
+-                </ul>
+-              </div>
+-            </aside>
+-          </div>
+-
+-          <div className="max-w-6xl mx-auto mt-4 text-center text-sm text-slate-500">
+-            {cms.footerText}
+-          </div>
+-        </main>
++    <div className="mx-auto max-w-4xl p-6">
++      <h1 className="text-2xl font-bold">Giỏ hàng</h1>
++      {!isAuthenticated && (
++        <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
++          Bạn đang ở chế độ khách. Vui lòng đăng nhập để checkout và đồng bộ giỏ hàng.
++        </div>
++      )}
++
++      {items.length === 0 ? (
++        <div className="mt-6 rounded-xl border p-6 text-slate-500">
++          Giỏ hàng trống. <Link to="/products" className="font-semibold text-indigo-600">Mua sắm ngay</Link>
++        </div>
++      ) : (
++        <div className="mt-6 space-y-3">
++          {items.map((item) => (
++            <div key={`${item.itemId ?? 'guest'}-${item.productId}`} className="flex items-center gap-3 rounded-xl border p-4">
++              {item.image ? <img src={item.image} className="h-16 w-16 rounded-xl object-cover" /> : <div className="h-16 w-16 rounded-xl bg-slate-100" />}
++              <div className="min-w-0 flex-1">
++                <p className="truncate font-semibold">{item.name}</p>
++                <p className="text-sm text-slate-500">{money(item.price)}</p>
++              </div>
++              <div className="flex items-center gap-2">
++                <button className="rounded border px-2" onClick={() => updateQuantity(item.itemId ?? item.productId, item.quantity - 1)}>-</button>
++                <span>{item.quantity}</span>
++                <button className="rounded border px-2" onClick={() => updateQuantity(item.itemId ?? item.productId, item.quantity + 1)}>+</button>
++                <button className="ml-2 text-sm text-rose-600" onClick={() => removeItem(item.itemId ?? item.productId)}>Xoá</button>
++              </div>
++            </div>
++          ))}
++        </div>
++      )}
++
++      <div className="mt-6 rounded-xl border p-4">
++        <div className="flex justify-between text-sm"><span>Tổng số lượng</span><span>{totalItems}</span></div>
++        <div className="mt-2 flex justify-between font-bold"><span>Tạm tính</span><span>{money(subtotal)}</span></div>
++        <button className="mt-4 w-full rounded-lg bg-slate-900 px-4 py-2 text-white" disabled={!items.length}>
++          Tiếp tục checkout (TODO)
++        </button>
+       </div>
+-  );
+-}
+\ No newline at end of file
++    </div>
++  )
++}
+diff --git a/Home/ayanavita-fontend-final/src/pages/ProductDetailPage.tsx b/Home/ayanavita-fontend-final/src/pages/ProductDetailPage.tsx
+index b35b24a763e8a57e80673e9c4881d79f93ddf44c..6e9acd6ef57ed4783816813e635043139f4fedb6 100644
+--- a/Home/ayanavita-fontend-final/src/pages/ProductDetailPage.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/ProductDetailPage.tsx
+@@ -1,31 +1,31 @@
+ import React, { useEffect, useMemo, useState } from "react";
+ import { Link, useNavigate, useParams } from "react-router-dom";
+ 
+ // NOTE: Product detail must use API data only. Avoid demo/seed datasets.
+ import { money } from "../services/booking.utils";
+-import { addProductToCart, readProductCart } from "../services/productCart.utils";
++import { useCart } from "../contexts/CartContext";
+ 
+ import { MiniCartModal } from "../components/shop/MiniCartModal";
+ import { ReviewModal } from "../components/shop/ReviewModal";
+ import { Stars } from "../components/shop/Stars";
+ 
+ // (removed) buildCatalogMetas / PRODUCT_DETAIL_SEEDS / label helpers
+ import { addReview, calcReviewStats, listReviewsBySku } from "../services/productReviews.utils";
+ 
+ import {http} from "../api/http";
+ import { c } from "node_modules/vite/dist/node/moduleRunnerTransport.d-DJ_mE5sf";
+ 
+ // ==================== CMS DATA (MẶC ĐỊNH) ====================
+ // Tất cả nội dung giao diện tĩnh (có thể chỉnh sửa qua CMS) được đặt ở đây
+ const defaultCmsData = {
+   topBar: {
+     chips: [
+       { text: "Giá niêm yết", icon: "fa-solid fa-tags", iconColor: "text-amber-600" },
+       { text: "Đánh giá minh bạch (demo)", icon: "fa-solid fa-star", iconColor: "text-amber-500" },
+       { text: "Chuẩn Spa AYANAVITA", icon: "fa-solid fa-shield-halved", iconColor: "text-indigo-600" }
+     ],
+     hotline: {
+       label: "Hotline:",
+       phone: "0900 000 000",
+       zaloLabel: "Zalo:",
+       zaloText: "AYANAVITA Official"
+@@ -348,61 +348,53 @@ export default function ProductDetailPage() {
+       const ao = Number.isFinite(Number(a?.sortOrder)) ? Number(a.sortOrder) : 999999;
+       const bo = Number.isFinite(Number(b?.sortOrder)) ? Number(b.sortOrder) : 999999;
+       if (ao !== bo) return ao - bo;
+       if (!!a?.isPrimary !== !!b?.isPrimary) return a?.isPrimary ? -1 : 1;
+       return 0;
+     });
+     const urls = rows.map((x: any) => x?.imageUrl).filter(Boolean);
+     if (urls.length) {
+       const primary = rows.find((x: any) => x?.isPrimary && x?.imageUrl)?.imageUrl;
+       if (primary) return [primary, ...urls.filter((u: string) => u !== primary)];
+       return urls;
+     }
+     return apiProduct?.image ? [apiProduct.image] : [];
+   }, [apiProduct]);
+ 
+   const [mainImg, setMainImg] = useState(images[0]);
+   useEffect(() => {
+     setMainImg(images[0]);
+     window.scrollTo({ top: 0, behavior: "smooth" });
+   }, [productKey, images]);
+ 
+   const [qty, setQty] = useState(1);
+   useEffect(() => setQty(1), [productKey]);
+ 
+   const [cartOpen, setCartOpen] = useState(false);
++  const { addItem, totalItems: cartCount } = useCart();
+   const [reviewOpen, setReviewOpen] = useState(false);
+ 
+-  const [cartCount, setCartCount] = useState(0);
+-  useEffect(() => {
+-    const calc = () => setCartCount(readProductCart().reduce((s, i) => s + Number(i.qty || 0), 0));
+-    calc();
+-    const onChanged = () => calc();
+-    window.addEventListener("aya_product_cart_changed", onChanged as any);
+-    return () => window.removeEventListener("aya_product_cart_changed", onChanged as any);
+-  }, []);
+-
+   const [rvSort, setRvSort] = useState<"new" | "high" | "low">("new");
+   const [rvFilterStar, setRvFilterStar] = useState<"all" | "1" | "2" | "3" | "4" | "5">("all");
+   const [rvSearch, setRvSearch] = useState("");
+ 
+   const stats = useMemo(() => calcReviewStats(listReviewsBySku(productKey as any)), [productKey, reviewOpen]);
+ 
+   const displayName = apiProduct?.name || "";
+   const displayPrice = Number(apiProduct?.price ?? 0);
+ 
+   const effectiveAvg = stats.count ? stats.avg : 0;
+   const effectiveCount = stats.count ? stats.count : 0;
+ 
+   const filteredReviews = useMemo(() => {
+     let rs = listReviewsBySku(productKey as any).slice();
+ 
+     if (rvFilterStar !== "all") rs = rs.filter((r) => String(r.stars) === rvFilterStar);
+     const q = rvSearch.trim().toLowerCase();
+     if (q) rs = rs.filter((r) => (r.name + " " + r.text).toLowerCase().includes(q));
+     if (rvSort === "new") rs.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+     if (rvSort === "high") rs.sort((a, b) => b.stars - a.stars);
+     if (rvSort === "low") rs.sort((a, b) => a.stars - b.stars);
+     return rs;
+   }, [productKey, rvFilterStar, rvSearch, rvSort, reviewOpen]);
+ 
+   const guideIntro = apiProduct?.guideContent?.intro || "";
+@@ -459,52 +451,53 @@ export default function ProductDetailPage() {
+               <div className="card p-6">
+                 <div className="text-2xl font-extrabold">Đang tải sản phẩm…</div>
+                 <div className="mt-2 text-slate-600">Vui lòng đợi một chút.</div>
+               </div>
+             </div>
+           </main>
+         </div>
+     );
+   }
+ 
+   if (productError || !apiProduct) {
+     return (
+         <div className="text-slate-900">
+           <main className="px-4 pb-10">
+             <div className="max-w-4xl mx-auto card p-6">
+               <div className="text-2xl font-extrabold">Không tìm thấy sản phẩm</div>
+               <div className="mt-2 text-slate-600">{productError || "API không trả về dữ liệu."}</div>
+               <Link className="mt-4 btn btn-primary inline-block" to="/products">Về danh mục</Link>
+             </div>
+           </main>
+         </div>
+     );
+   }
+ 
+   function addToCart(q: number) {
+-    addProductToCart(productKey as any, q);
+-    setCartCount(readProductCart().reduce((s, i) => s + Number(i.qty || 0), 0));
++    const productId = Number(apiProduct?.id);
++    if (!Number.isFinite(productId)) return;
++    void addItem({ productId, quantity: q, name: apiProduct?.name, price: Number(apiProduct?.price || 0), image: apiProduct?.imageUrl || undefined });
+     window.alert("Đã thêm vào giỏ (demo).");
+   }
+ 
+   function buyNow() {
+     addToCart(qty);
+     setCartOpen(true);
+   }
+ 
+   function submitReview(x: { name: string; stars: number; text: string }) {
+     addReview(productKey as any, x);
+     setReviewOpen(false);
+   }
+ 
+   return (
+       <div className="text-slate-900">
+         {/* Top bar chips */}
+         <div className="bg-white border-b border-slate-200">
+           <div className="mx-auto max-w-7xl px-4 py-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+             <div className="flex items-center gap-2 flex-wrap">
+               {cmsData.topBar.chips.map((chip, idx) => (
+                   <span key={idx} className="chip">
+                 <i className={`${chip.icon} ${chip.iconColor}`} />{chip.text}
+               </span>
+               ))}
+             </div>
+diff --git a/Home/ayanavita-fontend-final/src/services/cart.storage.ts b/Home/ayanavita-fontend-final/src/services/cart.storage.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..0b5b091f7485e70ed23654b1a8806e9d17bfd974
+--- /dev/null
++++ b/Home/ayanavita-fontend-final/src/services/cart.storage.ts
+@@ -0,0 +1,49 @@
++export const GUEST_CART_KEY = 'aya_guest_cart_v1'
++
++export type GuestCartItem = {
++  productId: number
++  quantity: number
++  variantId?: string
++  name?: string
++  price?: number
++  image?: string
++}
++
++function normalize(items: GuestCartItem[]): GuestCartItem[] {
++  const map = new Map<number, GuestCartItem>()
++  for (const item of items || []) {
++    const productId = Number(item.productId)
++    const quantity = Number(item.quantity)
++    if (!Number.isInteger(productId) || productId <= 0 || !Number.isInteger(quantity) || quantity < 1) continue
++    const prev = map.get(productId)
++    map.set(productId, {
++      productId,
++      quantity: (prev?.quantity ?? 0) + quantity,
++      variantId: item.variantId ?? prev?.variantId,
++      name: item.name ?? prev?.name,
++      price: item.price ?? prev?.price,
++      image: item.image ?? prev?.image,
++    })
++  }
++  return [...map.values()]
++}
++
++export function readGuestCart(): GuestCartItem[] {
++  try {
++    const raw = localStorage.getItem(GUEST_CART_KEY)
++    return normalize(raw ? JSON.parse(raw) : [])
++  } catch {
++    return []
++  }
++}
++
++export function writeGuestCart(items: GuestCartItem[]) {
++  const normalized = normalize(items)
++  localStorage.setItem(GUEST_CART_KEY, JSON.stringify(normalized))
++  window.dispatchEvent(new CustomEvent('aya_cart_changed'))
++}
++
++export function clearGuestCart() {
++  localStorage.removeItem(GUEST_CART_KEY)
++  window.dispatchEvent(new CustomEvent('aya_cart_changed'))
++}
+diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202603150001_add_cart_tables/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202603150001_add_cart_tables/migration.sql
+new file mode 100644
+index 0000000000000000000000000000000000000000..d6d4677a4631a9ab3cfa934dd9310389f170e39b
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/prisma/migrations/202603150001_add_cart_tables/migration.sql
+@@ -0,0 +1,39 @@
++-- CreateTable
++CREATE TABLE `Cart` (
++    `id` INTEGER NOT NULL AUTO_INCREMENT,
++    `userId` INTEGER NOT NULL,
++    `status` ENUM('ACTIVE', 'ORDERED') NOT NULL DEFAULT 'ACTIVE',
++    `currency` VARCHAR(3) NOT NULL DEFAULT 'VND',
++    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
++    `updatedAt` DATETIME(3) NOT NULL,
++
++    INDEX `Cart_userId_idx`(`userId`),
++    INDEX `Cart_status_idx`(`status`),
++    PRIMARY KEY (`id`)
++) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
++
++-- CreateTable
++CREATE TABLE `CartDetail` (
++    `id` INTEGER NOT NULL AUTO_INCREMENT,
++    `cartId` INTEGER NOT NULL,
++    `productId` INTEGER NOT NULL,
++    `variantId` VARCHAR(100) NULL,
++    `nameSnapshot` VARCHAR(255) NOT NULL,
++    `priceSnapshot` INTEGER NOT NULL DEFAULT 0,
++    `quantity` INTEGER NOT NULL DEFAULT 1,
++    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
++    `updatedAt` DATETIME(3) NOT NULL,
++
++    INDEX `CartDetail_productId_idx`(`productId`),
++    UNIQUE INDEX `CartDetail_cartId_productId_key`(`cartId`, `productId`),
++    PRIMARY KEY (`id`)
++) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
++
++-- AddForeignKey
++ALTER TABLE `Cart` ADD CONSTRAINT `Cart_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
++
++-- AddForeignKey
++ALTER TABLE `CartDetail` ADD CONSTRAINT `CartDetail_cartId_fkey` FOREIGN KEY (`cartId`) REFERENCES `Cart`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
++
++-- AddForeignKey
++ALTER TABLE `CartDetail` ADD CONSTRAINT `CartDetail_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+index 223f51b5d1f898d92f07abe34c34b394024c9703..6b1bb5257aeb85278c8ab0114657bb499a633658 100644
+--- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
++++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+@@ -5,50 +5,51 @@ generator client {
+ datasource db {
+   provider          = "mysql"
+   url               = env("DATABASE_URL")
+   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+ }
+ 
+ model User {
+   id                 Int      @id @default(autoincrement())
+   email              String   @unique
+   password           String
+   name               String?
+   phone              String?
+   birthDate          DateTime?
+   gender             Gender?
+   address            String?  @db.VarChar(500)
+   role               Role     @default(USER)
+   isActive           Boolean  @default(true)
+   hashedRefreshToken String?  @db.Text
+   createdAt          DateTime @default(now())
+   updatedAt          DateTime @updatedAt
+ 
+   // ✅ ADD
+   enrollments    Enrollment[]
+   lessonProgress LessonProgress[]
+   orders         Order[] // <— opposite for Order.user
++  carts          Cart[]
+ 
+   // ✅ CMS (optional relations)
+   cmsSectionVersions CmsSectionVersion[]
+   mediaAssets        MediaAsset[]
+   serviceReviews     ServiceReview[]
+   specialistProfile  Specialist?
+ }
+ 
+ model Branch {
+   id          Int                @id @default(autoincrement())
+   code        String             @unique @db.VarChar(32)
+   name        String             @db.VarChar(255)
+   address     String             @db.VarChar(255)
+   phone       String?            @db.VarChar(30)
+   isActive    Boolean            @default(true)
+   createdAt   DateTime           @default(now())
+   updatedAt   DateTime           @updatedAt
+   services    BranchService[]
+   specialists Specialist[]
+   appointments Appointment[]
+   translations BranchTranslation[]
+ }
+ 
+ model ServiceCategory {
+   id        Int      @id @default(autoincrement())
+@@ -297,56 +298,95 @@ model CourseTopicTranslation {
+   updatedAt   DateTime @updatedAt
+ 
+   topic CourseTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+ 
+   @@unique([topicId, locale])
+   @@index([locale])
+ }
+ 
+ 
+ model Product {
+   id               Int      @id @default(autoincrement())
+   sku              String   @unique @db.VarChar(40)
+   slug             String   @unique @db.VarChar(120)
+   name             String   @db.VarChar(255)
+   description      String?  @db.LongText
+   shortDescription String?  @db.VarChar(500)
+   imageUrl         String?  @db.Text
+   type             String   @default("cleanser") @db.VarChar(40)
+   concerns         String   @default("") @db.VarChar(255)
+   rating           Float    @default(4.5)
+   sold             Int      @default(0)
+   price            Int      @default(0)
+   published        Boolean  @default(true)
+   createdAt        DateTime @default(now())
+   updatedAt        DateTime @updatedAt
++  cartItems        CartDetail[]
+ 
+   @@index([type])
+   @@index([published])
+   @@index([price])
+ }
+ 
++enum CartStatus {
++  ACTIVE
++  ORDERED
++}
++
++model Cart {
++  id        Int        @id @default(autoincrement())
++  userId    Int
++  status    CartStatus @default(ACTIVE)
++  currency  String     @default("VND") @db.VarChar(3)
++  createdAt DateTime   @default(now())
++  updatedAt DateTime   @updatedAt
++
++  user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
++  items CartDetail[]
++
++  @@index([userId])
++  @@index([status])
++}
++
++model CartDetail {
++  id            Int      @id @default(autoincrement())
++  cartId        Int
++  productId     BigInt
++  variantId     String?  @db.VarChar(100)
++  nameSnapshot  String   @db.VarChar(255)
++  priceSnapshot Int      @default(0)
++  quantity      Int      @default(1)
++  createdAt     DateTime @default(now())
++  updatedAt     DateTime @updatedAt
++
++  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
++  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
++
++  @@unique([cartId, productId])
++  @@index([productId])
++}
++
+ model Lesson {
+   id              Int              @id @default(autoincrement())
+   courseId        Int
+   title           String
+   slug            String
+   description     String?
+   content         String?          @db.LongText
+   videoUrl        String?
+   titleI18n       Json?
+   descriptionI18n Json?
+   order           Int              @default(0)
+   published       Boolean          @default(false)
+   createdAt       DateTime         @default(now())
+   updatedAt       DateTime         @updatedAt
+   course          Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+   progress        LessonProgress[]
+   modules         LessonModule[]
+ 
+   @@unique([courseId, slug])
+   @@index([courseId, order])
+ }
+ 
+ model LessonModule {
+   id              Int          @id @default(autoincrement())
+   lessonId        Int
+diff --git a/backend/ayanavitabackend/app/api/src/app.module.ts b/backend/ayanavitabackend/app/api/src/app.module.ts
+index dfd59ff4319fd63136d58bc445154b9cfe98bbd1..776794d5cdb7ff7ca1f0d2d04ffadf109f5057a1 100644
+--- a/backend/ayanavitabackend/app/api/src/app.module.ts
++++ b/backend/ayanavitabackend/app/api/src/app.module.ts
+@@ -1,40 +1,42 @@
+ import { Module } from '@nestjs/common';
+ 
+ import { PrismaModule } from './prisma/prisma.module';
+ 
+ import { AuthModule } from './auth/auth.module';
+ import { UsersModule } from './users/users.module';
+ 
+ import { CoursesModule } from './courses/courses.module';
+ import { CourseTopicsModule } from './course-topics/course-topics.module';
+ import { LessonsModule } from './lessons/lessons.module';
+ import { EnrollmentsModule } from './enrollments/enrollments.module';
+ import { ProgressModule } from './progress/progress.module';
+ 
+ import { OrdersModule } from './orders/orders.module';
+ import { BookingModule } from './booking/booking.module';
+ 
+ import { CmsModule } from './cms/cms.module';
+ import { CatalogModule } from './catalog/catalog.module';
++import { CartModule } from './cart/cart.module';
+ 
+ @Module({
+   imports: [
+     PrismaModule,
+ 
+     UsersModule,
+     AuthModule,
+ 
+     CoursesModule,
+     CourseTopicsModule,
+     LessonsModule,
+     EnrollmentsModule,
+     ProgressModule,
+ 
+     OrdersModule,
+     BookingModule,
+ 
+     CmsModule,
+     CatalogModule,
++    CartModule,
+   ],
+ })
+ export class AppModule {}
+\ No newline at end of file
+diff --git a/backend/ayanavitabackend/app/api/src/cart/cart.controller.ts b/backend/ayanavitabackend/app/api/src/cart/cart.controller.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..3093daae7c7ad83e092558aa299024181347febe
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/cart/cart.controller.ts
+@@ -0,0 +1,40 @@
++import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common'
++import { AccessTokenGuard } from '../auth/guards/access-token.guard'
++import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
++import { AddCartItemDto, MergeCartDto, UpdateCartItemDto } from './dto/cart.dto'
++import { CartService } from './cart.service'
++
++@UseGuards(AccessTokenGuard)
++@Controller('api/cart')
++export class CartController {
++  constructor(private readonly cartService: CartService) {}
++
++  @Get()
++  getMyCart(@CurrentUser() user: JwtUser) {
++    return this.cartService.getMyCart(user.sub)
++  }
++
++  @Post('items')
++  addItem(@CurrentUser() user: JwtUser, @Body() dto: AddCartItemDto) {
++    return this.cartService.addItem(user.sub, dto)
++  }
++
++  @Patch('items/:itemId')
++  updateItem(
++    @CurrentUser() user: JwtUser,
++    @Param('itemId', ParseIntPipe) itemId: number,
++    @Body() dto: UpdateCartItemDto,
++  ) {
++    return this.cartService.updateItem(user.sub, itemId, dto)
++  }
++
++  @Delete('items/:itemId')
++  removeItem(@CurrentUser() user: JwtUser, @Param('itemId', ParseIntPipe) itemId: number) {
++    return this.cartService.removeItem(user.sub, itemId)
++  }
++
++  @Post('merge')
++  merge(@CurrentUser() user: JwtUser, @Body() dto: MergeCartDto) {
++    return this.cartService.mergeCart(user.sub, dto)
++  }
++}
+diff --git a/backend/ayanavitabackend/app/api/src/cart/cart.module.ts b/backend/ayanavitabackend/app/api/src/cart/cart.module.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..39b14b948c80738e236b4e8fa903153eb3236e7b
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/cart/cart.module.ts
+@@ -0,0 +1,11 @@
++import { Module } from '@nestjs/common'
++import { PrismaModule } from '../prisma/prisma.module'
++import { CartController } from './cart.controller'
++import { CartService } from './cart.service'
++
++@Module({
++  imports: [PrismaModule],
++  controllers: [CartController],
++  providers: [CartService],
++})
++export class CartModule {}
+diff --git a/backend/ayanavitabackend/app/api/src/cart/cart.service.ts b/backend/ayanavitabackend/app/api/src/cart/cart.service.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..eef237c80df4b60c74acb432b0f61082ef67875d
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/cart/cart.service.ts
+@@ -0,0 +1,196 @@
++import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
++import { CartStatus, Prisma } from '@prisma/client'
++import { PrismaService } from '../prisma/prisma.service'
++import { AddCartItemDto, MergeCartDto, UpdateCartItemDto } from './dto/cart.dto'
++
++type CartWithItems = Prisma.CartGetPayload<{
++  include: {
++    items: {
++      include: {
++        product: { select: { id: true; name: true; price: true; imageUrl: true; published: true } }
++      }
++    }
++  }
++}>
++
++@Injectable()
++export class CartService {
++  constructor(private readonly prisma: PrismaService) {}
++
++  private toResponse(cart: CartWithItems | null) {
++    const items = (cart?.items ?? []).map((item) => ({
++      itemId: item.id,
++      productId: item.productId,
++      name: item.nameSnapshot || item.product?.name || '',
++      price: item.priceSnapshot,
++      quantity: item.quantity,
++      image: item.product?.imageUrl ?? undefined,
++    }))
++
++    const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
++    const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
++
++    return {
++      cartId: cart?.id ?? null,
++      items,
++      subtotal,
++      totalItems,
++    }
++  }
++
++  private async ensureProduct(productId: number) {
++    const product = await this.prisma.product.findUnique({
++      where: { id: productId },
++      select: { id: true, name: true, price: true, imageUrl: true, published: true },
++    })
++
++    if (!product || !product.published) {
++      throw new NotFoundException('Product not found or inactive')
++    }
++
++    return product
++  }
++
++  private async getOrCreateActiveCart(userId: number) {
++    const cart = await this.prisma.cart.findFirst({ where: { userId, status: CartStatus.ACTIVE }, select: { id: true } })
++    if (cart) return cart
++
++    return this.prisma.cart.create({
++      data: { userId, status: CartStatus.ACTIVE, currency: 'VND' },
++      select: { id: true },
++    })
++  }
++
++  private async getActiveCart(userId: number) {
++    return this.prisma.cart.findFirst({
++      where: { userId, status: CartStatus.ACTIVE },
++      include: {
++        items: {
++          orderBy: { id: 'desc' },
++          include: { product: { select: { id: true, name: true, price: true, imageUrl: true, published: true } } },
++        },
++      },
++    })
++  }
++
++  async getMyCart(userId: number) {
++    const cart = await this.getActiveCart(userId)
++    return this.toResponse(cart)
++  }
++
++  async addItem(userId: number, dto: AddCartItemDto) {
++    const qty = dto.quantity ?? 1
++    if (!Number.isInteger(qty) || qty < 1) throw new BadRequestException('quantity must be >= 1')
++
++    const product = await this.ensureProduct(dto.productId)
++    const cart = await this.getOrCreateActiveCart(userId)
++
++    await this.prisma.cartDetail.upsert({
++      where: { cartId_productId: { cartId: cart.id, productId: dto.productId } },
++      create: {
++        cartId: cart.id,
++        productId: dto.productId,
++        variantId: dto.variantId,
++        quantity: qty,
++        nameSnapshot: product.name,
++        priceSnapshot: product.price,
++      },
++      update: {
++        quantity: { increment: qty },
++        variantId: dto.variantId,
++        nameSnapshot: product.name,
++        priceSnapshot: product.price,
++      },
++    })
++
++    const updated = await this.getActiveCart(userId)
++    return this.toResponse(updated)
++  }
++
++  async updateItem(userId: number, itemId: number, dto: UpdateCartItemDto) {
++    if (!Number.isInteger(dto.quantity)) throw new BadRequestException('quantity must be an integer')
++
++    const item = await this.prisma.cartDetail.findUnique({
++      where: { id: itemId },
++      include: { cart: { select: { id: true, userId: true, status: true } } },
++    })
++
++    if (!item || item.cart.userId !== userId || item.cart.status !== CartStatus.ACTIVE) {
++      throw new NotFoundException('Cart item not found')
++    }
++
++    if (dto.quantity <= 0) {
++      await this.prisma.cartDetail.delete({ where: { id: itemId } })
++    } else {
++      await this.prisma.cartDetail.update({ where: { id: itemId }, data: { quantity: dto.quantity } })
++    }
++
++    const updated = await this.getActiveCart(userId)
++    return this.toResponse(updated)
++  }
++
++  async removeItem(userId: number, itemId: number) {
++    const item = await this.prisma.cartDetail.findUnique({
++      where: { id: itemId },
++      include: { cart: { select: { userId: true, status: true } } },
++    })
++
++    if (!item || item.cart.userId !== userId || item.cart.status !== CartStatus.ACTIVE) {
++      throw new NotFoundException('Cart item not found')
++    }
++
++    await this.prisma.cartDetail.delete({ where: { id: itemId } })
++    const updated = await this.getActiveCart(userId)
++    return this.toResponse(updated)
++  }
++
++  async mergeCart(userId: number, dto: MergeCartDto) {
++    if (!dto.items?.length) {
++      const cart = await this.getActiveCart(userId)
++      return this.toResponse(cart)
++    }
++
++    const grouped = new Map<number, { quantity: number; variantId?: string }>()
++    for (const item of dto.items) {
++      const prev = grouped.get(item.productId)
++      grouped.set(item.productId, {
++        quantity: (prev?.quantity ?? 0) + item.quantity,
++        variantId: item.variantId ?? prev?.variantId,
++      })
++    }
++
++    const cart = await this.getOrCreateActiveCart(userId)
++
++    await this.prisma.$transaction(async (tx) => {
++      for (const [productId, payload] of grouped.entries()) {
++        const product = await tx.product.findUnique({
++          where: { id: productId },
++          select: { id: true, name: true, price: true, published: true },
++        })
++
++        if (!product || !product.published) continue
++
++        await tx.cartDetail.upsert({
++          where: { cartId_productId: { cartId: cart.id, productId } },
++          create: {
++            cartId: cart.id,
++            productId,
++            variantId: payload.variantId,
++            quantity: payload.quantity,
++            nameSnapshot: product.name,
++            priceSnapshot: product.price,
++          },
++          update: {
++            quantity: { increment: payload.quantity },
++            variantId: payload.variantId,
++            nameSnapshot: product.name,
++            priceSnapshot: product.price,
++          },
++        })
++      }
++    })
++
++    const updated = await this.getActiveCart(userId)
++    return this.toResponse(updated)
++  }
++}
+diff --git a/backend/ayanavitabackend/app/api/src/cart/dto/cart.dto.ts b/backend/ayanavitabackend/app/api/src/cart/dto/cart.dto.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..34267979fade637968a3d3daa00ba3871227de90
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/cart/dto/cart.dto.ts
+@@ -0,0 +1,46 @@
++import { Type } from 'class-transformer'
++import { IsArray, IsInt, IsOptional, IsString, Min, ValidateNested } from 'class-validator'
++
++export class AddCartItemDto {
++  @Type(() => Number)
++  @IsInt()
++  productId!: number
++
++  @Type(() => Number)
++  @IsInt()
++  @Min(1)
++  @IsOptional()
++  quantity?: number = 1
++
++  @IsOptional()
++  @IsString()
++  variantId?: string
++}
++
++export class UpdateCartItemDto {
++  @Type(() => Number)
++  @IsInt()
++  quantity!: number
++}
++
++export class MergeCartItemDto {
++  @Type(() => Number)
++  @IsInt()
++  productId!: number
++
++  @Type(() => Number)
++  @IsInt()
++  @Min(1)
++  quantity!: number
++
++  @IsOptional()
++  @IsString()
++  variantId?: string
++}
++
++export class MergeCartDto {
++  @IsArray()
++  @ValidateNested({ each: true })
++  @Type(() => MergeCartItemDto)
++  items!: MergeCartItemDto[]
++}

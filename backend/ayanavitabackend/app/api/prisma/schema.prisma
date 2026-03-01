@@ -14,6 +14,9 @@ model User {
   password           String
   name               String?
   phone              String?
+  birthDate          DateTime?
+  gender             Gender?
+  address            String?  @db.VarChar(500)
   role               Role     @default(USER)
   isActive           Boolean  @default(true)
   hashedRefreshToken String?  @db.Text
@@ -26,12 +29,19 @@ model User {
   lessonProgress LessonProgress[]
   lessonVideoProgress LessonVideoProgress[]
   orders         Order[] // <— opposite for Order.user
+  productOrders  ProductOrder[]
+  carts          Cart[]
+
   courseReviews CourseReview[]
   // ✅ CMS (optional relations)
   cmsSectionVersions CmsSectionVersion[]
   mediaAssets        MediaAsset[]
   serviceReviews     ServiceReview[]
+  reviews            Review[]
   specialistProfile  Specialist?
+  reviewHelpfulVotes ReviewHelpful[]
+  blogPosts          BlogPost[]
+  blogSaves          BlogSavedPost[]
 }
 
 model Branch {
@@ -47,6 +57,7 @@ model Branch {
   specialists Specialist[]
   appointments Appointment[]
   translations BranchTranslation[]
+  reviews      Review[]
 }
 
 model ServiceCategory {
@@ -79,6 +90,7 @@ model Service {
   branches     BranchService[]
   appointments Appointment[]
   reviews      ServiceReview[]
+  unifiedReviews Review[]
   translations ServiceTranslation[]
 
   @@index([categoryId])
@@ -362,6 +374,43 @@ model Product {
   @@index([price])
 }
 
+enum CartStatus {
+  ACTIVE
+  ORDERED
+}
+
+model Cart {
+  id        Int        @id @default(autoincrement())
+  userId    Int
+  status    CartStatus @default(ACTIVE)
+  currency  String     @default("VND") @db.VarChar(3)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartDetail[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model CartDetail {
+  id            Int      @id @default(autoincrement())
+  cartId        Int
+  productId     BigInt
+  nameSnapshot  String   @db.VarChar(255)
+  priceSnapshot Decimal  @default(0.00) @db.Decimal(18, 2)
+  quantity      Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product CatalogProduct @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([cartId, productId])
+  @@index([productId])
+}
+
 model Lesson {
   id              Int              @id @default(autoincrement())
   courseId        Int
@@ -592,6 +641,12 @@ enum AppointmentStatus {
   CANCELED
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
 enum Role {
   ADMIN
   MANAGER
@@ -819,8 +874,244 @@ model CatalogProduct {
   attributes   ProductAttribute[]
   ingredients  ProductIngredient[]
   images       ProductImage[]
+  cartItems    CartDetail[]
+  orderDetails ProductOrderDetail[]
+  reviews      Review[]
 
   @@map("products")
+}
+
+enum ProductOrderStatus {
+  PENDING_PAYMENT
+  PROCESSING
+  PAID
+  CANCELLED
+  EXPIRED
+}
+
+enum ProductPaymentMethod {
+  COD
+  SEPAY
+}
+
+enum ProductPaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  NOT_REQUIRED
+  EXPIRED
+}
+
+model ProductOrder {
+  id              BigInt               @id @default(autoincrement())
+  code            String               @unique @db.VarChar(32)
+  userId          Int
+  status          ProductOrderStatus   @default(PENDING_PAYMENT)
+  paymentMethod   ProductPaymentMethod @default(COD)
+  paymentStatus   ProductPaymentStatus @default(NOT_REQUIRED)
+  paymentCode     String?              @unique @db.VarChar(64)
+
+  receiverName    String               @db.VarChar(255)
+  receiverPhone   String               @db.VarChar(30)
+  receiverEmail   String?              @db.VarChar(255)
+  shippingAddress String               @db.VarChar(500)
+  district        String               @db.VarChar(255)
+  city            String               @db.VarChar(255)
+  note            String?              @db.Text
+
+  shippingUnit    String               @default("-") @db.VarChar(120)
+  trackingCode    String               @default("-") @db.VarChar(120)
+  expectedDelivery String              @default("-") @db.VarChar(120)
+
+  subtotal        Decimal              @default(0) @db.Decimal(18, 2)
+  shippingFee     Decimal              @default(0) @db.Decimal(18, 2)
+  discount        Decimal              @default(0) @db.Decimal(18, 2)
+  total           Decimal              @default(0) @db.Decimal(18, 2)
+  currency        String               @default("VND") @db.VarChar(3)
+
+  paidAt          DateTime?
+  cancelledAt     DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  details         ProductOrderDetail[]
+  payments        ProductOrderPayment[]
+  reviews         Review[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+model ProductOrderDetail {
+  id              BigInt         @id @default(autoincrement())
+  orderId         BigInt
+  productId       BigInt
+  productName     String         @db.VarChar(255)
+  productSku      String         @db.VarChar(64)
+  unitPrice       Decimal        @default(0) @db.Decimal(18, 2)
+  quantity        Int            @default(1)
+  lineTotal       Decimal        @default(0) @db.Decimal(18, 2)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  order           ProductOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product         CatalogProduct @relation(fields: [productId], references: [id], onDelete: Restrict)
+  reviews         Review[]
+
+  @@unique([orderId, productId])
+  @@index([productId])
+}
+
+enum ReviewType {
+  SERVICE
+  PRODUCT
+}
+
+enum ReviewVisibility {
+  VISIBLE
+  HIDDEN
+  DELETED
+}
+
+model Review {
+  id                   BigInt           @id @default(autoincrement())
+  type                 ReviewType
+  visibility           ReviewVisibility @default(VISIBLE)
+  branchId             Int
+  serviceId            Int?
+  productId            BigInt?
+  productOrderId       BigInt?
+  productOrderDetailId BigInt?
+  userId               Int?
+  isAnonymous          Boolean          @default(false)
+  customerName         String?          @db.VarChar(255)
+  stars                Int
+  comment              String           @db.Text
+  ipAddress            String?          @db.VarChar(64)
+  userAgent            String?          @db.VarChar(512)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  branch             Branch             @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  service            Service?           @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  product            CatalogProduct?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productOrder       ProductOrder?      @relation(fields: [productOrderId], references: [id], onDelete: SetNull)
+  productOrderDetail ProductOrderDetail? @relation(fields: [productOrderDetailId], references: [id], onDelete: SetNull)
+  user               User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  images             ReviewImage[]
+  helpfulVotes       ReviewHelpful[]
+
+  @@index([type, visibility, createdAt])
+  @@index([branchId, createdAt])
+  @@index([serviceId])
+  @@index([productId])
+  @@index([userId])
+  @@index([ipAddress, createdAt])
+  @@unique([userId, productOrderId, productId], map: "uniq_product_review_per_user_order_product")
+}
+
+model ReviewHelpful {
+  id        BigInt   @id @default(autoincrement())
+  reviewId  BigInt
+  userId    Int
+  createdAt DateTime @default(now())
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, userId], map: "uniq_review_helpful_user")
+  @@index([userId, createdAt])
+  @@index([reviewId])
+}
+
+model ReviewImage {
+  id        BigInt   @id @default(autoincrement())
+  reviewId  BigInt
+  fileName  String?  @db.VarChar(255)
+  imageUrl  String   @db.VarChar(500)
+  createdAt DateTime @default(now())
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+}
+
+enum BlogPostStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model BlogPost {
+  id           Int            @id @default(autoincrement())
+  authorId     Int
+  title        String         @db.VarChar(255)
+  slug         String         @unique @db.VarChar(255)
+  summary      String?        @db.VarChar(500)
+  content      String         @db.LongText
+  coverImage   String?        @db.VarChar(500)
+  tags         Json?
+  status       BlogPostStatus @default(DRAFT)
+  publishedAt  DateTime?
+  views        Int            @default(0)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  author       User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  viewTrackers BlogViewTracker[]
+  savedBy      BlogSavedPost[]
+
+  @@index([status, publishedAt])
+  @@index([authorId, createdAt])
+}
+
+model BlogViewTracker {
+  id            BigInt   @id @default(autoincrement())
+  blogId         Int
+  ipAddress      String   @db.VarChar(64)
+  lastViewedAt   DateTime @default(now())
+  lastCountedAt  DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  blog BlogPost @relation(fields: [blogId], references: [id], onDelete: Cascade)
+
+  @@unique([blogId, ipAddress], map: "uniq_blog_ip")
+  @@index([lastViewedAt])
+  @@index([lastCountedAt])
+}
+
+model BlogSavedPost {
+  id        BigInt   @id @default(autoincrement())
+  userId    Int
+  blogId    Int
+  createdAt DateTime @default(now())
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blog BlogPost @relation(fields: [blogId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, blogId], map: "uniq_saved_blog")
+  @@index([userId, createdAt])
+}
+
+model ProductOrderPayment {
+  id            BigInt               @id @default(autoincrement())
+  orderId       BigInt
+  provider      String               @default("SEPAY") @db.VarChar(32)
+  status        ProductPaymentStatus @default(PENDING)
+  amount        Decimal              @default(0) @db.Decimal(18, 2)
+  transferCode  String               @db.VarChar(64)
+  paidAt        DateTime?
+  expiredAt     DateTime?
+  rawResponse   Json?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  order         ProductOrder         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, status])
+  @@index([transferCode])
 }
 
 model ProductImage {

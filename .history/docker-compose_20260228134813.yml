@@ -1,0 +1,138 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ayanavita-mysql
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: ayanavita
+      MYSQL_USER: ayanavita
+      MYSQL_PASSWORD: ayanavita_pw
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    restart: unless-stopped
+    networks:
+      - aya_net
+
+  # =====================
+  # BACKEND (DEV MODE)
+  # =====================
+  backend:
+    image: node:20-alpine
+    container_name: ayanavita-backend
+    working_dir: /app
+    volumes:
+      - ./backend/ayanavitabackend/app/api:/app
+      - /app/node_modules
+    command: sh -c "./scripts/prisma-bootstrap.sh"
+    env_file:
+      - ./backend/ayanavitabackend/app/api/.env
+    environment:
+      NODE_ENV: development
+      PORT: 8090
+    depends_on:
+      - mysql
+    ports:
+      - "8090:8090"
+    networks:
+      - aya_net
+
+  # =====================
+  # FRONTEND (VITE DEV)
+  # =====================
+  frontend:
+    image: node:20-alpine
+    container_name: ayanavita-frontend
+    working_dir: /app
+    volumes:
+      - ./frontend/landingpageayanavita:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev"
+    environment:
+      NODE_ENV: development
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "1000"
+    ports:
+      - "5174:5174"
+    networks:
+      - aya_net
+
+
+
+
+  ayanavita-fontend:
+    image: node:20-alpine
+    container_name: ayanavita-fontend
+    working_dir: /app
+    volumes:
+      - ./ayanavita-fontend:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5178"
+    environment:
+      NODE_ENV: development
+      VITE_API_URL: http://localhost:8090
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "1000"
+    depends_on:
+      - backend
+    ports:
+      - "5178:5178"
+    networks:
+      - aya_net
+
+  frontend-final:
+    image: node:20-alpine
+    container_name: ayanavita-frontend-final
+    working_dir: /app
+    volumes:
+      - ./Home/ayanavita-fontend-final:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5176"
+    environment:
+      NODE_ENV: development
+      VITE_API_URL: http://localhost:8090
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "1000"
+    depends_on:
+      - backend
+    ports:
+      - "5176:5176"
+    networks:
+      - aya_net
+
+  # =====================
+  # ADMIN (REACT DEV)
+  # =====================
+  admin:
+    image: node:20-alpine
+    container_name: ayanavita-admin
+    working_dir: /app
+    volumes:
+      - ./backend/ayanavitabackend/app/admin:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev -- --host"
+    environment:
+      NODE_ENV: development
+      VITE_API_BASE: http://localhost:8090
+    ports:
+      - "5050:5173"
+    networks:
+      - aya_net
+
+  adminer:
+    image: adminer
+    container_name: ayanavita-adminer
+    ports:
+      - "8081:8080"
+    networks:
+      - aya_net
+
+volumes:
+  mysql_data:
+
+networks:
+  aya_net:
+    driver: bridge

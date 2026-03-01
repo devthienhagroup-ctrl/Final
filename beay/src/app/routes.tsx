@@ -32,7 +32,6 @@ export function AppRoutes() {
                 <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
                 <Route path="/admin/orders" element={<AdminOrdersPage />} />
                 <Route path="/admin/rbac" element={<AdminRbacPage />} />
-                <Route path="/student" element={<StudentPortalPage />} />
             </Route>
 
             <Route path="*" element={<div className="p-6">404</div>} />

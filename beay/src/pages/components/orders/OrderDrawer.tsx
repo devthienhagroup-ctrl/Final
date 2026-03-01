@@ -1,4 +1,5 @@
-import type { Order } from "../../AdminOrdersPage";
+import type { Order } from "../../admin/AdminOrdersPage";
+
 
 function money(n: number) {
   return new Intl.NumberFormat("vi-VN").format(n) + "đ";

@@ -1,79 +1,801 @@
-diff --git a/beay/src/pages/admin/LoginPage.tsx b/beay/src/pages/admin/LoginPage.tsx
-index 2dcc817d140d9f72bd57f85f61fadd8c0457b6a1..552808b34f5ef2a1d0fc4f9b53612e64e98d682a 100644
---- a/beay/src/pages/admin/LoginPage.tsx
-+++ b/beay/src/pages/admin/LoginPage.tsx
-@@ -280,72 +280,61 @@ export function LoginPage() {
-         >
-           <svg aria-hidden="true" viewBox="0 0 800 800" style={{ position: "absolute", inset: 0, opacity: 0.22 }}>
-             <defs>
-               <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-                 <stop offset="0" stopColor="#ffffff" stopOpacity="0.55" />
-                 <stop offset="1" stopColor="#ffffff" stopOpacity="0.15" />
-               </linearGradient>
-             </defs>
-             <path d="M0,120 C120,80 220,220 360,180 C520,130 560,40 800,110 L800,0 L0,0 Z" fill="url(#g)" />
-             <path d="M0,260 C140,220 240,360 380,320 C520,280 600,170 800,250 L800,170 C620,120 560,210 420,240 C250,275 180,170 0,210 Z" fill="url(#g)" />
-             <path d="M0,470 C170,430 260,560 420,520 C580,480 640,390 800,470 L800,390 C650,340 590,430 450,455 C280,485 200,380 0,420 Z" fill="url(#g)" />
-             <path d="M0,680 C190,640 300,760 460,720 C620,680 700,580 800,650 L800,800 L0,800 Z" fill="url(#g)" />
-           </svg>
+diff --git a/beay/src/api/courses.api.ts b/beay/src/api/courses.api.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..6fedc2d80335008de3447584fc711e24f0710a6e
+--- /dev/null
++++ b/beay/src/api/courses.api.ts
+@@ -0,0 +1,11 @@
++import { get } from "./http";
++
++export type Lesson = {
++  id: number;
++  title: string;
++  order: number;
++};
++
++export const coursesApi = {
++  lessons: (courseId: number) => get<Lesson[]>(`/courses/${courseId}/lessons`, { auth: true }),
++};
+diff --git a/beay/src/api/enrollments.api.ts b/beay/src/api/enrollments.api.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..e7e27a501843c3b37849af4316d84c024c34fb1a
+--- /dev/null
++++ b/beay/src/api/enrollments.api.ts
+@@ -0,0 +1,25 @@
++import { get, post } from "./http";
++
++export type EnrollmentStatus = "ACTIVE" | "CANCELLED" | "PENDING";
++
++export type MyCourse = {
++  id: number;
++  courseId: number;
++  status: EnrollmentStatus;
++  course: {
++    id: number;
++    title: string;
++    thumbnail: string | null;
++    price: number;
++  };
++};
++
++export const enrollmentsApi = {
++  myCourses(lang?: string) {
++    const query = lang ? `?lang=${encodeURIComponent(lang)}` : "";
++    return get<MyCourse[]>(`/me/courses${query}`, { auth: true });
++  },
++  cancel(courseId: number) {
++    return post<{ ok: boolean }>(`/courses/${courseId}/cancel`, {}, { auth: true });
++  },
++};
+diff --git a/beay/src/api/http.ts b/beay/src/api/http.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..b97d7069192ee3330d061b083f5f49160dfe8ed8
+--- /dev/null
++++ b/beay/src/api/http.ts
+@@ -0,0 +1,113 @@
++export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
++
++export class ApiError extends Error {
++  status: number;
++  data?: unknown;
++
++  constructor(message: string, status: number, data?: unknown) {
++    super(message);
++    this.name = "ApiError";
++    this.status = status;
++    this.data = data;
++  }
++}
++
++const ACCESS_TOKEN_KEY = "aya_admin_token";
++
++function getBaseUrl() {
++  const viteUrl = (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_API_URL;
++  return (viteUrl || "http://localhost:8090").replace(/\/+$/, "");
++}
++
++export function getAccessToken() {
++  try {
++    return localStorage.getItem(ACCESS_TOKEN_KEY) || "";
++  } catch {
++    return "";
++  }
++}
++
++function isJsonResponse(res: Response) {
++  const ct = res.headers.get("content-type") || "";
++  return ct.includes("application/json");
++}
++
++async function parseBody(res: Response) {
++  if (res.status === 204) return null;
++  if (isJsonResponse(res)) {
++    try {
++      return await res.json();
++    } catch {
++      return null;
++    }
++  }
++
++  try {
++    return await res.text();
++  } catch {
++    return null;
++  }
++}
++
++function normalizeErrorMessage(data: unknown, fallback: string) {
++  if (!data) return fallback;
++  if (typeof data === "string") return data;
++  if (typeof data === "object" && data !== null) {
++    const message = (data as { message?: unknown }).message;
++    if (typeof message === "string") return message;
++    if (Array.isArray(message) && message.length) return String(message[0]);
++  }
++  return fallback;
++}
++
++export async function request<T>(
++  path: string,
++  options?: {
++    method?: HttpMethod;
++    body?: unknown;
++    auth?: boolean;
++    headers?: Record<string, string>;
++  }
++): Promise<T> {
++  const baseUrl = getBaseUrl();
++  const url = path.startsWith("http") ? path : `${baseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
++
++  const method = options?.method ?? "GET";
++  const auth = options?.auth ?? true;
++  const headers: Record<string, string> = { ...(options?.headers ?? {}) };
++
++  const body = options?.body;
++  if (body !== undefined && body !== null) {
++    headers["Content-Type"] = headers["Content-Type"] || "application/json";
++  }
++
++  if (auth) {
++    const token = getAccessToken();
++    if (token) headers.Authorization = `Bearer ${token}`;
++  }
++
++  const res = await fetch(url, {
++    method,
++    headers,
++    body: body === undefined || body === null ? undefined : JSON.stringify(body),
++  });
++
++  const data = await parseBody(res);
++  if (!res.ok) {
++    throw new ApiError(normalizeErrorMessage(data, `HTTP ${res.status}`), res.status, data);
++  }
++
++  return data as T;
++}
++
++export function get<T>(path: string, options?: Omit<Parameters<typeof request<T>>[1], "method" | "body">) {
++  return request<T>(path, { ...options, method: "GET" });
++}
++
++export function post<T>(
++  path: string,
++  body?: unknown,
++  options?: Omit<Parameters<typeof request<T>>[1], "method" | "body">
++) {
++  return request<T>(path, { ...options, method: "POST", body });
++}
+diff --git a/beay/src/api/lessons.api.ts b/beay/src/api/lessons.api.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..dcf4ff22915586d026776f4802fbab30ec2a441f
+--- /dev/null
++++ b/beay/src/api/lessons.api.ts
+@@ -0,0 +1,32 @@
++import { get } from "./http";
++
++export type LessonVideoItem = {
++  id: number;
++  title: string;
++  localizedTitle?: string;
++  playbackUrl?: string;
++  progress?: { watchedSec: number; durationSec: number; completed: boolean };
++};
++
++export type LessonModuleItem = {
++  id: number;
++  title: string;
++  localizedTitle?: string;
++  videos: LessonVideoItem[];
++  progress?: { watchedSec: number; durationSec: number; percent: number; completed: boolean };
++};
++
++export type LessonDetail = {
++  id: number;
++  courseId: number;
++  title: string;
++  localizedTitle?: string;
++  modules?: LessonModuleItem[];
++};
++
++export const lessonsApi = {
++  detail: (id: number, lang?: string) => {
++    const q = lang ? `?lang=${encodeURIComponent(lang)}` : "";
++    return get<LessonDetail>(`/lessons/${id}${q}`, { auth: true });
++  },
++};
+diff --git a/beay/src/api/orders.api.ts b/beay/src/api/orders.api.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..8f0df8089006969b32135ad1cae41ad22cf24af1
+--- /dev/null
++++ b/beay/src/api/orders.api.ts
+@@ -0,0 +1,24 @@
++import { get } from "./http";
++
++export type OrderStatus = "PENDING" | "PAID" | "CANCELLED";
++
++export type OrderItem = {
++  id: number;
++  courseId: number;
++  courseTitle: string;
++  price: number;
++};
++
++export type MyOrder = {
++  id: number;
++  code: string;
++  status: OrderStatus;
++  currency: string;
++  total: number;
++  createdAt: string;
++  items: OrderItem[];
++};
++
++export const ordersApi = {
++  myOrders: () => get<MyOrder[]>("/me/orders", { auth: true }),
++};
+diff --git a/beay/src/api/progress.api.ts b/beay/src/api/progress.api.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..0b27217bd5102f39ea93c21dafa05e25a2069d4c
+--- /dev/null
++++ b/beay/src/api/progress.api.ts
+@@ -0,0 +1,15 @@
++import { get, post } from "./http";
++
++export type CourseProgressRes = {
++  courseId: number;
++  totalLessons: number;
++  completedLessons: number;
++  percent: number;
++};
++
++export const progressApi = {
++  courseProgress: (courseId: number) => get<CourseProgressRes>(`/me/courses/${courseId}/progress`, { auth: true }),
++  completeModule: (lessonId: number, moduleId: number) => post(`/lessons/${lessonId}/modules/${moduleId}/complete`, {}, { auth: true }),
++  updateVideoProgress: (lessonId: number, videoId: number, watchedSec: number, completed = false) =>
++    post(`/lessons/${lessonId}/videos/${videoId}/progress`, { watchedSec, completed }, { auth: true }),
++};
+diff --git a/beay/src/app/routes.tsx b/beay/src/app/routes.tsx
+index 80badad627e0898d0decd27ad8ef8bd2014c6cf4..bae0119d33f205a3cf60f72495b55651b4ee4da1 100644
+--- a/beay/src/app/routes.tsx
++++ b/beay/src/app/routes.tsx
+@@ -1,42 +1,49 @@
+ import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
+ import { useAuth } from "./auth";
+ import { AdminDashboardPage } from "../pages/admin/AdminDashboardPage";
+ import { AdminOrdersPage } from "../pages/admin/AdminOrdersPage";
+ import { LoginPage } from "../pages/admin/LoginPage";
+ import { AdminRbacPage } from "../pages/admin/AdminRbacPage";
++import { StudentPortalPage } from "../pages/student/StudentPortalPage";
++import { StudentMyCoursesPage } from "../pages/student/StudentMyCoursesPage";
++import { StudentMyOrdersPage } from "../pages/student/StudentMyOrdersPage";
++import { StudentLessonDetailPage } from "../pages/student/StudentLessonDetailPage";
 
-           <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", padding: 30 }}>
-             <div
-               style={{
-                 width: "min(420px, 86%)",
-                 aspectRatio: "4 / 5",
-                 borderRadius: 22,
-                 background: "rgba(255,255,255,.12)",
-                 border: "1px solid rgba(255,255,255,.25)",
-                 boxShadow: "0 30px 80px rgba(0,0,0,.25)",
-                 display: "grid",
-                 placeItems: "center",
--                position: "relative",
--                overflow: "hidden",
-+                overflow: "hidden"
-               }}
-             >
--              <div
--                style={{
--                  position: "absolute",
--                  inset: 18,
--                  borderRadius: 18,
--                  border: "1px solid rgba(255,255,255,.22)",
--                  background: "rgba(255,255,255,.10)",
--                }}
--              />
-               <img
-                 alt="visual"
--                src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80"
-+                src="./logo.jpg"
-                 style={{
-                   width: "78%",
-                   height: "78%",
-                   objectFit: "cover",
-                   borderRadius: 18,
--                  zIndex: 2,
-                   boxShadow: "0 20px 50px rgba(0,0,0,.22)",
-                 }}
-               />
-             </div>
-           </div>
+ function RequireAuth() {
+     const { token } = useAuth();
+     const location = useLocation();
 
-           <button
-             type="button"
-             onClick={() => setDark((value) => !value)}
-             title="Toggle theme"
-             style={{
-               position: "absolute",
-               left: -20,
-               top: "50%",
-               transform: "translateY(-50%)",
-               width: 46,
-               height: 46,
-               borderRadius: 999,
-               border: "1px solid rgba(255,255,255,.35)",
-               background: "rgba(255,255,255,.92)",
-               boxShadow: "0 16px 34px rgba(0,0,0,.22)",
-               display: "grid",
-               placeItems: "center",
-               cursor: "pointer",
-             }}
+     if (!token) {
+         return <Navigate to="/admin/login" replace state={{ from: location.pathname }} />;
+     }
+
+     return <Outlet />;
+ }
+
+ export function AppRoutes() {
+     return (
+         <Routes>
+             <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+
+             <Route path="/admin/login" element={<LoginPage />} />
+
+             {/* TODO: tách tiếp theo thứ tự */}
+             {/* /admin/orders */}
+             {/* /admin/rbac */}
+             {/* /instructor */}
+             {/* /student */}
+             <Route element={<RequireAuth />}>
+                 <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+                 <Route path="/admin/orders" element={<AdminOrdersPage />} />
+                 <Route path="/admin/rbac" element={<AdminRbacPage />} />
+                 <Route path="/student" element={<StudentPortalPage />} />
++                <Route path="/student/courses" element={<StudentMyCoursesPage />} />
++                <Route path="/student/orders" element={<StudentMyOrdersPage />} />
++                <Route path="/student/lessons/:lessonId" element={<StudentLessonDetailPage />} />
+             </Route>
+
+             <Route path="*" element={<div className="p-6">404</div>} />
+         </Routes>
+     );
+
+-}
+\ No newline at end of file
++}
+diff --git a/beay/src/pages/student/StudentCoursesTheme.css b/beay/src/pages/student/StudentCoursesTheme.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..bc2bebae747b06f100452d511a8841c9f63d9f33
+--- /dev/null
++++ b/beay/src/pages/student/StudentCoursesTheme.css
+@@ -0,0 +1,49 @@
++.student-page { min-height: 100vh; background: #f8fafc; color: #0f172a; }
++.student-shell { max-width: 1100px; margin: 0 auto; padding: 24px; }
++.student-topbar { display:flex; justify-content:space-between; gap: 16px; align-items: center; margin-bottom: 16px; }
++.student-title { font-size: 28px; font-weight: 900; margin: 0; }
++.student-subtitle { color:#64748b; margin-top: 4px; }
++.student-control-group { display:flex; gap:10px; align-items:center; }
++.student-theme-toggle { border:1px solid #cbd5e1; padding:8px 12px; border-radius:12px; font-weight:700; display:flex; gap:8px; align-items:center; }
++.student-pill { background:#0f172a; color:#fff; border-radius:999px; padding:2px 8px; font-size:11px; }
++.student-lang-switch { display:flex; gap:6px; }
++.student-lang-option { width:34px; height:34px; border:1px solid #cbd5e1; border-radius:50%; overflow:hidden; }
++.student-lang-option.active { border-color:#4f46e5; box-shadow:0 0 0 2px rgba(79,70,229,.15); }
++.student-lang-option img { width:100%; height:100%; object-fit:cover; }
++.student-actions { display:flex; gap:10px; margin-bottom: 12px; }
++.student-btn { border:1px solid #cbd5e1; border-radius: 12px; padding: 8px 12px; font-weight: 700; }
++.student-btn-primary { background:#4f46e5; color:#fff; border-color:#4f46e5; }
++.student-btn-danger { background:#fee2e2; color:#b91c1c; border-color:#fecaca; }
++.student-btn-ghost { background:#fff; }
++.student-alert { border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; }
++.student-alert-info { background:#e0f2fe; }
++.student-alert-danger { background:#fee2e2; }
++.student-alert-success { background:#dcfce7; }
++.student-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap:14px; }
++.student-card { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:14px; }
++.student-card-head { display:flex; justify-content:space-between; gap: 8px; margin-bottom:10px; }
++.student-card-title { font-weight:900; }
++.student-badge { border-radius:999px; padding:2px 10px; font-size:12px; font-weight:800; }
++.student-badge-active { background:#dcfce7; color:#166534; }
++.student-badge-pending { background:#fef3c7; color:#92400e; }
++.student-badge-cancelled { background:#fee2e2; color:#991b1b; }
++.student-meta { display:flex; justify-content:space-between; font-size:14px; margin-bottom:8px; }
++.student-meta-label { color:#64748b; }
++.student-progress-meta { display:flex; justify-content:space-between; margin-bottom:6px; font-size:13px; }
++.student-progress-track { background:#e2e8f0; height:8px; border-radius:999px; overflow:hidden; }
++.student-progress-fill { background: linear-gradient(90deg,#4f46e5,#7c3aed); height:100%; }
++.student-mini { margin-top:8px; color:#475569; font-size:13px; }
++.student-card-actions { margin-top:12px; display:flex; gap:8px; flex-wrap: wrap; }
++.student-empty { color:#64748b; text-align:center; padding: 22px; }
++.student-menu { display:flex; gap:8px; margin-bottom:14px; }
++.student-menu a { text-decoration:none; }
++.student-order-row { display:flex; justify-content:space-between; align-items:flex-start; gap: 12px; }
++.student-items { margin-top:8px; color:#334155; font-size:13px; }
++.student-lesson-layout { display:grid; gap:12px; grid-template-columns: 1fr 280px; }
++.student-module-card { border:1px solid #e2e8f0; border-radius:12px; padding:10px; margin-bottom:8px; }
++.student-module-head { display:flex; justify-content:space-between; gap: 8px; align-items:center; margin-bottom:6px; }
++.student-video-player { width:100%; border-radius:8px; margin-top:4px; }
++.student-video-row { display:grid; gap:6px; margin-bottom:8px; }
++.student-lesson-item { width:100%; text-align:left; padding:10px; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:6px; }
++.student-lesson-item.active { border-color:#4f46e5; background:#eef2ff; }
++@media (max-width: 900px){ .student-lesson-layout { grid-template-columns: 1fr; } }
+diff --git a/beay/src/pages/student/StudentLessonDetailPage.tsx b/beay/src/pages/student/StudentLessonDetailPage.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..a599083c1441d21b032869ecfc434a8b68e38198
+--- /dev/null
++++ b/beay/src/pages/student/StudentLessonDetailPage.tsx
+@@ -0,0 +1,83 @@
++import { useEffect, useState } from "react";
++import { useNavigate, useParams, useSearchParams } from "react-router-dom";
++import { coursesApi, type Lesson } from "../../api/courses.api";
++import { lessonsApi, type LessonDetail } from "../../api/lessons.api";
++import { progressApi } from "../../api/progress.api";
++import "./StudentCoursesTheme.css";
++
++export function StudentLessonDetailPage() {
++  const nav = useNavigate();
++  const { lessonId } = useParams();
++  const [search] = useSearchParams();
++  const courseId = Number(search.get("courseId") || 0);
++
++  const [lesson, setLesson] = useState<LessonDetail | null>(null);
++  const [outline, setOutline] = useState<Lesson[]>([]);
++  const [err, setErr] = useState<string | null>(null);
++
++  useEffect(() => {
++    async function load() {
++      if (!lessonId) return;
++      setErr(null);
++      try {
++        const detail = await lessonsApi.detail(Number(lessonId));
++        setLesson(detail);
++        if (courseId) {
++          const ls = await coursesApi.lessons(courseId);
++          setOutline(ls);
++        }
++      } catch (e) {
++        setErr(e instanceof Error ? e.message : "Load lesson failed");
++      }
++    }
++    void load();
++  }, [lessonId, courseId]);
++
++  async function markVideoDone(videoId: number) {
++    if (!lessonId) return;
++    await progressApi.updateVideoProgress(Number(lessonId), videoId, 999, true);
++  }
++
++  async function markModuleDone(moduleId: number) {
++    if (!lessonId) return;
++    await progressApi.completeModule(Number(lessonId), moduleId);
++  }
++
++  return (
++    <div className="student-page">
++      <div className="student-shell">
++        <button type="button" className="student-btn student-btn-ghost" onClick={() => nav("/student/courses")}>← My Courses</button>
++        <h2 className="student-title" style={{ marginTop: 10 }}>{lesson?.localizedTitle || lesson?.title || `Lesson #${lessonId}`}</h2>
++        {err && <div className="student-alert student-alert-danger">{err}</div>}
++
++        <div className="student-lesson-layout">
++          <div className="student-card">
++            {lesson?.modules?.map((m) => (
++              <div key={m.id} className="student-module-card">
++                <div className="student-module-head">
++                  <b>{m.localizedTitle || m.title}</b>
++                  <button type="button" className="student-btn student-btn-primary" onClick={() => void markModuleDone(m.id)}>Complete Module</button>
++                </div>
++                {m.videos.map((v) => (
++                  <div key={v.id} className="student-video-row">
++                    <div>{v.localizedTitle || v.title}</div>
++                    {v.playbackUrl && <video controls src={v.playbackUrl} className="student-video-player" onEnded={() => void markVideoDone(v.id)} />}
++                  </div>
++                ))}
++              </div>
++            ))}
++          </div>
++
++          <div className="student-card">
++            <h3 className="student-card-title">Lesson List</h3>
++            {outline.map((l) => (
++              <button type="button" key={l.id} className={`student-lesson-item ${Number(lessonId) === l.id ? "active" : ""}`} onClick={() => nav(`/student/lessons/${l.id}?courseId=${courseId}`)}>
++                {l.title}
++              </button>
++            ))}
++          </div>
++        </div>
++      </div>
++    </div>
++  );
++}
+diff --git a/beay/src/pages/student/StudentMyCoursesPage.tsx b/beay/src/pages/student/StudentMyCoursesPage.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..f1e22ecf9628044552bd9ed1d81021cf0c5ddffe
+--- /dev/null
++++ b/beay/src/pages/student/StudentMyCoursesPage.tsx
+@@ -0,0 +1,183 @@
++import { useEffect, useMemo, useState } from "react";
++import { useNavigate } from "react-router-dom";
++import { coursesApi, type Lesson } from "../../api/courses.api";
++import { enrollmentsApi, type MyCourse } from "../../api/enrollments.api";
++import { progressApi, type CourseProgressRes } from "../../api/progress.api";
++import { studentLanguageMeta, useStudentViewPrefs, type StudentLang } from "./student.i18n";
++import "./StudentCoursesTheme.css";
++
++const i18n: Record<StudentLang, Record<string, string>> = {
++  vi: {
++    title: "Khoá học của tôi",
++    subtitle: "Theo dõi tiến độ học tập.",
++    reload: "Tải lại",
++    loading: "Đang tải...",
++    progress: "Tiến độ",
++    price: "Giá",
++    completed: "Hoàn thành",
++    detail: "Chi tiết",
++    continue: "Tiếp tục",
++    cancel: "Huỷ",
++    noCourse: "Bạn chưa ghi danh khoá học nào.",
++    darkMode: "Chế độ tối",
++  },
++  en: {
++    title: "My Courses",
++    subtitle: "Track your learning progress.",
++    reload: "Reload",
++    loading: "Loading...",
++    progress: "Progress",
++    price: "Price",
++    completed: "Completed",
++    detail: "Detail",
++    continue: "Continue",
++    cancel: "Cancel",
++    noCourse: "You have not enrolled any course.",
++    darkMode: "Dark mode",
++  },
++};
++
++function sortLessons(ls: Lesson[]) {
++  return [...ls].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id - b.id);
++}
++
++function StatusBadge({ status }: { status: MyCourse["status"] }) {
++  const cls = useMemo(() => {
++    if (status === "ACTIVE") return "student-badge student-badge-active";
++    if (status === "PENDING") return "student-badge student-badge-pending";
++    return "student-badge student-badge-cancelled";
++  }, [status]);
++
++  return <span className={cls}>{status}</span>;
++}
++
++export function StudentMyCoursesPage() {
++  const nav = useNavigate();
++  const { lang, setLang, theme, setTheme } = useStudentViewPrefs();
++  const t = i18n[lang];
++
++  const [items, setItems] = useState<MyCourse[]>([]);
++  const [loading, setLoading] = useState(true);
++  const [err, setErr] = useState<string | null>(null);
++  const [info, setInfo] = useState<string | null>(null);
++  const [progressMap, setProgressMap] = useState<Record<number, CourseProgressRes>>({});
++
++  async function load() {
++    setLoading(true);
++    setErr(null);
++    setInfo(null);
++    try {
++      const data = await enrollmentsApi.myCourses(lang);
++      setItems(data);
++
++      const activeCourseIds = data.filter((d) => d.status === "ACTIVE").map((d) => d.courseId);
++      const results = await Promise.allSettled(activeCourseIds.map(async (cid) => ({ cid, p: await progressApi.courseProgress(cid) })));
++
++      const next: Record<number, CourseProgressRes> = {};
++      for (const r of results) {
++        if (r.status === "fulfilled") next[r.value.cid] = r.value.p;
++      }
++      setProgressMap(next);
++    } catch (e) {
++      setErr(e instanceof Error ? e.message : "Load my courses failed");
++    } finally {
++      setLoading(false);
++    }
++  }
++
++  useEffect(() => {
++    void load();
++  }, [lang]);
++
++  async function onCancel(courseId: number) {
++    try {
++      await enrollmentsApi.cancel(courseId);
++      setInfo(`Course #${courseId} cancelled.`);
++      await load();
++    } catch (e) {
++      setErr(e instanceof Error ? e.message : "Cancel failed");
++    }
++  }
++
++  async function onContinue(courseId: number) {
++    setErr(null);
++    try {
++      const lessons = await coursesApi.lessons(courseId);
++      const lessonId = sortLessons(lessons)[0]?.id;
++      if (lessonId) nav(`/student/lessons/${lessonId}?courseId=${courseId}`);
++    } catch (e) {
++      setErr(e instanceof Error ? e.message : "Unable to continue");
++    }
++  }
++
++  return (
++    <div className={`student-page ${theme === "dark" ? "student-courses-theme-dark" : ""}`}>
++      <div className="student-shell">
++        <div className="student-menu">
++          <button type="button" className="student-btn student-btn-primary" onClick={() => nav("/student")}>Portal</button>
++          <button type="button" className="student-btn" onClick={() => nav("/student/orders")}>Orders</button>
++        </div>
++
++        <div className="student-topbar">
++          <div>
++            <h2 className="student-title">{t.title}</h2>
++            <div className="student-subtitle">{t.subtitle}</div>
++          </div>
++          <div className="student-control-group">
++            <button type="button" className="student-theme-toggle" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
++              {t.darkMode} <span className="student-pill">{theme === "dark" ? "ON" : "OFF"}</span>
++            </button>
++            <div className="student-lang-switch">
++              {(Object.keys(studentLanguageMeta) as StudentLang[]).map((code) => (
++                <button key={code} type="button" className={`student-lang-option ${lang === code ? "active" : ""}`} onClick={() => setLang(code)}>
++                  <img src={studentLanguageMeta[code].flagUrl} alt={studentLanguageMeta[code].label} />
++                </button>
++              ))}
++            </div>
++          </div>
++        </div>
++
++        <div className="student-actions">
++          <button type="button" className="student-btn student-btn-ghost" onClick={() => void load()}>{t.reload}</button>
++        </div>
++
++        {loading && <div className="student-alert student-alert-info">{t.loading}</div>}
++        {err && <div className="student-alert student-alert-danger">{err}</div>}
++        {info && <div className="student-alert student-alert-success">{info}</div>}
++
++        <div className="student-grid">
++          {items.map((enr) => {
++            const prog = progressMap[enr.courseId];
++            const percent = prog?.percent ?? (prog ? Math.round((prog.completedLessons / Math.max(1, prog.totalLessons)) * 100) : 0);
++
++            return (
++              <div key={enr.id} className="student-card">
++                <div className="student-card-head">
++                  <div className="student-card-title">{enr.course.title}</div>
++                  <StatusBadge status={enr.status} />
++                </div>
++                <div className="student-meta">
++                  <span className="student-meta-label">{t.price}:</span>
++                  <span>{enr.course.price.toLocaleString("vi-VN")}đ</span>
++                </div>
++                {enr.status === "ACTIVE" && prog && (
++                  <>
++                    <div className="student-progress-meta"><span>{t.progress}</span><span>{percent}%</span></div>
++                    <div className="student-progress-track"><div className="student-progress-fill" style={{ width: `${percent}%` }} /></div>
++                    <div className="student-mini">{t.completed}: {prog.completedLessons}/{prog.totalLessons}</div>
++                  </>
++                )}
++                <div className="student-card-actions">
++                  <button type="button" className="student-btn student-btn-primary" onClick={() => void onContinue(enr.courseId)} disabled={enr.status !== "ACTIVE"}>{t.continue}</button>
++                  <button type="button" className="student-btn student-btn-ghost" onClick={() => nav(`/courses/${enr.courseId}`)}>{t.detail}</button>
++                  <button type="button" className="student-btn student-btn-danger" onClick={() => void onCancel(enr.courseId)} disabled={!["ACTIVE", "PENDING"].includes(enr.status)}>{t.cancel}</button>
++                </div>
++              </div>
++            );
++          })}
++        </div>
++        {!loading && items.length === 0 && <div className="student-card student-empty">{t.noCourse}</div>}
++      </div>
++    </div>
++  );
++}
+diff --git a/beay/src/pages/student/StudentMyOrdersPage.tsx b/beay/src/pages/student/StudentMyOrdersPage.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..4dc455d33836e5e2a3f431c2a405dce258231a38
+--- /dev/null
++++ b/beay/src/pages/student/StudentMyOrdersPage.tsx
+@@ -0,0 +1,88 @@
++import { useEffect, useMemo, useState } from "react";
++import { useNavigate } from "react-router-dom";
++import { ordersApi, type MyOrder, type OrderStatus } from "../../api/orders.api";
++import "./StudentCoursesTheme.css";
++
++function fmtVND(v: number) {
++  return `${v.toLocaleString("vi-VN")}đ`;
++}
++
++export function StudentMyOrdersPage() {
++  const nav = useNavigate();
++  const [items, setItems] = useState<MyOrder[]>([]);
++  const [loading, setLoading] = useState(true);
++  const [err, setErr] = useState<string | null>(null);
++  const [status, setStatus] = useState<OrderStatus | "ALL">("ALL");
++
++  async function load() {
++    setLoading(true);
++    setErr(null);
++    try {
++      const data = await ordersApi.myOrders();
++      setItems([...data].sort((a, b) => b.id - a.id));
++    } catch (e) {
++      setErr(e instanceof Error ? e.message : "Load orders failed");
++      setItems([]);
++    } finally {
++      setLoading(false);
++    }
++  }
++
++  useEffect(() => {
++    void load();
++  }, []);
++
++  const filtered = useMemo(() => {
++    if (status === "ALL") return items;
++    return items.filter((o) => o.status === status);
++  }, [items, status]);
++
++  return (
++    <div className="student-page">
++      <div className="student-shell">
++        <div className="student-menu">
++          <button type="button" className="student-btn" onClick={() => nav("/student")}>Portal</button>
++          <button type="button" className="student-btn student-btn-primary" onClick={() => nav("/student/courses")}>Courses</button>
++        </div>
++        <div className="student-topbar">
++          <div>
++            <h2 className="student-title">My Orders</h2>
++            <div className="student-subtitle">Theo dõi trạng thái đơn hàng học tập.</div>
++          </div>
++          <div className="student-control-group">
++            <select className="student-btn" value={status} onChange={(e) => setStatus(e.target.value as OrderStatus | "ALL")}>
++              <option value="ALL">ALL</option>
++              <option value="PENDING">PENDING</option>
++              <option value="PAID">PAID</option>
++              <option value="CANCELLED">CANCELLED</option>
++            </select>
++            <button type="button" className="student-btn student-btn-ghost" onClick={() => void load()}>Reload</button>
++          </div>
++        </div>
++
++        {loading && <div className="student-alert student-alert-info">Đang tải...</div>}
++        {err && <div className="student-alert student-alert-danger">{err}</div>}
++
++        <div className="student-grid">
++          {filtered.map((o) => (
++            <div className="student-card" key={o.id}>
++              <div className="student-order-row">
++                <div>
++                  <div className="student-card-title">{o.code}</div>
++                  <div className="student-mini">{new Date(o.createdAt).toLocaleString("vi-VN")}</div>
++                </div>
++                <span className={`student-badge ${o.status === "PAID" ? "student-badge-active" : o.status === "PENDING" ? "student-badge-pending" : "student-badge-cancelled"}`}>
++                  {o.status}
++                </span>
++              </div>
++              <div className="student-mini">Tổng: <b>{fmtVND(o.total)}</b></div>
++              <div className="student-items">
++                {o.items.map((it) => <div key={it.id}>• {it.courseTitle} — {fmtVND(it.price)}</div>)}
++              </div>
++            </div>
++          ))}
++        </div>
++      </div>
++    </div>
++  );
++}
+diff --git a/beay/src/pages/student/StudentPortalPage.tsx b/beay/src/pages/student/StudentPortalPage.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..ba08ae43c6c846c6d98e426d125e06d49d8e64b2
+--- /dev/null
++++ b/beay/src/pages/student/StudentPortalPage.tsx
+@@ -0,0 +1,27 @@
++import { Link } from "react-router-dom";
++import "./StudentCoursesTheme.css";
++
++export function StudentPortalPage() {
++  return (
++    <div className="student-page">
++      <div className="student-shell">
++        <h1 className="student-title">Student Portal</h1>
++        <p className="student-subtitle">Chọn khu vực để học tập và theo dõi đơn hàng.</p>
++
++        <div className="student-grid">
++          <div className="student-card">
++            <h3 className="student-card-title">Khoá học của tôi</h3>
++            <p className="student-subtitle">Danh sách khoá đã ghi danh, tiến độ và thao tác tiếp tục học.</p>
++            <Link className="student-btn student-btn-primary" to="/student/courses">Mở trang My Courses</Link>
++          </div>
++
++          <div className="student-card">
++            <h3 className="student-card-title">Đơn hàng của tôi</h3>
++            <p className="student-subtitle">Kiểm tra trạng thái thanh toán và các khoá học trong đơn.</p>
++            <Link className="student-btn student-btn-primary" to="/student/orders">Mở trang My Orders</Link>
++          </div>
++        </div>
++      </div>
++    </div>
++  );
++}
+diff --git a/beay/src/pages/student/student.i18n.ts b/beay/src/pages/student/student.i18n.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..183d499056f8a2caa713fef8611e0478e36c384a
+--- /dev/null
++++ b/beay/src/pages/student/student.i18n.ts
+@@ -0,0 +1,23 @@
++import { useEffect, useState } from "react";
++
++export type StudentLang = "vi" | "en";
++
++export const studentLanguageMeta: Record<StudentLang, { label: string; flagUrl: string }> = {
++  vi: { label: "Tiếng Việt", flagUrl: "https://flagcdn.com/w40/vn.png" },
++  en: { label: "English", flagUrl: "https://flagcdn.com/w40/gb.png" },
++};
++
++export function useStudentViewPrefs() {
++  const [lang, setLangState] = useState<StudentLang>(() => (localStorage.getItem("student_lang") as StudentLang) || "vi");
++  const [theme, setThemeState] = useState<"light" | "dark">(() => (localStorage.getItem("student_theme") as "light" | "dark") || "light");
++
++  useEffect(() => {
++    localStorage.setItem("student_lang", lang);
++  }, [lang]);
++
++  useEffect(() => {
++    localStorage.setItem("student_theme", theme);
++  }, [theme]);
++
++  return { lang, setLang: setLangState, theme, setTheme: setThemeState };
++}

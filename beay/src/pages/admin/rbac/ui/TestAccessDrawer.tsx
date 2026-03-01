@@ -166,16 +166,6 @@ export function TestAccessDrawer(props: {
               </div>
             )}
           </div>
-
-          <div className="card p-4">
-            <div className="text-xs font-extrabold text-slate-500">Ghi chú triển khai (NestJS)</div>
-            <div className="mt-2 text-sm text-slate-700">
-              - Role có thời hạn: check <b>user_roles.expiresAt</b> trước khi authorize.<br />
-              - Permission key chuẩn: <b>{"{module}.{action}"}</b>.<br />
-              - Scope: enforce bằng điều kiện DB (branchId/courseId/ownerId).<br />
-              - LMS gating: Lesson/Progress chỉ khi Enrollment <b>ACTIVE</b> (ADMIN bypass).<br />
-            </div>
-          </div>
         </div>
       </aside>
     </>

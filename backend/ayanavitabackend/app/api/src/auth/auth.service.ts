@@ -38,7 +38,18 @@ export class AuthService {
         name: dto.name,
         role: 'USER',
       },
-      select: { id: true, email: true, name: true, role: true, birthDate: true, gender: true, address: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        birthDate: true,
+        gender: true,
+        address: true,
+        roleRef: {
+          include: { permissions: { include: { permission: true } } },
+        },
+      },
     })
 
     const role = user.roleRef?.code ?? user.role
@@ -88,7 +99,19 @@ export class AuthService {
         gender: dto.gender,
         address: dto.address,
       },
-      select: { id: true, email: true, name: true, role: true, phone: true, birthDate: true, gender: true, address: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        phone: true,
+        birthDate: true,
+        gender: true,
+        address: true,
+        roleRef: {
+          include: { permissions: { include: { permission: true } } },
+        },
+      },
     })
 
     await this.prisma.registrationOtp.update({

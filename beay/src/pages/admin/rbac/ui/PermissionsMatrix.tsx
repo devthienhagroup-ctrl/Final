@@ -67,7 +67,16 @@ export function PermissionsMatrix(props: {
         </div>
       </div>
 
-      <div className="mt-4 overflow-auto">
+      <div
+          className="mt-4"
+          style={{
+            maxHeight: 1160,
+            overflowY: "auto",
+            border: "1px solid #e5e7eb",
+            borderRadius: 16,
+            padding: 10
+          }}
+      >
         <table className="w-full text-sm">
           <thead className="text-left text-slate-500">
             <tr>

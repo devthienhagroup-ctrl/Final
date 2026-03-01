@@ -18,15 +18,6 @@ export function RbacHeader(props: {
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="btn hidden md:inline-flex items-center gap-2" onClick={props.onTest}>
-            <i className="fa-solid fa-vial" /> Test quyền
-          </button>
-          <button className="btn hidden md:inline-flex items-center gap-2" onClick={props.onImport}>
-            <i className="fa-solid fa-file-import" /> Import JSON
-          </button>
-          <button className="btn hidden md:inline-flex items-center gap-2" onClick={props.onExport}>
-            <i className="fa-solid fa-file-export" /> Export JSON
-          </button>
           <button className="btn btn-primary inline-flex items-center gap-2" onClick={props.onSave}>
             <i className="fa-solid fa-floppy-disk" /> Lưu cấu hình
           </button>

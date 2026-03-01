@@ -233,7 +233,7 @@ export function AdminDashboardPage() {
       <section className="grid gap-4 lg:grid-cols-3">
         <div className="card p-6">
           <div className="text-xs font-semibold text-slate-500">Phân tích</div>
-          <div className="text-lg font-extrabold">Doanh thu sản phẩm theo phương thức thanh toán</div>
+          <div className="text-lg font-extrabold">Doanh thu theo phương thức thanh toán</div>
           <div className="mt-1 text-sm text-slate-600">Tỉ trọng doanh thu theo COD / chuyển khoản.</div>
           <div className="mt-5">
             <DonutChart labels={paymentChart.labels} values={paymentChart.values} />

@@ -8,9 +8,9 @@ import { KpiCard } from "../components/KpiCard";
 import { AdminShell } from "../components/AdminShell";
 import { MainLineChart, type MainChartMode } from "../components/charts/MainLineChart";
 import { TopCoursesCard, type TopCourse } from "../components/TopCoursesCard";
-import { DonutChart } from "../components/charts/DonutChart";
-import { BarChart } from "../components/charts/BarChart";
-import { getDashboardStats, type DashboardStatsResponse } from "./dashboard.api";
+import { BarChart } from "../components/charts/DonutChart";
+import { DonutChart } from "../components/charts/BarChart";
+
 
 const LS = {
   theme: "aya_theme",
@@ -22,12 +22,6 @@ function fmtVND(n: number) {
   return "₫ " + new Intl.NumberFormat("vi-VN").format(n);
 }
 
-function trendLabel(value: number) {
-  if (value > 0) return `+${value}% so với kỳ trước`;
-  if (value < 0) return `${value}% so với kỳ trước`;
-  return "Không đổi so với kỳ trước";
-}
-
 export function AdminDashboardPage() {
   const { toast } = useToast();
 
@@ -37,30 +31,45 @@ export function AdminDashboardPage() {
 
   const [chartMode, setChartMode] = React.useState<MainChartMode>("revenue");
   const [search, setSearch] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
-  const [stats, setStats] = React.useState<DashboardStatsResponse | null>(null);
 
   useEffect(() => {
-    let mounted = true;
+    toast("AYANAVITA Admin", "Đã chuyển Admin Dashboard sang React (step 1).");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    async function load() {
-      try {
-        setLoading(true);
-        const res = await getDashboardStats(rangeDays);
-        if (!mounted) return;
-        setStats(res);
-      } catch {
-        toast("Dashboard", "Không tải được dữ liệu thống kê, đang hiển thị dữ liệu rỗng.");
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
+  const dataTopCourses: TopCourse[] = useMemo(
+    () => [
+      { name: "Flutter LMS App", revenue: 98200000, orders: 312, trend: "+18%", icon: "mobile-screen", tone: "cyan" },
+      { name: "NestJS + Prisma (LMS API)", revenue: 74400000, orders: 221, trend: "+11%", icon: "layer-group", tone: "indigo" },
+      { name: "React UI Systems", revenue: 55800000, orders: 188, trend: "+7%", icon: "cubes", tone: "amber" },
+      { name: "Marketing bán khoá", revenue: 42400000, orders: 140, trend: "+5%", icon: "bullhorn", tone: "emerald" },
+    ],
+    []
+  );
 
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, [rangeDays, toast]);
+  const dataOrders: OrderMini[] = useMemo(
+    () => [
+      { code: "#OD-12941", student: "Minh Anh", course: "Flutter LMS App", total: 799000, status: "PAID", date: "2025-12-18" },
+      { code: "#OD-12940", student: "Tuấn Kiệt", course: "NestJS + Prisma", total: 599000, status: "PAID", date: "2025-12-18" },
+      { code: "#OD-12939", student: "Hoài Phương", course: "React UI Systems", total: 399000, status: "PENDING", date: "2025-12-17" },
+      { code: "#OD-12938", student: "Thanh Tùng", course: "Marketing bán khoá", total: 499000, status: "REFUND", date: "2025-12-16" },
+      { code: "#OD-12937", student: "Ngọc Mai", course: "Flutter LMS App", total: 799000, status: "PAID", date: "2025-12-16" },
+      { code: "#OD-12936", student: "Đức Huy", course: "React UI Systems", total: 399000, status: "PAID", date: "2025-12-15" },
+    ],
+    []
+  );
+
+  const dataStudents: StudentProgress[] = useMemo(
+    () => [
+      { name: "Minh Anh", course: "Flutter LMS App", progress: 78 },
+      { name: "Tuấn Kiệt", course: "NestJS + Prisma", progress: 52 },
+      { name: "Hoài Phương", course: "React UI Systems", progress: 31 },
+      { name: "Ngọc Mai", course: "Flutter LMS App", progress: 65 },
+      { name: "Đức Huy", course: "React UI Systems", progress: 44 },
+      { name: "Thanh Tùng", course: "Marketing bán khoá", progress: 22 },
+    ],
+    []
+  );
 
   const checklistItems: ChecklistItem[] = useMemo(
     () => [
@@ -73,23 +82,6 @@ export function AdminDashboardPage() {
     ],
     []
   );
-
-  const dataTopCourses: TopCourse[] = useMemo(() => {
-    const tones: TopCourse["tone"][] = ["cyan", "indigo", "amber", "emerald"];
-    const icons: TopCourse["icon"][] = ["mobile-screen", "layer-group", "cubes", "bullhorn"];
-    return (stats?.topCourses ?? []).map((c, i) => ({ ...c, tone: tones[i % tones.length], icon: icons[i % icons.length] }));
-  }, [stats?.topCourses]);
-
-  const dataOrders: OrderMini[] = useMemo(
-    () =>
-      (stats?.recentOrders ?? []).map((o) => ({
-        ...o,
-        status: o.status === "PAID" ? "PAID" : o.status === "PENDING" ? "PENDING" : "REFUND",
-      })),
-    [stats?.recentOrders]
-  );
-
-  const dataStudents: StudentProgress[] = useMemo(() => stats?.studentProgress ?? [], [stats?.studentProgress]);
 
   const filteredTopCourses = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -109,26 +101,14 @@ export function AdminDashboardPage() {
     return dataStudents.filter((s) => (s.name + " " + s.course).toLowerCase().includes(q));
   }, [dataStudents, search]);
 
-  const paymentChart = useMemo(() => {
-    const labels = (stats?.revenueByPayment ?? []).map((i) => (i.method === "SEPAY" ? "Chuyển khoản" : "COD"));
-    const values = (stats?.revenueByPayment ?? []).map((i) => i.revenue);
-    return { labels, values };
-  }, [stats?.revenueByPayment]);
-
-  const categoryChart = useMemo(() => {
-    const labels = (stats?.revenueByProductCategory ?? []).map((i) => i.category);
-    const values = (stats?.revenueByProductCategory ?? []).map((i) => i.revenue);
-    return { labels, values };
-  }, [stats?.revenueByProductCategory]);
-
-  const kpis = stats?.kpis ?? {
-    revenue: 0,
-    orders: 0,
-    students: 0,
-    completionRate: 0,
-    revenueChangePct: 0,
-    ordersChangePct: 0,
-  };
+  const kpis = useMemo(() => {
+    const v = Number(rangeDays);
+    const revenue = v === 7 ? 68400000 : v === 30 ? 248400000 : 612900000;
+    const ordersN = v === 7 ? 356 : v === 30 ? 1284 : 3120;
+    const studentsN = v === 7 ? 820 : v === 30 ? 3420 : 8890;
+    const completion = v === 7 ? 44 : v === 30 ? 46 : 49;
+    return { revenue, ordersN, studentsN, completion };
+  }, [rangeDays]);
 
   return (
     <AdminShell
@@ -148,8 +128,8 @@ export function AdminDashboardPage() {
         if (k === "revenue") setChartMode("revenue");
         if (k === "orders") setChartMode("orders");
       }}
-      onConnectPay={() => toast("Thanh toán", "Đi tới phần cài đặt thanh toán.")}
-      onCreateCourse={() => toast("Tạo khóa học", "Điều hướng sang trang tạo khóa học.")}
+      onConnectPay={() => toast("Thanh toán", "Prototype: sẽ map sang Payment Settings.")}
+      onCreateCourse={() => toast("Tạo khóa học", "Prototype: điều hướng sang Instructor dashboard.")}
       onExportMiniOrders={() => {
         const header = ["code", "student", "course", "total", "status", "date"];
         const csv =
@@ -174,14 +154,15 @@ export function AdminDashboardPage() {
         toast("Xuất CSV", "Đã tải file đơn hàng (mini).");
       }}
     >
-      {loading && <div className="mb-4 text-sm text-slate-500">Đang tải dữ liệu dashboard...</div>}
-<section className="grid gap-4 md:grid-cols-[2fr_1fr_1fr_1fr]">
-        <KpiCard title="Doanh thu" value={fmtVND(kpis.revenue)} hint={trendLabel(kpis.revenueChangePct)} icon="sack-dollar" tone="emerald" />
-        <KpiCard title="Đơn hàng" value={new Intl.NumberFormat("vi-VN").format(kpis.orders)} hint={trendLabel(kpis.ordersChangePct)} icon="bag-shopping" tone="amber" />
-        <KpiCard title="Học viên mới" value={new Intl.NumberFormat("vi-VN").format(kpis.students)} hint="Theo số user đăng ký trong kỳ" icon="users" tone="cyan" />
-        <KpiCard title="Tỷ lệ hoàn thành" value={`${kpis.completionRate}%`} hint="Tỷ lệ hoàn thành bài học" icon="graduation-cap" tone="indigo" />
+      {/* KPIs */}
+      <section className="grid gap-4 md:grid-cols-4">
+        <KpiCard title="Doanh thu" value={fmtVND(kpis.revenue)} hint="+12.4% so với kỳ trước" icon="sack-dollar" tone="emerald" />
+        <KpiCard title="Đơn hàng" value={new Intl.NumberFormat("vi-VN").format(kpis.ordersN)} hint="+8.1% so với kỳ trước" icon="bag-shopping" tone="amber" />
+        <KpiCard title="Học viên mới" value={new Intl.NumberFormat("vi-VN").format(kpis.studentsN)} hint="+21.0% so với kỳ trước" icon="users" tone="cyan" />
+        <KpiCard title="Tỷ lệ hoàn thành" value={`${kpis.completion}%`} hint="Mục tiêu: 55%" icon="graduation-cap" tone="indigo" />
       </section>
 
+      {/* Chart + Top courses */}
       <section className="grid gap-4 lg:grid-cols-3">
         <div className="card p-6 lg:col-span-2">
           <div className="flex items-start justify-between gap-4">
@@ -197,12 +178,7 @@ export function AdminDashboardPage() {
           </div>
 
           <div className="mt-5">
-            <MainLineChart
-              mode={chartMode}
-              labels={stats?.lineChart.labels ?? []}
-              revenueData={stats?.lineChart.revenue ?? []}
-              orderData={stats?.lineChart.orders ?? []}
-            />
+            <MainLineChart mode={chartMode} />
           </div>
 
           <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
@@ -215,37 +191,42 @@ export function AdminDashboardPage() {
 
         <TopCoursesCard
           items={filteredTopCourses}
-          onManage={() => toast("Quản lý", "Điều hướng sang Instructor dashboard.")}
-          onIdea={() => toast("Chiến dịch", "Tạo campaign upsell/bundle/voucher.")}
+          onManage={() => toast("Quản lý", "Prototype: điều hướng sang Instructor dashboard.")}
+          onIdea={() => toast("Chiến dịch", "Prototype: tạo campaign (upsell/bundle/voucher).")}
         />
       </section>
 
+      {/* Orders + Students */}
       <section className="grid gap-4 lg:grid-cols-3">
-        <OrdersMiniTable items={filteredOrders} onOpenOrders={() => toast("Orders", "Điều hướng sang Admin Orders.")} />
+        <OrdersMiniTable
+          items={filteredOrders}
+          onOpenOrders={() => toast("Orders", "Prototype: điều hướng sang Admin Orders.")}
+        />
         <StudentsProgressCard
           items={filteredStudents}
-          onOpenPortal={() => toast("Student Portal", "Điều hướng sang Student portal.")}
-          onImport={() => toast("Import học viên", "CSV validate + tạo user/enrollment.")}
-          onMessage={() => toast("Nhắn học viên", "Broadcast theo cohort/khóa học.")}
+          onOpenPortal={() => toast("Student Portal", "Prototype: điều hướng sang Student portal.")}
+          onImport={() => toast("Import học viên", "Prototype: CSV validate + tạo user/enrollment.")}
+          onMessage={() => toast("Nhắn học viên", "Prototype: broadcast theo cohort/khóa học.")}
         />
       </section>
 
+      {/* Analytics + Checklist */}
       <section className="grid gap-4 lg:grid-cols-3">
         <div className="card p-6">
           <div className="text-xs font-semibold text-slate-500">Phân tích</div>
-          <div className="text-lg font-extrabold">Doanh thu sản phẩm theo phương thức thanh toán</div>
-          <div className="mt-1 text-sm text-slate-600">Tỉ trọng doanh thu theo COD / chuyển khoản.</div>
+          <div className="text-lg font-extrabold">Kênh bán</div>
+          <div className="mt-1 text-sm text-slate-600">Tỉ trọng theo nguồn traffic.</div>
           <div className="mt-5">
-            <DonutChart labels={paymentChart.labels} values={paymentChart.values} />
+            <DonutChart />
           </div>
         </div>
 
         <div className="card p-6">
           <div className="text-xs font-semibold text-slate-500">Chất lượng</div>
-          <div className="text-lg font-extrabold">Doanh thu theo danh mục sản phẩm</div>
-          <div className="mt-1 text-sm text-slate-600">Top danh mục có doanh thu cao nhất.</div>
+          <div className="text-lg font-extrabold">Tỉ lệ rời bỏ</div>
+          <div className="mt-1 text-sm text-slate-600">Drop-off theo tuần.</div>
           <div className="mt-5">
-            <BarChart labels={categoryChart.labels} values={categoryChart.values} />
+            <BarChart />
           </div>
         </div>
 
@@ -253,11 +234,13 @@ export function AdminDashboardPage() {
           items={checklistItems}
           value={checks}
           onChange={setChecks}
-          onSave={() => toast("Đã lưu cấu hình", "Checklist đã được lưu trong trình duyệt.")}
+          onSave={() => toast("Đã lưu cấu hình (prototype)", "Checklist đã được lưu trong trình duyệt.")}
         />
       </section>
 
-      <footer className="py-6 text-center text-sm text-slate-500">© 2025 AYANAVITA Admin Dashboard • Integrated with NestJS APIs.</footer>
+      <footer className="py-6 text-center text-sm text-slate-500">
+        © 2025 AYANAVITA Admin Dashboard (React) • Ready for NestJS APIs.
+      </footer>
     </AdminShell>
   );
 }

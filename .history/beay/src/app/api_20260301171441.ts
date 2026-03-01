@@ -6,7 +6,7 @@ function joinUrl(path: string) {
   return `${API_BASE}${cleanPath}`;
 }
 
-export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem(TOKEN_KEY) || "";
   const headers = new Headers(init.headers);
   if (!headers.has("Content-Type") && init.body) headers.set("Content-Type", "application/json");

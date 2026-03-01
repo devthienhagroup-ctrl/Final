@@ -87,7 +87,7 @@ export class OrdersService {
   async assertWebhookKey(rawKey?: string) {
     const token = (rawKey ?? '').trim()
     if (!token) throw new UnauthorizedException('Missing SePay webhook key')
-      
+
     const ok = await bcrypt.compare(token, this.sepayKeyHash)
     if (!ok) throw new UnauthorizedException('Invalid SePay webhook key')
   }

@@ -20,9 +20,9 @@ export class SepayWebhookController {
       throw new UnauthorizedException('Missing webhook key')
     }
 
-    // await this.orders.assertWebhookKey(token)
+    await this.orders.assertWebhookKey(token)
 
-    //Thanh toán cho Courses
+    //Thanh toán cho Course
     return this.orders.handleSepayWebhook(payload)
   }
 }

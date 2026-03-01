@@ -1,11 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common'
-import {
-  CourseAccessStatus,
-  OrderStatus,
-  Prisma,
-  ProductOrderStatus,
-  ProductPaymentStatus,
-} from '@prisma/client'
+import { CourseAccessStatus, OrderStatus, Prisma } from '@prisma/client'
 import * as bcrypt from 'bcrypt'
 import { PrismaService } from 'src/prisma/prisma.service'
 
@@ -50,24 +44,6 @@ export class OrdersService {
     }
   }
 
-
-  private buildProductTransferContent(paymentId: bigint) {
-    return `ID${paymentId.toString()}ProductOrderPayment`
-  }
-
-  private parseProductTransferContent(content?: string | null): bigint | null {
-    if (!content) return null
-
-    const matched = content.match(/ID(\d+)ProductOrderPayment/i)
-    if (!matched?.[1]) return null
-
-    try {
-      return BigInt(matched[1])
-    } catch {
-      return null
-    }
-  }
-
   private withSepayMeta(
       order: { id: number; status: OrderStatus; total: number; createdAt: Date },
       email: string,
@@ -87,7 +63,7 @@ export class OrdersService {
   async assertWebhookKey(rawKey?: string) {
     const token = (rawKey ?? '').trim()
     if (!token) throw new UnauthorizedException('Missing SePay webhook key')
-      
+
     const ok = await bcrypt.compare(token, this.sepayKeyHash)
     if (!ok) throw new UnauthorizedException('Invalid SePay webhook key')
   }
@@ -261,26 +237,16 @@ export class OrdersService {
 
     // 2) verify đúng ngân hàng + đúng STK (chống fake webhook)
     if (
-      String(payload?.gateway || '').toUpperCase() !== this.bankInfo.gateway ||
-      String(payload?.accountNumber || '') !== this.bankInfo.accountNumber
+        String(payload?.gateway || '').toUpperCase() !== this.bankInfo.gateway ||
+        String(payload?.accountNumber || '') !== this.bankInfo.accountNumber
     ) {
       throw new ForbiddenException('Invalid bank account information')
     }
 
-    const content = String(payload?.content || '')
-    const productPaymentId = this.parseProductTransferContent(content)
-    if (productPaymentId) {
-      return this.handleProductOrderWebhook(payload, productPaymentId)
-    }
-
-    return this.handleCourseOrderWebhook(payload, content)
-  }
-
-  private async handleCourseOrderWebhook(payload: any, content: string) {
-    // parse content để ra email + courseSlug
-    const parsed = this.parseSepayCode(content)
+    // 3) parse content để ra email + courseSlug
+    const parsed = this.parseSepayCode(payload?.content)
     if (!parsed) {
-      return { ok: true, ignored: true, message: 'Missing supported transfer code in content' }
+      return { ok: true, ignored: true, message: 'Missing RQA code in content' }
     }
 
     const user = await this.prisma.user.findUnique({
@@ -306,12 +272,13 @@ export class OrdersService {
     })
     if (!order) throw new NotFoundException('Order not found for SePay webhook')
 
-    // tiền chuyển phải đủ
+    // 4) tiền chuyển phải đủ
     const transferAmount = Number(payload?.transferAmount ?? 0)
     if (!Number.isFinite(transferAmount) || transferAmount < (order.total ?? 0)) {
       throw new ForbiddenException('Transfer amount is not enough for this order')
     }
 
+    // 5) Mark paid idempotent (nếu webhook bắn lại cũng không bị double-enroll)
     const paid = await this.markPaid(order.id)
 
     if (paid?.alreadyPaid) {
@@ -325,67 +292,6 @@ export class OrdersService {
       paid,
     }
   }
-
-  private async handleProductOrderWebhook(payload: any, paymentId: bigint) {
-    const payment = await this.prisma.productOrderPayment.findUnique({
-      where: { id: paymentId },
-      include: {
-        order: {
-          select: {
-            id: true,
-            total: true,
-            status: true,
-            paymentMethod: true,
-          },
-        },
-      },
-    })
-
-    if (!payment) throw new NotFoundException('Product order payment not found')
-    if (payment.tranferContent !== this.buildProductTransferContent(payment.id)) {
-      throw new ForbiddenException('Invalid transfer content for product payment')
-    }
-
-    const transferAmount = Number(payload?.transferAmount ?? 0)
-    if (!Number.isFinite(transferAmount) || transferAmount < Number(payment.order.total ?? 0)) {
-      throw new ForbiddenException('Transfer amount is not enough for this order')
-    }
-
-    if (payment.status === ProductPaymentStatus.PAID || payment.order.status === ProductOrderStatus.PAID) {
-      return { ok: true, alreadyPaid: true, orderId: payment.order.id.toString(), paymentId: payment.id.toString() }
-    }
-
-    const paidAt = new Date()
-    await this.prisma.$transaction(async (tx) => {
-      const updatedPayment = await tx.productOrderPayment.updateMany({
-        where: { id: payment.id, status: ProductPaymentStatus.PENDING },
-        data: {
-          status: ProductPaymentStatus.PAID,
-          paidAt,
-          rawResponse: payload,
-        },
-      })
-
-      if (updatedPayment.count === 0) return
-
-      await tx.productOrder.updateMany({
-        where: { id: payment.orderId, status: ProductOrderStatus.PENDING_PAYMENT },
-        data: {
-          status: ProductOrderStatus.PAID,
-          paymentStatus: ProductPaymentStatus.PAID,
-          paidAt,
-        },
-      })
-    })
-
-    return {
-      ok: true,
-      message: 'Thanh toán SePay sản phẩm thành công',
-      orderId: payment.order.id.toString(),
-      paymentId: payment.id.toString(),
-    }
-  }
-
 
   myOrders(userId: number) {
     return this.prisma.order.findMany({

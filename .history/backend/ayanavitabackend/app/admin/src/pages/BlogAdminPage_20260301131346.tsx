@@ -1040,30 +1040,20 @@ export function BlogAdminPage() {
                     <div>
                       <label>Cover image file</label>
                       <input
-                      className="input"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setCoverImageFile(e.target.files?.[0])}
+                        className="input"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setCoverImageFile(e.target.files?.[0])}
                       />
                       <div className="sub">Chọn file sẽ gửi multipart theo API hiện tại.</div>
                     </div>
-                    </div>
+                  </div>
 
-                    <div className="image-preview">
-                    {coverImageFile ? (
-                      <img 
-                      src={URL.createObjectURL(coverImageFile)} 
-                      alt="Cover preview" 
-                      style={{width: "100%", height: "auto", objectFit: "cover", borderRadius: "0.5rem"}} 
-                      />
-                    ) : form.coverImage ? (
-                      <img 
-                      src={form.coverImage} 
-                      alt="Cover preview" 
-                      style={{width: "100%", height: "auto", objectFit: "cover", borderRadius: "0.5rem"}} 
-                      />
-                    ) : null}
-                    </div>
+                  <div className="image-preview">
+                    {form.coverImage && (
+                      <img src={form.coverImage} alt="Cover preview" style={{width: }} />
+                    )}
+                  </div>
 
                 </div>
 

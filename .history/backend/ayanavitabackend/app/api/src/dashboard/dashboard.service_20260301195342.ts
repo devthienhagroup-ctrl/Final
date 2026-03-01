@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { OrderStatus, ProductOrderStatus, ProductPaymentStatus } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
+import { LessonProgressStatus } from '@prisma/client'
 
 type DashboardRange = 7 | 30 | 90
 
@@ -91,7 +92,7 @@ export class DashboardService {
             // ✅ completed in range (đúng DB)
             this.prisma.lessonProgress.count({
                 where: {
-                    status: 'COMPLETED',
+                    status: LessonProgressStatus.COMPLETED,
                     completedAt: { not: null },
                     updatedAt: { gte: startDate },
                 },

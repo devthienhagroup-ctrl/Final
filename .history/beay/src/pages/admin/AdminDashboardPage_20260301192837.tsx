@@ -47,7 +47,7 @@ export function AdminDashboardPage() {
       try {
         setLoading(true);
         const res = await getDashboardStats(rangeDays);
-        console.log("Dashboard stats:", res);
+        
         if (!mounted) return;
         setStats(res);
       } catch {
@@ -121,7 +121,7 @@ export function AdminDashboardPage() {
     const values = (stats?.revenueByProductCategory ?? []).map((i) => i.revenue);
     return { labels, values };
   }, [stats?.revenueByProductCategory]);
-  console.log("Payment chart data:", categoryChart);
+
   const kpis = stats?.kpis ?? {
     revenue: 0,
     orders: 0,

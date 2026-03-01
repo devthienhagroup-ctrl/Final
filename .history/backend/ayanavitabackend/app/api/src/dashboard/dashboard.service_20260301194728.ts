@@ -47,7 +47,6 @@ export class DashboardService {
                 _count: { _all: true },
                 where: { status: OrderStatus.PAID, createdAt: { gte: startDate } },
             }),
-
             this.prisma.productOrder.aggregate({
                 _sum: { total: true },
                 _count: { _all: true },
@@ -57,7 +56,6 @@ export class DashboardService {
                     createdAt: { gte: startDate },
                 },
             }),
-
             this.prisma.order.aggregate({
                 _sum: { total: true },
                 _count: { _all: true },
@@ -69,7 +67,6 @@ export class DashboardService {
                     },
                 },
             }),
-
             this.prisma.productOrder.aggregate({
                 _sum: { total: true },
                 _count: { _all: true },
@@ -82,33 +79,18 @@ export class DashboardService {
                     },
                 },
             }),
-
             this.prisma.user.count({ where: { createdAt: { gte: startDate } } }),
-
-            // total progress updates in range
             this.prisma.lessonProgress.count({ where: { updatedAt: { gte: startDate } } }),
-
-            // ✅ completed in range (đúng DB)
-            this.prisma.lessonProgress.count({
-                where: {
-                    status: 'COMPLETED',
-                    completedAt: { not: null },
-                    updatedAt: { gte: startDate },
-                },
-            }),
-
-            this.prisma.order.groupBy({
+            this.prisma.lessonProgress.count({ where: { completed: true, updatedAt: { gte: startDate } } }), this.prisma.order.groupBy({
                 by: ['createdAt'],
                 _sum: { total: true },
                 where: { status: OrderStatus.PAID, createdAt: { gte: startDate } },
             }),
-
             this.prisma.order.groupBy({
                 by: ['createdAt'],
                 _count: { _all: true },
                 where: { status: OrderStatus.PAID, createdAt: { gte: startDate } },
             }),
-
             this.prisma.orderItem.groupBy({
                 by: ['courseId'],
                 _sum: { price: true },
@@ -117,8 +99,6 @@ export class DashboardService {
                 orderBy: { _sum: { price: 'desc' } },
                 take: 4,
             }),
-
-            // ✅ recentOrders có code ở đây
             this.prisma.order.findMany({
                 where: { createdAt: { gte: startDate } },
                 take: 8,
@@ -132,7 +112,6 @@ export class DashboardService {
                     items: { take: 1, select: { courseTitle: true } },
                 },
             }),
-
             this.prisma.lessonProgress.findMany({
                 where: { updatedAt: { gte: startDate } },
                 orderBy: { updatedAt: 'desc' },
@@ -144,7 +123,6 @@ export class DashboardService {
                     lesson: { select: { course: { select: { title: true } } } },
                 },
             }),
-
             this.prisma.productOrder.groupBy({
                 by: ['paymentMethod'],
                 _sum: { total: true },
@@ -154,7 +132,6 @@ export class DashboardService {
                     createdAt: { gte: startDate },
                 },
             }),
-
             this.prisma.productOrderDetail.groupBy({
                 by: ['productId'],
                 _sum: { lineTotal: true },
@@ -250,8 +227,8 @@ export class DashboardService {
             productToCategory.set(
                 product.id,
                 viTranslation?.name ??
-                fallbackTranslation?.name ??
-                `Danh mục #${String(product.categoryId ?? 0)}`,
+                    fallbackTranslation?.name ??
+                    `Danh mục #${String(product.categoryId ?? 0)}`,
             )
         })
 

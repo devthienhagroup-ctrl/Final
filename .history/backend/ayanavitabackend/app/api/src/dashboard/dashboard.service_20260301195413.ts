@@ -91,7 +91,7 @@ export class DashboardService {
             // ✅ completed in range (đúng DB)
             this.prisma.lessonProgress.count({
                 where: {
-                    status: 'COMPLETED',
+                    status: LessonProgressStatus.COMPLETED,
                     completedAt: { not: null },
                     updatedAt: { gte: startDate },
                 },

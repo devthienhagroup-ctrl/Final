@@ -44,5 +44,5 @@ export type DashboardStatsResponse = {
   }>;
 };
 
-export const getDashboardStats = (rangeDays: number) => 
+export const getDashboardStats = (rangeDays: number) => {
   request<DashboardStatsResponse>(`/admin/dashboard/stats?range=${rangeDays}`);

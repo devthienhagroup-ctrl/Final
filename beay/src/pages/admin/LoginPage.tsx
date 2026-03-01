@@ -295,38 +295,27 @@ export function LoginPage() {
             <div
               style={{
                 width: "min(420px, 86%)",
-                aspectRatio: "4 / 5",
+                aspectRatio: "4 / 4",
                 borderRadius: 22,
                 background: "rgba(255,255,255,.12)",
                 border: "1px solid rgba(255,255,255,.25)",
                 boxShadow: "0 30px 80px rgba(0,0,0,.25)",
                 display: "grid",
                 placeItems: "center",
-                position: "relative",
-                overflow: "hidden",
+                overflow: "hidden"
               }}
             >
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 18,
-                  borderRadius: 18,
-                  border: "1px solid rgba(255,255,255,.22)",
-                  background: "rgba(255,255,255,.10)",
-                }}
-              />
-              <img
-                alt="visual"
-                src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80"
-                style={{
-                  width: "78%",
-                  height: "78%",
-                  objectFit: "cover",
-                  borderRadius: 18,
-                  zIndex: 2,
-                  boxShadow: "0 20px 50px rgba(0,0,0,.22)",
-                }}
-              />
+                <img
+                    alt="visual"
+                    src="https://s3.cloudfly.vn/ayanavita-dev/login.jpg"
+                    style={{
+                        width: "85%",
+                        height: "78%",
+                        objectFit: "cover", // 👈 cắt bên phải nhiều hơn
+                        borderRadius: 18,
+                        boxShadow: "0 20px 50px rgba(0,0,0,.22)",
+                    }}
+                />
             </div>
           </div>
 

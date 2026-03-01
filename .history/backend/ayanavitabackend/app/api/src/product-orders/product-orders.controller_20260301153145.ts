@@ -45,6 +45,7 @@ export class ProductOrdersController {
     @Body() dto: AdminUpdateProductOrderStatusDto,
   ) {
     console.log('adminUpdateStatus', { id, status: dto.status })  
+
     return this.productOrders.adminUpdateStatus(id, dto.status as ProductOrderStatus)
   }
 

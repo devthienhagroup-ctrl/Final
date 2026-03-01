@@ -6,14 +6,7 @@ import { http } from "../api/http";
 type ToastKind = "success" | "error" | "info";
 type ActiveSection = "profile" | "changePassword" | "forgotPassword" | "myOrders";
 
-type OrderStatus =
-  | "PENDING"
-  | "PENDING_PAYMENT"
-  | "PAID"
-  | "SHIPPING"
-  | "SUCCESS"
-  | "CANCELLED"
-  | "EXPIRED";
+type OrderStatus = "processing" | "paid" | "cancelled" | "expired";
 
 type MyOrderItem = {
   name: string;
@@ -547,13 +540,10 @@ function Field({
 
 
 const ORDER_STATUS_STYLES: Record<OrderStatus, string> = {
-  PENDING: "bg-amber-50 text-amber-700 border-amber-200",
-  PENDING_PAYMENT: "bg-orange-50 text-orange-700 border-orange-200",
-  PAID: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  SHIPPING: "bg-sky-50 text-sky-700 border-sky-200",
-  SUCCESS: "bg-green-50 text-green-700 border-green-200",
-  CANCELLED: "bg-rose-50 text-rose-700 border-rose-200",
-  EXPIRED: "bg-slate-100 text-slate-700 border-slate-200",
+  processing: "bg-amber-50 text-amber-700 border-amber-200",
+  paid: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  cancelled: "bg-rose-50 text-rose-700 border-rose-200",
+  expired: "bg-slate-100 text-slate-700 border-slate-200",
 };
 
 function toNum(v: number | string | null | undefined) {
@@ -562,26 +552,15 @@ function toNum(v: number | string | null | undefined) {
 }
 
 function mapOrderStatus(status: string): OrderStatus {
-  const s = String(status || "").toUpperCase();
-
-  switch (s) {
-    case "PENDING":
-      return "PENDING";
-    case "PENDING_PAYMENT":
-      return "PENDING_PAYMENT";
+  switch (String(status || "").toUpperCase()) {
     case "PAID":
-      return "PAID";
-    case "SHIPPING":
-      return "SHIPPING";
-    case "SUCCESS":
-      return "SUCCESS";
+      return "paid";
     case "CANCELLED":
-      return "CANCELLED";
+      return "cancelled";
     case "EXPIRED":
-      return "EXPIRED";
+      return "expired";
     default:
-      // fallback an toàn nếu backend gửi status lạ
-      return "PENDING";
+      return "processing";
   }
 }
 
@@ -1416,13 +1395,10 @@ export default function AccountCenter() {
                         onChange={(e) => setOrderStatusFilter(e.target.value as "all" | OrderStatus)}
                       >
                         <option value="all">{cms.myOrders.filters.status.all}</option>
-                        <option value="PENDING">{cms.myOrders.statuses.PENDING}</option>
-                        <option value="PENDING_PAYMENT">{cms.myOrders.statuses.PENDING_PAYMENT}</option>
-                        <option value="PAID">{cms.myOrders.statuses.PAID}</option>
-                        <option value="SHIPPING">{cms.myOrders.statuses.SHIPPING}</option>
-                        <option value="SUCCESS">{cms.myOrders.statuses.SUCCESS}</option>
-                        <option value="CANCELLED">{cms.myOrders.statuses.CANCELLED}</option>
-                        <option value="EXPIRED">{cms.myOrders.statuses.EXPIRED}</option>
+                        <option value="processing">{cms.myOrders.statuses.processing}</option>
+                        <option value="paid">{cms.myOrders.statuses.paid}</option>
+                        <option value="cancelled">{cms.myOrders.statuses.cancelled}</option>
+                        <option value="expired">{cms.myOrders.statuses.expired}</option>
                       </select>
                     </Field>
                   </div>

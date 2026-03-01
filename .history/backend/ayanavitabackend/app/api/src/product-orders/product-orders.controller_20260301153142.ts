@@ -44,7 +44,8 @@ export class ProductOrdersController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AdminUpdateProductOrderStatusDto,
   ) {
-    console.log('adminUpdateStatus', { id, status: dto.status })  
+    cons
+
     return this.productOrders.adminUpdateStatus(id, dto.status as ProductOrderStatus)
   }
 

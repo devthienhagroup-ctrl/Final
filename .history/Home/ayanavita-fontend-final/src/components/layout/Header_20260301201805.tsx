@@ -226,12 +226,12 @@ export function Header({
           >
             <div
               className="flex h-10 w-10 items-center justify-center rounded-2xl font-black text-white shadow-lg transition-all duration-300 hover:shadow-xl hover:rotate-3"
-              // style={{
-              //   background: "linear-gradient(135deg,var(--aya-primary-1),var(--aya-primary-2))",
-              //   boxShadow: "0 12px 24px rgba(79,70,229,.22)",
-              // }}
+              style={{
+                background: "linear-gradient(135deg,var(--aya-primary-1),var(--aya-primary-2))",
+                boxShadow: "0 12px 24px rgba(79,70,229,.22)",
+              }}
             >
-              <img src={cms.brandLogoSrc} alt={cms.brandLogoAlt} className={cms.brandLogoClassName + ' rounded-full'} />
+              <img src={cms.brandLogoSrc} alt={cms.brandLogoAlt} className={cms.brandLogoClassName} />
             </div>
             <div className="font-black tracking-[0.3px] text-slate-900">{cms.brandText}</div>
           </Link>

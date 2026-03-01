@@ -164,7 +164,6 @@ type RegisterFormState = {
 };
 
 const OTP_LEN = 6;
-
 const INITIAL_FORM: RegisterFormState = {
   fullName: "",
   phone: "",
@@ -202,53 +201,37 @@ export const RegisterSection: React.FC<RegisterSectionProps> = ({
   );
 
   const [form, setForm] = useState(INITIAL_FORM);
-
   const [otpOpen, setOtpOpen] = useState(false);
   const [otpDigits, setOtpDigits] = useState(Array.from({ length: OTP_LEN }, () => ""));
-
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifying, setVerifying] = useState(false);
-
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
 
-  // ✅ UX: chỉ validate sau khi user bấm submit lần đầu
-  const [submitted, setSubmitted] = useState(false);
-
   const otpInputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
-  const otpValue = otpDigits.join("");
-  const otpCompleted = otpValue.length === OTP_LEN;
-
-  const validateForm = (data: RegisterFormState) => {
+  const errors = useMemo(() => {
     const e: Record<string, string> = {};
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const phoneRegex = /(03|05|07|08|09|01[2|6|8|9])+([0-9]{8})\b/;
 
-    if (!data.fullName.trim()) e.fullName = content.validateFullNameRequiredText || "";
-    if (!phoneRegex.test(data.phone.replace(/\s/g, ""))) e.phone = content.validatePhoneInvalidText || "";
-    if (!emailRegex.test(data.email.trim())) e.email = content.validateEmailInvalidText || "";
-    if (data.password.length < 8) e.password = content.validatePasswordMinLenText || "";
-    if (data.password !== data.confirmPassword)
-      e.confirmPassword = content.validateConfirmPasswordMismatchText || "";
-    if (!data.terms) e.terms = content.validateTermsRequiredText || "";
+    if (!form.fullName.trim()) e.fullName = content.validateFullNameRequiredText || "";
+    if (!phoneRegex.test(form.phone.replace(/\s/g, ""))) e.phone = content.validatePhoneInvalidText || "";
+    if (!emailRegex.test(form.email)) e.email = content.validateEmailInvalidText || "";
+    if (form.password.length < 8) e.password = content.validatePasswordMinLenText || "";
+    if (form.password !== form.confirmPassword) e.confirmPassword = content.validateConfirmPasswordMismatchText || "";
+    if (!form.terms) e.terms = content.validateTermsRequiredText || "";
 
+    // lọc message rỗng
     Object.keys(e).forEach((k) => {
       if (!e[k]) delete e[k];
     });
 
     return e;
-  };
+  }, [form, content]);
 
-  // Tính lỗi theo form (nhưng chỉ hiển thị khi submitted = true)
-  const errors = useMemo(() => validateForm(form), [form, content]);
-  const uiErrors: Record<string, string> = submitted ? errors : {};
-
-  const setField = <K extends keyof RegisterFormState>(key: K, value: RegisterFormState[K]) => {
-    setForm((s) => ({ ...s, [key]: value }));
-    // UX: nếu user đã submit rồi thì khi gõ lại sẽ cập nhật lỗi live (do uiErrors phụ thuộc errors)
-    // Không cần setSubmitted ở đây.
-  };
+  const otpValue = otpDigits.join("");
+  const otpCompleted = otpValue.length === OTP_LEN;
 
   function resetFormState() {
     setForm(INITIAL_FORM);
@@ -256,17 +239,11 @@ export const RegisterSection: React.FC<RegisterSectionProps> = ({
     setOtpOpen(false);
     setError("");
     setInfo("");
-    setSubmitted(false);
   }
 
   async function sendOtp() {
-    // ✅ bấm đăng ký mới bắt đầu validate
-    setSubmitted(true);
-
-    const e = validateForm(form);
-    if (Object.keys(e).length) {
+    if (Object.keys(errors).length) {
       setError(content.validateInvalidFormText || "Form chưa hợp lệ.");
-      setInfo("");
       return;
     }
 
@@ -276,7 +253,7 @@ export const RegisterSection: React.FC<RegisterSectionProps> = ({
     try {
       const email = form.email.trim();
       if (onSendOtp) await onSendOtp(email);
-      else await authApi.sendOtp({ email });
+      if (!onSendOtp) await authApi.sendOtp({ email });
 
       setOtpDigits(Array.from({ length: OTP_LEN }, () => ""));
       setOtpOpen(true);
@@ -308,7 +285,7 @@ export const RegisterSection: React.FC<RegisterSectionProps> = ({
 
       let res: any;
       if (onRegisterWithOtp) res = await onRegisterWithOtp(payload);
-      else {
+      if (!onRegisterWithOtp) {
         res = await authApi.registerNew({
           name: payload.fullName,
           phone: payload.phone,
@@ -413,26 +390,26 @@ export const RegisterSection: React.FC<RegisterSectionProps> = ({
                       <label className="text-sm font-semibold text-slate-700">{content.fullNameLabel}</label>
                       <input
                         className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
-                          uiErrors.fullName ? "border-red-400" : "border-slate-200"
+                          errors.fullName ? "border-red-400" : "border-slate-200"
                         }`}
                         value={form.fullName}
-                        onChange={(e) => setField("fullName", e.target.value)}
+                        onChange={(e) => setForm((s) => ({ ...s, fullName: e.target.value }))}
                         placeholder={content.fullNamePlaceholder}
                       />
-                      {uiErrors.fullName ? <div className="mt-1 text-xs text-red-500">{uiErrors.fullName}</div> : null}
+                      {errors.fullName ? <div className="mt-1 text-xs text-red-500">{errors.fullName}</div> : null}
                     </div>
 
                     <div>
                       <label className="text-sm font-semibold text-slate-700">{content.phoneLabel}</label>
                       <input
                         className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
-                          uiErrors.phone ? "border-red-400" : "border-slate-200"
+                          errors.phone ? "border-red-400" : "border-slate-200"
                         }`}
                         value={form.phone}
-                        onChange={(e) => setField("phone", e.target.value)}
+                        onChange={(e) => setForm((s) => ({ ...s, phone: e.target.value }))}
                         placeholder={content.phonePlaceholder}
                       />
-                      {uiErrors.phone ? <div className="mt-1 text-xs text-red-500">{uiErrors.phone}</div> : null}
+                      {errors.phone ? <div className="mt-1 text-xs text-red-500">{errors.phone}</div> : null}
                     </div>
                   </div>
 
@@ -440,13 +417,13 @@ export const RegisterSection: React.FC<RegisterSectionProps> = ({
                     <label className="text-sm font-semibold text-slate-700">{content.emailLabel}</label>
                     <input
                       className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
-                        uiErrors.email ? "border-red-400" : "border-slate-200"
+                        errors.email ? "border-red-400" : "border-slate-200"
                       }`}
                       value={form.email}
-                      onChange={(e) => setField("email", e.target.value)}
+                      onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
                       placeholder={content.emailPlaceholder}
                     />
-                    {uiErrors.email ? <div className="mt-1 text-xs text-red-500">{uiErrors.email}</div> : null}
+                    {errors.email ? <div className="mt-1 text-xs text-red-500">{errors.email}</div> : null}
                   </div>
 
                   <div className="mt-4">
@@ -454,13 +431,13 @@ export const RegisterSection: React.FC<RegisterSectionProps> = ({
                     <input
                       type="password"
                       className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
-                        uiErrors.password ? "border-red-400" : "border-slate-200"
+                        errors.password ? "border-red-400" : "border-slate-200"
                       }`}
                       value={form.password}
-                      onChange={(e) => setField("password", e.target.value)}
+                      onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))}
                       placeholder={content.passwordPlaceholder}
                     />
-                    {uiErrors.password ? <div className="mt-1 text-xs text-red-500">{uiErrors.password}</div> : null}
+                    {errors.password ? <div className="mt-1 text-xs text-red-500">{errors.password}</div> : null}
                   </div>
 
                   <div className="mt-4">
@@ -468,14 +445,14 @@ export const RegisterSection: React.FC<RegisterSectionProps> = ({
                     <input
                       type="password"
                       className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
-                        uiErrors.confirmPassword ? "border-red-400" : "border-slate-200"
+                        errors.confirmPassword ? "border-red-400" : "border-slate-200"
                       }`}
                       value={form.confirmPassword}
-                      onChange={(e) => setField("confirmPassword", e.target.value)}
+                      onChange={(e) => setForm((s) => ({ ...s, confirmPassword: e.target.value }))}
                       placeholder={content.confirmPasswordPlaceholder}
                     />
-                    {uiErrors.confirmPassword ? (
-                      <div className="mt-1 text-xs text-red-500">{uiErrors.confirmPassword}</div>
+                    {errors.confirmPassword ? (
+                      <div className="mt-1 text-xs text-red-500">{errors.confirmPassword}</div>
                     ) : null}
                   </div>
 
@@ -484,7 +461,7 @@ export const RegisterSection: React.FC<RegisterSectionProps> = ({
                     <select
                       className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none ring-indigo-100 focus:ring-4"
                       value={form.interest}
-                      onChange={(e) => setField("interest", e.target.value)}
+                      onChange={(e) => setForm((s) => ({ ...s, interest: e.target.value }))}
                     >
                       <option value="">{content.interestPlaceholder}</option>
                       <option value="tech">Công nghệ thông tin</option>
@@ -500,7 +477,7 @@ export const RegisterSection: React.FC<RegisterSectionProps> = ({
                       type="checkbox"
                       className="mt-1 h-4 w-4 rounded border-slate-300"
                       checked={form.terms}
-                      onChange={(e) => setField("terms", e.target.checked)}
+                      onChange={(e) => setForm((s) => ({ ...s, terms: e.target.checked }))}
                     />
                     <span>
                       {content.termsPrefix}
@@ -509,7 +486,7 @@ export const RegisterSection: React.FC<RegisterSectionProps> = ({
                       <span className="font-semibold text-indigo-600">{content.termsLink2}</span>
                     </span>
                   </label>
-                  {uiErrors.terms ? <div className="mt-1 text-xs text-red-500">{uiErrors.terms}</div> : null}
+                  {errors.terms ? <div className="mt-1 text-xs text-red-500">{errors.terms}</div> : null}
 
                   <button
                     type="submit"
@@ -537,8 +514,6 @@ export const RegisterSection: React.FC<RegisterSectionProps> = ({
                           setOtpOpen(false);
                           setError("");
                           setInfo(content.otpBackHintText || "");
-                          // Giữ submitted=true để nếu form còn sai thì vẫn thấy lỗi (user đang "quay lại để sửa")
-                          // Không reset submitted ở đây.
                         }}
                         className="text-sm font-semibold text-blue-600 hover:underline"
                       >

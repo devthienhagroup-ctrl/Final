@@ -83,8 +83,7 @@ function isDescriptionKey(key: string | number): boolean {
 
 function isImageKey(key: string | number): boolean {
   if (typeof key !== "string") return false;
-  const imageKeys = ["img", "image", "bgurl", "logourl", "logosrc"];
-  return imageKeys.some((ik) => key.toLowerCase().includes(ik));
+  return key.toLowerCase().includes("img") || key.toLowerCase().includes("image") || key.toLowerCase().includes("bgurl") || key.toLowerCase().includes("logourl") || key.toLowerCase().includes("logosr");
 }
 
 function stableStringify(v: any) {

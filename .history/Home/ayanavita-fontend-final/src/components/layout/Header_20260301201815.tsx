@@ -231,7 +231,7 @@ export function Header({
               //   boxShadow: "0 12px 24px rgba(79,70,229,.22)",
               // }}
             >
-              <img src={cms.brandLogoSrc} alt={cms.brandLogoAlt} className={cms.brandLogoClassName + ' rounded-full'} />
+              <img src={cms.brandLogoSrc} alt={cms.brandLogoAlt} className={cms.brandLogoClassName} />
             </div>
             <div className="font-black tracking-[0.3px] text-slate-900">{cms.brandText}</div>
           </Link>

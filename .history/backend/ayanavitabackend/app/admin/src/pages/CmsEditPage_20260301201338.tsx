@@ -86,6 +86,7 @@ function isImageKey(key: string | number): boolean {
   const imageKeys = ["img", "image", "bgurl", "logourl", "logosrc"];
   return imageKeys.some((ik) => key.toLowerCase().includes(ik));
 }
+}
 
 function stableStringify(v: any) {
   try {

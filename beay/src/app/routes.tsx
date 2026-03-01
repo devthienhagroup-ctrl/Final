@@ -9,6 +9,7 @@ import { StudentCourseDetailPage } from "../pages/admin/StudentCourseDetailPage"
 import { StudentLessonPlayerPage } from "../pages/admin/StudentLessonPlayerPage";
 import AdminSpaPage from "../pages/admin/AdminSpaPage";
 import AdminCoursesPage from "../pages/admin/AdminCoursesPage";
+import { InstructorDashboardPage } from "../pages/admin/InstructorDashboardPage";
 
 function RequireAuth() {
     const { token } = useAuth();
@@ -35,6 +36,7 @@ export function AppRoutes() {
                 <Route path="/admin/services" element={<AdminSpaPage />} />
                 <Route path="/admin/courses" element={<AdminCoursesPage />} />
                 <Route path="/student" element={<StudentPortalPage />} />
+                <Route path="/instructor" element={<InstructorDashboardPage />} />
                 <Route path="/student/courses/:id" element={<StudentCourseDetailPage />} />
                 <Route path="/student/lessons/:id" element={<StudentLessonPlayerPage />} />
             </Route>

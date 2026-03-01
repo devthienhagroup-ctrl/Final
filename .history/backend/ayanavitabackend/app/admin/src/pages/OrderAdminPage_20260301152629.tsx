@@ -1089,7 +1089,7 @@ export default function AdminOrdersDemo() {
             toast("Không thể xác nhận đơn hàng.");
         }
     }
-
+    }
     async function markOrderSuccess() {
         if (!activeOrder) return;
         try {
@@ -1103,6 +1103,7 @@ export default function AdminOrdersDemo() {
         } catch {
             toast("Không thể cập nhật trạng thái thành công.");
         }
+    }
     }
 
     // Pager text (same format)

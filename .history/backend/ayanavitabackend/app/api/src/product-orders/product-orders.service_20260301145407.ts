@@ -23,18 +23,6 @@ export class ProductOrdersService {
     return status === ProductOrderStatus.PAID || status === ProductOrderStatus.SUCCESS
   }
 
-  private canTransitStatus(current: ProductOrderStatus, next: ProductOrderStatus) {
-    if (next === ProductOrderStatus.SHIPPING) {
-      return current === ProductOrderStatus.PENDING || current === ProductOrderStatus.PAID
-    }
-
-    if (next === ProductOrderStatus.SUCCESS) {
-      return current === ProductOrderStatus.SHIPPING
-    }
-
-    return true
-  }
-
 
   private readonly bankInfo = {
     gateway: 'BIDV',
@@ -327,10 +315,6 @@ export class ProductOrdersService {
   async adminUpdateStatus(orderId: number, status: ProductOrderStatus) {
     const order = await this.prisma.productOrder.findUnique({ where: { id: BigInt(orderId) } })
     if (!order) throw new NotFoundException('Order not found')
-
-    if (!this.canTransitStatus(order.status, status)) {
-      throw new BadRequestException('Invalid status transition')
-    }
 
     const paymentStatus = this.isPaidLikeStatus(status)
       ? ProductPaymentStatus.PAID

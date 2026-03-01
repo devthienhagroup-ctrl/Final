@@ -55,10 +55,6 @@ export class OrdersService {
     return `ID${paymentId.toString()}ProductOrderPayment`
   }
 
-  private isPaidLikeProductOrderStatus(status: ProductOrderStatus) {
-    return status === ProductOrderStatus.PAID || status === ProductOrderStatus.SUCCESS
-  }
-
   private parseProductTransferContent(content?: string | null): bigint | null {
     if (!content) return null
 
@@ -355,7 +351,7 @@ export class OrdersService {
       throw new ForbiddenException('Transfer amount is not enough for this order')
     }
 
-    if (payment.status === ProductPaymentStatus.PAID || this.isPaidLikeProductOrderStatus(payment.order.status)) {
+    if (payment.status === ProductPaymentStatus.PAID || [ProductOrderStatus.PAID, ProductOrderStatus.SUCCESS].includes(payment.order.status)) {
       return { ok: true, alreadyPaid: true, orderId: payment.order.id.toString(), paymentId: payment.id.toString() }
     }
 

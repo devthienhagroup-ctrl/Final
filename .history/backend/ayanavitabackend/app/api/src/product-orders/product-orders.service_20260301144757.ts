@@ -19,22 +19,6 @@ export class ProductOrdersService {
   constructor(private readonly prisma: PrismaService) {}
   private readonly logger = new Logger(ProductOrdersService.name)
 
-  private isPaidLikeStatus(status: ProductOrderStatus) {
-    return status === ProductOrderStatus.PAID || status === ProductOrderStatus.SUCCESS
-  }
-
-  private canTransitStatus(current: ProductOrderStatus, next: ProductOrderStatus) {
-    if (next === ProductOrderStatus.SHIPPING) {
-      return current === ProductOrderStatus.PENDING || current === ProductOrderStatus.PAID
-    }
-
-    if (next === ProductOrderStatus.SUCCESS) {
-      return current === ProductOrderStatus.SHIPPING
-    }
-
-    return true
-  }
-
 
   private readonly bankInfo = {
     gateway: 'BIDV',
@@ -328,11 +312,7 @@ export class ProductOrdersService {
     const order = await this.prisma.productOrder.findUnique({ where: { id: BigInt(orderId) } })
     if (!order) throw new NotFoundException('Order not found')
 
-    if (!this.canTransitStatus(order.status, status)) {
-      throw new BadRequestException('Invalid status transition')
-    }
-
-    const paymentStatus = this.isPaidLikeStatus(status)
+    const paymentStatus = [ProductOrderStatus.PAID, ProductOrderStatus.SUCCESS].includes(status)
       ? ProductPaymentStatus.PAID
       : status === ProductOrderStatus.CANCELLED
         ? ProductPaymentStatus.FAILED
@@ -344,7 +324,7 @@ export class ProductOrdersService {
         data: {
           status,
           paymentStatus,
-          paidAt: this.isPaidLikeStatus(status) ? new Date() : order.paidAt,
+          paidAt: [ProductOrderStatus.PAID, ProductOrderStatus.SUCCESS].includes(status) ? new Date() : order.paidAt,
           cancelledAt: status === ProductOrderStatus.CANCELLED ? new Date() : order.cancelledAt,
         },
         include: { details: true },
@@ -355,7 +335,7 @@ export class ProductOrdersService {
           where: { orderId: BigInt(orderId), status: ProductPaymentStatus.PENDING },
           data: {
             status: paymentStatus,
-            paidAt: this.isPaidLikeStatus(status) ? new Date() : undefined,
+            paidAt: [ProductOrderStatus.PAID, ProductOrderStatus.SUCCESS].includes(status) ? new Date() : undefined,
           },
         })
       }

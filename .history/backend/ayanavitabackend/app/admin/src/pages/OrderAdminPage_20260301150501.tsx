@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/http";
 
-type StatusKey = "all" | "pending" | "paid" | "shipping" | "success" | "cancelled" | "expired";
+type StatusKey = "all" | "processing" | "paid" | "cancelled" | "expired";
 
 type StatusDef = { key: StatusKey; label: string };
 
@@ -83,21 +83,14 @@ function toNum(v: number | string | null | undefined) {
 
 function toUiStatus(status: string): Exclude<StatusKey, "all"> {
     switch ((status || "").toUpperCase()) {
-        case "PENDING":
-        case "PENDING_PAYMENT":
-            return "pending";
         case "PAID":
             return "paid";
-        case "SHIPPING":
-            return "shipping";
-        case "SUCCESS":
-            return "success";
         case "CANCELLED":
             return "cancelled";
         case "EXPIRED":
             return "expired";
         default:
-            return "pending";
+            return "processing";
     }
 }
 
@@ -145,10 +138,8 @@ function mapOrder(row: ApiOrder): Order {
 }
 const STATUS: Record<StatusKey, StatusDef> = {
     all: { key: "all", label: "Tất cả" },
-    pending: { key: "pending", label: "Chờ xác nhận" },
+    processing: { key: "processing", label: "Chờ xử lý" },
     paid: { key: "paid", label: "Đã thanh toán" },
-    shipping: { key: "shipping", label: "Đang giao" },
-    success: { key: "success", label: "Thành công" },
     cancelled: { key: "cancelled", label: "Đã hủy" },
     expired: { key: "expired", label: "Hết hạn" },
 };
@@ -503,10 +494,8 @@ tbody tr:hover { background: rgba(124, 58, 237, 0.05); }
   white-space: nowrap;
 }
 .status .s-dot { width: 9px; height: 9px; border-radius: 999px; background: rgba(15, 23, 42, 0.25); }
-.status.pending .s-dot { background: var(--warn); }
+.status.processing .s-dot { background: var(--warn); }
 .status.paid .s-dot { background: var(--paid); }
-.status.shipping .s-dot { background: #0ea5e9; }
-.status.success .s-dot { background: var(--ok); }
 .status.cancelled .s-dot { background: var(--danger); }
 .status.expired .s-dot { background: #94a3b8; }
 
@@ -829,7 +818,7 @@ function mkOrder(
     const districts = ["Quận 1", "Quận 3", "Quận 7", "Thủ Đức", "Bình Thạnh"] as const;
 
     const shipMethod = pm; // demo: align payment method naming
-    const trackingCode = (status === "paid" || status === "shipping" || status === "success") ? "TRK-" + Math.floor(100000 + Math.random() * 900000) : null;
+    const trackingCode = status === "paid" ? "TRK-" + Math.floor(100000 + Math.random() * 900000) : null;
 
     const expectedDelivery = (() => {
         // demo: +2~4 days from createdAt
@@ -848,26 +837,22 @@ function mkOrder(
         createdAt: createdDate,
         customer: { name: customerName, email: customerEmail },
         branch: br,
-        confirmedBy: status === "pending" ? null : st,
+        confirmedBy: status === "processing" ? null : st,
         payment: {
             method: pm,
-            paidAt: (status === "paid" || status === "shipping" || status === "success") ? createdDate : null,
-            ref: (status === "paid" || status === "shipping" || status === "success") ? "TX-" + Math.floor(100000 + Math.random() * 900000) : null,
+            paidAt: status === "paid" ? createdDate : null,
+            ref: status === "paid" ? "TX-" + Math.floor(100000 + Math.random() * 900000) : null,
         },
         items,
         pricing: { subtotal, shipping, discount, total },
         note:
-            status === "pending"
+            status === "processing"
                 ? "Đơn mới tạo, chờ xác nhận tồn kho."
                 : status === "paid"
-                    ? "Đã thanh toán, chờ xác nhận giao hàng."
-                    : status === "shipping"
-                        ? "Đơn đã được xác nhận và đang vận chuyển."
-                        : status === "success"
-                            ? "Đơn hàng giao thành công."
-                            : status === "cancelled"
-                                ? "Khách yêu cầu hủy."
-                                : "Đơn hết hạn thanh toán.",
+                    ? "Đã thanh toán, chuẩn bị đóng gói."
+                    : status === "cancelled"
+                        ? "Khách yêu cầu hủy."
+                        : "Đơn hết hạn thanh toán.",
         shippingInfo: {
             receiverName,
             phone: pick(phones),
@@ -878,17 +863,13 @@ function mkOrder(
             carrier,
             trackingCode,
             note:
-                status === "pending"
+                status === "processing"
                     ? "Chưa bàn giao cho đơn vị vận chuyển."
                     : status === "paid"
-                        ? "Chờ nhân viên xác nhận đơn để bắt đầu giao."
-                        : status === "shipping"
-                            ? "Đơn đang trên đường giao."
-                            : status === "success"
-                                ? "Đơn đã giao thành công."
-                                : status === "cancelled"
-                                    ? "Đơn đã hủy, không tạo vận đơn."
-                                    : "Đơn hết hạn, không giao hàng.",
+                        ? "Đang đóng gói & sẵn sàng bàn giao."
+                        : status === "cancelled"
+                            ? "Đơn đã hủy, không tạo vận đơn."
+                            : "Đơn hết hạn, không giao hàng.",
             expectedDelivery,
         },
     };
@@ -898,10 +879,8 @@ const initialOrders: Order[] = [];
 
 function renderStatus(status: Order["status"]) {
     const map: Record<Order["status"], { cls: string; label: string }> = {
-        pending: { cls: "pending", label: STATUS.pending.label },
+        processing: { cls: "processing", label: STATUS.processing.label },
         paid: { cls: "paid", label: STATUS.paid.label },
-        shipping: { cls: "shipping", label: STATUS.shipping.label },
-        success: { cls: "success", label: STATUS.success.label },
         cancelled: { cls: "cancelled", label: STATUS.cancelled.label },
         expired: { cls: "expired", label: STATUS.expired.label },
     };
@@ -920,8 +899,20 @@ export default function AdminOrdersDemo() {
     // Filters
     const [activeStatus, setActiveStatus] = useState<StatusKey>("all");
     const [q, setQ] = useState("");
-    const [fromDate, setFromDate] = useState("2026-02-01");
-    const [toDate, setToDate] = useState("2026-02-28");
+    const [fromDate, setFromDate] = useState(() => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, "0");
+        return `${year}-${month}-01`;
+    });
+    const [toDate, setToDate] = useState(() => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+        const lastDay = new Date(year, month, 0).getDate();
+        const monthStr = String(month).padStart(2, "0");
+        return `${year}-${monthStr}-${String(lastDay).padStart(2, "0")}`;
+    });
     const [minTotal, setMinTotal] = useState("");
     const [maxTotal, setMaxTotal] = useState("");
 
@@ -949,7 +940,7 @@ export default function AdminOrdersDemo() {
                 acc[o.status] = (acc[o.status] || 0) + 1;
                 return acc;
             },
-            { pending: 0, paid: 0, shipping: 0, success: 0, cancelled: 0, expired: 0 },
+            { processing: 0, paid: 0, cancelled: 0, expired: 0 },
         );
     }, [orders]);
 
@@ -985,13 +976,13 @@ export default function AdminOrdersDemo() {
     // Stats computed from filtered (same behavior as HTML demo: stats follow current filtered list)
     const stats = useMemo(() => {
         const totalOrders = filtered.length;
-        const paidOrders = filtered.filter((o) => ["paid", "shipping", "success"].includes(o.status)).length;
+        const paidOrders = filtered.filter((o) => o.status === "paid").length;
 
         const revenueThisMonth = filtered
-            .filter((o) => ["paid", "shipping", "success"].includes(o.status) && o.createdAt.slice(0, 7) === "2026-02")
+            .filter((o) => o.status === "paid" && o.createdAt.slice(0, 7) === "2026-02")
             .reduce((s, o) => s + o.pricing.total, 0);
 
-        const unitsSold = filtered.filter((o) => ["paid", "shipping", "success"].includes(o.status)).reduce((s, o) => s + sumQty(o.items), 0);
+        const unitsSold = filtered.filter((o) => o.status === "paid").reduce((s, o) => s + sumQty(o.items), 0);
 
         const successRate = totalOrders ? Math.round((paidOrders / totalOrders) * 100) : 0;
 
@@ -1075,33 +1066,31 @@ export default function AdminOrdersDemo() {
     function closeDrawer() {
         setDrawerOpen(false);
     }
-    async function confirmOrderShipping() {
+
+    async function markProcessing() {
         if (!activeOrder) return;
         try {
             await api(`/api/product-orders/admin/${activeOrder.id}/status`, {
                 method: "PATCH",
-                body: JSON.stringify({ status: "SHIPPING" }),
+                body: JSON.stringify({ status: "PROCESSING" }),
             });
             await fetchOrders(false);
-            toast("Đơn hàng đã chuyển sang Đang giao.");
+            toast("Đã cập nhật trạng thái.");
             closeDrawer();
         } catch {
-            toast("Không thể xác nhận đơn hàng.");
+            toast("Không thể cập nhật trạng thái.");
         }
     }
 
-    async function markOrderSuccess() {
+    async function markPaid() {
         if (!activeOrder) return;
         try {
-            await api(`/api/product-orders/admin/${activeOrder.id}/status`, {
-                method: "PATCH",
-                body: JSON.stringify({ status: "SUCCESS" }),
-            });
+            await api(`/api/product-orders/admin/${activeOrder.id}/mark-paid`, { method: "POST" });
             await fetchOrders(false);
-            toast("Đã cập nhật đơn hàng thành công.");
+            toast("Đã cập nhật thanh toán.");
             closeDrawer();
         } catch {
-            toast("Không thể cập nhật trạng thái thành công.");
+            toast("Không thể xác nhận thanh toán.");
         }
     }
 
@@ -1130,10 +1119,8 @@ export default function AdminOrdersDemo() {
     const tabs = useMemo(
         () => [
             { key: "all" as const, label: STATUS.all.label, count: orders.length },
-            { key: "pending" as const, label: STATUS.pending.label, count: counts.pending || 0 },
+            { key: "processing" as const, label: STATUS.processing.label, count: counts.processing || 0 },
             { key: "paid" as const, label: STATUS.paid.label, count: counts.paid || 0 },
-            { key: "shipping" as const, label: STATUS.shipping.label, count: counts.shipping || 0 },
-            { key: "success" as const, label: STATUS.success.label, count: counts.success || 0 },
             { key: "cancelled" as const, label: STATUS.cancelled.label, count: counts.cancelled || 0 },
             { key: "expired" as const, label: STATUS.expired.label, count: counts.expired || 0 },
         ],
@@ -1632,18 +1619,14 @@ export default function AdminOrdersDemo() {
                                 </div>
 
                                 <div style={{ display: "flex", gap: 10, paddingBottom: 8, flexWrap: "wrap" }}>
-                                    {(activeOrder.status === "pending" || activeOrder.status === "paid") && (
-                                        <button className="btn ghost" id="btnConfirmShipping" onClick={confirmOrderShipping}>
-                                            <i className="fa-solid fa-truck" style={{ opacity: 0.85 }}></i>
-                                            Xác nhận đơn → Đang giao
-                                        </button>
-                                    )}
-                                    {activeOrder.status === "shipping" && (
-                                        <button className="btn primary" id="btnMarkSuccess" onClick={markOrderSuccess}>
-                                            <i className="fa-solid fa-circle-check" style={{ opacity: 0.95 }}></i>
-                                            Cập nhật → Thành công
-                                        </button>
-                                    )}
+                                    <button className="btn ghost" id="btnMarkProcessing" onClick={markProcessing}>
+                                        <i className="fa-solid fa-clock" style={{ opacity: 0.85 }}></i>
+                                        Chuyển “Chờ xử lý”
+                                    </button>
+                                    <button className="btn primary" id="btnMarkPaid" onClick={markPaid}>
+                                        <i className="fa-solid fa-circle-check" style={{ opacity: 0.95 }}></i>
+                                        Đánh dấu “Đã thanh toán”
+                                    </button>
                                 </div>
                             </>
                         )}

@@ -1,1655 +1,704 @@
-diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202603300001_add_role_audit_log/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202603300001_add_role_audit_log/migration.sql
-new file mode 100644
-index 0000000000000000000000000000000000000000..56bc3f1f577ee95df56ffb186f31e528ece5aa9e
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/prisma/migrations/202603300001_add_role_audit_log/migration.sql
-@@ -0,0 +1,24 @@
-+CREATE TABLE `RoleAuditLog` (
-+  `id` INT NOT NULL AUTO_INCREMENT,
-+  `action` VARCHAR(80) NOT NULL,
-+  `message` VARCHAR(255) NOT NULL,
-+  `actorUserId` INT NULL,
-+  `targetUserId` INT NULL,
-+  `roleId` INT NULL,
-+  `metadata` JSON NULL,
-+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-+
-+  INDEX `RoleAuditLog_createdAt_idx`(`createdAt`),
-+  INDEX `RoleAuditLog_actorUserId_idx`(`actorUserId`),
-+  INDEX `RoleAuditLog_targetUserId_idx`(`targetUserId`),
-+  INDEX `RoleAuditLog_roleId_idx`(`roleId`),
-+  PRIMARY KEY (`id`)
-+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-+
-+ALTER TABLE `RoleAuditLog`
-+  ADD CONSTRAINT `RoleAuditLog_actorUserId_fkey`
-+    FOREIGN KEY (`actorUserId`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-+  ADD CONSTRAINT `RoleAuditLog_targetUserId_fkey`
-+    FOREIGN KEY (`targetUserId`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-+  ADD CONSTRAINT `RoleAuditLog_roleId_fkey`
-+    FOREIGN KEY (`roleId`) REFERENCES `Role`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-index b134e67fa3e4abab40aed87cd9d7912fd2790341..10ddb56dfd914f39b46228135e8f27d5e34c9a20 100644
---- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
-+++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-@@ -22,50 +22,52 @@ model User {
-   roleRef            RbacRole? @relation("UserRbacRole", fields: [roleId], references: [id], onDelete: SetNull)
-   isActive           Boolean  @default(true)
-   hashedRefreshToken String?  @db.Text
-   createdAt          DateTime @default(now())
-   updatedAt          DateTime @updatedAt
-
-   // ✅ ADD
-   enrollments    Enrollment[]
-   courseAccesses CourseAccess[]
-   lessonProgress LessonProgress[]
-   lessonVideoProgress LessonVideoProgress[]
-   orders         Order[] // <— opposite for Order.user
-   productOrders  ProductOrder[]
-   carts          Cart[]
-
-   courseReviews CourseReview[]
-   // ✅ CMS (optional relations)
-   cmsSectionVersions CmsSectionVersion[]
-   mediaAssets        MediaAsset[]
-   serviceReviews     ServiceReview[]
-   reviews            Review[]
-   specialistProfile  Specialist?
-   reviewHelpfulVotes ReviewHelpful[]
-   blogPosts          BlogPost[]
-   blogSaves          BlogSavedPost[]
-+  roleAuditLogsAsActor  RoleAuditLog[] @relation("RoleAuditActor")
-+  roleAuditLogsAsTarget RoleAuditLog[] @relation("RoleAuditTarget")
-
-   @@index([roleId])
- }
-
- model Branch {
-   id          Int                @id @default(autoincrement())
-   code        String             @unique @db.VarChar(32)
-   name        String             @db.VarChar(255)
-   address     String             @db.VarChar(255)
-   phone       String?            @db.VarChar(30)
-   isActive    Boolean            @default(true)
-   createdAt   DateTime           @default(now())
-   updatedAt   DateTime           @updatedAt
-   services    BranchService[]
-   specialists Specialist[]
-   appointments Appointment[]
-   translations BranchTranslation[]
-   reviews      Review[]
- }
-
- model ServiceCategory {
-   id        Int      @id @default(autoincrement())
-   name      String   @unique @db.VarChar(255)
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
-@@ -644,76 +646,97 @@ enum AppointmentStatus {
-   DONE
-   CANCELED
- }
-
- enum Gender {
-   MALE
-   FEMALE
-   OTHER
- }
-
-
- enum ScopeType {
-   OWN
-   BRANCH
-   COURSE
-   GLOBAL
- }
-
- model RbacRole {
-   id          Int              @id @default(autoincrement())
-   code        String           @unique @db.VarChar(50)
-   scopeType   ScopeType
-   description String?          @db.VarChar(255)
-   users       User[]           @relation("UserRbacRole")
-   permissions RolePermission[]
-+  auditLogs   RoleAuditLog[]
-   createdAt   DateTime         @default(now())
-   updatedAt   DateTime         @updatedAt
-
-   @@map("Role")
- }
-
- model Permission {
-   id          Int              @id @default(autoincrement())
-   code        String           @unique @db.VarChar(120)
-   resource    String           @db.VarChar(80)
-   action      String           @db.VarChar(80)
-   roles       RolePermission[]
-   createdAt   DateTime         @default(now())
-   updatedAt   DateTime         @updatedAt
- }
-
- model RolePermission {
-   roleId       Int
-   permissionId Int
-   role         RbacRole   @relation(fields: [roleId], references: [id], onDelete: Cascade)
-   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-
-   @@id([roleId, permissionId])
-   @@index([permissionId])
- }
-
-+model RoleAuditLog {
-+  id           Int       @id @default(autoincrement())
-+  action       String    @db.VarChar(80)
-+  message      String    @db.VarChar(255)
-+  actorUserId  Int?
-+  targetUserId Int?
-+  roleId       Int?
-+  metadata     Json?
-+  createdAt    DateTime  @default(now())
-+
-+  actorUser  User?     @relation("RoleAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
-+  targetUser User?     @relation("RoleAuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
-+  role       RbacRole? @relation(fields: [roleId], references: [id], onDelete: SetNull)
-+
-+  @@index([createdAt])
-+  @@index([actorUserId])
-+  @@index([targetUserId])
-+  @@index([roleId])
-+}
-+
- enum UserRole {
-   ADMIN
-   MANAGER
-   STAFF
-   USER
- }
-
-
- enum EnrollmentStatus {
-   ACTIVE
-   CANCELED
- }
-
- enum CourseAccessStatus {
-   ACTIVE
-   CANCELED
- }
-
- enum OrderStatus {
-   PENDING
-   PAID
-   CANCELED
-   EXPIRED
- }
-
-diff --git a/backend/ayanavitabackend/app/api/src/auth/guards/permission.guard.ts b/backend/ayanavitabackend/app/api/src/auth/guards/permission.guard.ts
-index 50050a020264c10dd95d558190abc187b1919e3a..e8e57afe75a0fda3a204732410ed9ce562a444e3 100644
---- a/backend/ayanavitabackend/app/api/src/auth/guards/permission.guard.ts
-+++ b/backend/ayanavitabackend/app/api/src/auth/guards/permission.guard.ts
-@@ -1,27 +1,31 @@
- import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common'
- import { Reflector } from '@nestjs/core'
- import { PERMISSIONS_KEY } from '../decorators/permissions.decorator'
-
- type RequestUser = {
-+  role?: string
-   permissions?: string[]
- }
-
- @Injectable()
- export class PermissionGuard implements CanActivate {
-   constructor(private readonly reflector: Reflector) {}
-
-   canActivate(context: ExecutionContext): boolean {
-     const required = this.reflector.getAllAndOverride<string[]>(PERMISSIONS_KEY, [
-       context.getHandler(),
-       context.getClass(),
-     ])
-
-     if (!required || required.length === 0) return true
-
-     const req = context.switchToHttp().getRequest()
-     const user = req.user as RequestUser | undefined
--    const current = new Set(user?.permissions ?? [])
-
-+    // Backward-compat: tài khoản ADMIN cũ có thể chưa có permission list trong JWT.
-+    if (user?.role === 'ADMIN') return true
-+
-+    const current = new Set(user?.permissions ?? [])
-     return required.every((perm) => current.has(perm))
-   }
- }
-diff --git a/backend/ayanavitabackend/app/api/src/rbac/dto/check-permission.dto.ts b/backend/ayanavitabackend/app/api/src/rbac/dto/check-permission.dto.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..c71351ce6de070505906b1ac715e630771d52c2f
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/rbac/dto/check-permission.dto.ts
-@@ -0,0 +1,23 @@
-+import { IsNotEmpty, IsOptional, IsString } from 'class-validator'
-+
-+export class CheckPermissionDto {
-+  @IsString()
-+  @IsNotEmpty()
-+  email!: string
-+
-+  @IsString()
-+  @IsNotEmpty()
-+  roleCode!: string
-+
-+  @IsString()
-+  @IsNotEmpty()
-+  module!: string
-+
-+  @IsString()
-+  @IsNotEmpty()
-+  action!: string
-+
-+  @IsOptional()
-+  @IsString()
-+  resource?: string
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/rbac/rbac.controller.ts b/backend/ayanavitabackend/app/api/src/rbac/rbac.controller.ts
-index 448557e0501b6401b3079604a3dc080baab05b3e..061bc78ac3045a1f6249ab3b91842f565d2fbc6e 100644
---- a/backend/ayanavitabackend/app/api/src/rbac/rbac.controller.ts
-+++ b/backend/ayanavitabackend/app/api/src/rbac/rbac.controller.ts
-@@ -1,70 +1,84 @@
--import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put, UseGuards } from '@nestjs/common'
-+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put, Query, UseGuards } from '@nestjs/common'
- import { AccessTokenGuard } from '../auth/guards/access-token.guard'
- import { Permissions } from '../auth/decorators/permissions.decorator'
- import { PermissionGuard } from '../auth/guards/permission.guard'
-+import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
- import { AssignPermissionsDto } from './dto/assign-permissions.dto'
-+import { CheckPermissionDto } from './dto/check-permission.dto'
- import { CreatePermissionDto } from './dto/create-permission.dto'
- import { CreateRoleDto } from './dto/create-role.dto'
- import { UpdatePermissionDto } from './dto/update-permission.dto'
- import { UpdateRoleDto } from './dto/update-role.dto'
- import { RbacService } from './rbac.service'
-
- @UseGuards(AccessTokenGuard, PermissionGuard)
- @Controller()
- export class RbacController {
-   constructor(private readonly rbac: RbacService) {}
-
-   @Post('roles')
-   @Permissions('role.manage')
--  createRole(@Body() dto: CreateRoleDto) {
--    return this.rbac.createRole(dto)
-+  createRole(@Body() dto: CreateRoleDto, @CurrentUser() actor: JwtUser) {
-+    return this.rbac.createRole(dto, actor?.sub)
-   }
-
-   @Get('roles')
-   @Permissions('role.read')
-   getRoles() {
-     return this.rbac.findAllRoles()
-   }
-
-   @Put('roles/:id')
-   @Permissions('role.manage')
--  updateRole(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateRoleDto) {
--    return this.rbac.updateRole(id, dto)
-+  updateRole(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateRoleDto, @CurrentUser() actor: JwtUser) {
-+    return this.rbac.updateRole(id, dto, actor?.sub)
-   }
-
-   @Delete('roles/:id')
-   @Permissions('role.manage')
--  deleteRole(@Param('id', ParseIntPipe) id: number) {
--    return this.rbac.deleteRole(id)
-+  deleteRole(@Param('id', ParseIntPipe) id: number, @CurrentUser() actor: JwtUser) {
-+    return this.rbac.deleteRole(id, actor?.sub)
-   }
-
-   @Post('permissions')
-   @Permissions('role.manage')
-   createPermission(@Body() dto: CreatePermissionDto) {
-     return this.rbac.createPermission(dto)
-   }
-
-   @Get('permissions')
-   @Permissions('role.read')
-   getPermissions() {
-     return this.rbac.findAllPermissions()
-   }
-
-   @Put('permissions/:id')
-   @Permissions('role.manage')
-   updatePermission(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePermissionDto) {
-     return this.rbac.updatePermission(id, dto)
-   }
-
-   @Delete('permissions/:id')
-   @Permissions('role.manage')
-   deletePermission(@Param('id', ParseIntPipe) id: number) {
-     return this.rbac.deletePermission(id)
-   }
-
-   @Post('roles/:roleId/permissions')
-   @Permissions('role.manage')
--  assignPermissions(@Param('roleId', ParseIntPipe) roleId: number, @Body() dto: AssignPermissionsDto) {
--    return this.rbac.assignPermissionsToRole(roleId, dto)
-+  assignPermissions(@Param('roleId', ParseIntPipe) roleId: number, @Body() dto: AssignPermissionsDto, @CurrentUser() actor: JwtUser) {
-+    return this.rbac.assignPermissionsToRole(roleId, dto, actor?.sub)
-+  }
-+
-+  @Get('roles/audit-logs')
-+  @Permissions('role.read')
-+  getAuditLogs(@Query('limit') limit?: string) {
-+    return this.rbac.getRoleAuditLogs(limit ? Number(limit) : 50)
-+  }
-+
-+  @Post('roles/check-permission')
-+  @Permissions('role.read')
-+  checkPermission(@Body() dto: CheckPermissionDto) {
-+    return this.rbac.checkPermission(dto)
-   }
- }
-diff --git a/backend/ayanavitabackend/app/api/src/rbac/rbac.service.ts b/backend/ayanavitabackend/app/api/src/rbac/rbac.service.ts
-index d36759abda4cac39b7d9ea3843c24c9477efba18..aa138a80f3aff6447c798b7004da54cbe84d654c 100644
---- a/backend/ayanavitabackend/app/api/src/rbac/rbac.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/rbac/rbac.service.ts
-@@ -1,101 +1,177 @@
- import { Injectable, NotFoundException } from '@nestjs/common'
-+import { Prisma } from '@prisma/client'
- import { PrismaService } from '../prisma/prisma.service'
- import { AssignPermissionsDto } from './dto/assign-permissions.dto'
- import { CreatePermissionDto } from './dto/create-permission.dto'
- import { CreateRoleDto } from './dto/create-role.dto'
- import { UpdatePermissionDto } from './dto/update-permission.dto'
- import { UpdateRoleDto } from './dto/update-role.dto'
-+import { CheckPermissionDto } from './dto/check-permission.dto'
-
- @Injectable()
- export class RbacService {
-   constructor(private readonly prisma: PrismaService) {}
-
--  createRole(dto: CreateRoleDto) {
--    return this.prisma.rbacRole.create({ data: dto })
-+  async createRole(dto: CreateRoleDto, actorUserId?: number) {
-+    const role = await this.prisma.rbacRole.create({ data: dto })
-+    await this.logRoleAction('ROLE_CREATED', `Tạo role ${role.code}`, { actorUserId, roleId: role.id })
-+    return role
-   }
-
-   findAllRoles() {
-     return this.prisma.rbacRole.findMany({
-       include: {
-         permissions: { include: { permission: true } },
-       },
-       orderBy: { id: 'asc' },
-     })
-   }
-
--  async updateRole(id: number, dto: UpdateRoleDto) {
-+  async updateRole(id: number, dto: UpdateRoleDto, actorUserId?: number) {
-     await this.ensureRole(id)
--    return this.prisma.rbacRole.update({ where: { id }, data: dto })
-+    const role = await this.prisma.rbacRole.update({ where: { id }, data: dto })
-+    await this.logRoleAction('ROLE_UPDATED', `Sửa role ${role.code}`, { actorUserId, roleId: role.id })
-+    return role
-   }
-
--  async deleteRole(id: number) {
--    await this.ensureRole(id)
--    return this.prisma.rbacRole.delete({ where: { id } })
-+  async deleteRole(id: number, actorUserId?: number) {
-+    const role = await this.prisma.rbacRole.findUnique({ where: { id }, select: { id: true, code: true } })
-+    if (!role) throw new NotFoundException('Role not found')
-+    await this.prisma.rbacRole.delete({ where: { id } })
-+    await this.logRoleAction('ROLE_DELETED', `Xoá role ${role.code}`, { actorUserId, roleId: role.id })
-+    return { ok: true }
-   }
-
-   createPermission(dto: CreatePermissionDto) {
-     return this.prisma.permission.create({ data: dto })
-   }
-
-   findAllPermissions() {
-     return this.prisma.permission.findMany({ orderBy: { id: 'asc' } })
-   }
-
-   async updatePermission(id: number, dto: UpdatePermissionDto) {
-     await this.ensurePermission(id)
-     return this.prisma.permission.update({ where: { id }, data: dto })
-   }
-
-   async deletePermission(id: number) {
-     await this.ensurePermission(id)
-     return this.prisma.permission.delete({ where: { id } })
-   }
-
--  async assignPermissionsToRole(roleId: number, dto: AssignPermissionsDto) {
--    await this.ensureRole(roleId)
-+  async assignPermissionsToRole(roleId: number, dto: AssignPermissionsDto, actorUserId?: number) {
-+    const role = await this.prisma.rbacRole.findUnique({ where: { id: roleId }, select: { id: true, code: true } })
-+    if (!role) throw new NotFoundException('Role not found')
-
-     const found = await this.prisma.permission.findMany({
-       where: { id: { in: dto.permissionIds } },
-       select: { id: true },
-     })
-
-     if (found.length !== dto.permissionIds.length) {
-       throw new NotFoundException('Một hoặc nhiều permission không tồn tại')
-     }
-
-     await this.prisma.$transaction([
-       this.prisma.rolePermission.deleteMany({ where: { roleId } }),
-       this.prisma.rolePermission.createMany({
-         data: [...new Set(dto.permissionIds)].map((permissionId) => ({ roleId, permissionId })),
-       }),
-     ])
-
--    return this.prisma.rbacRole.findUnique({
-+    const updated = await this.prisma.rbacRole.findUnique({
-       where: { id: roleId },
-       include: { permissions: { include: { permission: true } } },
-     })
-+    await this.logRoleAction('ROLE_PERMISSION_ASSIGNED', `Cập nhật permission cho role ${role.code}`, {
-+      actorUserId,
-+      roleId: role.id,
-+      metadata: { permissionIds: dto.permissionIds },
-+    })
-+    return updated
-+  }
-+
-+  async checkPermission(dto: CheckPermissionDto) {
-+    const user = await this.prisma.user.findUnique({
-+      where: { email: dto.email.toLowerCase() },
-+      select: {
-+        id: true,
-+        roleRef: {
-+          select: {
-+            code: true,
-+            permissions: { select: { permission: { select: { code: true } } } },
-+          },
-+        },
-+      },
-+    })
-+    const permKey = `${dto.module}.${dto.action}`
-+    const currentRole = user?.roleRef?.code ?? null
-+    const active = currentRole === dto.roleCode
-+    const permSet = new Set(user?.roleRef?.permissions.map((rp) => rp.permission.code) ?? [])
-+    const allowed = active && permSet.has(permKey)
-+    return { permKey, active, allowed, reason: allowed ? 'OK' : active ? 'MISSING_PERMISSION' : 'ROLE_NOT_ASSIGNED', source: 'server' as const }
-+  }
-+
-+  async getRoleAuditLogs(limit = 50) {
-+    const take = Math.min(Math.max(limit, 1), 200)
-+    const rows = await this.prisma.roleAuditLog.findMany({
-+      take,
-+      orderBy: { id: 'desc' },
-+      include: {
-+        actorUser: { select: { email: true } },
-+        targetUser: { select: { email: true } },
-+        role: { select: { code: true } },
-+      },
-+    })
-+
-+    return rows.map((row) => ({
-+      id: row.id,
-+      action: row.action,
-+      message: row.message,
-+      actorUserId: row.actorUserId,
-+      actorEmail: row.actorUser?.email ?? null,
-+      targetUserId: row.targetUserId,
-+      targetEmail: row.targetUser?.email ?? null,
-+      roleId: row.roleId,
-+      roleCode: row.role?.code ?? null,
-+      createdAt: row.createdAt,
-+    }))
-+  }
-+
-+  async logRoleAction(action: string, message: string, params: { actorUserId?: number | null; targetUserId?: number | null; roleId?: number | null; metadata?: unknown }) {
-+    await this.prisma.roleAuditLog.create({
-+      data: {
-+        action,
-+        message,
-+        actorUserId: params.actorUserId ?? null,
-+        targetUserId: params.targetUserId ?? null,
-+        roleId: params.roleId ?? null,
-+        metadata: params.metadata as Prisma.InputJsonValue | undefined,
-+      },
-+    })
-   }
-
-   async getUserPermissions(userId: number) {
-     const user = await this.prisma.user.findUnique({
-       where: { id: userId },
-       include: {
-         roleRef: {
-           include: {
-             permissions: { include: { permission: true } },
-           },
-         },
-       },
-     })
-
-     if (!user) throw new NotFoundException('User not found')
-
-     return {
-       id: user.id,
-       role: user.roleRef?.code ?? null,
-       scopeType: user.roleRef?.scopeType ?? null,
-       permissions: user.roleRef?.permissions.map((rp) => rp.permission.code) ?? [],
-     }
-   }
-
-   private async ensureRole(id: number) {
-diff --git a/backend/ayanavitabackend/app/api/src/users/users.controller.ts b/backend/ayanavitabackend/app/api/src/users/users.controller.ts
-index 9d244adb127bbc4e77a950611d7f7f39cf198265..1ec281e503589af69ab19a9576db62093229e5af 100644
---- a/backend/ayanavitabackend/app/api/src/users/users.controller.ts
-+++ b/backend/ayanavitabackend/app/api/src/users/users.controller.ts
-@@ -1,28 +1,30 @@
- import { Body, Controller, Get, Param, ParseIntPipe, Put, UseGuards } from '@nestjs/common'
- import { UsersService } from './users.service'
- import { AccessTokenGuard } from '../auth/guards/access-token.guard'
- import { RolesGuard } from '../auth/guards/roles.guard'
- import { Roles } from '../auth/decorators/roles.decorator'
- import { AssignRoleDto } from './dto/assign-role.dto'
-+import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
-
- @Controller('users')
- export class UsersController {
-   constructor(private readonly users: UsersService) {}
-
-   @UseGuards(AccessTokenGuard, RolesGuard)
-   @Roles('ADMIN')
-   @Get()
-   findAll() {
-     return this.users.findAll()
-   }
-
-   @UseGuards(AccessTokenGuard, RolesGuard)
-   @Roles('ADMIN')
-   @Put(':id/role')
-   assignRole(
-     @Param('id', ParseIntPipe) id: number,
-     @Body() dto: AssignRoleDto,
-+    @CurrentUser() actor: JwtUser,
-   ) {
--    return this.users.assignRole(id, dto.roleId)
-+    return this.users.assignRole(id, dto.roleId, actor?.sub)
-   }
- }
-diff --git a/backend/ayanavitabackend/app/api/src/users/users.service.ts b/backend/ayanavitabackend/app/api/src/users/users.service.ts
-index f2946534067d7aa1b0918502e934307715f150d4..ca0b84a32e5c33660fc5eaf66d1cb75f4f363239 100644
---- a/backend/ayanavitabackend/app/api/src/users/users.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/users/users.service.ts
-@@ -1,45 +1,58 @@
- import { Injectable, NotFoundException } from '@nestjs/common'
- import { PrismaService } from '../prisma/prisma.service'
-
- @Injectable()
- export class UsersService {
-   constructor(private readonly prisma: PrismaService) {}
-
-
-   findAll() {
-     return this.prisma.user.findMany({
-       select: {
-         id: true,
-         email: true,
-         name: true,
-         role: true,
-         roleId: true,
-         roleRef: { select: { code: true, scopeType: true } },
-         createdAt: true,
-         updatedAt: true,
-       },
-       orderBy: { id: 'asc' },
-     })
-   }
-
--  async assignRole(userId: number, roleId: number) {
-+  async assignRole(userId: number, roleId: number, actorUserId?: number) {
-     const [user, role] = await Promise.all([
-       this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } }),
-       this.prisma.rbacRole.findUnique({ where: { id: roleId }, select: { id: true, code: true, scopeType: true } }),
-     ])
-
-     if (!user) throw new NotFoundException('User not found')
-     if (!role) throw new NotFoundException('Role not found')
-
--    return this.prisma.user.update({
-+    const updated = await this.prisma.user.update({
-       where: { id: userId },
-       data: { roleId },
-       select: {
-         id: true,
-         email: true,
-         roleId: true,
-         roleRef: { select: { id: true, code: true, scopeType: true } },
-       },
-     })
-+
-+    await this.prisma.roleAuditLog.create({
-+      data: {
-+        action: 'USER_ROLE_ASSIGNED',
-+        message: `Gán role ${role.code} cho ${updated.email}`,
-+        actorUserId: actorUserId ?? null,
-+        targetUserId: userId,
-+        roleId,
-+        metadata: { roleCode: role.code, scopeType: role.scopeType },
-+      },
-+    })
-+
-+    return updated
-   }
- }
 diff --git a/beay/src/app/api.ts b/beay/src/app/api.ts
-index 6e52f7b1c38deac25f59e0916625f3e78809e317..29983fe283eaf7efdbdad08b31acb49717f45556 100644
+index 1adc4d3e729969eeb8f7bd59b360202f3cbc8e10..896099dca6f297216df58608e9927c5e4577d26c 100644
 --- a/beay/src/app/api.ts
 +++ b/beay/src/app/api.ts
-@@ -9,40 +9,70 @@ function joinUrl(path: string) {
- async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-   const token = localStorage.getItem(TOKEN_KEY) || "";
-   const headers = new Headers(init.headers);
-   if (!headers.has("Content-Type") && init.body) headers.set("Content-Type", "application/json");
-   if (token) headers.set("Authorization", `Bearer ${token}`);
+@@ -1,54 +1,123 @@
+ const API_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:8090").replace(/\/+$/, "");
+-const TOKEN_KEY = "aya_admin_token";
++const ACCESS_TOKEN_KEY = "aya_admin_token";
++const REFRESH_TOKEN_KEY = "aya_admin_refresh_token";
 
-   const response = await fetch(joinUrl(path), { ...init, headers, credentials: "include" });
+ function joinUrl(path: string) {
+   const cleanPath = path.startsWith("/") ? path : `/${path}`;
+   return `${API_BASE}${cleanPath}`;
+ }
+
+-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+-  const token = localStorage.getItem(TOKEN_KEY) || "";
+-  const headers = new Headers(init.headers);
+-  if (!headers.has("Content-Type") && init.body) headers.set("Content-Type", "application/json");
+-  if (token) headers.set("Authorization", `Bearer ${token}`);
++type LoginResponse = {
++  accessToken: string;
++  refreshToken: string;
++};
+
+-  const response = await fetch(joinUrl(path), { ...init, headers, credentials: "include" });
++let pendingRefresh: Promise<string | null> | null = null;
++
++function readAccessToken() {
++  return localStorage.getItem(ACCESS_TOKEN_KEY) || "";
++}
++
++function readRefreshToken() {
++  return localStorage.getItem(REFRESH_TOKEN_KEY) || "";
++}
++
++function writeTokens(accessToken: string, refreshToken: string) {
++  localStorage.setItem(ACCESS_TOKEN_KEY, accessToken.trim());
++  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken.trim());
++}
++
++function clearTokens() {
++  localStorage.removeItem(ACCESS_TOKEN_KEY);
++  localStorage.removeItem(REFRESH_TOKEN_KEY);
++}
++
++async function refreshAccessToken(): Promise<string | null> {
++  const refreshToken = readRefreshToken();
++  if (!refreshToken) return null;
++
++  if (!pendingRefresh) {
++    pendingRefresh = (async () => {
++      const response = await fetch(joinUrl("/auth/refresh"), {
++        method: "POST",
++        headers: { Authorization: `Bearer ${refreshToken}` },
++        credentials: "include",
++      });
++
++      if (!response.ok) {
++        clearTokens();
++        return null;
++      }
++
++      const text = await response.text();
++      const payload = text ? (JSON.parse(text) as LoginResponse) : null;
++      if (!payload?.accessToken || !payload?.refreshToken) {
++        clearTokens();
++        return null;
++      }
++
++      writeTokens(payload.accessToken, payload.refreshToken);
++      return payload.accessToken;
++    })().finally(() => {
++      pendingRefresh = null;
++    });
++  }
++
++  return pendingRefresh;
++}
++
++async function parseResponse<T>(response: Response): Promise<T> {
    const text = await response.text();
    if (!response.ok) throw new Error(text || `HTTP ${response.status}`);
    return text ? (JSON.parse(text) as T) : ({} as T);
  }
 
- type LoginResponse = {
-   accessToken: string;
- };
+-type LoginResponse = {
+-  accessToken: string;
+-};
++async function request<T>(path: string, init: RequestInit = {}, allowRetry = true): Promise<T> {
++  const headers = new Headers(init.headers);
++  if (!headers.has("Content-Type") && init.body) headers.set("Content-Type", "application/json");
++
++  const token = readAccessToken();
++  if (token) headers.set("Authorization", `Bearer ${token}`);
++
++  const response = await fetch(joinUrl(path), { ...init, headers, credentials: "include" });
++
++  if (response.status === 401 && allowRetry) {
++    const newToken = await refreshAccessToken();
++    if (newToken) {
++      return request<T>(path, init, false);
++    }
++  }
++
++  return parseResponse<T>(response);
++}
 
  export async function login(email: string, password: string): Promise<LoginResponse> {
    return request<LoginResponse>("/auth/login", {
      method: "POST",
      body: JSON.stringify({ email, password }),
-   });
+-  });
++  }, false);
  }
 
  export type ApiRole = { id: number; code: string; scopeType: "OWN" | "BRANCH" | "COURSE" | "GLOBAL"; description?: string | null };
  export type ApiPermission = { id: number; code: string; resource: string; action: string };
--export type ApiUser = { id: number; email: string; roleId: number | null; roleRef?: { id: number; code: string; scopeType: string } | null };
-+export type ApiUser = { id: number; email: string; name?: string | null; roleId: number | null; roleRef?: { id: number; code: string; scopeType: string } | null };
-+export type ApiRoleAuditLog = {
-+  id: number;
-+  action: string;
-+  message: string;
-+  actorUserId: number | null;
-+  actorEmail: string | null;
-+  targetUserId: number | null;
-+  targetEmail: string | null;
-+  roleId: number | null;
-+  roleCode: string | null;
-+  createdAt: string;
-+};
+ export type ApiUser = { id: number; email: string; name?: string | null; roleId: number | null; roleRef?: { id: number; code: string; scopeType: string } | null };
+
+ export type ApiRoleAuditLog = {
+   id: number;
+   action: string;
+   message: string;
+   actorUserId: number | null;
+   actorEmail: string | null;
+   targetUserId: number | null;
+   targetEmail: string | null;
+   roleId: number | null;
+   roleCode: string | null;
+   createdAt: string;
+ };
+
+ export type ApiPermissionCheck = {
+   email: string;
+   roleCode: string;
+   module: string;
+   action: string;
+   resource?: string;
+diff --git a/beay/src/app/auth.tsx b/beay/src/app/auth.tsx
+index ee4c8a29460a7773758dee4077037f750153adac..ce562db95ad4fc5c7c52fa931670a0694134b6c6 100644
+--- a/beay/src/app/auth.tsx
++++ b/beay/src/app/auth.tsx
+@@ -1,36 +1,46 @@
+ import { createContext, useContext, useMemo, useState } from "react";
+
+ type AuthState = {
+   token: string;
+-  setToken: (token: string) => void;
++  refreshToken: string;
++  setTokenPair: (accessToken: string, refreshToken: string) => void;
+   logout: () => void;
+ };
+
+ const AuthContext = createContext<AuthState | null>(null);
+ const TOKEN_KEY = "aya_admin_token";
++const REFRESH_TOKEN_KEY = "aya_admin_refresh_token";
+
+ export function AuthProvider({ children }: { children: React.ReactNode }) {
+   const [token, setTokenState] = useState<string>(() => localStorage.getItem(TOKEN_KEY) || "");
++  const [refreshToken, setRefreshTokenState] = useState<string>(() => localStorage.getItem(REFRESH_TOKEN_KEY) || "");
+
+-  const setToken = (nextToken: string) => {
++  const setTokenPair = (nextToken: string, nextRefreshToken: string) => {
+     const cleanToken = nextToken.trim();
++    const cleanRefresh = nextRefreshToken.trim();
 +
-+export type ApiPermissionCheck = {
-+  email: string;
-+  roleCode: string;
-+  module: string;
-+  action: string;
-+  resource?: string;
-+};
+     setTokenState(cleanToken);
++    setRefreshTokenState(cleanRefresh);
 +
-+export type ApiPermissionCheckResult = {
-+  permKey: string;
-+  active: boolean;
-+  allowed: boolean;
-+  reason: string;
-+  source: "server";
-+};
+     localStorage.setItem(TOKEN_KEY, cleanToken);
++    localStorage.setItem(REFRESH_TOKEN_KEY, cleanRefresh);
+   };
 
- export const getRoles = () => request<ApiRole[]>("/roles");
- export const createRole = (payload: Omit<ApiRole, "id">) => request<ApiRole>("/roles", { method: "POST", body: JSON.stringify(payload) });
- export const updateRole = (id: number, payload: Partial<Omit<ApiRole, "id">>) => request<ApiRole>(`/roles/${id}`, { method: "PUT", body: JSON.stringify(payload) });
- export const deleteRole = (id: number) => request<void>(`/roles/${id}`, { method: "DELETE" });
+   const logout = () => {
+     setTokenState("");
++    setRefreshTokenState("");
+     localStorage.removeItem(TOKEN_KEY);
++    localStorage.removeItem(REFRESH_TOKEN_KEY);
+   };
 
- export const getPermissions = () => request<ApiPermission[]>("/permissions");
- export const createPermission = (payload: Omit<ApiPermission, "id">) => request<ApiPermission>("/permissions", { method: "POST", body: JSON.stringify(payload) });
- export const updatePermission = (id: number, payload: Partial<Omit<ApiPermission, "id">>) => request<ApiPermission>(`/permissions/${id}`, { method: "PUT", body: JSON.stringify(payload) });
- export const deletePermission = (id: number) => request<void>(`/permissions/${id}`, { method: "DELETE" });
+-  const value = useMemo(() => ({ token, setToken, logout }), [token]);
++  const value = useMemo(() => ({ token, refreshToken, setTokenPair, logout }), [token, refreshToken]);
+   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+ }
 
- export const assignPermissionsToRole = (roleId: number, permissionIds: number[]) => request(`/roles/${roleId}/permissions`, { method: "POST", body: JSON.stringify({ permissionIds }) });
- export const getUsers = () => request<ApiUser[]>("/users");
- export const assignRoleToUser = (userId: number, roleId: number) => request(`/users/${userId}/role`, { method: "PUT", body: JSON.stringify({ roleId }) });
-+export const getRoleAuditLogs = (limit = 50) => request<ApiRoleAuditLog[]>(`/roles/audit-logs?limit=${limit}`);
-+export const checkPermission = (payload: ApiPermissionCheck) => request<ApiPermissionCheckResult>("/roles/check-permission", { method: "POST", body: JSON.stringify(payload) });
-diff --git a/beay/src/pages/admin/AdminRbacPage.tsx b/beay/src/pages/admin/AdminRbacPage.tsx
-index 6abb8a3616d39d35205eaae15fff0b3f10c7fdc3..cb3c7d0538cb8b2781d071624f6a4b6561544150 100644
---- a/beay/src/pages/admin/AdminRbacPage.tsx
-+++ b/beay/src/pages/admin/AdminRbacPage.tsx
-@@ -1,216 +1,371 @@
+ export function useAuth() {
+   const context = useContext(AuthContext);
+   if (!context) {
+     throw new Error("useAuth must be used within AuthProvider");
+   }
+   return context;
+ }
+diff --git a/beay/src/pages/admin/LoginPage.tsx b/beay/src/pages/admin/LoginPage.tsx
+index 400355fb37501ca906b009d52698e328900a6000..2290338acc5ecfbdefd0d400c9a63454a16e0395 100644
+--- a/beay/src/pages/admin/LoginPage.tsx
++++ b/beay/src/pages/admin/LoginPage.tsx
+@@ -1,149 +1,419 @@
  import { useEffect, useMemo, useState } from "react";
- import { useToast } from "../../ui/toast";
- import {
-   assignPermissionsToRole,
-   assignRoleToUser,
-+  checkPermission,
-   createRole as apiCreateRole,
-   deleteRole as apiDeleteRole,
-   getPermissions,
-+  getRoleAuditLogs,
-   getRoles,
-   getUsers,
-+  type ApiUser,
-   updateRole as apiUpdateRole,
- } from "../../app/api";
+-import { useLocation, useNavigate } from "react-router-dom";
++import { Link, useLocation, useNavigate } from "react-router-dom";
+ import { login } from "../../app/api";
+ import { useAuth } from "../../app/auth";
 
- import { MODULES, PERMS, DEFAULT_ROLES, ACTIONS } from "./rbac/rbac.catalog";
--import type { Assignment, AuditItem, Role, RolePermMap, TestScope } from "./rbac/rbac.model";
-+import type { AuditItem, Role, RolePermMap, TestScope } from "./rbac/rbac.model";
- import { presetMap, type PresetKey } from "./rbac/rbac.presets";
- import { nowISO } from "./rbac/rbac.storage";
-
- import { RbacHeader } from "./rbac/ui/RbacHeader";
- import { RolesPanel } from "./rbac/ui/RolesPanel";
- import { PermissionsMatrix } from "./rbac/ui/PermissionsMatrix";
--import { AssignmentsPanel } from "./rbac/ui/AssignmentsPanel";
-+import { AssignmentsPanel, type UserRoleRow } from "./rbac/ui/AssignmentsPanel";
- import { AuditPanel } from "./rbac/ui/AuditPanel";
- import { TestAccessDrawer } from "./rbac/ui/TestAccessDrawer";
-
-+type RoleFormState = { mode: "create" | "edit"; key?: string; code: string; scopeType: Role["scope"]; description: string };
-+type AssignmentFormState = { userId: number; userEmail: string; role: string };
-+type DeleteTarget = { key: string } | null;
++type LocationState = { from?: string };
 +
-+const PAGE_SIZE = 10;
++function GoogleIcon() {
++  return (
++    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
++      <path
++        fill="#FFC107"
++        d="M43.611 20.083H42V20H24v8h11.303C33.68 32.657 29.21 36 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.047 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.651-.389-3.917z"
++      />
++      <path
++        fill="#FF3D00"
++        d="M6.306 14.691l6.571 4.819C14.655 16.108 19.01 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.047 6.053 29.268 4 24 4c-7.682 0-14.33 4.336-17.694 10.691z"
++      />
++      <path
++        fill="#4CAF50"
++        d="M24 44c5.166 0 9.86-1.977 13.409-5.197l-6.191-5.238C29.148 35.091 26.715 36 24 36c-5.189 0-9.646-3.318-11.279-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
++      />
++      <path
++        fill="#1976D2"
++        d="M43.611 20.083H42V20H24v8h11.303a11.98 11.98 0 0 1-4.085 5.565l.003-.002 6.191 5.238C36.97 39.205 44 34 44 24c0-1.341-.138-2.651-.389-3.917z"
++      />
++    </svg>
++  );
++}
 +
- export function AdminRbacPage() {
-   const { toast } = useToast();
-   const [loading, setLoading] = useState(true);
-   const [roles, setRoles] = useState<Role[]>([]);
-   const [roleIdMap, setRoleIdMap] = useState<Record<string, number>>({});
-   const [permCodeToId, setPermCodeToId] = useState<Record<string, number>>({});
-   const [rolePerms, setRolePerms] = useState<RolePermMap>({});
--  const [assignments, setAssignments] = useState<Assignment[]>([]);
-+  const [users, setUsers] = useState<ApiUser[]>([]);
-   const [audit, setAudit] = useState<AuditItem[]>([]);
++function FacebookIcon() {
++  return (
++    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
++      <path
++        fill="#1877F2"
++        d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.414c0-3.027 1.792-4.7 4.533-4.7 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.49 0-1.953.93-1.953 1.887v2.266h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"
++      />
++    </svg>
++  );
++}
++
+ export function LoginPage() {
+-  const { setToken } = useAuth();
+-  const navigate = useNavigate();
+-  const location = useLocation() as { state?: { from?: string } };
++  const { setTokenPair } = useAuth();
++  const nav = useNavigate();
++  const loc = useLocation();
++  const state = (loc.state as LocationState | null) ?? null;
 
-   const [activeRole, setActiveRole] = useState<string>("ADMIN");
-   const [roleSearch, setRoleSearch] = useState("");
-   const [moduleFilter, setModuleFilter] = useState<string>("ALL");
-   const [testOpen, setTestOpen] = useState(false);
-   const [testKey, setTestKey] = useState(0);
+   const [email, setEmail] = useState("admin@ayanavita.vn");
+   const [password, setPassword] = useState("123456");
+-  const [showPass, setShowPass] = useState(false);
+   const [remember, setRemember] = useState(true);
++  const [err, setErr] = useState<string | null>(null);
+   const [loading, setLoading] = useState(false);
+-  const [error, setError] = useState("");
++  const [dark, setDark] = useState(false);
++
++  const from = useMemo(() => state?.from || "/admin/dashboard", [state]);
 
-+  const [roleForm, setRoleForm] = useState<RoleFormState | null>(null);
-+  const [assignmentForm, setAssignmentForm] = useState<AssignmentFormState | null>(null);
-+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
-+
-+  const [userKeyword, setUserKeyword] = useState("");
-+  const [userPage, setUserPage] = useState(1);
-+
    useEffect(() => {
-     void loadData();
+     const savedEmail = localStorage.getItem("aya_admin_email");
+-    if (savedEmail) {
+-      setEmail(savedEmail);
+-    }
++    if (savedEmail) setEmail(savedEmail);
    }, []);
 
-   async function loadData() {
-     setLoading(true);
-     try {
--      const [rolesRaw, permsRaw, usersRaw] = await Promise.all([getRoles(), getPermissions(), getUsers()]);
-+      const [rolesRaw, permsRaw, usersRaw, auditRaw] = await Promise.all([getRoles(), getPermissions(), getUsers(), getRoleAuditLogs(120)]);
-       const roleRows = rolesRaw as Array<{ id: number; code: string; scopeType: Role["scope"]; description?: string; permissions?: Array<{ permission: { code: string } }> }>;
-       const nextRoles: Role[] = roleRows.map((r) => ({ key: r.code, name: r.code, desc: r.description || "", scope: r.scopeType, tier: "custom" }));
-       const rolePermMap: RolePermMap = {};
-       const nextRoleIdMap: Record<string, number> = {};
-       roleRows.forEach((r) => {
-         nextRoleIdMap[r.code] = r.id;
-         rolePermMap[r.code] = (r.permissions || []).map((x) => x.permission.code);
-       });
-+
-       const nextPermCodeToId: Record<string, number> = {};
-       permsRaw.forEach((p) => {
-         nextPermCodeToId[p.code] = p.id;
-       });
--      const nextAssignments: Assignment[] = usersRaw
--        .filter((u) => u.roleRef?.code)
--        .map((u) => ({
--          id: u.id,
--          user: u.email,
--          role: u.roleRef!.code,
--          scope: { type: (u.roleRef!.scopeType as Assignment["scope"]["type"]) || "OWN", id: null },
--          cadence: { unit: "year", value: 10 },
--          startAt: "2025-01-01",
--          expiresAt: "2099-12-31",
--        }));
+-  const redirectTo = useMemo(() => location.state?.from || "/admin/dashboard", [location.state?.from]);
 -
--      setRoles(nextRoles.length ? nextRoles : [...DEFAULT_ROLES] as unknown as Role[]);
+-  async function handleSubmit(event: React.FormEvent) {
++  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+     event.preventDefault();
+-    setError("");
++    setErr(null);
+     setLoading(true);
+
+     try {
+       const cleanEmail = email.trim();
+       const result = await login(cleanEmail, password);
+-      setToken(result.accessToken);
++      setTokenPair(result.accessToken, result.refreshToken);
+
+-      if (remember) {
+-        localStorage.setItem("aya_admin_email", cleanEmail);
++      if (remember) localStorage.setItem("aya_admin_email", cleanEmail);
++      else localStorage.removeItem("aya_admin_email");
 +
-+      const auditRows: AuditItem[] = auditRaw.map((item) => ({
-+        at: item.createdAt,
-+        type: item.action.includes("PERMISSION") ? "PERM" : item.action.includes("ASSIGN") ? "ASSIGN" : "ROLE",
-+        msg: item.message,
-+      }));
-+
-+      setRoles(nextRoles.length ? nextRoles : ([...DEFAULT_ROLES] as unknown as Role[]));
-       setRoleIdMap(nextRoleIdMap);
-       setPermCodeToId(nextPermCodeToId);
-       setRolePerms(rolePermMap);
--      setAssignments(nextAssignments);
-+      setUsers(usersRaw);
-+      setAudit(auditRows);
-     } catch (e) {
-       toast("Lỗi tải RBAC", e instanceof Error ? e.message : "Unknown error");
++      nav(from, { replace: true });
++    } catch (error: unknown) {
++      if (error && typeof error === "object" && "message" in error) {
++        setErr(String((error as { message?: unknown }).message ?? "Đăng nhập thất bại"));
+       } else {
+-        localStorage.removeItem("aya_admin_email");
++        setErr("Đăng nhập thất bại");
+       }
+-
+-      navigate(redirectTo, { replace: true });
+-    } catch (err) {
+-      setError(err instanceof Error ? err.message : "Đăng nhập thất bại");
      } finally {
        setLoading(false);
      }
    }
 
-   const activePermSet = useMemo(() => new Set(rolePerms[activeRole] ?? []), [rolePerms, activeRole]);
-   const visibleRoles = useMemo(() => {
-     const kw = roleSearch.trim().toLowerCase();
-     return roles.filter((r) => !kw || (r.key + " " + r.name + " " + r.desc).toLowerCase().includes(kw));
-   }, [roles, roleSearch]);
-   const filteredPerms = useMemo(() => (moduleFilter === "ALL" ? PERMS : PERMS.filter((p) => p.module === moduleFilter)), [moduleFilter]);
+-  return (
+-    <div className="aya-login">
+-      <div className="aya-bg" aria-hidden="true" />
+-      <div className="aya-grain" aria-hidden="true" />
+-      <div className="aya-blobs" aria-hidden="true">
+-        <span className="blob b1" />
+-        <span className="blob b2" />
+-        <span className="blob b3" />
+-      </div>
++  const bg = dark ? "#0b1220" : "#ECE9FF";
++  const cardBg = dark ? "rgba(15,23,42,.78)" : "rgba(255,255,255,1)";
++  const text = dark ? "rgba(255,255,255,.92)" : "#0f172a";
++  const subText = dark ? "rgba(226,232,240,.70)" : "rgba(100,116,139,1)";
++  const fieldBg = dark ? "rgba(2,6,23,.38)" : "rgba(241,245,249,1)";
++  const fieldBorder = dark ? "rgba(148,163,184,.18)" : "rgba(226,232,240,1)";
 
-+  const filteredUsers = useMemo(() => {
-+    const kw = userKeyword.trim().toLowerCase();
-+    if (!kw) return users;
-+    return users.filter((u) => `${u.name || ""} ${u.email}`.toLowerCase().includes(kw));
-+  }, [users, userKeyword]);
-+
-+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
-+
-+  useEffect(() => {
-+    if (userPage > totalPages) setUserPage(totalPages);
-+  }, [userPage, totalPages]);
-+
-+  const userRows = useMemo<UserRoleRow[]>(() => {
-+    const start = (userPage - 1) * PAGE_SIZE;
-+    return filteredUsers.slice(start, start + PAGE_SIZE).map((u) => ({
-+      id: u.id,
-+      name: u.name,
-+      email: u.email,
-+      role: u.roleRef?.code || "USER",
-+      scopeType: u.roleRef?.scopeType || null,
-+    }));
-+  }, [filteredUsers, userPage]);
-+
-   function pushAudit(type: AuditItem["type"], msg: string) {
-     setAudit((prev) => [{ at: nowISO(), type, msg }, ...prev].slice(0, 200));
-   }
-
--  async function createRole() {
--    const code = (prompt("Nhập key role", "MANAGER") || "").trim().toUpperCase();
--    if (!code) return;
--    const scopeType = ((prompt("Scope", "GLOBAL") || "GLOBAL") as Role["scope"]);
--    const description = prompt("Mô tả", "") || "";
--    await apiCreateRole({ code, scopeType, description });
--    pushAudit("ROLE", `Tạo role ${code}`);
--    await loadData();
-+  function openCreateRoleModal() {
-+    setRoleForm({ mode: "create", code: "MANAGER", scopeType: "GLOBAL", description: "" });
-   }
-
--  async function editRole(key: string) {
--    const roleId = roleIdMap[key];
--    if (!roleId) return;
-+  function openEditRoleModal(key: string) {
-     const row = roles.find((r) => r.key === key);
-     if (!row) return;
--    const description = prompt("Mô tả", row.desc) ?? row.desc;
--    const scopeType = (prompt("Scope", row.scope) ?? row.scope) as Role["scope"];
--    await apiUpdateRole(roleId, { description, scopeType });
--    pushAudit("ROLE", `Sửa role ${key}`);
-+    setRoleForm({ mode: "edit", key, code: row.key, scopeType: row.scope, description: row.desc });
-+  }
-+
-+  async function submitRoleForm() {
-+    if (!roleForm) return;
-+    const code = roleForm.code.trim().toUpperCase();
-+    if (!code) {
-+      toast("Thiếu dữ liệu", "Role key không được để trống.");
-+      return;
-+    }
-+
-+    if (roleForm.mode === "create") {
-+      await apiCreateRole({ code, scopeType: roleForm.scopeType, description: roleForm.description.trim() });
-+      pushAudit("ROLE", `Tạo role ${code}`);
-+    } else {
-+      const roleId = roleForm.key ? roleIdMap[roleForm.key] : null;
-+      if (!roleId) return;
-+      await apiUpdateRole(roleId, { description: roleForm.description.trim(), scopeType: roleForm.scopeType });
-+      pushAudit("ROLE", `Sửa role ${roleForm.key}`);
-+    }
-+
-+    setRoleForm(null);
-     await loadData();
-   }
-
--  async function deleteRole(key: string) {
-+  function openDeleteRoleModal(key: string) {
-+    setDeleteTarget({ key });
-+  }
-+
-+  async function confirmDeleteRole() {
-+    const key = deleteTarget?.key;
-+    if (!key) return;
-     const roleId = roleIdMap[key];
--    if (!roleId || !confirm(`Xoá role ${key}?`)) return;
-+    if (!roleId) return;
-     await apiDeleteRole(roleId);
-     pushAudit("ROLE", `Xoá role ${key}`);
-+    setDeleteTarget(null);
-     await loadData();
-   }
-
-   async function syncRolePerms(nextCodes: string[]) {
-     const roleId = roleIdMap[activeRole];
-     if (!roleId) return;
-     const ids = nextCodes.map((code) => permCodeToId[code]).filter(Boolean);
-     await assignPermissionsToRole(roleId, ids);
-     setRolePerms((prev) => ({ ...prev, [activeRole]: nextCodes }));
-   }
-
-   async function togglePerm(permKey: string, checked: boolean) {
-     const cur = new Set(rolePerms[activeRole] ?? []);
-     if (checked) cur.add(permKey);
-     else cur.delete(permKey);
-     const nextCodes = Array.from(cur);
-     await syncRolePerms(nextCodes);
-     pushAudit("PERM", `${activeRole} ${checked ? "+" : "-"} ${permKey}`);
-   }
-
-   async function applyPresetToActive(preset: PresetKey) {
-     const set = Array.from(presetMap()[preset]);
-     await syncRolePerms(set);
-     pushAudit("PERM", `Áp preset ${preset} cho ${activeRole}`);
-   }
-
--  async function allPerms() { await syncRolePerms(PERMS.map((x) => x.key)); }
--  async function nonePerms() { await syncRolePerms([]); }
-+  async function allPerms() {
-+    await syncRolePerms(PERMS.map((x) => x.key));
-+  }
-+
-+  async function nonePerms() {
-+    await syncRolePerms([]);
-+  }
-+
-+  function openAssignmentModal(row: UserRoleRow) {
-+    setAssignmentForm({ userId: row.id, userEmail: row.email, role: row.role });
-+  }
-
--  async function addAssignment() {
--    const email = prompt("Nhập email user", "") || "";
--    const role = prompt("Nhập role key", "USER") || "USER";
--    const roleId = roleIdMap[role];
--    if (!email || !roleId) return;
--    const user = assignments.find((a) => a.user === email);
--    if (!user) {
--      toast("Không tìm thấy user", "Hãy tạo user trước.");
-+  async function submitAssignment() {
-+    if (!assignmentForm) return;
-+    const roleId = roleIdMap[assignmentForm.role];
-+    if (!roleId) {
-+      toast("Thiếu dữ liệu", "Role không hợp lệ.");
-       return;
-     }
--    await assignRoleToUser(user.id, roleId);
--    pushAudit("ASSIGN", `Gán ${role} cho ${email}`);
-+    await assignRoleToUser(assignmentForm.userId, roleId);
-+    pushAudit("ASSIGN", `Gán ${assignmentForm.role} cho ${assignmentForm.userEmail}`);
-+    setAssignmentForm(null);
-     await loadData();
-   }
-
--  async function deleteAssignment(id: number) {
--    await assignRoleToUser(id, roleIdMap.USER);
--    pushAudit("ASSIGN", `Reset role user #${id}`);
-+  async function resetUserRole(userId: number) {
-+    if (!roleIdMap.USER) return;
-+    await assignRoleToUser(userId, roleIdMap.USER);
-+    pushAudit("ASSIGN", `Reset role user #${userId}`);
-     await loadData();
-   }
-
--  function renewAssignment() { toast("Info", "Assignment đang đồng bộ theo role hiện tại."); }
--  function clearAssignments() { toast("Info", "Không hỗ trợ xoá hàng loạt trên API."); }
--  function saveAll() { toast("Đã lưu", "Mọi thay đổi đã đồng bộ API."); }
--  function exportJson() { toast("Info", "Sử dụng API backend để export."); }
--  async function importJsonFile() { toast("Info", "Sử dụng API backend để import."); }
--  function clearAudit() { setAudit([]); }
-+  function saveAll() {
-+    toast("Đã lưu", "Mọi thay đổi đã đồng bộ API.");
-+  }
-+
-+  function exportJson() {
-+    toast("Info", "Sử dụng API backend để export.");
-+  }
-+
-+  async function importJsonFile() {
-+    toast("Info", "Sử dụng API backend để import.");
-+  }
-
--  function isRoleActiveForUser(email: string, roleKey: string) {
--    return assignments.some((a) => a.user === email && a.role === roleKey);
-+  function clearAudit() {
-+    setAudit([]);
-   }
--  function can(roleKey: string, permKey: string) { return new Set(rolePerms[roleKey] ?? []).has(permKey); }
-
--  function runTestAccess(params: { email: string; role: string; module: string; action: string; resource: string; scope: TestScope; }) {
--    const permKey = `${params.module}.${params.action}`;
--    const active = isRoleActiveForUser(params.email, params.role);
--    const allowed = active && can(params.role, permKey);
--    return { permKey, active, allowed, reason: allowed ? "OK" : "DENY" };
-+  async function runTestAccess(params: { email: string; role: string; module: string; action: string; resource: string; scope: TestScope }) {
-+    const result = await checkPermission({
-+      email: params.email,
-+      roleCode: params.role,
-+      module: params.module,
-+      action: params.action,
-+      resource: params.resource,
-+    });
-+    pushAudit("TEST", `Test ${params.email} với ${result.permKey}: ${result.allowed ? "ALLOW" : "DENY"}`);
-+    return result;
-   }
-
-   if (loading) return <div className="p-6">Đang tải RBAC...</div>;
-
-   return (
-     <div className="soft text-slate-900 min-h-screen">
-       <RbacHeader
--        onTest={() => { setTestKey((k) => k + 1); setTestOpen(true); }}
--        onImport={async () => { await importJsonFile(); }}
-+        onTest={() => {
-+          setTestKey((k) => k + 1);
-+          setTestOpen(true);
+-      <div className="aya-wrap">
+-        <div className="aya-card">
+-          <div className="aya-brand">
+-            <span className="dot" aria-hidden="true" />
+-            <div className="t">
+-              <div className="name">
+-                <span className="g">AYANAVITA</span> <span className="muted">Admin</span>
+-              </div>
+-              <div className="sub">CMS • Leads • Publish</div>
+-            </div>
+-          </div>
++  return (
++    <div
++      style={{
++        minHeight: "100vh",
++        background: bg,
++        display: "grid",
++        placeItems: "center",
++        padding: 22,
++      }}
++    >
++      <div
++        aria-hidden="true"
++        style={{
++          position: "fixed",
++          inset: 0,
++          pointerEvents: "none",
++          background:
++            "radial-gradient(420px 260px at 18% 18%, rgba(124,58,237,.22), transparent 60%)," +
++            "radial-gradient(520px 320px at 80% 30%, rgba(79,70,229,.18), transparent 62%)," +
++            "radial-gradient(520px 340px at 70% 85%, rgba(245,158,11,.10), transparent 65%)",
 +        }}
-+        onImport={async () => {
-+          await importJsonFile();
++      />
+
+-          <div className="aya-head">
+-            <h1>Đăng nhập Admin</h1>
+-            <p>
+-              Dùng tài khoản role <b>ADMIN</b> của backend.
+-            </p>
++      <div
++        className="__login_grid"
++        style={{
++          width: "min(1100px, 100%)",
++          borderRadius: 26,
++          overflow: "hidden",
++          position: "relative",
++          boxShadow: dark ? "0 30px 80px rgba(0,0,0,.55)" : "0 30px 80px rgba(17,24,39,.18)",
++          border: dark ? "1px solid rgba(148,163,184,.18)" : "1px solid rgba(226,232,240,1)",
++          background: cardBg,
++          display: "grid",
++          gridTemplateColumns: "1fr 1fr",
 +        }}
-         onExport={exportJson}
-         onSave={saveAll}
-       />
-       <main className="px-4 md:px-8 py-6 space-y-6">
-         <section className="grid gap-4 lg:grid-cols-3">
--          <RolesPanel roles={visibleRoles} activeRole={activeRole} onSelectRole={setActiveRole} search={roleSearch} onSearch={setRoleSearch} onNewRole={createRole} onEditRole={editRole} onDeleteRole={deleteRole} onJumpRole={setActiveRole} />
-+          <RolesPanel roles={visibleRoles} activeRole={activeRole} onSelectRole={setActiveRole} search={roleSearch} onSearch={setRoleSearch} onNewRole={openCreateRoleModal} onEditRole={openEditRoleModal} onDeleteRole={openDeleteRoleModal} onJumpRole={setActiveRole} />
-           <PermissionsMatrix activeRole={activeRole} moduleFilter={moduleFilter} onChangeModuleFilter={setModuleFilter} presetSelectOptions={[{ value: "KEEP", label: "Preset: (không đổi)" }, { value: "STRICT", label: "Preset: Nghiêm ngặt" }, { value: "USER", label: "Preset: USER" }, { value: "STAFF", label: "Preset: STAFF" }, { value: "BRANCH_MANAGER", label: "Preset: BRANCH_MANAGER" }, { value: "LECTURER", label: "Preset: LECTURER" }, { value: "SUPPORT", label: "Preset: SUPPORT" }, { value: "OPS", label: "Preset: OPS" }, { value: "FINANCE", label: "Preset: FINANCE" }, { value: "ADMIN", label: "Preset: ADMIN" }]} onApplyPreset={(v) => { if (v !== "KEEP") void applyPresetToActive(v as PresetKey); }} onAll={() => void allPerms()} onNone={() => void nonePerms()} perms={filteredPerms} activePermSet={activePermSet} onTogglePerm={(k, c) => void togglePerm(k, c)} roles={roles} />
-         </section>
-         <section className="grid gap-4 lg:grid-cols-3">
--          <AssignmentsPanel assignments={assignments} onAdd={() => void addAssignment()} onClear={clearAssignments} onRenew={renewAssignment} onDelete={(id) => void deleteAssignment(id)} />
-+          <AssignmentsPanel
-+            rows={userRows}
-+            keyword={userKeyword}
-+            onKeywordChange={(v) => {
-+              setUserKeyword(v);
-+              setUserPage(1);
++      >
++        <div style={{ padding: "44px 46px", color: text }}>
++          <div style={{ textAlign: "center", marginBottom: 18 }}>
++            <div style={{ fontWeight: 900, letterSpacing: 1.2, fontSize: 22 }}>LOGIN</div>
++            <div style={{ marginTop: 6, fontSize: 13, color: subText }}>Đăng nhập để truy cập trang quản trị.</div>
+           </div>
+
+-          <form onSubmit={handleSubmit} className="aya-form">
+-            <label className="field">
+-              <span className="label">Email</span>
+-              <div className="control">
++          <form onSubmit={onSubmit} style={{ display: "grid", gap: 14 }}>
++            <label style={{ display: "grid", gap: 8 }}>
++              <div style={{ fontSize: 12, fontWeight: 800, color: subText }}>Email</div>
++              <div style={{ position: "relative" }}>
++                <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", opacity: 0.75, fontSize: 14 }}>👤</div>
+                 <input
+-                  className="input"
+                   value={email}
+                   onChange={(event) => setEmail(event.target.value)}
++                  placeholder="admin@domain.com"
+                   autoComplete="email"
+-                  inputMode="email"
+-                  placeholder="admin@ayanavita.vn"
++                  style={{
++                    height: 46,
++                    width: "100%",
++                    borderRadius: 14,
++                    border: `1px solid ${fieldBorder}`,
++                    background: fieldBg,
++                    color: text,
++                    padding: "0 14px 0 42px",
++                    outline: "none",
++                  }}
+                 />
+               </div>
+             </label>
+
+-            <label className="field">
+-              <span className="label">Password</span>
+-              <div className="control">
++            <label style={{ display: "grid", gap: 8 }}>
++              <div style={{ fontSize: 12, fontWeight: 800, color: subText }}>Mật khẩu</div>
++              <div style={{ position: "relative" }}>
++                <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", opacity: 0.75, fontSize: 14 }}>🔒</div>
+                 <input
+-                  className="input"
+-                  type={showPass ? "text" : "password"}
++                  type="password"
+                   value={password}
+                   onChange={(event) => setPassword(event.target.value)}
+-                  autoComplete="current-password"
+                   placeholder="••••••"
++                  autoComplete="current-password"
++                  style={{
++                    height: 46,
++                    width: "100%",
++                    borderRadius: 14,
++                    border: `1px solid ${fieldBorder}`,
++                    background: fieldBg,
++                    color: text,
++                    padding: "0 14px 0 42px",
++                    outline: "none",
++                  }}
+                 />
+-                <button
+-                  type="button"
+-                  className="ghost"
+-                  onClick={() => setShowPass((value) => !value)}
+-                >
+-                  {showPass ? "Ẩn" : "Hiện"}
+-                </button>
+               </div>
+             </label>
+
+-            <div className="row">
+-              <label className="check">
+-                <input
+-                  type="checkbox"
+-                  checked={remember}
+-                  onChange={(event) => setRemember(event.target.checked)}
+-                />
+-                <span>Nhớ email</span>
+-              </label>
+-              <div className="hint">
+-                Nếu backend khác port, set <code>VITE_API_BASE</code> trong <code>.env</code>
+-              </div>
+-            </div>
++            <label style={{ display: "flex", alignItems: "center", gap: 8, color: subText, fontSize: 13 }}>
++              <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
++              Nhớ email đăng nhập
++            </label>
+
+-            {error ? (
+-              <div className="aya-alert" role="alert">
+-                <div className="title">Lỗi</div>
+-                <div className="msg">{error}</div>
++            {err ? (
++              <div
++                style={{
++                  borderRadius: 14,
++                  padding: "10px 12px",
++                  border: "1px solid rgba(239,68,68,.35)",
++                  background: "rgba(239,68,68,.10)",
++                  color: dark ? "rgba(254,226,226,.95)" : "rgba(127,29,29,1)",
++                  fontSize: 13,
++                }}
++              >
++                <b style={{ display: "block", marginBottom: 4 }}>Đăng nhập thất bại</b>
++                {err}
+               </div>
+             ) : null}
+
+-            <button className="btn-primary" type="submit" disabled={loading}>
+-              {loading ? "Đang đăng nhập…" : "Login"}
++            <button
++              type="submit"
++              disabled={loading}
++              style={{
++                height: 46,
++                borderRadius: 14,
++                border: 0,
++                cursor: loading ? "not-allowed" : "pointer",
++                opacity: loading ? 0.82 : 1,
++                fontWeight: 900,
++                color: "#fff",
++                background: "linear-gradient(135deg, #6D5EF6, #8B5CF6)",
++                boxShadow: "0 16px 30px rgba(109,94,246,.30)",
++                marginTop: 6,
++              }}
++            >
++              {loading ? "Đang đăng nhập..." : "Login Now"}
+             </button>
+
+-            <div className="foot">
+-              <span className="muted">Redirect sau login:</span> <code>{redirectTo}</code>
++            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
++              <button
++                type="button"
++                onClick={() => {
++                  setEmail("");
++                  setPassword("");
++                  setErr(null);
++                }}
++                style={{
++                  height: 40,
++                  padding: "0 14px",
++                  borderRadius: 12,
++                  border: `1px solid ${fieldBorder}`,
++                  background: dark ? "rgba(2,6,23,.20)" : "rgba(255,255,255,.8)",
++                  color: text,
++                  fontWeight: 800,
++                  cursor: "pointer",
++                }}
++              >
++                Xoá form
++              </button>
++
++              <button
++                type="button"
++                onClick={() => nav(from, { replace: true })}
++                style={{
++                  height: 40,
++                  padding: "0 14px",
++                  borderRadius: 12,
++                  border: `1px solid ${fieldBorder}`,
++                  background: dark ? "rgba(2,6,23,.20)" : "rgba(255,255,255,.8)",
++                  color: text,
++                  fontWeight: 800,
++                  cursor: "pointer",
++                }}
++                title="Đi tới trang mục tiêu (nếu đã đăng nhập)"
++              >
++                Tiếp tục
++              </button>
++            </div>
++
++            <div style={{ textAlign: "center", marginTop: 6 }}>
++              <div style={{ fontWeight: 900, fontSize: 13, color: text }}>Login</div>
++              <div style={{ fontSize: 12, color: subText }}>with Others</div>
++            </div>
++
++            <button
++              type="button"
++              onClick={() => alert("Prototype: Google OAuth")}
++              style={{
++                height: 46,
++                borderRadius: 14,
++                border: `1px solid ${fieldBorder}`,
++                background: dark ? "rgba(2,6,23,.24)" : "#fff",
++                color: text,
++                fontWeight: 800,
++                display: "flex",
++                alignItems: "center",
++                justifyContent: "center",
++                gap: 10,
++                cursor: "pointer",
++              }}
++            >
++              <GoogleIcon />
++              Login with google
++            </button>
++
++            <button
++              type="button"
++              onClick={() => alert("Prototype: Facebook OAuth")}
++              style={{
++                height: 46,
++                borderRadius: 14,
++                border: `1px solid ${fieldBorder}`,
++                background: dark ? "rgba(2,6,23,.24)" : "#fff",
++                color: text,
++                fontWeight: 800,
++                display: "flex",
++                alignItems: "center",
++                justifyContent: "center",
++                gap: 10,
++                cursor: "pointer",
++              }}
++            >
++              <FacebookIcon />
++              Login with Facebook
++            </button>
++
++            <div style={{ marginTop: 6, textAlign: "center", fontSize: 12, color: subText }}>
++              Quay về trang chủ? <Link to="/">Trang chủ</Link>
++              <div style={{ marginTop: 6 }}>
++                Redirect sau login: <b style={{ color: text }}>{from}</b>
++              </div>
++              <div style={{ marginTop: 6 }}>
++                Access token: <b style={{ color: text }}>localStorage.aya_admin_token</b>
++              </div>
+             </div>
+           </form>
+         </div>
++
++        <div
++          style={{
++            position: "relative",
++            background: "linear-gradient(135deg, #6D5EF6 0%, #8B5CF6 55%, #5B4CF0 100%)",
++            overflow: "hidden",
++          }}
++        >
++          <svg aria-hidden="true" viewBox="0 0 800 800" style={{ position: "absolute", inset: 0, opacity: 0.22 }}>
++            <defs>
++              <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
++                <stop offset="0" stopColor="#ffffff" stopOpacity="0.55" />
++                <stop offset="1" stopColor="#ffffff" stopOpacity="0.15" />
++              </linearGradient>
++            </defs>
++            <path d="M0,120 C120,80 220,220 360,180 C520,130 560,40 800,110 L800,0 L0,0 Z" fill="url(#g)" />
++            <path d="M0,260 C140,220 240,360 380,320 C520,280 600,170 800,250 L800,170 C620,120 560,210 420,240 C250,275 180,170 0,210 Z" fill="url(#g)" />
++            <path d="M0,470 C170,430 260,560 420,520 C580,480 640,390 800,470 L800,390 C650,340 590,430 450,455 C280,485 200,380 0,420 Z" fill="url(#g)" />
++            <path d="M0,680 C190,640 300,760 460,720 C620,680 700,580 800,650 L800,800 L0,800 Z" fill="url(#g)" />
++          </svg>
++
++          <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", padding: 30 }}>
++            <div
++              style={{
++                width: "min(420px, 86%)",
++                aspectRatio: "4 / 5",
++                borderRadius: 22,
++                background: "rgba(255,255,255,.12)",
++                border: "1px solid rgba(255,255,255,.25)",
++                boxShadow: "0 30px 80px rgba(0,0,0,.25)",
++                display: "grid",
++                placeItems: "center",
++                position: "relative",
++                overflow: "hidden",
++              }}
++            >
++              <div
++                style={{
++                  position: "absolute",
++                  inset: 18,
++                  borderRadius: 18,
++                  border: "1px solid rgba(255,255,255,.22)",
++                  background: "rgba(255,255,255,.10)",
++                }}
++              />
++              <img
++                alt="visual"
++                src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80"
++                style={{
++                  width: "78%",
++                  height: "78%",
++                  objectFit: "cover",
++                  borderRadius: 18,
++                  zIndex: 2,
++                  boxShadow: "0 20px 50px rgba(0,0,0,.22)",
++                }}
++              />
++            </div>
++          </div>
++
++          <button
++            type="button"
++            onClick={() => setDark((value) => !value)}
++            title="Toggle theme"
++            style={{
++              position: "absolute",
++              left: -20,
++              top: "50%",
++              transform: "translateY(-50%)",
++              width: 46,
++              height: 46,
++              borderRadius: 999,
++              border: "1px solid rgba(255,255,255,.35)",
++              background: "rgba(255,255,255,.92)",
++              boxShadow: "0 16px 34px rgba(0,0,0,.22)",
++              display: "grid",
++              placeItems: "center",
++              cursor: "pointer",
 +            }}
-+            page={userPage}
-+            pageSize={PAGE_SIZE}
-+            totalPages={totalPages}
-+            onPrevPage={() => setUserPage((p) => Math.max(1, p - 1))}
-+            onNextPage={() => setUserPage((p) => Math.min(totalPages, p + 1))}
-+            onEdit={openAssignmentModal}
-+            onResetUserRole={(id) => void resetUserRole(id)}
-+          />
-           <AuditPanel audit={audit} onClear={clearAudit} />
-         </section>
-       </main>
++          >
++            <span style={{ fontSize: 18 }}>{dark ? "☀️" : "✨"}</span>
++          </button>
 +
-       <TestAccessDrawer key={testKey} open={testOpen} onClose={() => setTestOpen(false)} roles={roles} modules={[...MODULES]} actions={[...ACTIONS]} onRun={(input) => runTestAccess(input)} />
-+
-+      {roleForm && (
-+        <div className="fixed inset-0 z-40 bg-slate-900/35 flex items-center justify-center p-4">
-+          <div className="card w-full max-w-lg p-5">
-+            <div className="text-lg font-extrabold">{roleForm.mode === "create" ? "Tạo role" : `Sửa role ${roleForm.key}`}</div>
-+            <div className="mt-4 space-y-3">
-+              <div>
-+                <div className="text-xs font-bold text-slate-500">Role key</div>
-+                <input className="input mt-1" value={roleForm.code} onChange={(e) => setRoleForm((prev) => (prev ? { ...prev, code: e.target.value.toUpperCase() } : prev))} disabled={roleForm.mode === "edit"} />
-+              </div>
-+              <div>
-+                <div className="text-xs font-bold text-slate-500">Scope</div>
-+                <select className="input mt-1" value={roleForm.scopeType} onChange={(e) => setRoleForm((prev) => (prev ? { ...prev, scopeType: e.target.value as Role["scope"] } : prev))}>
-+                  <option value="OWN">OWN</option>
-+                  <option value="BRANCH">BRANCH</option>
-+                  <option value="COURSE">COURSE</option>
-+                  <option value="GLOBAL">GLOBAL</option>
-+                </select>
-+              </div>
-+              <div>
-+                <div className="text-xs font-bold text-slate-500">Mô tả</div>
-+                <textarea className="input mt-1 min-h-[88px]" value={roleForm.description} onChange={(e) => setRoleForm((prev) => (prev ? { ...prev, description: e.target.value } : prev))} />
-+              </div>
-+            </div>
-+            <div className="mt-4 flex justify-end gap-2">
-+              <button className="btn" onClick={() => setRoleForm(null)}>Huỷ</button>
-+              <button className="btn btn-primary" onClick={() => void submitRoleForm()}>Xác nhận</button>
-+            </div>
-+          </div>
++          <div aria-hidden="true" style={{ position: "absolute", left: -22, top: 34, width: 54, height: 54, borderRadius: 999, background: "rgba(255,255,255,.20)" }} />
++          <div aria-hidden="true" style={{ position: "absolute", right: -30, bottom: 44, width: 70, height: 70, borderRadius: 999, background: "rgba(255,255,255,.20)" }} />
 +        </div>
-+      )}
+       </div>
 +
-+      {assignmentForm && (
-+        <div className="fixed inset-0 z-40 bg-slate-900/35 flex items-center justify-center p-4">
-+          <div className="card w-full max-w-lg p-5">
-+            <div className="text-lg font-extrabold">Gán role cho user</div>
-+            <div className="mt-2 text-sm text-slate-600">User: <b>{assignmentForm.userEmail}</b></div>
-+            <div className="mt-4">
-+              <div className="text-xs font-bold text-slate-500">Role</div>
-+              <select className="input mt-1" value={assignmentForm.role} onChange={(e) => setAssignmentForm((prev) => (prev ? { ...prev, role: e.target.value } : prev))}>
-+                {roles.map((r) => (
-+                  <option key={r.key} value={r.key}>{r.key}</option>
-+                ))}
-+              </select>
-+            </div>
-+            <div className="mt-4 flex justify-end gap-2">
-+              <button className="btn" onClick={() => setAssignmentForm(null)}>Huỷ</button>
-+              <button className="btn btn-primary" onClick={() => void submitAssignment()}>Lưu role</button>
-+            </div>
-+          </div>
-+        </div>
-+      )}
-+
-+      {deleteTarget && (
-+        <div className="fixed inset-0 z-40 bg-slate-900/35 flex items-center justify-center p-4">
-+          <div className="card w-full max-w-md p-5">
-+            <div className="text-lg font-extrabold text-red-600">Xoá role {deleteTarget.key}?</div>
-+            <div className="text-sm text-slate-600 mt-2">Hành động này sẽ xoá role khỏi hệ thống.</div>
-+            <div className="mt-4 flex justify-end gap-2">
-+              <button className="btn" onClick={() => setDeleteTarget(null)}>Huỷ</button>
-+              <button className="btn" style={{ background: "#dc2626", color: "white" }} onClick={() => void confirmDeleteRole()}>Xoá</button>
-+            </div>
-+          </div>
-+        </div>
-+      )}
++      <style>{`
++        @media (max-width: 900px){
++          .__login_grid { grid-template-columns: 1fr !important; }
++        }
++      `}</style>
      </div>
    );
  }
-diff --git a/beay/src/pages/admin/rbac/ui/AssignmentsPanel.tsx b/beay/src/pages/admin/rbac/ui/AssignmentsPanel.tsx
-index dfcaef07ff46b36ba65b0cf9f92b26227a4f01d8..5b4572bc376a7c1f8d8f82cc2982e2a4e55fd311 100644
---- a/beay/src/pages/admin/rbac/ui/AssignmentsPanel.tsx
-+++ b/beay/src/pages/admin/rbac/ui/AssignmentsPanel.tsx
-@@ -1,87 +1,94 @@
--import type { Assignment } from "../rbac.model";
--import { expiryStatus } from "../rbac.date";
-+export type UserRoleRow = {
-+  id: number;
-+  email: string;
-+  name?: string | null;
-+  role: string;
-+  scopeType?: string | null;
-+};
-
- export function AssignmentsPanel(props: {
--  assignments: Assignment[];
--  onAdd: () => void;
--  onClear: () => void;
--  onRenew: (id: number) => void;
--  onDelete: (id: number) => void;
-+  rows: UserRoleRow[];
-+  keyword: string;
-+  onKeywordChange: (v: string) => void;
-+  page: number;
-+  pageSize: number;
-+  totalPages: number;
-+  onPrevPage: () => void;
-+  onNextPage: () => void;
-+  onEdit: (row: UserRoleRow) => void;
-+  onResetUserRole: (id: number) => void;
- }) {
-   return (
-     <div className="card p-6 lg:col-span-2">
-       <div className="flex items-start justify-between gap-4 flex-col md:flex-row">
-         <div>
-           <div className="text-xs font-extrabold text-slate-500">Gán role cho user</div>
--          <div className="text-lg font-extrabold">Role Assignments + Expiry</div>
--          <div className="mt-1 text-sm text-slate-600">Role theo chu kỳ: day/week/month/year.</div>
-+          <div className="text-lg font-extrabold">Danh sách người dùng</div>
-+          <div className="mt-1 text-sm text-slate-600">Chọn user từ bảng, bấm Edit để gán role.</div>
-         </div>
--        <div className="flex items-center gap-2">
--          <button className="btn btn-primary" onClick={props.onAdd}>
--            <i className="fa-solid fa-user-plus mr-1" />Gán role
--          </button>
--          <button className="btn" onClick={props.onClear}>
--            <i className="fa-solid fa-broom mr-1" />Xoá hết
--          </button>
-+      </div>
-+
-+      <div className="mt-4 flex flex-col md:flex-row md:items-center gap-3">
-+        <div className="relative flex-1">
-+          <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-+          <input
-+            className="input pl-11"
-+            placeholder="Tìm theo tên hoặc email..."
-+            value={props.keyword}
-+            onChange={(e) => props.onKeywordChange(e.target.value)}
-+          />
-         </div>
-+        <div className="text-sm text-slate-600">Trang {props.page} / {props.totalPages}</div>
-       </div>
-
-       <div className="mt-4 overflow-auto">
-         <table className="w-full text-sm">
-           <thead className="text-left text-slate-500">
-             <tr>
--              <th className="py-3 pr-4">User</th>
--              <th className="py-3 pr-4">Role</th>
-+              <th className="py-3 pr-4">ID</th>
-+              <th className="py-3 pr-4">Tên</th>
-+              <th className="py-3 pr-4">Email</th>
-+              <th className="py-3 pr-4">Role hiện tại</th>
-               <th className="py-3 pr-4">Scope</th>
--              <th className="py-3 pr-4">Chu kỳ</th>
--              <th className="py-3 pr-4">Bắt đầu</th>
--              <th className="py-3 pr-4">Hết hạn</th>
--              <th className="py-3 pr-4">Trạng thái</th>
-               <th className="py-3 text-right">Thao tác</th>
-             </tr>
-           </thead>
-           <tbody>
--            {props.assignments.map((a) => {
--              const st = expiryStatus(a.expiresAt);
--              const pillClass = st.tone === "ok" ? "pill pill-ok" : st.tone === "warn" ? "pill pill-warn" : "pill pill-bad";
--              const icon = st.tone === "ok" ? "fa-circle-check" : st.tone === "warn" ? "fa-triangle-exclamation" : "fa-circle-xmark";
--              const scopeText = a.scope?.type ? `${a.scope.type}${a.scope.id ? ":" + a.scope.id : ""}` : "GLOBAL";
--              return (
--                <tr key={a.id}>
--                  <td className="py-3 pr-4 font-extrabold">{a.user}</td>
--                  <td className="py-3 pr-4"><span className="chip">{a.role}</span></td>
--                  <td className="py-3 pr-4"><span className="chip">{scopeText}</span></td>
--                  <td className="py-3 pr-4">{a.cadence.unit}/{a.cadence.value}</td>
--                  <td className="py-3 pr-4 text-slate-600">{a.startAt}</td>
--                  <td className="py-3 pr-4 text-slate-600">{a.expiresAt}</td>
--                  <td className="py-3 pr-4">
--                    <span className={pillClass}><i className={`fa-solid ${icon}`} />{st.text}</span>
--                  </td>
--                  <td className="py-3 text-right">
--                    <div className="flex justify-end gap-2">
--                      <button className="btn h-9 w-9 p-0 rounded-2xl" title="Gia hạn" onClick={() => props.onRenew(a.id)}>
--                        <i className="fa-solid fa-rotate-right" />
--                      </button>
--                      <button className="btn h-9 w-9 p-0 rounded-2xl" title="Xoá" onClick={() => props.onDelete(a.id)}>
--                        <i className="fa-solid fa-trash" />
--                      </button>
--                    </div>
--                  </td>
--                </tr>
--              );
--            })}
--            {!props.assignments.length && (
-+            {props.rows.map((r) => (
-+              <tr key={r.id}>
-+                <td className="py-3 pr-4 font-extrabold">#{r.id}</td>
-+                <td className="py-3 pr-4">{r.name || "-"}</td>
-+                <td className="py-3 pr-4 text-slate-700">{r.email}</td>
-+                <td className="py-3 pr-4"><span className="chip">{r.role}</span></td>
-+                <td className="py-3 pr-4 text-slate-600">{r.scopeType || "-"}</td>
-+                <td className="py-3 text-right">
-+                  <div className="flex justify-end gap-2">
-+                    <button className="btn h-9 px-3 rounded-xl" onClick={() => props.onEdit(r)}>
-+                      <i className="fa-solid fa-pen mr-1" />Edit
-+                    </button>
-+                    <button className="btn h-9 px-3 rounded-xl" onClick={() => props.onResetUserRole(r.id)}>
-+                      <i className="fa-solid fa-rotate-left mr-1" />Reset
-+                    </button>
-+                  </div>
-+                </td>
-+              </tr>
-+            ))}
-+            {!props.rows.length && (
-               <tr>
--                <td className="py-4 text-slate-500" colSpan={8}>Chưa có assignments.</td>
-+                <td className="py-4 text-slate-500" colSpan={6}>Không có user phù hợp.</td>
-               </tr>
-             )}
-           </tbody>
-         </table>
-       </div>
-
--      <div className="mt-3 text-xs text-slate-500">
--        * Prototype lưu localStorage. Khi làm NestJS: bảng user_roles có (scopeType, scopeId, startAt, expiresAt).
-+      <div className="mt-4 flex items-center justify-between">
-+        <div className="text-xs text-slate-500">Page size: {props.pageSize}</div>
-+        <div className="flex items-center gap-2">
-+          <button className="btn" disabled={props.page <= 1} onClick={props.onPrevPage}>Trước</button>
-+          <button className="btn" disabled={props.page >= props.totalPages} onClick={props.onNextPage}>Sau</button>
-+        </div>
-       </div>
-     </div>
-   );
--}
-\ No newline at end of file
-+}
-diff --git a/beay/src/pages/admin/rbac/ui/AuditPanel.tsx b/beay/src/pages/admin/rbac/ui/AuditPanel.tsx
-index 89ac923dacbcfdf0711c603d293265708817bf2b..1bede8a74a556db9f3a369db6520185462b66dce 100644
---- a/beay/src/pages/admin/rbac/ui/AuditPanel.tsx
-+++ b/beay/src/pages/admin/rbac/ui/AuditPanel.tsx
-@@ -1,35 +1,30 @@
- import type { AuditItem } from "../rbac.model";
-
- export function AuditPanel(props: { audit: AuditItem[]; onClear: () => void }) {
--  const list = props.audit.slice(0, 24);
-+  const list = props.audit.slice(0, 200);
-
-   return (
-     <div className="card p-6">
-       <div className="text-xs font-extrabold text-slate-500">Audit log</div>
-       <div className="text-lg font-extrabold">Nhật ký thay đổi</div>
--      <div className="mt-1 text-sm text-slate-600">Ghi lại thay đổi permission/assignment/test.</div>
-+      <div className="mt-1 text-sm text-slate-600">Hiển thị text để dễ đọc, có giới hạn chiều cao.</div>
-
--      <div className="mt-4 space-y-3">
-+      <ul className="mt-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-3 space-y-2 overflow-auto" style={{ maxHeight: 420 }}>
-         {list.length ? (
-           list.map((a, idx) => (
--            <div key={idx} className="p-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
--              <div className="flex items-start justify-between gap-3">
--                <div>
--                  <div className="font-extrabold">{a.type}</div>
--                  <div className="text-sm text-slate-700 mt-1">{a.msg}</div>
--                </div>
--                <span className="chip">{a.at}</span>
--              </div>
--            </div>
-+            <li key={`${a.at}-${idx}`} className="text-sm text-slate-700 border-b border-slate-200/70 pb-2 last:border-0 last:pb-0">
-+              <span className="font-extrabold">[{a.type}]</span> {a.msg}
-+              <span className="text-slate-500"> — {a.at}</span>
-+            </li>
-           ))
-         ) : (
--          <div className="text-sm text-slate-600">Chưa có log.</div>
-+          <li className="text-sm text-slate-600">Chưa có log.</li>
-         )}
--      </div>
-+      </ul>
-
-       <button className="mt-4 w-full btn" onClick={props.onClear}>
-         <i className="fa-solid fa-trash mr-1" />Xoá log
-       </button>
-     </div>
-   );
--}
-\ No newline at end of file
-+}
-diff --git a/beay/src/pages/admin/rbac/ui/RolesPanel.tsx b/beay/src/pages/admin/rbac/ui/RolesPanel.tsx
-index 422a9c8aba8133ad4551df230258d77299cb5e77..e4b44448009691e98f50cca82a43c8b574dc3716 100644
---- a/beay/src/pages/admin/rbac/ui/RolesPanel.tsx
-+++ b/beay/src/pages/admin/rbac/ui/RolesPanel.tsx
-@@ -109,75 +109,77 @@ export function RolesPanel(props: {
-                               {r.scope}
-                       </span>
-
-                             <span
-                                 className="chip"
-                                 style={{
-                                   background: "#ecfdf5",
-                                   color: "#10b981",
-                                   fontWeight: 600,
-                                 }}
-                             >
-                         <i
-                             className="fa-solid fa-signal"
-                             style={{ marginRight: 6 }}
-                         />
-                               {r.tier}
-                       </span>
-                           </div>
-                         </div>
-
-                         {/* ACTION BUTTONS */}
-                         <div className="flex flex-col gap-2 items-end">
-                           {/* EDIT */}
-                           <button
-                               title="Edit role"
-+                              className="ring-1 ring-indigo-100 hover:ring-indigo-200"
-                               onClick={(e) => {
-                                 e.preventDefault();
-                                 e.stopPropagation();
-                                 props.onEditRole(r.key);
-                               }}
-                               style={{
-                                 width: 38,
-                                 height: 38,
-                                 borderRadius: 14,
-                                 background: "#eef2ff",
-                                 display: "flex",
-                                 alignItems: "center",
-                                 justifyContent: "center",
-                                 transition: "0.2s",
-                               }}
-                           >
-                             <i
-                                 className="fa-solid fa-pen"
-                                 style={{ color: "#4f46e5" }}
-                             />
-                           </button>
-
-                           {/* DELETE */}
-                           <button
-                               title="Delete role"
-+                              className="ring-1 ring-red-100 hover:ring-red-200"
-                               onClick={(e) => {
-                                 e.preventDefault();
-                                 e.stopPropagation();
-                                 props.onDeleteRole(r.key);
-                               }}
-                               style={{
-                                 width: 38,
-                                 height: 38,
-                                 borderRadius: 14,
-                                 background: "#fef2f2",
-                                 display: "flex",
-                                 alignItems: "center",
-                                 justifyContent: "center",
-                                 transition: "0.2s",
-                               }}
-                           >
-                             <i
-                                 className="fa-solid fa-trash"
-                                 style={{ color: "#dc2626" }}
-                             />
-                           </button>
-                         </div>
-                       </div>
-                     </button>
-                 );
-@@ -192,55 +194,56 @@ export function RolesPanel(props: {
-         {/* PRESET */}
-         <div
-             className="mt-4 p-4 rounded-2xl"
-             style={{
-               background: "#f8fafc",
-               border: "1px solid #e2e8f0",
-             }}
-         >
-           <div className="text-xs font-extrabold text-slate-500">
-             Preset nhanh ( Mặc định )
-           </div>
-
-           <div className="mt-3 grid grid-cols-2 gap-2">
-             {[
-               { key: "ADMIN", icon: "fa-crown", color: "#f59e0b" },
-               { key: "OPS", icon: "fa-gears", color: "#6366f1" },
-               { key: "FINANCE", icon: "fa-coins", color: "#10b981" },
-               { key: "SUPPORT", icon: "fa-headset", color: "#0ea5e9" },
-               { key: "BRANCH_MANAGER", icon: "fa-store", color: "#8b5cf6" },
-               { key: "STAFF", icon: "fa-spa", color: "#22c55e" },
-               { key: "LECTURER", icon: "fa-chalkboard-user", color: "#f97316" },
-               { key: "USER", icon: "fa-user", color: "#64748b" },
-             ].map((item) => (
-                 <button
-                     key={item.key}
-+                    className="text-slate-700 hover:bg-indigo-50"
-                     onClick={() => props.onJumpRole(item.key)}
-                     style={{
-                       display: "flex",
-                       alignItems: "center",
-                       justifyContent: "center",
-                       gap: 8,
-                       padding: "8px",
-                       borderRadius: 14,
-                       background: "#fff",
-                       border: "1px solid #e2e8f0",
-                       fontWeight: 600,
-                     }}
-                 >
-                   <i
-                       className={`fa-solid ${item.icon}`}
-                       style={{ color: item.color }}
-                   />
-                   {item.key}
-                 </button>
-             ))}
-           </div>
-
-           <div className="mt-3 text-xs text-slate-500">
-             Mẹo: <span className="kbd">/</span> tìm role •{" "}
-             <span className="kbd">Esc</span> đóng drawer
-           </div>
-         </div>
-       </div>
-   );
--}
-\ No newline at end of file
-+}
-diff --git a/beay/src/pages/admin/rbac/ui/TestAccessDrawer.tsx b/beay/src/pages/admin/rbac/ui/TestAccessDrawer.tsx
-index b2722fe0984f9e6ad64b3d63ec0768635861c1fc..d8e6549d2aa7fbe57e0377f2b73b9709a1e220e0 100644
---- a/beay/src/pages/admin/rbac/ui/TestAccessDrawer.tsx
-+++ b/beay/src/pages/admin/rbac/ui/TestAccessDrawer.tsx
-@@ -1,59 +1,59 @@
- import { useMemo, useState } from "react";
- import type { ActionDef, ModuleDef } from "../rbac.model";
- import type { Role, TestScope } from "../rbac.model";
-
- type TestInput = {
-   email: string;
-   role: string;
-   module: string;
-   action: string;
-   resource: string;
-   scope: TestScope;
- };
-
- export function TestAccessDrawer(props: {
-   open: boolean;
-   onClose: () => void;
-   roles: Role[];
-   modules: ModuleDef[];
-   actions: ActionDef[];
--  onRun: (input: TestInput) => { permKey: string; active: boolean; allowed: boolean; reason: string };
-+  onRun: (input: TestInput) => Promise<{ permKey: string; active: boolean; allowed: boolean; reason: string }>;
- }) {
-   const defaultRole = props.roles[0]?.key || "USER";
-   const defaultModule = props.modules[0]?.key || "orders";
-   const defaultAction = props.actions[0]?.key || "read";
-
-   const [name] = useState("Người dùng Demo");
-   const [email, setEmail] = useState("demo@ayanavita.vn");
-   const [role, setRole] = useState(defaultRole);
-   const [module, setModule] = useState(defaultModule);
-   const [action, setAction] = useState(defaultAction);
-   const [resource, setResource] = useState("");
-   const [scope, setScope] = useState<TestScope>("OWN");
-
--  const [result, setResult] = useState<ReturnType<typeof props.onRun> | null>(null);
-+  const [result, setResult] = useState<Awaited<ReturnType<typeof props.onRun>> | null>(null);
-
-   const statusUI = useMemo(() => {
-     if (!result) return null;
-     if (result.allowed) return { cls: "pill pill-ok", icon: "fa-circle-check", label: "ALLOWED" };
-     if (!result.active) return { cls: "pill pill-bad", icon: "fa-circle-xmark", label: "DENY • ROLE EXPIRED/NOT ASSIGNED" };
-     return { cls: "pill pill-bad", icon: "fa-circle-xmark", label: "DENY • NO PERMISSION" };
-   }, [result]);
-
-   return (
-     <>
-       <div className={`drawer-overlay ${props.open ? "show" : ""}`} onClick={props.onClose} />
-       <aside className={`drawer ${props.open ? "open" : ""}`}>
-         <div className="h-16 px-5 flex items-center justify-between border-b border-slate-200/70">
-           <div>
-             <div className="text-xs font-extrabold text-slate-500">Công cụ</div>
-             <div className="text-lg font-extrabold">Test quyền truy cập</div>
-           </div>
-           <button className="btn h-10 w-10 p-0 rounded-2xl" onClick={props.onClose}>
-             <i className="fa-solid fa-xmark" />
-           </button>
-         </div>
-
-         <div className="p-5 space-y-4 overflow-auto" style={{ height: "calc(100% - 64px)" }}>
-           <div className="card p-4">
-             <div className="text-xs font-extrabold text-slate-500">User mô phỏng</div>
-@@ -100,74 +100,74 @@ export function TestAccessDrawer(props: {
-                       {a.key}
-                     </option>
-                   ))}
-                 </select>
-               </div>
-
-               <div className="md:col-span-2">
-                 <div className="text-xs font-extrabold text-slate-500">Resource (tuỳ chọn)</div>
-                 <input className="input mt-2" value={resource} onChange={(e) => setResource(e.target.value)} placeholder="VD: course:123, branch:2, appointment:988, cms:landing..." />
-               </div>
-
-               <div className="md:col-span-2">
-                 <div className="text-xs font-extrabold text-slate-500">Scope giả lập (tuỳ chọn)</div>
-                 <select className="input mt-2" value={scope} onChange={(e) => setScope(e.target.value as TestScope)}>
-                   <option value="OWN">OWN (của mình)</option>
-                   <option value="BRANCH">BRANCH (chi nhánh)</option>
-                   <option value="COURSE">COURSE (khoá)</option>
-                   <option value="GLOBAL">GLOBAL (toàn hệ thống)</option>
-                 </select>
-               </div>
-             </div>
-
-             <div className="mt-4 flex items-center justify-end gap-2">
-               <button
-                 className="btn btn-primary"
--                onClick={() => {
--                  const r = props.onRun({ email: email.trim(), role, module, action, resource: resource.trim(), scope });
-+                onClick={async () => {
-+                  const r = await props.onRun({ email: email.trim(), role, module, action, resource: resource.trim(), scope });
-                   setResult(r);
-                 }}
-               >
-                 <i className="fa-solid fa-vial mr-1" />
-                 Chạy test
-               </button>
-             </div>
-
-             {result && (
-               <div className="mt-4">
-                 <div className="card p-4">
-                   <div className="flex items-start justify-between gap-3">
-                     <div>
-                       <div className="text-xs font-extrabold text-slate-500">Kết quả</div>
-                       <div className="mt-1 font-extrabold">{email}</div>
-                       <div className="mt-2 text-sm text-slate-700">
-                         Role: <b>{role}</b>
-                         <br />
-                         Permission: <b>{result.permKey}</b>
-                         <br />
-                         Scope: <b>{scope}</b>
-                         <br />
-                         Resource: <b>{resource || "-"}</b>
-                       </div>
-                     </div>
-                     {statusUI && (
-                       <div>
-                         <span className={statusUI.cls}>
-                           <i className={`fa-solid ${statusUI.icon}`} />
-                           {statusUI.label}
-                         </span>
-                       </div>
-                     )}
-                   </div>
-
-                   <div className="mt-3 text-xs text-slate-500">
-                     * Prototype. Khi tách NestJS: check user_roles.expiresAt + scope enforcement + permission guard.
-                   </div>
-                 </div>
-               </div>
-             )}
-           </div>
-         </div>
-       </aside>
-     </>
-   );
--}
-\ No newline at end of file
-+}

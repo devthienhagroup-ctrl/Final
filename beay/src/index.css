@@ -1,0 +1,91 @@
+@import "@fortawesome/fontawesome-free/css/all.min.css";
+@import "tailwindcss";
+
+:root{
+  --aya-primary-1:#4F46E5;
+  --aya-primary-2:#7C3AED;
+  --aya-accent-1:#F59E0B;
+  --aya-accent-2:#FBBF24;
+  --aya-ink:#0B1220;
+
+  --bg:#f8fafc;
+  --paper:#ffffff;
+  --muted:#64748b;
+  --ring: rgba(148,163,184,.35);
+  --shadow: 0 10px 30px rgba(2,6,23,0.06);
+}
+html { scroll-behavior: smooth; }
+body.theme-dark{
+  --bg:#0b1220;
+  --paper: rgba(15,23,42,.88);
+  --muted:#94a3b8;
+  --ring: rgba(148,163,184,.22);
+  --shadow: 0 18px 50px rgba(0,0,0,.35);
+  color: #e5e7eb;
+}
+.soft{
+  background:
+    radial-gradient(900px 450px at 15% 0%, rgba(79,70,229,0.14), transparent 60%),
+    radial-gradient(700px 380px at 90% 10%, rgba(245,158,11,0.10), transparent 60%),
+    linear-gradient(to bottom, var(--bg), var(--bg));
+}
+.card{
+  background: var(--paper);
+  border-radius:18px;
+  border:1px solid var(--ring);
+  box-shadow: var(--shadow);
+}
+.chip{
+  border:1px solid var(--ring);
+  border-radius:999px;
+  padding:6px 10px;
+  font-weight:800;
+  font-size:12px;
+  background: rgba(255,255,255,.85);
+}
+body.theme-dark .chip{ background: rgba(15,23,42,.65); }
+
+.btn{
+  border-radius:14px;
+  padding:10px 12px;
+  font-weight:800;
+  font-size:14px;
+  border:1px solid var(--ring);
+  background: var(--paper);
+  transition:.2s;
+}
+.btn:hover{ filter: brightness(1.03); transform: translateY(-1px); }
+.btn:active{ transform: translateY(0px); }
+.btn-primary{
+  border:0;
+  background: linear-gradient(135deg, var(--aya-primary-1), var(--aya-primary-2));
+  color:#fff;
+  box-shadow: 0 12px 24px rgba(79,70,229,.25);
+}
+.btn-accent{
+  border:0;
+  background: linear-gradient(135deg, var(--aya-accent-1), var(--aya-accent-2));
+  color:#111827;
+}
+.input{
+  border:1px solid var(--ring);
+  border-radius:16px;
+  background: var(--paper);
+  padding:12px 14px;
+  outline:none;
+  width:100%;
+}
+.input:focus{ box-shadow: 0 0 0 6px rgba(79,70,229,.12); border-color: rgba(79,70,229,.35); }
+body.theme-dark .input{ color:#e5e7eb; }
+
+.nav-active{
+  background: rgba(79,70,229,.10);
+  border: 1px solid rgba(79,70,229,.18);
+  color: inherit;
+}
+.kbd{ font-weight:900; font-size:11px; border:1px solid var(--ring); padding:2px 6px; border-radius:10px; background: rgba(255,255,255,.7); }
+body.theme-dark .kbd{ background: rgba(15,23,42,.7); }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: rgba(100,116,139,.35); border-radius: 999px; }
+::-webkit-scrollbar-track { background: transparent; }

@@ -131,6 +131,7 @@ export function RolesPanel(props: {
                           {/* EDIT */}
                           <button
                               title="Edit role"
+                              className="ring-1 ring-indigo-100 hover:ring-indigo-200"
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
@@ -156,6 +157,7 @@ export function RolesPanel(props: {
                           {/* DELETE */}
                           <button
                               title="Delete role"
+                              className="ring-1 ring-red-100 hover:ring-red-200"
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
@@ -214,6 +216,7 @@ export function RolesPanel(props: {
             ].map((item) => (
                 <button
                     key={item.key}
+                    className="text-slate-700 hover:bg-indigo-50"
                     onClick={() => props.onJumpRole(item.key)}
                     style={{
                       display: "flex",

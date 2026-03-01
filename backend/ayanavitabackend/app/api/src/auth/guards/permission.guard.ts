@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core'
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator'
 
 type RequestUser = {
+  role?: string
   permissions?: string[]
 }
 
@@ -20,8 +21,11 @@ export class PermissionGuard implements CanActivate {
 
     const req = context.switchToHttp().getRequest()
     const user = req.user as RequestUser | undefined
-    const current = new Set(user?.permissions ?? [])
 
+    // Backward-compat: tài khoản ADMIN cũ có thể chưa có permission list trong JWT.
+    if (user?.role === 'ADMIN') return true
+
+    const current = new Set(user?.permissions ?? [])
     return required.every((perm) => current.has(perm))
   }
 }

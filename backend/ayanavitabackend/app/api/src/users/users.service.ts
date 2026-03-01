@@ -22,7 +22,7 @@ export class UsersService {
     })
   }
 
-  async assignRole(userId: number, roleId: number) {
+  async assignRole(userId: number, roleId: number, actorUserId?: number) {
     const [user, role] = await Promise.all([
       this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } }),
       this.prisma.rbacRole.findUnique({ where: { id: roleId }, select: { id: true, code: true, scopeType: true } }),
@@ -31,7 +31,7 @@ export class UsersService {
     if (!user) throw new NotFoundException('User not found')
     if (!role) throw new NotFoundException('Role not found')
 
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id: userId },
       data: { roleId },
       select: {
@@ -41,5 +41,18 @@ export class UsersService {
         roleRef: { select: { id: true, code: true, scopeType: true } },
       },
     })
+
+    await this.prisma.roleAuditLog.create({
+      data: {
+        action: 'USER_ROLE_ASSIGNED',
+        message: `Gán role ${role.code} cho ${updated.email}`,
+        actorUserId: actorUserId ?? null,
+        targetUserId: userId,
+        roleId,
+        metadata: { roleCode: role.code, scopeType: role.scopeType },
+      },
+    })
+
+    return updated
   }
 }

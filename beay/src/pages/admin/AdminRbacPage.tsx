@@ -3,25 +3,34 @@ import { useToast } from "../../ui/toast";
 import {
   assignPermissionsToRole,
   assignRoleToUser,
+  checkPermission,
   createRole as apiCreateRole,
   deleteRole as apiDeleteRole,
   getPermissions,
+  getRoleAuditLogs,
   getRoles,
   getUsers,
+  type ApiUser,
   updateRole as apiUpdateRole,
 } from "../../app/api";
 
 import { MODULES, PERMS, DEFAULT_ROLES, ACTIONS } from "./rbac/rbac.catalog";
-import type { Assignment, AuditItem, Role, RolePermMap, TestScope } from "./rbac/rbac.model";
+import type { AuditItem, Role, RolePermMap, TestScope } from "./rbac/rbac.model";
 import { presetMap, type PresetKey } from "./rbac/rbac.presets";
 import { nowISO } from "./rbac/rbac.storage";
 
 import { RbacHeader } from "./rbac/ui/RbacHeader";
 import { RolesPanel } from "./rbac/ui/RolesPanel";
 import { PermissionsMatrix } from "./rbac/ui/PermissionsMatrix";
-import { AssignmentsPanel } from "./rbac/ui/AssignmentsPanel";
+import { AssignmentsPanel, type UserRoleRow } from "./rbac/ui/AssignmentsPanel";
 import { AuditPanel } from "./rbac/ui/AuditPanel";
 import { TestAccessDrawer } from "./rbac/ui/TestAccessDrawer";
+
+type RoleFormState = { mode: "create" | "edit"; key?: string; code: string; scopeType: Role["scope"]; description: string };
+type AssignmentFormState = { userId: number; userEmail: string; role: string };
+type DeleteTarget = { key: string } | null;
+
+const PAGE_SIZE = 10;
 
 export function AdminRbacPage() {
   const { toast } = useToast();
@@ -30,7 +39,7 @@ export function AdminRbacPage() {
   const [roleIdMap, setRoleIdMap] = useState<Record<string, number>>({});
   const [permCodeToId, setPermCodeToId] = useState<Record<string, number>>({});
   const [rolePerms, setRolePerms] = useState<RolePermMap>({});
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [users, setUsers] = useState<ApiUser[]>([]);
   const [audit, setAudit] = useState<AuditItem[]>([]);
 
   const [activeRole, setActiveRole] = useState<string>("ADMIN");
@@ -39,6 +48,13 @@ export function AdminRbacPage() {
   const [testOpen, setTestOpen] = useState(false);
   const [testKey, setTestKey] = useState(0);
 
+  const [roleForm, setRoleForm] = useState<RoleFormState | null>(null);
+  const [assignmentForm, setAssignmentForm] = useState<AssignmentFormState | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
+
+  const [userKeyword, setUserKeyword] = useState("");
+  const [userPage, setUserPage] = useState(1);
+
   useEffect(() => {
     void loadData();
   }, []);
@@ -46,7 +62,7 @@ export function AdminRbacPage() {
   async function loadData() {
     setLoading(true);
     try {
-      const [rolesRaw, permsRaw, usersRaw] = await Promise.all([getRoles(), getPermissions(), getUsers()]);
+      const [rolesRaw, permsRaw, usersRaw, auditRaw] = await Promise.all([getRoles(), getPermissions(), getUsers(), getRoleAuditLogs(120)]);
       const roleRows = rolesRaw as Array<{ id: number; code: string; scopeType: Role["scope"]; description?: string; permissions?: Array<{ permission: { code: string } }> }>;
       const nextRoles: Role[] = roleRows.map((r) => ({ key: r.code, name: r.code, desc: r.description || "", scope: r.scopeType, tier: "custom" }));
       const rolePermMap: RolePermMap = {};
@@ -55,27 +71,24 @@ export function AdminRbacPage() {
         nextRoleIdMap[r.code] = r.id;
         rolePermMap[r.code] = (r.permissions || []).map((x) => x.permission.code);
       });
+
       const nextPermCodeToId: Record<string, number> = {};
       permsRaw.forEach((p) => {
         nextPermCodeToId[p.code] = p.id;
       });
-      const nextAssignments: Assignment[] = usersRaw
-        .filter((u) => u.roleRef?.code)
-        .map((u) => ({
-          id: u.id,
-          user: u.email,
-          role: u.roleRef!.code,
-          scope: { type: (u.roleRef!.scopeType as Assignment["scope"]["type"]) || "OWN", id: null },
-          cadence: { unit: "year", value: 10 },
-          startAt: "2025-01-01",
-          expiresAt: "2099-12-31",
-        }));
 
-      setRoles(nextRoles.length ? nextRoles : [...DEFAULT_ROLES] as unknown as Role[]);
+      const auditRows: AuditItem[] = auditRaw.map((item) => ({
+        at: item.createdAt,
+        type: item.action.includes("PERMISSION") ? "PERM" : item.action.includes("ASSIGN") ? "ASSIGN" : "ROLE",
+        msg: item.message,
+      }));
+
+      setRoles(nextRoles.length ? nextRoles : ([...DEFAULT_ROLES] as unknown as Role[]));
       setRoleIdMap(nextRoleIdMap);
       setPermCodeToId(nextPermCodeToId);
       setRolePerms(rolePermMap);
-      setAssignments(nextAssignments);
+      setUsers(usersRaw);
+      setAudit(auditRows);
     } catch (e) {
       toast("Lỗi tải RBAC", e instanceof Error ? e.message : "Unknown error");
     } finally {
@@ -90,37 +103,77 @@ export function AdminRbacPage() {
   }, [roles, roleSearch]);
   const filteredPerms = useMemo(() => (moduleFilter === "ALL" ? PERMS : PERMS.filter((p) => p.module === moduleFilter)), [moduleFilter]);
 
+  const filteredUsers = useMemo(() => {
+    const kw = userKeyword.trim().toLowerCase();
+    if (!kw) return users;
+    return users.filter((u) => `${u.name || ""} ${u.email}`.toLowerCase().includes(kw));
+  }, [users, userKeyword]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+
+  useEffect(() => {
+    if (userPage > totalPages) setUserPage(totalPages);
+  }, [userPage, totalPages]);
+
+  const userRows = useMemo<UserRoleRow[]>(() => {
+    const start = (userPage - 1) * PAGE_SIZE;
+    return filteredUsers.slice(start, start + PAGE_SIZE).map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.roleRef?.code || "USER",
+      scopeType: u.roleRef?.scopeType || null,
+    }));
+  }, [filteredUsers, userPage]);
+
   function pushAudit(type: AuditItem["type"], msg: string) {
     setAudit((prev) => [{ at: nowISO(), type, msg }, ...prev].slice(0, 200));
   }
 
-  async function createRole() {
-    const code = (prompt("Nhập key role", "MANAGER") || "").trim().toUpperCase();
-    if (!code) return;
-    const scopeType = ((prompt("Scope", "GLOBAL") || "GLOBAL") as Role["scope"]);
-    const description = prompt("Mô tả", "") || "";
-    await apiCreateRole({ code, scopeType, description });
-    pushAudit("ROLE", `Tạo role ${code}`);
-    await loadData();
+  function openCreateRoleModal() {
+    setRoleForm({ mode: "create", code: "MANAGER", scopeType: "GLOBAL", description: "" });
   }
 
-  async function editRole(key: string) {
-    const roleId = roleIdMap[key];
-    if (!roleId) return;
+  function openEditRoleModal(key: string) {
     const row = roles.find((r) => r.key === key);
     if (!row) return;
-    const description = prompt("Mô tả", row.desc) ?? row.desc;
-    const scopeType = (prompt("Scope", row.scope) ?? row.scope) as Role["scope"];
-    await apiUpdateRole(roleId, { description, scopeType });
-    pushAudit("ROLE", `Sửa role ${key}`);
+    setRoleForm({ mode: "edit", key, code: row.key, scopeType: row.scope, description: row.desc });
+  }
+
+  async function submitRoleForm() {
+    if (!roleForm) return;
+    const code = roleForm.code.trim().toUpperCase();
+    if (!code) {
+      toast("Thiếu dữ liệu", "Role key không được để trống.");
+      return;
+    }
+
+    if (roleForm.mode === "create") {
+      await apiCreateRole({ code, scopeType: roleForm.scopeType, description: roleForm.description.trim() });
+      pushAudit("ROLE", `Tạo role ${code}`);
+    } else {
+      const roleId = roleForm.key ? roleIdMap[roleForm.key] : null;
+      if (!roleId) return;
+      await apiUpdateRole(roleId, { description: roleForm.description.trim(), scopeType: roleForm.scopeType });
+      pushAudit("ROLE", `Sửa role ${roleForm.key}`);
+    }
+
+    setRoleForm(null);
     await loadData();
   }
 
-  async function deleteRole(key: string) {
+  function openDeleteRoleModal(key: string) {
+    setDeleteTarget({ key });
+  }
+
+  async function confirmDeleteRole() {
+    const key = deleteTarget?.key;
+    if (!key) return;
     const roleId = roleIdMap[key];
-    if (!roleId || !confirm(`Xoá role ${key}?`)) return;
+    if (!roleId) return;
     await apiDeleteRole(roleId);
     pushAudit("ROLE", `Xoá role ${key}`);
+    setDeleteTarget(null);
     await loadData();
   }
 
@@ -147,47 +200,64 @@ export function AdminRbacPage() {
     pushAudit("PERM", `Áp preset ${preset} cho ${activeRole}`);
   }
 
-  async function allPerms() { await syncRolePerms(PERMS.map((x) => x.key)); }
-  async function nonePerms() { await syncRolePerms([]); }
+  async function allPerms() {
+    await syncRolePerms(PERMS.map((x) => x.key));
+  }
 
-  async function addAssignment() {
-    const email = prompt("Nhập email user", "") || "";
-    const role = prompt("Nhập role key", "USER") || "USER";
-    const roleId = roleIdMap[role];
-    if (!email || !roleId) return;
-    const user = assignments.find((a) => a.user === email);
-    if (!user) {
-      toast("Không tìm thấy user", "Hãy tạo user trước.");
+  async function nonePerms() {
+    await syncRolePerms([]);
+  }
+
+  function openAssignmentModal(row: UserRoleRow) {
+    setAssignmentForm({ userId: row.id, userEmail: row.email, role: row.role });
+  }
+
+  async function submitAssignment() {
+    if (!assignmentForm) return;
+    const roleId = roleIdMap[assignmentForm.role];
+    if (!roleId) {
+      toast("Thiếu dữ liệu", "Role không hợp lệ.");
       return;
     }
-    await assignRoleToUser(user.id, roleId);
-    pushAudit("ASSIGN", `Gán ${role} cho ${email}`);
+    await assignRoleToUser(assignmentForm.userId, roleId);
+    pushAudit("ASSIGN", `Gán ${assignmentForm.role} cho ${assignmentForm.userEmail}`);
+    setAssignmentForm(null);
     await loadData();
   }
 
-  async function deleteAssignment(id: number) {
-    await assignRoleToUser(id, roleIdMap.USER);
-    pushAudit("ASSIGN", `Reset role user #${id}`);
+  async function resetUserRole(userId: number) {
+    if (!roleIdMap.USER) return;
+    await assignRoleToUser(userId, roleIdMap.USER);
+    pushAudit("ASSIGN", `Reset role user #${userId}`);
     await loadData();
   }
 
-  function renewAssignment() { toast("Info", "Assignment đang đồng bộ theo role hiện tại."); }
-  function clearAssignments() { toast("Info", "Không hỗ trợ xoá hàng loạt trên API."); }
-  function saveAll() { toast("Đã lưu", "Mọi thay đổi đã đồng bộ API."); }
-  function exportJson() { toast("Info", "Sử dụng API backend để export."); }
-  async function importJsonFile() { toast("Info", "Sử dụng API backend để import."); }
-  function clearAudit() { setAudit([]); }
-
-  function isRoleActiveForUser(email: string, roleKey: string) {
-    return assignments.some((a) => a.user === email && a.role === roleKey);
+  function saveAll() {
+    toast("Đã lưu", "Mọi thay đổi đã đồng bộ API.");
   }
-  function can(roleKey: string, permKey: string) { return new Set(rolePerms[roleKey] ?? []).has(permKey); }
 
-  function runTestAccess(params: { email: string; role: string; module: string; action: string; resource: string; scope: TestScope; }) {
-    const permKey = `${params.module}.${params.action}`;
-    const active = isRoleActiveForUser(params.email, params.role);
-    const allowed = active && can(params.role, permKey);
-    return { permKey, active, allowed, reason: allowed ? "OK" : "DENY" };
+  function exportJson() {
+    toast("Info", "Sử dụng API backend để export.");
+  }
+
+  async function importJsonFile() {
+    toast("Info", "Sử dụng API backend để import.");
+  }
+
+  function clearAudit() {
+    setAudit([]);
+  }
+
+  async function runTestAccess(params: { email: string; role: string; module: string; action: string; resource: string; scope: TestScope }) {
+    const result = await checkPermission({
+      email: params.email,
+      roleCode: params.role,
+      module: params.module,
+      action: params.action,
+      resource: params.resource,
+    });
+    pushAudit("TEST", `Test ${params.email} với ${result.permKey}: ${result.allowed ? "ALLOW" : "DENY"}`);
+    return result;
   }
 
   if (loading) return <div className="p-6">Đang tải RBAC...</div>;
@@ -195,22 +265,107 @@ export function AdminRbacPage() {
   return (
     <div className="soft text-slate-900 min-h-screen">
       <RbacHeader
-        onTest={() => { setTestKey((k) => k + 1); setTestOpen(true); }}
-        onImport={async () => { await importJsonFile(); }}
+        onTest={() => {
+          setTestKey((k) => k + 1);
+          setTestOpen(true);
+        }}
+        onImport={async () => {
+          await importJsonFile();
+        }}
         onExport={exportJson}
         onSave={saveAll}
       />
       <main className="px-4 md:px-8 py-6 space-y-6">
         <section className="grid gap-4 lg:grid-cols-3">
-          <RolesPanel roles={visibleRoles} activeRole={activeRole} onSelectRole={setActiveRole} search={roleSearch} onSearch={setRoleSearch} onNewRole={createRole} onEditRole={editRole} onDeleteRole={deleteRole} onJumpRole={setActiveRole} />
+          <RolesPanel roles={visibleRoles} activeRole={activeRole} onSelectRole={setActiveRole} search={roleSearch} onSearch={setRoleSearch} onNewRole={openCreateRoleModal} onEditRole={openEditRoleModal} onDeleteRole={openDeleteRoleModal} onJumpRole={setActiveRole} />
           <PermissionsMatrix activeRole={activeRole} moduleFilter={moduleFilter} onChangeModuleFilter={setModuleFilter} presetSelectOptions={[{ value: "KEEP", label: "Preset: (không đổi)" }, { value: "STRICT", label: "Preset: Nghiêm ngặt" }, { value: "USER", label: "Preset: USER" }, { value: "STAFF", label: "Preset: STAFF" }, { value: "BRANCH_MANAGER", label: "Preset: BRANCH_MANAGER" }, { value: "LECTURER", label: "Preset: LECTURER" }, { value: "SUPPORT", label: "Preset: SUPPORT" }, { value: "OPS", label: "Preset: OPS" }, { value: "FINANCE", label: "Preset: FINANCE" }, { value: "ADMIN", label: "Preset: ADMIN" }]} onApplyPreset={(v) => { if (v !== "KEEP") void applyPresetToActive(v as PresetKey); }} onAll={() => void allPerms()} onNone={() => void nonePerms()} perms={filteredPerms} activePermSet={activePermSet} onTogglePerm={(k, c) => void togglePerm(k, c)} roles={roles} />
         </section>
         <section className="grid gap-4 lg:grid-cols-3">
-          <AssignmentsPanel assignments={assignments} onAdd={() => void addAssignment()} onClear={clearAssignments} onRenew={renewAssignment} onDelete={(id) => void deleteAssignment(id)} />
+          <AssignmentsPanel
+            rows={userRows}
+            keyword={userKeyword}
+            onKeywordChange={(v) => {
+              setUserKeyword(v);
+              setUserPage(1);
+            }}
+            page={userPage}
+            pageSize={PAGE_SIZE}
+            totalPages={totalPages}
+            onPrevPage={() => setUserPage((p) => Math.max(1, p - 1))}
+            onNextPage={() => setUserPage((p) => Math.min(totalPages, p + 1))}
+            onEdit={openAssignmentModal}
+            onResetUserRole={(id) => void resetUserRole(id)}
+          />
           <AuditPanel audit={audit} onClear={clearAudit} />
         </section>
       </main>
+
       <TestAccessDrawer key={testKey} open={testOpen} onClose={() => setTestOpen(false)} roles={roles} modules={[...MODULES]} actions={[...ACTIONS]} onRun={(input) => runTestAccess(input)} />
+
+      {roleForm && (
+        <div className="fixed inset-0 z-40 bg-slate-900/35 flex items-center justify-center p-4">
+          <div className="card w-full max-w-lg p-5">
+            <div className="text-lg font-extrabold">{roleForm.mode === "create" ? "Tạo role" : `Sửa role ${roleForm.key}`}</div>
+            <div className="mt-4 space-y-3">
+              <div>
+                <div className="text-xs font-bold text-slate-500">Role key</div>
+                <input className="input mt-1" value={roleForm.code} onChange={(e) => setRoleForm((prev) => (prev ? { ...prev, code: e.target.value.toUpperCase() } : prev))} disabled={roleForm.mode === "edit"} />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-slate-500">Scope</div>
+                <select className="input mt-1" value={roleForm.scopeType} onChange={(e) => setRoleForm((prev) => (prev ? { ...prev, scopeType: e.target.value as Role["scope"] } : prev))}>
+                  <option value="OWN">OWN</option>
+                  <option value="BRANCH">BRANCH</option>
+                  <option value="COURSE">COURSE</option>
+                  <option value="GLOBAL">GLOBAL</option>
+                </select>
+              </div>
+              <div>
+                <div className="text-xs font-bold text-slate-500">Mô tả</div>
+                <textarea className="input mt-1 min-h-[88px]" value={roleForm.description} onChange={(e) => setRoleForm((prev) => (prev ? { ...prev, description: e.target.value } : prev))} />
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button className="btn" onClick={() => setRoleForm(null)}>Huỷ</button>
+              <button className="btn btn-primary" onClick={() => void submitRoleForm()}>Xác nhận</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {assignmentForm && (
+        <div className="fixed inset-0 z-40 bg-slate-900/35 flex items-center justify-center p-4">
+          <div className="card w-full max-w-lg p-5">
+            <div className="text-lg font-extrabold">Gán role cho user</div>
+            <div className="mt-2 text-sm text-slate-600">User: <b>{assignmentForm.userEmail}</b></div>
+            <div className="mt-4">
+              <div className="text-xs font-bold text-slate-500">Role</div>
+              <select className="input mt-1" value={assignmentForm.role} onChange={(e) => setAssignmentForm((prev) => (prev ? { ...prev, role: e.target.value } : prev))}>
+                {roles.map((r) => (
+                  <option key={r.key} value={r.key}>{r.key}</option>
+                ))}
+              </select>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button className="btn" onClick={() => setAssignmentForm(null)}>Huỷ</button>
+              <button className="btn btn-primary" onClick={() => void submitAssignment()}>Lưu role</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-40 bg-slate-900/35 flex items-center justify-center p-4">
+          <div className="card w-full max-w-md p-5">
+            <div className="text-lg font-extrabold text-red-600">Xoá role {deleteTarget.key}?</div>
+            <div className="text-sm text-slate-600 mt-2">Hành động này sẽ xoá role khỏi hệ thống.</div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button className="btn" onClick={() => setDeleteTarget(null)}>Huỷ</button>
+              <button className="btn" style={{ background: "#dc2626", color: "white" }} onClick={() => void confirmDeleteRole()}>Xoá</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -16,12 +16,6 @@ export function RbacHeader(props: {
             <div className="text-lg font-extrabold">RBAC (Role • Permission • Expiry)</div>
           </div>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button className="btn btn-primary inline-flex items-center gap-2" onClick={props.onSave}>
-            <i className="fa-solid fa-floppy-disk" /> Lưu cấu hình
-          </button>
-        </div>
       </div>
     </header>
   );

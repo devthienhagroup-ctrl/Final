@@ -61,9 +61,6 @@ export function PermissionsMatrix(props: {
           <button className="btn" onClick={props.onAll}>
             <i className="fa-solid fa-check-double mr-1" />All
           </button>
-          <button className="btn" onClick={props.onNone}>
-            <i className="fa-solid fa-eraser mr-1" />None
-          </button>
         </div>
       </div>
 

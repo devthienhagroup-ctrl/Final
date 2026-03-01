@@ -44,6 +44,8 @@ model User {
   reviewHelpfulVotes ReviewHelpful[]
   blogPosts          BlogPost[]
   blogSaves          BlogSavedPost[]
+  roleAuditLogsAsActor  RoleAuditLog[] @relation("RoleAuditActor")
+  roleAuditLogsAsTarget RoleAuditLog[] @relation("RoleAuditTarget")
 
   @@index([roleId])
 }
@@ -666,6 +668,7 @@ model RbacRole {
   description String?          @db.VarChar(255)
   users       User[]           @relation("UserRbacRole")
   permissions RolePermission[]
+  auditLogs   RoleAuditLog[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
@@ -690,6 +693,26 @@ model RolePermission {
 
   @@id([roleId, permissionId])
   @@index([permissionId])
+}
+
+model RoleAuditLog {
+  id           Int       @id @default(autoincrement())
+  action       String    @db.VarChar(80)
+  message      String    @db.VarChar(255)
+  actorUserId  Int?
+  targetUserId Int?
+  roleId       Int?
+  metadata     Json?
+  createdAt    DateTime  @default(now())
+
+  actorUser  User?     @relation("RoleAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  targetUser User?     @relation("RoleAuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+  role       RbacRole? @relation(fields: [roleId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([actorUserId])
+  @@index([targetUserId])
+  @@index([roleId])
 }
 
 enum UserRole {

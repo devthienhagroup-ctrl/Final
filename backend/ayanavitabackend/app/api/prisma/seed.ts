@@ -167,8 +167,127 @@ async function seedCatalog() {
   })
 }
 
+
+
+type RoleSeed = {
+  code: string
+  scopeType: 'OWN' | 'BRANCH' | 'COURSE' | 'GLOBAL'
+  description: string
+  permissions: string[]
+}
+
+const ROLE_SEEDS: RoleSeed[] = [
+  {
+    code: 'USER',
+    scopeType: 'OWN',
+    description: 'Khách hàng / học viên',
+    permissions: [
+      'booking.read','booking.write','cart.manage','orders.read','payments.read','courses.read','my_courses.read','enroll.read','enroll.write','support.read','support.write',
+    ],
+  },
+  {
+    code: 'STAFF',
+    scopeType: 'BRANCH',
+    description: 'Nhân sự chi nhánh',
+    permissions: ['spa_services.read','spa_services.write','appointments.read','appointments.write','appointments.approve','booking.read','booking.approve','products.read','orders.read','support.read','support.write'],
+  },
+  {
+    code: 'BRANCH_MANAGER',
+    scopeType: 'BRANCH',
+    description: 'Quản lý chi nhánh',
+    permissions: ['spa_services.manage','spa_services.write','spa_services.read','appointments.manage','appointments.write','appointments.read','appointments.approve','booking.manage','booking.approve','booking.read','products.write','products.read','orders.read','orders.export','packages.manage','packages.write','packages.read','support.manage','support.read','support.write','role.read'],
+  },
+  {
+    code: 'LECTURER',
+    scopeType: 'COURSE',
+    description: 'Giảng viên',
+    permissions: ['courses.read','courses.write','courses.publish','my_courses.read','enroll.read','support.read','support.write','cms.read'],
+  },
+  {
+    code: 'SUPPORT',
+    scopeType: 'GLOBAL',
+    description: 'CSKH toàn hệ thống (hạn chế)',
+    permissions: ['support.read','support.write','support.manage','orders.read','booking.read','appointments.read','courses.read','my_courses.read'],
+  },
+  {
+    code: 'OPS',
+    scopeType: 'GLOBAL',
+    description: 'Vận hành toàn hệ thống',
+    permissions: ['orders.read','orders.manage','orders.export','booking.read','booking.approve','booking.manage','appointments.read','appointments.manage','packages.read','packages.write','packages.manage','products.read','products.write','cms.read','cms.write','role.read'],
+  },
+  {
+    code: 'FINANCE',
+    scopeType: 'GLOBAL',
+    description: 'Tài chính',
+    permissions: ['payments.read','payments.manage','payments.export','payments.approve','payments.refund','orders.read','orders.export','orders.refund','packages.read','role.read'],
+  },
+  {
+    code: 'ADMIN',
+    scopeType: 'GLOBAL',
+    description: 'Quản trị hệ thống',
+    permissions: ['role.read','role.manage'],
+  },
+]
+
+function toPermissionMeta(code: string) {
+  const [resource, action] = code.split('.')
+  return { code, resource: resource ?? 'unknown', action: action ?? 'manage' }
+}
+
+async function seedRbac() {
+  const permissionCodes = Array.from(new Set(ROLE_SEEDS.flatMap((r) => r.permissions)))
+
+  for (const code of permissionCodes) {
+    const meta = toPermissionMeta(code)
+    await prisma.permission.upsert({
+      where: { code: meta.code },
+      update: { resource: meta.resource, action: meta.action },
+      create: meta,
+    })
+  }
+
+  const permissionRows = await prisma.permission.findMany({ where: { code: { in: permissionCodes } } })
+  const permissionByCode = new Map(permissionRows.map((p) => [p.code, p.id]))
+
+  for (const roleSeed of ROLE_SEEDS) {
+    const role = await prisma.rbacRole.upsert({
+      where: { code: roleSeed.code },
+      update: { scopeType: roleSeed.scopeType, description: roleSeed.description },
+      create: { code: roleSeed.code, scopeType: roleSeed.scopeType, description: roleSeed.description },
+    })
+
+    const permissionIds = roleSeed.permissions.map((code) => permissionByCode.get(code)).filter((id): id is number => Boolean(id))
+
+    await prisma.rolePermission.deleteMany({ where: { roleId: role.id } })
+    if (permissionIds.length > 0) {
+      await prisma.rolePermission.createMany({
+        data: permissionIds.map((permissionId) => ({ roleId: role.id, permissionId })),
+        skipDuplicates: true,
+      })
+    }
+  }
+
+  const roleRows = await prisma.rbacRole.findMany({ select: { id: true, code: true } })
+  const roleByCode = new Map(roleRows.map((r) => [r.code, r.id]))
+
+  const adminRoleId = roleByCode.get('ADMIN')
+  const userRoleId = roleByCode.get('USER')
+  const staffRoleId = roleByCode.get('STAFF')
+
+  if (adminRoleId) {
+    await prisma.user.updateMany({ where: { role: 'ADMIN' }, data: { roleId: adminRoleId } })
+  }
+  if (staffRoleId) {
+    await prisma.user.updateMany({ where: { role: 'STAFF', roleId: null }, data: { roleId: staffRoleId } })
+  }
+  if (userRoleId) {
+    await prisma.user.updateMany({ where: { role: 'USER', roleId: null }, data: { roleId: userRoleId } })
+  }
+}
 async function main() {
   const passwordHash = await bcrypt.hash('123456', 10)
+
+  await seedRbac()
 
   const user = await prisma.user.upsert({
     where: { email: 'test@ayanavita.com' },

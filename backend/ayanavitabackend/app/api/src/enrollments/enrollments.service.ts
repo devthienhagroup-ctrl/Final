@@ -1,8 +1,8 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
-import { CourseAccessStatus, Prisma, Role } from '@prisma/client'
+import { CourseAccessStatus, Prisma, UserRole } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 
-type JwtUser = { sub: number; role: Role | string }
+type JwtUser = { sub: number; role: UserRole | string }
 
 @Injectable()
 export class EnrollmentsService {

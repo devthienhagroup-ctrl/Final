@@ -14,7 +14,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto'
 import { CheckPasswordDto } from './dto/check-password.dto'
 import { VerifyOtpDto } from './dto/verify-otp.dto'
 
-type AuthJwtPayload = { sub: number; email: string; role: string }
+type AuthJwtPayload = { sub: number; email: string; role: string; scopeType?: string | null; permissions: string[] }
 
 @Injectable()
 export class AuthService {
@@ -38,10 +38,25 @@ export class AuthService {
         name: dto.name,
         role: 'USER',
       },
-      select: { id: true, email: true, name: true, role: true, birthDate: true, gender: true, address: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        birthDate: true,
+        gender: true,
+        address: true,
+        roleRef: {
+          include: { permissions: { include: { permission: true } } },
+        },
+      },
     })
 
-    const tokens = await this.issueTokens(user.id, user.email, user.role)
+    const role = user.roleRef?.code ?? user.role
+    const scopeType = user.roleRef?.scopeType ?? null
+    const permissions = user.roleRef?.permissions.map((rp) => rp.permission.code) ?? []
+
+    const tokens = await this.issueTokens(user.id, user.email, role, scopeType, permissions)
     await this.setRefreshTokenHash(user.id, tokens.refreshToken)
 
     return { user, ...tokens }
@@ -84,7 +99,19 @@ export class AuthService {
         gender: dto.gender,
         address: dto.address,
       },
-      select: { id: true, email: true, name: true, role: true, phone: true, birthDate: true, gender: true, address: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        phone: true,
+        birthDate: true,
+        gender: true,
+        address: true,
+        roleRef: {
+          include: { permissions: { include: { permission: true } } },
+        },
+      },
     })
 
     await this.prisma.registrationOtp.update({
@@ -92,7 +119,11 @@ export class AuthService {
       data: { usedAt: new Date() },
     })
 
-    const tokens = await this.issueTokens(user.id, user.email, user.role)
+    const role = user.roleRef?.code ?? user.role
+    const scopeType = user.roleRef?.scopeType ?? null
+    const permissions = user.roleRef?.permissions.map((rp) => rp.permission.code) ?? []
+
+    const tokens = await this.issueTokens(user.id, user.email, role, scopeType, permissions)
     await this.setRefreshTokenHash(user.id, tokens.refreshToken)
 
     return { user, ...tokens }
@@ -266,13 +297,20 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({ where: { email: dto.email } })
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      include: { roleRef: { include: { permissions: { include: { permission: true } } } } },
+    })
     if (!user) throw new UnauthorizedException('Invalid credentials')
 
     const ok = await bcrypt.compare(dto.password, user.password)
     if (!ok) throw new UnauthorizedException('Invalid credentials')
 
-    const tokens = await this.issueTokens(user.id, user.email, user.role)
+    const role = user.roleRef?.code ?? user.role
+    const scopeType = user.roleRef?.scopeType ?? null
+    const permissions = user.roleRef?.permissions.map((rp) => rp.permission.code) ?? []
+
+    const tokens = await this.issueTokens(user.id, user.email, role, scopeType, permissions)
     await this.setRefreshTokenHash(user.id, tokens.refreshToken)
 
     return {
@@ -280,7 +318,9 @@ export class AuthService {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role,
+        role,
+        scopeType,
+        permissions,
         phone: user.phone,
         birthDate: user.birthDate,
         gender: user.gender,
@@ -291,13 +331,20 @@ export class AuthService {
   }
 
   async refreshTokens(userId: number, refreshToken: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } })
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { roleRef: { include: { permissions: { include: { permission: true } } } } },
+    })
     if (!user || !user.hashedRefreshToken) throw new ForbiddenException('Access denied')
 
     const ok = await bcrypt.compare(refreshToken, user.hashedRefreshToken)
     if (!ok) throw new ForbiddenException('Access denied')
 
-    const tokens = await this.issueTokens(user.id, user.email, user.role)
+    const role = user.roleRef?.code ?? user.role
+    const scopeType = user.roleRef?.scopeType ?? null
+    const permissions = user.roleRef?.permissions.map((rp) => rp.permission.code) ?? []
+
+    const tokens = await this.issueTokens(user.id, user.email, role, scopeType, permissions)
     await this.setRefreshTokenHash(user.id, tokens.refreshToken)
 
     return tokens
@@ -479,8 +526,8 @@ export class AuthService {
     }
   }
 
-  private issueTokens(userId: number, email: string, role: string) {
-    const payload: AuthJwtPayload = { sub: userId, email, role }
+  private issueTokens(userId: number, email: string, role: string, scopeType: string | null, permissions: string[]) {
+    const payload: AuthJwtPayload = { sub: userId, email, role, scopeType, permissions }
 
     const accessToken = this.jwt.sign(payload, {
       secret: process.env.JWT_ACCESS_SECRET,

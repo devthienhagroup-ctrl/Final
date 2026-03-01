@@ -4,14 +4,14 @@ import { RestoreDto } from "./dto/restore.dto";
 import { RolesGuard } from "../../auth/roles.guard";
 import { Roles } from "../../auth/roles.decorator";
 import { CmsAdminService } from "./cms-admin.service";
-import { Role } from "@prisma/client";
+import { UserRole } from "@prisma/client";
 import { AccessTokenGuard } from "../../auth/guards/access-token.guard";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ImageUploadService } from "../../services/ImageUploadService";
 
 @Controller("admin/cms")
 @UseGuards(AccessTokenGuard, RolesGuard)
-@Roles(Role.ADMIN) // hoặc @Roles("ADMIN")
+@Roles(UserRole.ADMIN) // hoặc @Roles("ADMIN")
 export class CmsAdminController {
   constructor(
     private readonly svc: CmsAdminService,

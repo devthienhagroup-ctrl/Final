@@ -408,11 +408,9 @@ label { display: block; font-size: 12px; color: var(--muted); margin: 0 0 6px 2p
 }
 
 .tabs-left { 
-display: flex; gap: 8px; align-items: center; 
+display: flex; gap: 8px; flex-wrap: wrap; align-items: center; 
     flex: 1;
-    overflow-x: auto;
-    scrollbar-width: thin;
-    padding-top: 4px;
+    width: 0;
 }
 .tabs-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 
@@ -429,7 +427,6 @@ display: flex; gap: 8px; align-items: center;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  white-space: nowrap;
 }
 .tab:hover { transform: translateY(-1px); box-shadow: 0 14px 28px rgba(2, 6, 23, 0.08); }
 .tab.active {

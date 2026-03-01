@@ -1,5 +1,5 @@
 // AccountCenter.tsx
-import React, { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import React, { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { authApi } from "../api/auth.api";
 import { http } from "../api/http";
 
@@ -691,6 +691,7 @@ export default function AccountCenter() {
   const [payingOrderId, setPayingOrderId] = useState<number | null>(null);
   const [qrModalOrder, setQrModalOrder] = useState<MyOrder | null>(null);
   const [qrPayload, setQrPayload] = useState<PaymentQrPayload | null>(null);
+  const paymentStreamRef = useRef<EventSource | null>(null);
 
   // ✅ CMS runtime (render UI bằng state này)
   const [cms, setCms] = useState<CmsData>(defaultCmsData);
@@ -844,43 +845,50 @@ export default function AccountCenter() {
     }
   }, [fetchMyOrders]);
 
-  // ✅ Poll server để check trạng thái thanh toán -> tự đóng modal QR + cập nhật trạng thái đơn hàng
   useEffect(() => {
-    if (!qrModalOrder?.id) return;
+    const waitingOrderId = qrModalOrder?.id;
+    if (!waitingOrderId) {
+      paymentStreamRef.current?.close();
+      paymentStreamRef.current = null;
+      return;
+    }
 
-    const orderId = qrModalOrder.id;
-    const timer = window.setInterval(async () => {
+    paymentStreamRef.current?.close();
+
+    const apiBase = (import.meta.env.VITE_API_URL ?? "http://localhost:8090").replace(/\/$/, "");
+    const stream = new EventSource(`${apiBase}/hooks/sepay-payment/stream?orderId=${waitingOrderId}`);
+
+    stream.onmessage = async (event) => {
       try {
-        const res = await http.get<ApiProductOrder>(`/api/product-orders/${orderId}`);
-        const next = res?.data ? toMyOrder(res.data) : null;
-        if (!next) return;
+        const data = JSON.parse(event.data || "{}");
+        if (String(data?.orderId || "") !== String(waitingOrderId)) return;
 
-        // Cập nhật list + order đang xem (nếu trùng)
-        setMyOrders((prev) => prev.map((o) => (o.id === next.id ? next : o)));
-        setSelectedOrder((cur) => (cur && cur.id === next.id ? next : cur));
-        setQrModalOrder((cur) => (cur && cur.id === next.id ? next : cur));
-
-        if (next.status === "PAID") {
-          pushToast("success", "Thanh toán", "Đã thanh toán thành công. Đơn hàng đã được cập nhật.");
-          setQrModalOrder(null);
-          setQrPayload(null);
-        }
-
-        if (next.status === "EXPIRED" || next.status === "CANCELLED") {
-          pushToast("info", "Thanh toán", "Phiên thanh toán đã hết hạn hoặc bị huỷ. Vui lòng tạo lại mã QR nếu cần.");
-          setQrModalOrder(null);
-          setQrPayload(null);
-        }
-      } catch {
-        // nếu lỗi mạng/401/404… thì dừng polling để tránh spam
         setQrModalOrder(null);
         setQrPayload(null);
+        pushToast("success", "Thanh toán", "Thanh toán thành công. Đơn hàng đã được cập nhật.");
+        const rows = await fetchMyOrders(false);
+        setSelectedOrder((prev) => {
+          if (!prev) return prev;
+          return rows.find((item) => item.id === prev.id) || prev;
+        });
+      } catch {
+        // ignore malformed events
       }
-    }, 5000);
+    };
 
-    return () => window.clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [qrModalOrder?.id]);
+    stream.onerror = () => {
+      stream.close();
+    };
+
+    paymentStreamRef.current = stream;
+
+    return () => {
+      stream.close();
+      if (paymentStreamRef.current === stream) {
+        paymentStreamRef.current = null;
+      }
+    };
+  }, [fetchMyOrders, qrModalOrder]);
 
   const onProfileSubmit = async (e: FormEvent) => {
     e.preventDefault();

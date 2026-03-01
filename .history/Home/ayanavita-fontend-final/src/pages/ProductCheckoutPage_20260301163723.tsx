@@ -138,8 +138,6 @@ export default function ProductCheckoutPage() {
   const [serverOrderId, setServerOrderId] = useState<string | null>(null);
   const [showError, setShowError] = useState(false);
   const [showOrderSuccessDialog, setShowOrderSuccessDialog] = useState(false);
-  const [showQrModal, setShowQrModal] = useState(false);
-  const [qrPayload, setQrPayload] = useState<{ qrUrl?: string; transferContent?: string; amount?: number } | null>(null);
 
   // toast
   const [toast, setToast] = useState<{ open: boolean; title: string; msg: string }>({
@@ -252,8 +250,9 @@ export default function ProductCheckoutPage() {
   }, [customer, toastCms]); // Thêm toastCms
 
   // Nhờ 'as const' của default, nhưng giờ dùng state nên type vẫn suy ra tốt
-  const payStatusByMethod = useCallback((_m: PayMethod) => {
-    return toastCms.payStatusPending;
+  const payStatusByMethod = useCallback((m: PayMethod) => {
+    if (m === "bank") return toastCms.payStatusPending;
+    return toastCms.payStatusPaid;
   }, [toastCms]); // Thêm toastCms
 
   const validate = useCallback(() => {
@@ -337,7 +336,6 @@ export default function ProductCheckoutPage() {
           setOrderResult((cur) => (cur ? { ...cur, payStatus: toastCms.payStatusPaid } : cur));
           setToast({ open: true, title: toastCms.toastMarkPaidTitle, msg: toastCms.toastMarkPaidMessage });
           setServerOrderId(null);
-          setShowQrModal(false);
         }
         if (status === "EXPIRED" || status === "CANCELLED") {
           setServerOrderId(null);
@@ -373,12 +371,6 @@ export default function ProductCheckoutPage() {
 
       if (state.payMethod === "bank") {
         setServerOrderId(String(apiOrder?.order?.id ?? ""));
-        setQrPayload({
-          qrUrl: apiOrder?.sepay?.qrUrl,
-          transferContent: apiOrder?.sepay?.transferContent,
-          amount: apiOrder?.sepay?.amount,
-        });
-        setShowQrModal(Boolean(apiOrder?.sepay?.qrUrl));
       }
 
     } catch (error: any) {
@@ -483,39 +475,6 @@ export default function ProductCheckoutPage() {
             message={toast.msg}
             onClose={() => setToast((t) => ({ ...t, open: false }))}
         />
-
-
-        {showQrModal && (
-            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 px-4">
-              <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-slate-900">Quét mã QR để thanh toán</h3>
-                  <button
-                      type="button"
-                      onClick={() => setShowQrModal(false)}
-                      className="rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
-                  >
-                    Đóng
-                  </button>
-                </div>
-
-                {qrPayload?.qrUrl ? (
-                    <img src={qrPayload.qrUrl} alt="QR thanh toán" className="mx-auto mt-4 h-64 w-64 rounded-xl border border-slate-200" />
-                ) : (
-                    <div className="mt-4 rounded-xl bg-slate-100 p-4 text-sm text-slate-600">Không có dữ liệu QR.</div>
-                )}
-
-                <div className="mt-4 space-y-1 text-sm text-slate-700">
-                  <p><span className="font-semibold">Số tiền:</span> {Number(qrPayload?.amount || 0).toLocaleString("vi-VN")}₫</p>
-                  <p><span className="font-semibold">Nội dung CK:</span> {qrPayload?.transferContent || "-"}</p>
-                </div>
-
-                <p className="mt-3 text-xs text-slate-500">
-                  Sau khi thanh toán thành công, hệ thống sẽ tự động cập nhật trạng thái đơn hàng.
-                </p>
-              </div>
-            </div>
-        )}
 
         {showOrderSuccessDialog && (
             <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 px-4">

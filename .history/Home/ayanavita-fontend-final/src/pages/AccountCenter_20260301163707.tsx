@@ -844,44 +844,6 @@ export default function AccountCenter() {
     }
   }, [fetchMyOrders]);
 
-  // ✅ Poll server để check trạng thái thanh toán -> tự đóng modal QR + cập nhật trạng thái đơn hàng
-  useEffect(() => {
-    if (!qrModalOrder?.id) return;
-
-    const orderId = qrModalOrder.id;
-    const timer = window.setInterval(async () => {
-      try {
-        const res = await http.get<ApiProductOrder>(`/api/product-orders/${orderId}`);
-        const next = res?.data ? toMyOrder(res.data) : null;
-        if (!next) return;
-
-        // Cập nhật list + order đang xem (nếu trùng)
-        setMyOrders((prev) => prev.map((o) => (o.id === next.id ? next : o)));
-        setSelectedOrder((cur) => (cur && cur.id === next.id ? next : cur));
-        setQrModalOrder((cur) => (cur && cur.id === next.id ? next : cur));
-
-        if (next.status === "PAID") {
-          pushToast("success", "Thanh toán", "Đã thanh toán thành công. Đơn hàng đã được cập nhật.");
-          setQrModalOrder(null);
-          setQrPayload(null);
-        }
-
-        if (next.status === "EXPIRED" || next.status === "CANCELLED") {
-          pushToast("info", "Thanh toán", "Phiên thanh toán đã hết hạn hoặc bị huỷ. Vui lòng tạo lại mã QR nếu cần.");
-          setQrModalOrder(null);
-          setQrPayload(null);
-        }
-      } catch {
-        // nếu lỗi mạng/401/404… thì dừng polling để tránh spam
-        setQrModalOrder(null);
-        setQrPayload(null);
-      }
-    }, 5000);
-
-    return () => window.clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [qrModalOrder?.id]);
-
   const onProfileSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);

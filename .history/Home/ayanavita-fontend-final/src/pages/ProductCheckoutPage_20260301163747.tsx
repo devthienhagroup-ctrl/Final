@@ -337,7 +337,6 @@ export default function ProductCheckoutPage() {
           setOrderResult((cur) => (cur ? { ...cur, payStatus: toastCms.payStatusPaid } : cur));
           setToast({ open: true, title: toastCms.toastMarkPaidTitle, msg: toastCms.toastMarkPaidMessage });
           setServerOrderId(null);
-          setShowQrModal(false);
         }
         if (status === "EXPIRED" || status === "CANCELLED") {
           setServerOrderId(null);

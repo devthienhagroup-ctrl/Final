@@ -1,5 +1,5 @@
 // AccountCenter.tsx
-import React, { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import React, { FormEvent, useEffect, useMemo, useState } from "react";
 import { authApi } from "../api/auth.api";
 import { http } from "../api/http";
 
@@ -21,16 +21,6 @@ type MyOrderItem = {
   qty: number;
   price: number;
   image: string;
-};
-
-type PaymentQrPayload = {
-  amount: number;
-  accountName: string;
-  accountNumber: string;
-  bankName: string;
-  bankCode: string;
-  transferContent: string;
-  qrUrl: string;
 };
 
 type MyOrder = {
@@ -688,9 +678,6 @@ export default function AccountCenter() {
   const [selectedOrder, setSelectedOrder] = useState<MyOrder | null>(null);
   const [myOrders, setMyOrders] = useState<MyOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
-  const [payingOrderId, setPayingOrderId] = useState<number | null>(null);
-  const [qrModalOrder, setQrModalOrder] = useState<MyOrder | null>(null);
-  const [qrPayload, setQrPayload] = useState<PaymentQrPayload | null>(null);
 
   // ✅ CMS runtime (render UI bằng state này)
   const [cms, setCms] = useState<CmsData>(defaultCmsData);
@@ -806,81 +793,24 @@ export default function AccountCenter() {
   }, []);
 
 
-  const fetchMyOrders = useCallback(async (showErrorToast = true) => {
-    setOrdersLoading(true);
-    try {
-      const res = await http.get<ApiProductOrder[]>("/api/product-orders/me");
-      const rows = Array.isArray(res.data) ? res.data.map(toMyOrder) : [];
-      setMyOrders(rows);
-      return rows;
-    } catch (e: any) {
-      if (showErrorToast) {
-        pushToast("error", "Đơn hàng", e?.response?.data?.message || "Không tải được danh sách đơn hàng.");
-      }
-      return [];
-    } finally {
-      setOrdersLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     if (!localStorage.getItem("aya_access_token")) return;
-    void fetchMyOrders();
-  }, [fetchMyOrders]);
 
-  const onPayPendingOrder = useCallback(async (order: MyOrder) => {
-    if (order.status !== "PENDING_PAYMENT") return;
-
-    try {
-      setPayingOrderId(order.id);
-      const res = await http.post<PaymentQrPayload>(`/api/product-orders/${order.id}/payment-qr`);
-      setQrPayload(res.data);
-      setQrModalOrder(order);
-      await fetchMyOrders(false);
-    } catch (e: any) {
-      pushToast("error", "Thanh toán", e?.response?.data?.message || "Không lấy được mã QR thanh toán.");
-    } finally {
-      setPayingOrderId(null);
-    }
-  }, [fetchMyOrders]);
-
-  // ✅ Poll server để check trạng thái thanh toán -> tự đóng modal QR + cập nhật trạng thái đơn hàng
-  useEffect(() => {
-    if (!qrModalOrder?.id) return;
-
-    const orderId = qrModalOrder.id;
-    const timer = window.setInterval(async () => {
+    const fetchMyOrders = async () => {
+      setOrdersLoading(true);
       try {
-        const res = await http.get<ApiProductOrder>(`/api/product-orders/${orderId}`);
-        const next = res?.data ? toMyOrder(res.data) : null;
-        if (!next) return;
-
-        // Cập nhật list + order đang xem (nếu trùng)
-        setMyOrders((prev) => prev.map((o) => (o.id === next.id ? next : o)));
-        setSelectedOrder((cur) => (cur && cur.id === next.id ? next : cur));
-        setQrModalOrder((cur) => (cur && cur.id === next.id ? next : cur));
-
-        if (next.status === "PAID") {
-          pushToast("success", "Thanh toán", "Đã thanh toán thành công. Đơn hàng đã được cập nhật.");
-          setQrModalOrder(null);
-          setQrPayload(null);
-        }
-
-        if (next.status === "EXPIRED" || next.status === "CANCELLED") {
-          pushToast("info", "Thanh toán", "Phiên thanh toán đã hết hạn hoặc bị huỷ. Vui lòng tạo lại mã QR nếu cần.");
-          setQrModalOrder(null);
-          setQrPayload(null);
-        }
-      } catch {
-        // nếu lỗi mạng/401/404… thì dừng polling để tránh spam
-        setQrModalOrder(null);
-        setQrPayload(null);
+        const res = await http.get<ApiProductOrder[]>("/api/product-orders/me");
+        const rows = Array.isArray(res.data) ? res.data.map(toMyOrder) : [];
+        setMyOrders(rows);
+      } catch (e: any) {
+        pushToast("error", "Đơn hàng", e?.response?.data?.message || "Không tải được danh sách đơn hàng.");
+      } finally {
+        setOrdersLoading(false);
       }
-    }, 5000);
+    };
 
-    return () => window.clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [qrModalOrder?.id]);
+    fetchMyOrders();
+  }, []);
 
   const onProfileSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -1560,34 +1490,21 @@ export default function AccountCenter() {
                                 <p className="text-lg font-extrabold text-slate-900">
                                   {formatMoney(order.pricing.total)}
                                 </p>
-                                <div className="flex flex-wrap items-center gap-2">
-                                  {order.status === "PENDING_PAYMENT" && (
-                                    <button
-                                      type="button"
-                                      onClick={() => void onPayPendingOrder(order)}
-                                      disabled={payingOrderId === order.id}
-                                      className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-extrabold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                      <i className="fa-solid fa-qrcode" />
-                                      {payingOrderId === order.id ? "Đang tạo QR..." : "Thanh toán"}
-                                    </button>
-                                  )}
-                                  <button
-                                    type="button"
-                                    onClick={async () => {
-                                      try {
-                                        const res = await http.get<ApiProductOrder>(`/api/product-orders/${order.id}`);
-                                        setSelectedOrder(toMyOrder(res.data));
-                                      } catch {
-                                        setSelectedOrder(order);
-                                      }
-                                    }}
-                                    className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-extrabold text-indigo-700 hover:bg-indigo-100"
-                                  >
-                                    <i className="fa-regular fa-eye" />
-                                    {cms.myOrders.list.seeDetail}
-                                  </button>
-                                </div>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    try {
+                                      const res = await http.get<ApiProductOrder>(`/api/product-orders/${order.id}`);
+                                      setSelectedOrder(toMyOrder(res.data));
+                                    } catch {
+                                      setSelectedOrder(order);
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-extrabold text-indigo-700 hover:bg-indigo-100"
+                                >
+                                  <i className="fa-regular fa-eye" />
+                                  {cms.myOrders.list.seeDetail}
+                                </button>
                               </div>
                             </div>
                           </article>
@@ -1674,19 +1591,6 @@ export default function AccountCenter() {
                                 {formatDate(selectedOrder.payment.paidAt)}
                               </p>
                             </div>
-                            {selectedOrder.status === "PENDING_PAYMENT" && (
-                              <div className="mt-3">
-                                <button
-                                  type="button"
-                                  onClick={() => void onPayPendingOrder(selectedOrder)}
-                                  disabled={payingOrderId === selectedOrder.id}
-                                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-extrabold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                  <i className="fa-solid fa-qrcode" />
-                                  {payingOrderId === selectedOrder.id ? "Đang tạo QR..." : "Thanh toán đơn hàng này"}
-                                </button>
-                              </div>
-                            )}
                           </div>
 
                           {/* Khối giao hàng */}
@@ -1794,52 +1698,6 @@ export default function AccountCenter() {
                             </div>
                           )}
                         </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {qrModalOrder && qrPayload && (
-                    <div
-                      className="fixed inset-0 z-[130] flex items-center justify-center bg-black/60 px-4"
-                      onClick={() => {
-                        setQrModalOrder(null);
-                        setQrPayload(null);
-                      }}
-                    >
-                      <div
-                        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-lg font-bold text-slate-900">Quét mã QR để thanh toán</h3>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setQrModalOrder(null);
-                              setQrPayload(null);
-                            }}
-                            className="rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
-                          >
-                            Đóng
-                          </button>
-                        </div>
-
-                        <p className="mt-1 text-xs text-slate-500">Đơn hàng: {qrModalOrder.code}</p>
-
-                        <img
-                          src={qrPayload.qrUrl}
-                          alt="QR thanh toán"
-                          className="mx-auto mt-4 h-64 w-64 rounded-xl border border-slate-200"
-                        />
-
-                        <div className="mt-4 space-y-1 text-sm text-slate-700">
-                          <p><span className="font-semibold">Số tiền:</span> {Number(qrPayload.amount || 0).toLocaleString("vi-VN")}₫</p>
-                          <p><span className="font-semibold">Nội dung CK:</span> {qrPayload.transferContent || "-"}</p>
-                        </div>
-
-                        <p className="mt-3 text-xs text-slate-500">
-                          Sau khi thanh toán thành công, hệ thống sẽ tự động cập nhật trạng thái đơn hàng.
-                        </p>
                       </div>
                     </div>
                   )}

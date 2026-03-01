@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CheckoutHeader } from "../components/checkout/CheckoutHeader";
 import { CustomerShippingCard } from "../components/checkout/CustomerShippingCard";
@@ -140,6 +140,7 @@ export default function ProductCheckoutPage() {
   const [showOrderSuccessDialog, setShowOrderSuccessDialog] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrPayload, setQrPayload] = useState<{ qrUrl?: string; transferContent?: string; amount?: number } | null>(null);
+  const paymentStreamRef = useRef<EventSource | null>(null);
 
   // toast
   const [toast, setToast] = useState<{ open: boolean; title: string; msg: string }>({
@@ -335,9 +336,10 @@ export default function ProductCheckoutPage() {
         const status = res.data?.status;
         if (status === "PAID") {
           setOrderResult((cur) => (cur ? { ...cur, payStatus: toastCms.payStatusPaid } : cur));
+          setShowQrModal(false);
+          setQrPayload(null);
           setToast({ open: true, title: toastCms.toastMarkPaidTitle, msg: toastCms.toastMarkPaidMessage });
           setServerOrderId(null);
-          setShowQrModal(false);
         }
         if (status === "EXPIRED" || status === "CANCELLED") {
           setServerOrderId(null);
@@ -348,6 +350,47 @@ export default function ProductCheckoutPage() {
     }, 5000);
 
     return () => clearInterval(timer);
+  }, [serverOrderId, toastCms]);
+
+  useEffect(() => {
+    if (!serverOrderId) {
+      paymentStreamRef.current?.close();
+      paymentStreamRef.current = null;
+      return;
+    }
+
+    paymentStreamRef.current?.close();
+
+    const apiBase = (import.meta.env.VITE_API_URL ?? "http://localhost:8090").replace(/\/$/, "");
+    const stream = new EventSource(`${apiBase}/hooks/sepay-payment/stream?orderId=${encodeURIComponent(serverOrderId)}`);
+
+    stream.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data || "{}");
+        if (String(data?.orderId || "") !== String(serverOrderId)) return;
+
+        setOrderResult((cur) => (cur ? { ...cur, payStatus: toastCms.payStatusPaid } : cur));
+        setShowQrModal(false);
+        setQrPayload(null);
+        setToast({ open: true, title: toastCms.toastMarkPaidTitle, msg: toastCms.toastMarkPaidMessage });
+        setServerOrderId(null);
+      } catch {
+        // ignore malformed events
+      }
+    };
+
+    stream.onerror = () => {
+      stream.close();
+    };
+
+    paymentStreamRef.current = stream;
+
+    return () => {
+      stream.close();
+      if (paymentStreamRef.current === stream) {
+        paymentStreamRef.current = null;
+      }
+    };
   }, [serverOrderId, toastCms]);
 
   const onPay = useCallback(async () => {

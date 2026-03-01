@@ -412,7 +412,6 @@ display: flex; gap: 8px; align-items: center;
     flex: 1;
     overflow-x: auto;
     scrollbar-width: thin;
-    padding-top: 4px;
 }
 .tabs-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 

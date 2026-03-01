@@ -1,11 +1,18 @@
-// src/pages/student/student.types.ts
+export type EnrollmentStatus = "ACTIVE" | "PENDING" | "CANCELED" | "CANCELLED";
+
 export type StudentCourse = {
+  id: number;
+  courseId: number;
+  status: EnrollmentStatus;
   title: string;
   teacher: string;
+  price: number;
+  lessons: number;
   progress: number; // 0-100
-  lessons: string; // "24 bài"
-  next: string; // "Bài 08 • GetX"
-  active: boolean; // Enrollment ACTIVE?
+  completedLessons: number;
+  nextLessonTitle: string;
+  nextLessonId?: number;
+  active: boolean;
 };
 
 export type StudyPlanItem = {

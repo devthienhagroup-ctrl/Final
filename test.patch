@@ -1,274 +1,17 @@
-diff --git a/beay/src/api/courses.api.ts b/beay/src/api/courses.api.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..6fedc2d80335008de3447584fc711e24f0710a6e
---- /dev/null
-+++ b/beay/src/api/courses.api.ts
-@@ -0,0 +1,11 @@
-+import { get } from "./http";
-+
-+export type Lesson = {
-+  id: number;
-+  title: string;
-+  order: number;
-+};
-+
-+export const coursesApi = {
-+  lessons: (courseId: number) => get<Lesson[]>(`/courses/${courseId}/lessons`, { auth: true }),
-+};
-diff --git a/beay/src/api/enrollments.api.ts b/beay/src/api/enrollments.api.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..e7e27a501843c3b37849af4316d84c024c34fb1a
---- /dev/null
-+++ b/beay/src/api/enrollments.api.ts
-@@ -0,0 +1,25 @@
-+import { get, post } from "./http";
-+
-+export type EnrollmentStatus = "ACTIVE" | "CANCELLED" | "PENDING";
-+
-+export type MyCourse = {
-+  id: number;
-+  courseId: number;
-+  status: EnrollmentStatus;
-+  course: {
-+    id: number;
-+    title: string;
-+    thumbnail: string | null;
-+    price: number;
-+  };
-+};
-+
-+export const enrollmentsApi = {
-+  myCourses(lang?: string) {
-+    const query = lang ? `?lang=${encodeURIComponent(lang)}` : "";
-+    return get<MyCourse[]>(`/me/courses${query}`, { auth: true });
-+  },
-+  cancel(courseId: number) {
-+    return post<{ ok: boolean }>(`/courses/${courseId}/cancel`, {}, { auth: true });
-+  },
-+};
-diff --git a/beay/src/api/http.ts b/beay/src/api/http.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..b97d7069192ee3330d061b083f5f49160dfe8ed8
---- /dev/null
-+++ b/beay/src/api/http.ts
-@@ -0,0 +1,113 @@
-+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-+
-+export class ApiError extends Error {
-+  status: number;
-+  data?: unknown;
-+
-+  constructor(message: string, status: number, data?: unknown) {
-+    super(message);
-+    this.name = "ApiError";
-+    this.status = status;
-+    this.data = data;
-+  }
-+}
-+
-+const ACCESS_TOKEN_KEY = "aya_admin_token";
-+
-+function getBaseUrl() {
-+  const viteUrl = (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_API_URL;
-+  return (viteUrl || "http://localhost:8090").replace(/\/+$/, "");
-+}
-+
-+export function getAccessToken() {
-+  try {
-+    return localStorage.getItem(ACCESS_TOKEN_KEY) || "";
-+  } catch {
-+    return "";
-+  }
-+}
-+
-+function isJsonResponse(res: Response) {
-+  const ct = res.headers.get("content-type") || "";
-+  return ct.includes("application/json");
-+}
-+
-+async function parseBody(res: Response) {
-+  if (res.status === 204) return null;
-+  if (isJsonResponse(res)) {
-+    try {
-+      return await res.json();
-+    } catch {
-+      return null;
-+    }
-+  }
-+
-+  try {
-+    return await res.text();
-+  } catch {
-+    return null;
-+  }
-+}
-+
-+function normalizeErrorMessage(data: unknown, fallback: string) {
-+  if (!data) return fallback;
-+  if (typeof data === "string") return data;
-+  if (typeof data === "object" && data !== null) {
-+    const message = (data as { message?: unknown }).message;
-+    if (typeof message === "string") return message;
-+    if (Array.isArray(message) && message.length) return String(message[0]);
-+  }
-+  return fallback;
-+}
-+
-+export async function request<T>(
-+  path: string,
-+  options?: {
-+    method?: HttpMethod;
-+    body?: unknown;
-+    auth?: boolean;
-+    headers?: Record<string, string>;
-+  }
-+): Promise<T> {
-+  const baseUrl = getBaseUrl();
-+  const url = path.startsWith("http") ? path : `${baseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
-+
-+  const method = options?.method ?? "GET";
-+  const auth = options?.auth ?? true;
-+  const headers: Record<string, string> = { ...(options?.headers ?? {}) };
-+
-+  const body = options?.body;
-+  if (body !== undefined && body !== null) {
-+    headers["Content-Type"] = headers["Content-Type"] || "application/json";
-+  }
-+
-+  if (auth) {
-+    const token = getAccessToken();
-+    if (token) headers.Authorization = `Bearer ${token}`;
-+  }
-+
-+  const res = await fetch(url, {
-+    method,
-+    headers,
-+    body: body === undefined || body === null ? undefined : JSON.stringify(body),
-+  });
-+
-+  const data = await parseBody(res);
-+  if (!res.ok) {
-+    throw new ApiError(normalizeErrorMessage(data, `HTTP ${res.status}`), res.status, data);
-+  }
-+
-+  return data as T;
-+}
-+
-+export function get<T>(path: string, options?: Omit<Parameters<typeof request<T>>[1], "method" | "body">) {
-+  return request<T>(path, { ...options, method: "GET" });
-+}
-+
-+export function post<T>(
-+  path: string,
-+  body?: unknown,
-+  options?: Omit<Parameters<typeof request<T>>[1], "method" | "body">
-+) {
-+  return request<T>(path, { ...options, method: "POST", body });
-+}
-diff --git a/beay/src/api/lessons.api.ts b/beay/src/api/lessons.api.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..dcf4ff22915586d026776f4802fbab30ec2a441f
---- /dev/null
-+++ b/beay/src/api/lessons.api.ts
-@@ -0,0 +1,32 @@
-+import { get } from "./http";
-+
-+export type LessonVideoItem = {
-+  id: number;
-+  title: string;
-+  localizedTitle?: string;
-+  playbackUrl?: string;
-+  progress?: { watchedSec: number; durationSec: number; completed: boolean };
-+};
-+
-+export type LessonModuleItem = {
-+  id: number;
-+  title: string;
-+  localizedTitle?: string;
-+  videos: LessonVideoItem[];
-+  progress?: { watchedSec: number; durationSec: number; percent: number; completed: boolean };
-+};
-+
-+export type LessonDetail = {
-+  id: number;
-+  courseId: number;
-+  title: string;
-+  localizedTitle?: string;
-+  modules?: LessonModuleItem[];
-+};
-+
-+export const lessonsApi = {
-+  detail: (id: number, lang?: string) => {
-+    const q = lang ? `?lang=${encodeURIComponent(lang)}` : "";
-+    return get<LessonDetail>(`/lessons/${id}${q}`, { auth: true });
-+  },
-+};
-diff --git a/beay/src/api/orders.api.ts b/beay/src/api/orders.api.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..8f0df8089006969b32135ad1cae41ad22cf24af1
---- /dev/null
-+++ b/beay/src/api/orders.api.ts
-@@ -0,0 +1,24 @@
-+import { get } from "./http";
-+
-+export type OrderStatus = "PENDING" | "PAID" | "CANCELLED";
-+
-+export type OrderItem = {
-+  id: number;
-+  courseId: number;
-+  courseTitle: string;
-+  price: number;
-+};
-+
-+export type MyOrder = {
-+  id: number;
-+  code: string;
-+  status: OrderStatus;
-+  currency: string;
-+  total: number;
-+  createdAt: string;
-+  items: OrderItem[];
-+};
-+
-+export const ordersApi = {
-+  myOrders: () => get<MyOrder[]>("/me/orders", { auth: true }),
-+};
-diff --git a/beay/src/api/progress.api.ts b/beay/src/api/progress.api.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..0b27217bd5102f39ea93c21dafa05e25a2069d4c
---- /dev/null
-+++ b/beay/src/api/progress.api.ts
-@@ -0,0 +1,15 @@
-+import { get, post } from "./http";
-+
-+export type CourseProgressRes = {
-+  courseId: number;
-+  totalLessons: number;
-+  completedLessons: number;
-+  percent: number;
-+};
-+
-+export const progressApi = {
-+  courseProgress: (courseId: number) => get<CourseProgressRes>(`/me/courses/${courseId}/progress`, { auth: true }),
-+  completeModule: (lessonId: number, moduleId: number) => post(`/lessons/${lessonId}/modules/${moduleId}/complete`, {}, { auth: true }),
-+  updateVideoProgress: (lessonId: number, videoId: number, watchedSec: number, completed = false) =>
-+    post(`/lessons/${lessonId}/videos/${videoId}/progress`, { watchedSec, completed }, { auth: true }),
-+};
 diff --git a/beay/src/app/routes.tsx b/beay/src/app/routes.tsx
-index 80badad627e0898d0decd27ad8ef8bd2014c6cf4..bae0119d33f205a3cf60f72495b55651b4ee4da1 100644
+index 6006505837e1efef83080d21b36a04c3ca9e84da..9936a217f5872a223e640b89518353868dfcdf0c 100644
 --- a/beay/src/app/routes.tsx
 +++ b/beay/src/app/routes.tsx
-@@ -1,42 +1,49 @@
+@@ -1,43 +1,42 @@
  import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
  import { useAuth } from "./auth";
  import { AdminDashboardPage } from "../pages/admin/AdminDashboardPage";
  import { AdminOrdersPage } from "../pages/admin/AdminOrdersPage";
  import { LoginPage } from "../pages/admin/LoginPage";
  import { AdminRbacPage } from "../pages/admin/AdminRbacPage";
-+import { StudentPortalPage } from "../pages/student/StudentPortalPage";
-+import { StudentMyCoursesPage } from "../pages/student/StudentMyCoursesPage";
-+import { StudentMyOrdersPage } from "../pages/student/StudentMyOrdersPage";
-+import { StudentLessonDetailPage } from "../pages/student/StudentLessonDetailPage";
+ import { StudentPortalPage } from "../pages/admin/StudentPortalPage";
++import { StudentCourseDetailPage } from "../pages/admin/StudentCourseDetailPage";
++import { StudentLessonPlayerPage } from "../pages/admin/StudentLessonPlayerPage";
 
  function RequireAuth() {
      const { token } = useAuth();
@@ -288,19 +31,18 @@ index 80badad627e0898d0decd27ad8ef8bd2014c6cf4..bae0119d33f205a3cf60f72495b55651
 
              <Route path="/admin/login" element={<LoginPage />} />
 
-             {/* TODO: tách tiếp theo thứ tự */}
-             {/* /admin/orders */}
-             {/* /admin/rbac */}
-             {/* /instructor */}
-             {/* /student */}
+-            {/* TODO: tách tiếp theo thứ tự */}
+-            {/* /admin/orders */}
+-            {/* /admin/rbac */}
+-            {/* /instructor */}
+-            {/* /student */}
              <Route element={<RequireAuth />}>
                  <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
                  <Route path="/admin/orders" element={<AdminOrdersPage />} />
                  <Route path="/admin/rbac" element={<AdminRbacPage />} />
                  <Route path="/student" element={<StudentPortalPage />} />
-+                <Route path="/student/courses" element={<StudentMyCoursesPage />} />
-+                <Route path="/student/orders" element={<StudentMyOrdersPage />} />
-+                <Route path="/student/lessons/:lessonId" element={<StudentLessonDetailPage />} />
++                <Route path="/student/courses/:id" element={<StudentCourseDetailPage />} />
++                <Route path="/student/lessons/:id" element={<StudentLessonPlayerPage />} />
              </Route>
 
              <Route path="*" element={<div className="p-6">404</div>} />
@@ -310,492 +52,1308 @@ index 80badad627e0898d0decd27ad8ef8bd2014c6cf4..bae0119d33f205a3cf60f72495b55651
 -}
 \ No newline at end of file
 +}
-diff --git a/beay/src/pages/student/StudentCoursesTheme.css b/beay/src/pages/student/StudentCoursesTheme.css
+diff --git a/beay/src/pages/admin/StudentCourseDetailPage.tsx b/beay/src/pages/admin/StudentCourseDetailPage.tsx
 new file mode 100644
-index 0000000000000000000000000000000000000000..bc2bebae747b06f100452d511a8841c9f63d9f33
+index 0000000000000000000000000000000000000000..14a21127dbcfaf36a48dfe46726264725191b2ef
 --- /dev/null
-+++ b/beay/src/pages/student/StudentCoursesTheme.css
-@@ -0,0 +1,49 @@
-+.student-page { min-height: 100vh; background: #f8fafc; color: #0f172a; }
-+.student-shell { max-width: 1100px; margin: 0 auto; padding: 24px; }
-+.student-topbar { display:flex; justify-content:space-between; gap: 16px; align-items: center; margin-bottom: 16px; }
-+.student-title { font-size: 28px; font-weight: 900; margin: 0; }
-+.student-subtitle { color:#64748b; margin-top: 4px; }
-+.student-control-group { display:flex; gap:10px; align-items:center; }
-+.student-theme-toggle { border:1px solid #cbd5e1; padding:8px 12px; border-radius:12px; font-weight:700; display:flex; gap:8px; align-items:center; }
-+.student-pill { background:#0f172a; color:#fff; border-radius:999px; padding:2px 8px; font-size:11px; }
-+.student-lang-switch { display:flex; gap:6px; }
-+.student-lang-option { width:34px; height:34px; border:1px solid #cbd5e1; border-radius:50%; overflow:hidden; }
-+.student-lang-option.active { border-color:#4f46e5; box-shadow:0 0 0 2px rgba(79,70,229,.15); }
-+.student-lang-option img { width:100%; height:100%; object-fit:cover; }
-+.student-actions { display:flex; gap:10px; margin-bottom: 12px; }
-+.student-btn { border:1px solid #cbd5e1; border-radius: 12px; padding: 8px 12px; font-weight: 700; }
-+.student-btn-primary { background:#4f46e5; color:#fff; border-color:#4f46e5; }
-+.student-btn-danger { background:#fee2e2; color:#b91c1c; border-color:#fecaca; }
-+.student-btn-ghost { background:#fff; }
-+.student-alert { border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; }
-+.student-alert-info { background:#e0f2fe; }
-+.student-alert-danger { background:#fee2e2; }
-+.student-alert-success { background:#dcfce7; }
-+.student-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap:14px; }
-+.student-card { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:14px; }
-+.student-card-head { display:flex; justify-content:space-between; gap: 8px; margin-bottom:10px; }
-+.student-card-title { font-weight:900; }
-+.student-badge { border-radius:999px; padding:2px 10px; font-size:12px; font-weight:800; }
-+.student-badge-active { background:#dcfce7; color:#166534; }
-+.student-badge-pending { background:#fef3c7; color:#92400e; }
-+.student-badge-cancelled { background:#fee2e2; color:#991b1b; }
-+.student-meta { display:flex; justify-content:space-between; font-size:14px; margin-bottom:8px; }
-+.student-meta-label { color:#64748b; }
-+.student-progress-meta { display:flex; justify-content:space-between; margin-bottom:6px; font-size:13px; }
-+.student-progress-track { background:#e2e8f0; height:8px; border-radius:999px; overflow:hidden; }
-+.student-progress-fill { background: linear-gradient(90deg,#4f46e5,#7c3aed); height:100%; }
-+.student-mini { margin-top:8px; color:#475569; font-size:13px; }
-+.student-card-actions { margin-top:12px; display:flex; gap:8px; flex-wrap: wrap; }
-+.student-empty { color:#64748b; text-align:center; padding: 22px; }
-+.student-menu { display:flex; gap:8px; margin-bottom:14px; }
-+.student-menu a { text-decoration:none; }
-+.student-order-row { display:flex; justify-content:space-between; align-items:flex-start; gap: 12px; }
-+.student-items { margin-top:8px; color:#334155; font-size:13px; }
-+.student-lesson-layout { display:grid; gap:12px; grid-template-columns: 1fr 280px; }
-+.student-module-card { border:1px solid #e2e8f0; border-radius:12px; padding:10px; margin-bottom:8px; }
-+.student-module-head { display:flex; justify-content:space-between; gap: 8px; align-items:center; margin-bottom:6px; }
-+.student-video-player { width:100%; border-radius:8px; margin-top:4px; }
-+.student-video-row { display:grid; gap:6px; margin-bottom:8px; }
-+.student-lesson-item { width:100%; text-align:left; padding:10px; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:6px; }
-+.student-lesson-item.active { border-color:#4f46e5; background:#eef2ff; }
-+@media (max-width: 900px){ .student-lesson-layout { grid-template-columns: 1fr; } }
-diff --git a/beay/src/pages/student/StudentLessonDetailPage.tsx b/beay/src/pages/student/StudentLessonDetailPage.tsx
-new file mode 100644
-index 0000000000000000000000000000000000000000..a599083c1441d21b032869ecfc434a8b68e38198
---- /dev/null
-+++ b/beay/src/pages/student/StudentLessonDetailPage.tsx
-@@ -0,0 +1,83 @@
-+import { useEffect, useState } from "react";
-+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-+import { coursesApi, type Lesson } from "../../api/courses.api";
-+import { lessonsApi, type LessonDetail } from "../../api/lessons.api";
-+import { progressApi } from "../../api/progress.api";
-+import "./StudentCoursesTheme.css";
-+
-+export function StudentLessonDetailPage() {
-+  const nav = useNavigate();
-+  const { lessonId } = useParams();
-+  const [search] = useSearchParams();
-+  const courseId = Number(search.get("courseId") || 0);
-+
-+  const [lesson, setLesson] = useState<LessonDetail | null>(null);
-+  const [outline, setOutline] = useState<Lesson[]>([]);
-+  const [err, setErr] = useState<string | null>(null);
-+
-+  useEffect(() => {
-+    async function load() {
-+      if (!lessonId) return;
-+      setErr(null);
-+      try {
-+        const detail = await lessonsApi.detail(Number(lessonId));
-+        setLesson(detail);
-+        if (courseId) {
-+          const ls = await coursesApi.lessons(courseId);
-+          setOutline(ls);
-+        }
-+      } catch (e) {
-+        setErr(e instanceof Error ? e.message : "Load lesson failed");
-+      }
-+    }
-+    void load();
-+  }, [lessonId, courseId]);
-+
-+  async function markVideoDone(videoId: number) {
-+    if (!lessonId) return;
-+    await progressApi.updateVideoProgress(Number(lessonId), videoId, 999, true);
-+  }
-+
-+  async function markModuleDone(moduleId: number) {
-+    if (!lessonId) return;
-+    await progressApi.completeModule(Number(lessonId), moduleId);
-+  }
-+
-+  return (
-+    <div className="student-page">
-+      <div className="student-shell">
-+        <button type="button" className="student-btn student-btn-ghost" onClick={() => nav("/student/courses")}>← My Courses</button>
-+        <h2 className="student-title" style={{ marginTop: 10 }}>{lesson?.localizedTitle || lesson?.title || `Lesson #${lessonId}`}</h2>
-+        {err && <div className="student-alert student-alert-danger">{err}</div>}
-+
-+        <div className="student-lesson-layout">
-+          <div className="student-card">
-+            {lesson?.modules?.map((m) => (
-+              <div key={m.id} className="student-module-card">
-+                <div className="student-module-head">
-+                  <b>{m.localizedTitle || m.title}</b>
-+                  <button type="button" className="student-btn student-btn-primary" onClick={() => void markModuleDone(m.id)}>Complete Module</button>
-+                </div>
-+                {m.videos.map((v) => (
-+                  <div key={v.id} className="student-video-row">
-+                    <div>{v.localizedTitle || v.title}</div>
-+                    {v.playbackUrl && <video controls src={v.playbackUrl} className="student-video-player" onEnded={() => void markVideoDone(v.id)} />}
-+                  </div>
-+                ))}
-+              </div>
-+            ))}
-+          </div>
-+
-+          <div className="student-card">
-+            <h3 className="student-card-title">Lesson List</h3>
-+            {outline.map((l) => (
-+              <button type="button" key={l.id} className={`student-lesson-item ${Number(lessonId) === l.id ? "active" : ""}`} onClick={() => nav(`/student/lessons/${l.id}?courseId=${courseId}`)}>
-+                {l.title}
-+              </button>
-+            ))}
-+          </div>
-+        </div>
-+      </div>
-+    </div>
-+  );
-+}
-diff --git a/beay/src/pages/student/StudentMyCoursesPage.tsx b/beay/src/pages/student/StudentMyCoursesPage.tsx
-new file mode 100644
-index 0000000000000000000000000000000000000000..f1e22ecf9628044552bd9ed1d81021cf0c5ddffe
---- /dev/null
-+++ b/beay/src/pages/student/StudentMyCoursesPage.tsx
-@@ -0,0 +1,183 @@
++++ b/beay/src/pages/admin/StudentCourseDetailPage.tsx
+@@ -0,0 +1,251 @@
 +import { useEffect, useMemo, useState } from "react";
-+import { useNavigate } from "react-router-dom";
-+import { coursesApi, type Lesson } from "../../api/courses.api";
-+import { enrollmentsApi, type MyCourse } from "../../api/enrollments.api";
-+import { progressApi, type CourseProgressRes } from "../../api/progress.api";
-+import { studentLanguageMeta, useStudentViewPrefs, type StudentLang } from "./student.i18n";
-+import "./StudentCoursesTheme.css";
++import { useNavigate, useParams } from "react-router-dom";
++import { useToast } from "../../ui/toast";
++import { studentApi, type ApiCourseDetail, type ApiCourseProgress, type ApiLesson } from "../student/student.api";
 +
-+const i18n: Record<StudentLang, Record<string, string>> = {
++type Lang = "vi" | "en" | "de";
++
++const i18n: Record<Lang, Record<string, string>> = {
 +  vi: {
-+    title: "Khoá học của tôi",
-+    subtitle: "Theo dõi tiến độ học tập.",
++    title: "Chi tiết khoá học",
++    descFallback: "Khoá học được đồng bộ từ API AYANAVITA.",
++    back: "Quay lại",
++    continue: "Tiếp tục học",
 +    reload: "Tải lại",
-+    loading: "Đang tải...",
++    loading: "Đang tải dữ liệu...",
++    lessonList: "Danh sách bài học",
 +    progress: "Tiến độ",
++    lessonDone: "Hoàn thành",
 +    price: "Giá",
-+    completed: "Hoàn thành",
-+    detail: "Chi tiết",
-+    continue: "Tiếp tục",
-+    cancel: "Huỷ",
-+    noCourse: "Bạn chưa ghi danh khoá học nào.",
-+    darkMode: "Chế độ tối",
++    lessonCount: "Số bài",
++    videoCount: "Số video",
++    topic: "Chủ đề",
++    duration: "Thời lượng",
++    rating: "Đánh giá",
++    enrolled: "Lượt ghi danh",
++    status: "Trạng thái",
++    objectives: "Mục tiêu khoá học",
++    targetAudience: "Đối tượng phù hợp",
++    benefits: "Lợi ích nhận được",
++    noLesson: "Khoá học chưa có bài học.",
++    updatedAt: "Cập nhật",
 +  },
 +  en: {
-+    title: "My Courses",
-+    subtitle: "Track your learning progress.",
-+    reload: "Reload",
-+    loading: "Loading...",
-+    progress: "Progress",
-+    price: "Price",
-+    completed: "Completed",
-+    detail: "Detail",
++    title: "Course Detail",
++    descFallback: "Course data is synced from AYANAVITA API.",
++    back: "Back",
 +    continue: "Continue",
-+    cancel: "Cancel",
-+    noCourse: "You have not enrolled any course.",
-+    darkMode: "Dark mode",
++    reload: "Reload",
++    loading: "Loading data...",
++    lessonList: "Lesson list",
++    progress: "Progress",
++    lessonDone: "Completed",
++    price: "Price",
++    lessonCount: "Lessons",
++    videoCount: "Videos",
++    topic: "Topic",
++    duration: "Duration",
++    rating: "Rating",
++    enrolled: "Enrollments",
++    status: "Status",
++    objectives: "Objectives",
++    targetAudience: "Target audience",
++    benefits: "Benefits",
++    noLesson: "No lessons in this course yet.",
++    updatedAt: "Updated",
++  },
++  de: {
++    title: "Kursdetails",
++    descFallback: "Kursdaten werden von der AYANAVITA-API synchronisiert.",
++    back: "Zurück",
++    continue: "Weiterlernen",
++    reload: "Neu laden",
++    loading: "Daten werden geladen...",
++    lessonList: "Lektionsliste",
++    progress: "Fortschritt",
++    lessonDone: "Abgeschlossen",
++    price: "Preis",
++    lessonCount: "Lektionen",
++    videoCount: "Videos",
++    topic: "Thema",
++    duration: "Dauer",
++    rating: "Bewertung",
++    enrolled: "Einschreibungen",
++    status: "Status",
++    objectives: "Lernziele",
++    targetAudience: "Zielgruppe",
++    benefits: "Vorteile",
++    noLesson: "Dieser Kurs hat noch keine Lektionen.",
++    updatedAt: "Aktualisiert",
 +  },
 +};
 +
-+function sortLessons(ls: Lesson[]) {
-+  return [...ls].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id - b.id);
++function sortLessons(ls: ApiLesson[]) {
++  return [...ls].sort((a, b) => {
++    const ao = a.order ?? 0;
++    const bo = b.order ?? 0;
++    if (ao !== bo) return ao - bo;
++    return a.id - b.id;
++  });
 +}
 +
-+function StatusBadge({ status }: { status: MyCourse["status"] }) {
-+  const cls = useMemo(() => {
-+    if (status === "ACTIVE") return "student-badge student-badge-active";
-+    if (status === "PENDING") return "student-badge student-badge-pending";
-+    return "student-badge student-badge-cancelled";
-+  }, [status]);
-+
-+  return <span className={cls}>{status}</span>;
++function fmtDate(v?: string) {
++  if (!v) return "-";
++  try {
++    return new Date(v).toLocaleString();
++  } catch {
++    return v;
++  }
 +}
 +
-+export function StudentMyCoursesPage() {
++export function StudentCourseDetailPage() {
 +  const nav = useNavigate();
-+  const { lang, setLang, theme, setTheme } = useStudentViewPrefs();
++  const { id } = useParams();
++  const { toast } = useToast();
++  const courseId = Number(id || 0);
++
++  const [lang, setLang] = useState<Lang>("vi");
 +  const t = i18n[lang];
 +
-+  const [items, setItems] = useState<MyCourse[]>([]);
 +  const [loading, setLoading] = useState(true);
 +  const [err, setErr] = useState<string | null>(null);
-+  const [info, setInfo] = useState<string | null>(null);
-+  const [progressMap, setProgressMap] = useState<Record<number, CourseProgressRes>>({});
++  const [course, setCourse] = useState<ApiCourseDetail | null>(null);
++  const [lessons, setLessons] = useState<ApiLesson[]>([]);
++  const [progress, setProgress] = useState<ApiCourseProgress | null>(null);
 +
-+  async function load() {
++  async function loadData() {
++    if (!courseId) return;
 +    setLoading(true);
 +    setErr(null);
-+    setInfo(null);
 +    try {
-+      const data = await enrollmentsApi.myCourses(lang);
-+      setItems(data);
-+
-+      const activeCourseIds = data.filter((d) => d.status === "ACTIVE").map((d) => d.courseId);
-+      const results = await Promise.allSettled(activeCourseIds.map(async (cid) => ({ cid, p: await progressApi.courseProgress(cid) })));
-+
-+      const next: Record<number, CourseProgressRes> = {};
-+      for (const r of results) {
-+        if (r.status === "fulfilled") next[r.value.cid] = r.value.p;
++      const [courseData, progressData] = await Promise.all([
++        studentApi.courseDetail(courseId, lang),
++        studentApi.courseProgress(courseId),
++      ]);
++      const fullLessons = await studentApi.courseLessons(courseId);
++      setCourse(courseData);
++      setLessons(sortLessons(fullLessons));
++      setProgress(progressData);
++    } catch {
++      try {
++        const [courseData, outlineLessons] = await Promise.all([
++          studentApi.courseDetail(courseId, lang),
++          studentApi.courseLessonsOutline(courseId, lang),
++        ]);
++        setCourse(courseData);
++        setLessons(sortLessons(outlineLessons));
++        setProgress(null);
++      } catch (e: any) {
++        setErr(e?.message || "Cannot load course detail.");
 +      }
-+      setProgressMap(next);
-+    } catch (e) {
-+      setErr(e instanceof Error ? e.message : "Load my courses failed");
 +    } finally {
 +      setLoading(false);
 +    }
 +  }
 +
 +  useEffect(() => {
-+    void load();
-+  }, [lang]);
++    void loadData();
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [courseId, lang]);
 +
-+  async function onCancel(courseId: number) {
-+    try {
-+      await enrollmentsApi.cancel(courseId);
-+      setInfo(`Course #${courseId} cancelled.`);
-+      await load();
-+    } catch (e) {
-+      setErr(e instanceof Error ? e.message : "Cancel failed");
-+    }
-+  }
++  const nextLessonId = useMemo(() => {
++    if (!lessons.length) return 0;
++    const completed = progress?.completedLessons ?? 0;
++    const idx = Math.min(completed, Math.max(0, lessons.length - 1));
++    return lessons[idx]?.id || lessons[0].id;
++  }, [lessons, progress]);
 +
-+  async function onContinue(courseId: number) {
-+    setErr(null);
-+    try {
-+      const lessons = await coursesApi.lessons(courseId);
-+      const lessonId = sortLessons(lessons)[0]?.id;
-+      if (lessonId) nav(`/student/lessons/${lessonId}?courseId=${courseId}`);
-+    } catch (e) {
-+      setErr(e instanceof Error ? e.message : "Unable to continue");
++  function onContinue() {
++    if (!nextLessonId) {
++      toast("Không có bài học", t.noLesson);
++      return;
 +    }
++    nav(`/student/lessons/${nextLessonId}?courseId=${courseId}&lang=${lang}`);
 +  }
 +
 +  return (
-+    <div className={`student-page ${theme === "dark" ? "student-courses-theme-dark" : ""}`}>
-+      <div className="student-shell">
-+        <div className="student-menu">
-+          <button type="button" className="student-btn student-btn-primary" onClick={() => nav("/student")}>Portal</button>
-+          <button type="button" className="student-btn" onClick={() => nav("/student/orders")}>Orders</button>
++    <div className="min-h-screen text-slate-900" style={{ background: "radial-gradient(1000px 500px at 15% 0%, rgba(79,70,229,0.18), transparent 60%), radial-gradient(800px 400px at 90% 10%, rgba(34,197,94,0.12), transparent 60%), linear-gradient(to bottom, #f8fafc, #eef2ff)" }}>
++      <main className="px-4 md:px-8 py-6 space-y-6">
++        <div className="rounded-[18px] border border-white/80 bg-white/95 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur">
++          <div className="flex flex-wrap items-center justify-between gap-3">
++            <div>
++              <div className="text-xs font-extrabold text-slate-500">{t.title}</div>
++              <h1 className="text-2xl font-extrabold text-slate-900">{course?.title || `Course #${courseId}`}</h1>
++              <p className="mt-1 max-w-4xl text-sm text-slate-600">{course?.description || t.descFallback}</p>
++            </div>
++
++            <div className="flex flex-wrap items-center gap-2">
++              {(["vi", "en", "de"] as Lang[]).map((code) => (
++                <button key={code} className={`btn ${lang === code ? "btn-primary" : ""}`} onClick={() => setLang(code)}>{code.toUpperCase()}</button>
++              ))}
++              <button className="btn" onClick={() => nav("/student")}>← {t.back}</button>
++              <button className="btn btn-primary" onClick={onContinue}>{t.continue}</button>
++              <button className="btn" onClick={() => void loadData()}>{t.reload}</button>
++            </div>
++          </div>
 +        </div>
 +
-+        <div className="student-topbar">
-+          <div>
-+            <h2 className="student-title">{t.title}</h2>
-+            <div className="student-subtitle">{t.subtitle}</div>
++        {loading && <div className="rounded-xl bg-white px-4 py-3 text-sm text-slate-600 ring-1 ring-slate-200">{t.loading}</div>}
++        {err && <div className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">{err}</div>}
++
++        <section className="grid gap-4 lg:grid-cols-3">
++          <div className="rounded-[18px] border border-white/80 bg-white/95 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.08)] lg:col-span-2">
++            <h2 className="text-lg font-extrabold">{t.lessonList}</h2>
++            <div className="mt-4 space-y-3">
++              {lessons.map((lesson, idx) => (
++                <button key={lesson.id} className="w-full rounded-2xl bg-slate-50 px-4 py-3 text-left ring-1 ring-slate-200 transition hover:bg-indigo-50 hover:ring-indigo-200" onClick={() => nav(`/student/lessons/${lesson.id}?courseId=${courseId}&lang=${lang}`)}>
++                  <div className="font-bold">Bài {idx + 1}: {lesson.localizedTitle || lesson.title}</div>
++                  <div className="text-xs text-slate-500">{lesson.localizedDescription || lesson.description || `Lesson ID: ${lesson.id}`}</div>
++                </button>
++              ))}
++              {!lessons.length && !loading && <div className="text-sm text-slate-500">{t.noLesson}</div>}
++            </div>
 +          </div>
-+          <div className="student-control-group">
-+            <button type="button" className="student-theme-toggle" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-+              {t.darkMode} <span className="student-pill">{theme === "dark" ? "ON" : "OFF"}</span>
-+            </button>
-+            <div className="student-lang-switch">
-+              {(Object.keys(studentLanguageMeta) as StudentLang[]).map((code) => (
-+                <button key={code} type="button" className={`student-lang-option ${lang === code ? "active" : ""}`} onClick={() => setLang(code)}>
-+                  <img src={studentLanguageMeta[code].flagUrl} alt={studentLanguageMeta[code].label} />
++
++          <div className="rounded-[18px] border border-white/80 bg-white/95 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
++            <h3 className="text-lg font-extrabold">{t.progress}</h3>
++            <div className="mt-3 text-sm text-slate-600">{t.lessonDone}: <b>{progress?.completedLessons || 0}/{progress?.totalLessons || lessons.length}</b></div>
++            <div className="mt-2 h-[10px] overflow-hidden rounded-full border border-slate-200/70 bg-indigo-50"><div className="h-full bg-gradient-to-br from-indigo-600 to-violet-600" style={{ width: `${progress?.percent || 0}%` }} /></div>
++            <div className="mt-2 text-sm"><b>{progress?.percent || 0}%</b></div>
++
++            <div className="mt-5 space-y-2 text-sm text-slate-600">
++              <div>{t.price}: <b>{course?.price?.toLocaleString("vi-VN") || 0}đ</b></div>
++              <div>{t.lessonCount}: <b>{course?._count?.lessons ?? lessons.length}</b></div>
++              <div>{t.videoCount}: <b>{course?.videoCount ?? 0}</b></div>
++              <div>{t.topic}: <b>{course?.topic?.name || "-"}</b></div>
++              <div>{t.duration}: <b>{course?.time || "-"}</b></div>
++              <div>{t.rating}: <b>{course?.ratingAvg || 0} ({course?.ratingCount || 0})</b></div>
++              <div>{t.enrolled}: <b>{course?.enrollmentCount || 0}</b></div>
++              <div>{t.status}: <b>{course?.published ? "PUBLISHED" : "DRAFT"}</b></div>
++              <div>{t.updatedAt}: <b>{fmtDate(course?.updatedAt)}</b></div>
++            </div>
++          </div>
++        </section>
++
++        <section className="grid gap-4 lg:grid-cols-3">
++          <div className="rounded-[18px] border border-white/80 bg-white/95 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
++            <h3 className="text-base font-extrabold">{t.objectives}</h3>
++            <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">
++              {(course?.objectives || []).map((x, i) => <li key={`${x}-${i}`}>{x}</li>)}
++              {!(course?.objectives || []).length && <li className="list-none text-slate-400">-</li>}
++            </ul>
++          </div>
++          <div className="rounded-[18px] border border-white/80 bg-white/95 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
++            <h3 className="text-base font-extrabold">{t.targetAudience}</h3>
++            <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">
++              {(course?.targetAudience || []).map((x, i) => <li key={`${x}-${i}`}>{x}</li>)}
++              {!(course?.targetAudience || []).length && <li className="list-none text-slate-400">-</li>}
++            </ul>
++          </div>
++          <div className="rounded-[18px] border border-white/80 bg-white/95 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
++            <h3 className="text-base font-extrabold">{t.benefits}</h3>
++            <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">
++              {(course?.benefits || []).map((x, i) => <li key={`${x}-${i}`}>{x}</li>)}
++              {!(course?.benefits || []).length && <li className="list-none text-slate-400">-</li>}
++            </ul>
++          </div>
++        </section>
++      </main>
++    </div>
++  );
++}
+diff --git a/beay/src/pages/admin/StudentLessonPlayerPage.tsx b/beay/src/pages/admin/StudentLessonPlayerPage.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..09f0e4ecdb6081e38f5e29c4ec6ffeac727dd9ba
+--- /dev/null
++++ b/beay/src/pages/admin/StudentLessonPlayerPage.tsx
+@@ -0,0 +1,224 @@
++import { useEffect, useMemo, useState } from "react";
++import { useNavigate, useParams, useSearchParams } from "react-router-dom";
++import { useToast } from "../../ui/toast";
++import { studentApi, type ApiCourseProgress, type ApiLesson, type ApiLessonDetail, type ApiLessonVideo } from "../student/student.api";
++
++type Lang = "vi" | "en" | "de";
++
++const i18n: Record<Lang, Record<string, string>> = {
++  vi: {
++    page: "Trang tiếp tục học",
++    course: "Khoá học",
++    progress: "Tiến độ khoá học",
++    detailCourse: "Chi tiết khoá",
++    backPortal: "Về trang học viên",
++    reload: "Tải lại",
++    loading: "Đang tải...",
++    lessonContent: "Nội dung bài học",
++    empty: "Bài học chưa có module/video.",
++    completeModule: "Hoàn thành module",
++    watched: "Đã xem",
++    lessonList: "Danh sách bài học",
++    lessonDesc: "Mô tả bài học",
++    moduleDesc: "Mô tả module",
++    videoDesc: "Mô tả video",
++  },
++  en: {
++    page: "Continue Learning",
++    course: "Course",
++    progress: "Course progress",
++    detailCourse: "Course detail",
++    backPortal: "Back to portal",
++    reload: "Reload",
++    loading: "Loading...",
++    lessonContent: "Lesson content",
++    empty: "No module/video in this lesson yet.",
++    completeModule: "Complete module",
++    watched: "Watched",
++    lessonList: "Lesson list",
++    lessonDesc: "Lesson description",
++    moduleDesc: "Module description",
++    videoDesc: "Video description",
++  },
++  de: {
++    page: "Weiterlernen",
++    course: "Kurs",
++    progress: "Kursfortschritt",
++    detailCourse: "Kursdetails",
++    backPortal: "Zur Lernseite",
++    reload: "Neu laden",
++    loading: "Wird geladen...",
++    lessonContent: "Lektionsinhalt",
++    empty: "Diese Lektion hat noch keine Module/Videos.",
++    completeModule: "Modul abschließen",
++    watched: "Angesehen",
++    lessonList: "Lektionen",
++    lessonDesc: "Lektionsbeschreibung",
++    moduleDesc: "Modulbeschreibung",
++    videoDesc: "Videobeschreibung",
++  },
++};
++
++function sortLessons(ls: ApiLesson[]) {
++  return [...ls].sort((a, b) => {
++    const ao = a.order ?? 0;
++    const bo = b.order ?? 0;
++    if (ao !== bo) return ao - bo;
++    return a.id - b.id;
++  });
++}
++
++export function StudentLessonPlayerPage() {
++  const nav = useNavigate();
++  const { toast } = useToast();
++  const { id } = useParams();
++  const [sp] = useSearchParams();
++  const lessonId = Number(id || 0);
++  const courseId = Number(sp.get("courseId") || 0);
++  const lang = (sp.get("lang") as Lang) || "vi";
++  const t = i18n[lang];
++
++  const [loading, setLoading] = useState(true);
++  const [err, setErr] = useState<string | null>(null);
++  const [outline, setOutline] = useState<ApiLesson[]>([]);
++  const [progress, setProgress] = useState<ApiCourseProgress | null>(null);
++  const [lesson, setLesson] = useState<ApiLessonDetail | null>(null);
++  const [courseTitle, setCourseTitle] = useState("");
++
++  async function loadAll(targetLessonId = lessonId) {
++    if (!courseId || !targetLessonId) return;
++    setLoading(true);
++    setErr(null);
++    try {
++      const [course, lessonData, outlineData, progressData] = await Promise.all([
++        studentApi.courseDetail(courseId, lang),
++        studentApi.lessonDetail(targetLessonId, lang),
++        studentApi.courseLessonsOutline(courseId, lang),
++        studentApi.courseProgress(courseId),
++      ]);
++      setCourseTitle(course.title || "");
++      setLesson(lessonData);
++      setOutline(sortLessons(outlineData || []));
++      setProgress(progressData || null);
++    } catch (e: any) {
++      setErr(e?.message || "Cannot load learning page.");
++    } finally {
++      setLoading(false);
++    }
++  }
++
++  useEffect(() => {
++    void loadAll();
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [lessonId, courseId, lang]);
++
++  async function markVideoDone(video: ApiLessonVideo) {
++    if (!lesson) return;
++    try {
++      await studentApi.updateVideoProgress(lesson.id, video.id, video.durationSec || 0, true);
++      await loadAll(lesson.id);
++    } catch (e: any) {
++      toast("Error", e?.message || "Cannot update video progress.");
++    }
++  }
++
++  async function completeModule(moduleId: number) {
++    if (!lesson) return;
++    try {
++      await studentApi.completeModule(lesson.id, moduleId);
++      await loadAll(lesson.id);
++    } catch (e: any) {
++      toast("Error", e?.message || "Cannot update module progress.");
++    }
++  }
++
++  const doneLessons = useMemo(() => {
++    const done = new Set<number>();
++    outline.forEach((l) => {
++      if (l.progress?.status === "COMPLETED" || (l.progress?.percent || 0) >= 100) done.add(l.id);
++    });
++    progress?.items?.forEach((x) => {
++      if (x.status === "COMPLETED") done.add(x.lessonId);
++    });
++    return done;
++  }, [outline, progress]);
++
++  return (
++    <div className="min-h-screen text-slate-900" style={{ background: "radial-gradient(1000px 500px at 15% 0%, rgba(79,70,229,0.18), transparent 60%), radial-gradient(800px 400px at 90% 10%, rgba(56,189,248,0.12), transparent 60%), linear-gradient(to bottom, #f8fafc, #eef2ff)" }}>
++      <main className="px-4 py-6 md:px-8 space-y-6">
++        <div className="rounded-[18px] border border-white/80 bg-white/95 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
++          <div className="flex flex-wrap items-center justify-between gap-3">
++            <div>
++              <div className="text-xs font-extrabold text-slate-500">{t.page}</div>
++              <h1 className="text-2xl font-extrabold">{lesson?.localizedTitle || lesson?.title || `Lesson #${lessonId}`}</h1>
++              <div className="text-sm text-slate-600">{t.course}: {courseTitle || "-"}</div>
++              <div className="mt-2 text-sm text-slate-700"><b>{t.lessonDesc}:</b> {lesson?.localizedDescription || lesson?.description || "-"}</div>
++            </div>
++            <div className="flex flex-wrap gap-2">
++              <button className="btn" onClick={() => nav(`/student/courses/${courseId}`)}>← {t.detailCourse}</button>
++              <button className="btn" onClick={() => nav("/student")}>{t.backPortal}</button>
++              <button className="btn" onClick={() => void loadAll()}>{t.reload}</button>
++            </div>
++          </div>
++
++          <div className="mt-4">
++            <div className="flex items-center justify-between text-sm text-slate-600"><span>{t.progress}</span><b>{progress?.percent || 0}%</b></div>
++            <div className="mt-2 h-[10px] overflow-hidden rounded-full border border-slate-200/70 bg-indigo-50"><div className="h-full bg-gradient-to-br from-indigo-600 to-violet-600" style={{ width: `${progress?.percent || 0}%` }} /></div>
++          </div>
++        </div>
++
++        {loading && <div className="rounded-xl bg-white px-4 py-3 text-sm text-slate-600 ring-1 ring-slate-200">{t.loading}</div>}
++        {err && <div className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">{err}</div>}
++
++        <section className="grid gap-4 lg:grid-cols-3">
++          <div className="rounded-[18px] border border-white/80 bg-white/95 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.08)] lg:col-span-2">
++            <h2 className="text-lg font-extrabold">{t.lessonContent}</h2>
++            {!lesson?.modules?.length && <div className="mt-3 text-sm text-slate-500">{t.empty}</div>}
++
++            <div className="mt-4 space-y-4">
++              {lesson?.modules?.map((m) => (
++                <div key={m.id} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
++                  <div className="flex flex-wrap items-start justify-between gap-3">
++                    <div>
++                      <div className="font-extrabold">{m.localizedTitle || m.title}</div>
++                      <div className="text-xs text-slate-500">{m.progress?.percent || 0}%</div>
++                      <div className="mt-1 text-sm text-slate-600"><b>{t.moduleDesc}:</b> {m.localizedDescription || m.description || "-"}</div>
++                    </div>
++                    <button className="btn btn-primary" onClick={() => void completeModule(m.id)}>{t.completeModule}</button>
++                  </div>
++
++                  <div className="mt-3 space-y-3">
++                    {m.videos?.map((v) => (
++                      <div key={v.id} className="rounded-xl bg-white p-3 ring-1 ring-slate-200">
++                        <div className="mb-2 font-semibold">{v.localizedTitle || v.title}</div>
++                        <div className="mb-2 text-xs text-slate-500"><b>{t.videoDesc}:</b> {v.localizedDescription || v.description || "-"}</div>
++                        {v.playbackUrl && (
++                          <video className="w-full rounded-lg border border-slate-200" controls src={v.playbackUrl} onEnded={() => void markVideoDone(v)} />
++                        )}
++                        <div className="mt-2 flex justify-end">
++                          <button className="btn" onClick={() => void markVideoDone(v)}>{t.watched} {v.progress?.completed ? "✓" : ""}</button>
++                        </div>
++                      </div>
++                    ))}
++                  </div>
++                </div>
++              ))}
++            </div>
++          </div>
++
++          <div className="rounded-[18px] border border-white/80 bg-white/95 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
++            <h3 className="text-lg font-extrabold">{t.lessonList}</h3>
++            <div className="mt-3 space-y-2">
++              {outline.map((l) => (
++                <button key={l.id} className={`w-full rounded-xl px-3 py-2 text-left ring-1 ${l.id === lessonId ? "bg-indigo-50 ring-indigo-200" : "bg-slate-50 ring-slate-200"}`} onClick={() => nav(`/student/lessons/${l.id}?courseId=${courseId}&lang=${lang}`)}>
++                  <span className="mr-2">{doneLessons.has(l.id) ? "✅" : "⬜"}</span>
++                  <span>{l.localizedTitle || l.title}</span>
 +                </button>
 +              ))}
 +            </div>
 +          </div>
-+        </div>
-+
-+        <div className="student-actions">
-+          <button type="button" className="student-btn student-btn-ghost" onClick={() => void load()}>{t.reload}</button>
-+        </div>
-+
-+        {loading && <div className="student-alert student-alert-info">{t.loading}</div>}
-+        {err && <div className="student-alert student-alert-danger">{err}</div>}
-+        {info && <div className="student-alert student-alert-success">{info}</div>}
-+
-+        <div className="student-grid">
-+          {items.map((enr) => {
-+            const prog = progressMap[enr.courseId];
-+            const percent = prog?.percent ?? (prog ? Math.round((prog.completedLessons / Math.max(1, prog.totalLessons)) * 100) : 0);
-+
-+            return (
-+              <div key={enr.id} className="student-card">
-+                <div className="student-card-head">
-+                  <div className="student-card-title">{enr.course.title}</div>
-+                  <StatusBadge status={enr.status} />
-+                </div>
-+                <div className="student-meta">
-+                  <span className="student-meta-label">{t.price}:</span>
-+                  <span>{enr.course.price.toLocaleString("vi-VN")}đ</span>
-+                </div>
-+                {enr.status === "ACTIVE" && prog && (
-+                  <>
-+                    <div className="student-progress-meta"><span>{t.progress}</span><span>{percent}%</span></div>
-+                    <div className="student-progress-track"><div className="student-progress-fill" style={{ width: `${percent}%` }} /></div>
-+                    <div className="student-mini">{t.completed}: {prog.completedLessons}/{prog.totalLessons}</div>
-+                  </>
-+                )}
-+                <div className="student-card-actions">
-+                  <button type="button" className="student-btn student-btn-primary" onClick={() => void onContinue(enr.courseId)} disabled={enr.status !== "ACTIVE"}>{t.continue}</button>
-+                  <button type="button" className="student-btn student-btn-ghost" onClick={() => nav(`/courses/${enr.courseId}`)}>{t.detail}</button>
-+                  <button type="button" className="student-btn student-btn-danger" onClick={() => void onCancel(enr.courseId)} disabled={!["ACTIVE", "PENDING"].includes(enr.status)}>{t.cancel}</button>
-+                </div>
-+              </div>
-+            );
-+          })}
-+        </div>
-+        {!loading && items.length === 0 && <div className="student-card student-empty">{t.noCourse}</div>}
-+      </div>
++        </section>
++      </main>
 +    </div>
 +  );
 +}
-diff --git a/beay/src/pages/student/StudentMyOrdersPage.tsx b/beay/src/pages/student/StudentMyOrdersPage.tsx
-new file mode 100644
-index 0000000000000000000000000000000000000000..4dc455d33836e5e2a3f431c2a405dce258231a38
---- /dev/null
-+++ b/beay/src/pages/student/StudentMyOrdersPage.tsx
-@@ -0,0 +1,88 @@
-+import { useEffect, useMemo, useState } from "react";
+diff --git a/beay/src/pages/admin/StudentPortalPage.tsx b/beay/src/pages/admin/StudentPortalPage.tsx
+index 0e2e8ff662d67c4ed0e0d6506d9006b90a49dab8..740c67194ba381b0ee763c06a5dc53d44d0bbd98 100644
+--- a/beay/src/pages/admin/StudentPortalPage.tsx
++++ b/beay/src/pages/admin/StudentPortalPage.tsx
+@@ -1,108 +1,246 @@
+-// src/pages/student/StudentPortalPage.tsx
+ import { useEffect, useMemo, useState } from "react";
 +import { useNavigate } from "react-router-dom";
-+import { ordersApi, type MyOrder, type OrderStatus } from "../../api/orders.api";
-+import "./StudentCoursesTheme.css";
-+
-+function fmtVND(v: number) {
-+  return `${v.toLocaleString("vi-VN")}đ`;
+ import { useToast } from "../../ui/toast";
+ import type { StudentCourse, StudyPlanItem } from "../student/student.types";
+ import { loadPlan, savePlan } from "../student/student.storage";
+ import { DEFAULT_PLAN, MOCK_STUDENT_COURSES } from "../student/student.mock";
++import { studentApi } from "../student/student.api";
+ import { StudentHeader } from "../components/StudentHeader";
+ import { StudentHero } from "../components/StudentHero";
+ import { StudentCourses } from "../components/StudentCourses";
+ import { StudyPlan } from "../components/StudyPlan";
+ import { CertificatesPanel } from "../components/CertificatesPanel";
+ import { SupportPanel } from "../components/SupportPanel";
+
+-
+ const LS_KEY_PLAN = "aya_student_plan";
+
++function sortLessons<T extends { id: number; order?: number }>(lessons: T[]): T[] {
++  return [...lessons].sort((a, b) => {
++    const ao = a.order ?? 0;
++    const bo = b.order ?? 0;
++    if (ao !== bo) return ao - bo;
++    return a.id - b.id;
++  });
 +}
 +
-+export function StudentMyOrdersPage() {
+ export function StudentPortalPage() {
+   const { toast } = useToast();
 +  const nav = useNavigate();
-+  const [items, setItems] = useState<MyOrder[]>([]);
-+  const [loading, setLoading] = useState(true);
-+  const [err, setErr] = useState<string | null>(null);
-+  const [status, setStatus] = useState<OrderStatus | "ALL">("ALL");
+
+-  // ====== Data (prototype) ======
+-  const [courses] = useState<StudentCourse[]>(MOCK_STUDENT_COURSES);
+-
+-  const [plan, setPlan] = useState<StudyPlanItem[]>(() =>
+-    loadPlan(LS_KEY_PLAN, DEFAULT_PLAN)
+-  );
++  const [courses, setCourses] = useState<StudentCourse[]>(MOCK_STUDENT_COURSES);
++  const [loading, setLoading] = useState<boolean>(true);
++  const [plan, setPlan] = useState<StudyPlanItem[]>(() => loadPlan(LS_KEY_PLAN, DEFAULT_PLAN));
+
+-  // Base streak is the "5 ngày" from HTML; we add done count
+   const streak = useMemo(() => {
+     const done = plan.filter((x) => x.done).length;
+     return 5 + done;
+   }, [plan]);
+
++  const activeCourses = useMemo(() => courses.filter((c) => c.active), [courses]);
++  const totalProgress = useMemo(() => {
++    if (activeCourses.length === 0) return 0;
++    const total = activeCourses.reduce((sum, c) => sum + c.progress, 0);
++    return Math.round(total / activeCourses.length);
++  }, [activeCourses]);
 +
-+  async function load() {
++  const bestCourse = useMemo(() => {
++    if (courses.length === 0) return null;
++    return [...courses].sort((a, b) => b.progress - a.progress)[0];
++  }, [courses]);
++
++  const nextCourse = useMemo(() => {
++    if (activeCourses.length === 0) return null;
++    return [...activeCourses].sort((a, b) => b.progress - a.progress)[0];
++  }, [activeCourses]);
++
+   useEffect(() => {
+     savePlan(LS_KEY_PLAN, plan);
+   }, [plan]);
+
++  async function loadCourses() {
 +    setLoading(true);
-+    setErr(null);
 +    try {
-+      const data = await ordersApi.myOrders();
-+      setItems([...data].sort((a, b) => b.id - a.id));
-+    } catch (e) {
-+      setErr(e instanceof Error ? e.message : "Load orders failed");
-+      setItems([]);
++      const rows = await studentApi.myCourses("vi");
++      const mapped = await Promise.all(rows.map(async (row) => {
++        let lessonCount = row.course._count?.lessons ?? row.progress?.totalLessons ?? 0;
++        let progress = row.progress;
++
++        if (!progress && (row.status === "ACTIVE" || row.status === "PENDING")) {
++          try {
++            progress = await studentApi.courseProgress(row.courseId);
++            lessonCount = progress.totalLessons;
++          } catch {
++            // ignore progress error on single course
++          }
++        }
++
++        let nextLessonTitle = "Chưa có bài học";
++        let nextLessonId: number | undefined;
++
++        if (row.status === "ACTIVE") {
++          try {
++            const lessons = await studentApi.courseLessons(row.courseId);
++            const sorted = sortLessons(lessons);
++            const completed = progress?.completedLessons ?? 0;
++            const index = Math.min(completed, Math.max(0, sorted.length - 1));
++            const nextLesson = sorted[index];
++            if (nextLesson) {
++              nextLessonTitle = nextLesson.title;
++              nextLessonId = nextLesson.id;
++            }
++          } catch {
++            // ignore lessons error on single course
++          }
++        }
++
++        return {
++          id: row.id,
++          courseId: row.courseId,
++          status: row.status,
++          title: row.course.title,
++          teacher: "AYANAVITA",
++          price: row.course.price,
++          lessons: lessonCount,
++          progress: progress?.percent ?? 0,
++          completedLessons: progress?.completedLessons ?? 0,
++          nextLessonTitle,
++          nextLessonId,
++          active: row.status === "ACTIVE",
++        } satisfies StudentCourse;
++      }));
++
++      setCourses(mapped);
++    } catch (error: any) {
++      toast("Lỗi tải dữ liệu", error?.message || "Không thể tải khoá học từ API.");
++      setCourses(MOCK_STUDENT_COURSES);
 +    } finally {
 +      setLoading(false);
 +    }
 +  }
 +
 +  useEffect(() => {
-+    void load();
++    loadCourses();
++    // eslint-disable-next-line react-hooks/exhaustive-deps
 +  }, []);
 +
-+  const filtered = useMemo(() => {
-+    if (status === "ALL") return items;
-+    return items.filter((o) => o.status === status);
-+  }, [items, status]);
+   function togglePlan(id: string, done: boolean) {
+     setPlan((prev) => prev.map((x) => (x.id === id ? { ...x, done } : x)));
+   }
+
+-  // ====== Actions (prototype → API notes) ======
+-  const actions = {
+-    bell: () => toast("Thông báo", "Prototype: notifications list."),
+-    continue: () => toast("Tiếp tục học", "Prototype: mở lesson đang học dở."),
+-    enterLesson: () => toast("Vào học", "Prototype: lesson detail + progress."),
+-    bookmark: () => toast("Đã lưu", "Bookmark bài học."),
+-    findCourse: () => toast("Tìm khoá", "Prototype: course catalog + order."),
+-    remind: () => toast("Nhắc học", "Prototype: bật lịch nhắc theo tuần."),
+-    downloadAll: () => toast("Tải chứng chỉ", "Prototype: zip/pdf export."),
+-    pdf: () => toast("PDF", "Prototype: download certificate."),
+-    share: () => toast("Chia sẻ", "Prototype: share to LinkedIn."),
+-    req: () => toast("Yêu cầu chứng chỉ", "Hoàn thành quiz + đủ % bài học."),
+-    faq: () => toast("FAQ", "Prototype: mở trang hướng dẫn."),
+-    ticket: () => toast("Ticket", "Prototype: tạo ticket hỗ trợ."),
+-    chat: () => toast("Chat CSKH", "Prototype: chat widget."),
+-  };
++  async function continueCourse(course: StudentCourse) {
++    if (!course.active) return;
 +
-+  return (
-+    <div className="student-page">
-+      <div className="student-shell">
-+        <div className="student-menu">
-+          <button type="button" className="student-btn" onClick={() => nav("/student")}>Portal</button>
-+          <button type="button" className="student-btn student-btn-primary" onClick={() => nav("/student/courses")}>Courses</button>
-+        </div>
-+        <div className="student-topbar">
-+          <div>
-+            <h2 className="student-title">My Orders</h2>
-+            <div className="student-subtitle">Theo dõi trạng thái đơn hàng học tập.</div>
-+          </div>
-+          <div className="student-control-group">
-+            <select className="student-btn" value={status} onChange={(e) => setStatus(e.target.value as OrderStatus | "ALL")}>
-+              <option value="ALL">ALL</option>
-+              <option value="PENDING">PENDING</option>
-+              <option value="PAID">PAID</option>
-+              <option value="CANCELLED">CANCELLED</option>
-+            </select>
-+            <button type="button" className="student-btn student-btn-ghost" onClick={() => void load()}>Reload</button>
-+          </div>
-+        </div>
++    try {
++      const lessons = await studentApi.courseLessons(course.courseId);
++      const nextLesson = sortLessons(lessons)[0];
++      if (!nextLesson) {
++        toast("Khoá học trống", "Khoá học chưa có bài học nào.");
++        return;
++      }
 +
-+        {loading && <div className="student-alert student-alert-info">Đang tải...</div>}
-+        {err && <div className="student-alert student-alert-danger">{err}</div>}
++      toast("Tiếp tục học", `Mở bài học: ${nextLesson.title}`);
++      nav(`/student/lessons/${nextLesson.id}?courseId=${course.courseId}`);
++    } catch (error: any) {
++      toast("Không thể vào học", error?.message || "Không lấy được danh sách bài học.");
++    }
++  }
+
+-  // ====== API connection notes (backend AYANAVITA) ======
+-  // - "Khóa học đang tham gia": GET /me/courses
+-  // - "Tiến độ": GET /me/progress hoặc GET /me/courses/:courseId/progress
+-  // - "Vào học": lessonsApi.getLesson + progressApi.postProgress/postComplete
+-  // - Rule: Lesson/Progress chỉ khi Enrollment ACTIVE (Admin bypass)
++  function openDetail(course: StudentCourse) {
++    nav(`/student/courses/${course.courseId}`);
++  }
+
+-  useEffect(() => {
+-    toast("Student Portal", "Đã nâng cấp: tick plan (local), actions demo, streak update.");
+-    // eslint-disable-next-line react-hooks/exhaustive-deps
+-  }, []);
++  async function cancelCourse(course: StudentCourse) {
++    if (!course.active) return;
++    try {
++      await studentApi.cancelCourse(course.courseId);
++      toast("Đã huỷ khoá học", `${course.title} đã được huỷ.`);
++      await loadCourses();
++    } catch (error: any) {
++      toast("Huỷ thất bại", error?.message || "Không thể huỷ khoá học.");
++    }
++  }
 +
-+        <div className="student-grid">
-+          {filtered.map((o) => (
-+            <div className="student-card" key={o.id}>
-+              <div className="student-order-row">
-+                <div>
-+                  <div className="student-card-title">{o.code}</div>
-+                  <div className="student-mini">{new Date(o.createdAt).toLocaleString("vi-VN")}</div>
-+                </div>
-+                <span className={`student-badge ${o.status === "PAID" ? "student-badge-active" : o.status === "PENDING" ? "student-badge-pending" : "student-badge-cancelled"}`}>
-+                  {o.status}
-+                </span>
-+              </div>
-+              <div className="student-mini">Tổng: <b>{fmtVND(o.total)}</b></div>
-+              <div className="student-items">
-+                {o.items.map((it) => <div key={it.id}>• {it.courseTitle} — {fmtVND(it.price)}</div>)}
-+              </div>
-+            </div>
-+          ))}
-+        </div>
-+      </div>
-+    </div>
-+  );
++  const actions = {
++    bell: async () => {
++      try {
++        const progress = await studentApi.myProgress();
++        toast("Thông báo", `Bạn có ${progress.length} bản ghi tiến độ học tập.`);
++      } catch {
++        toast("Thông báo", "Tính năng thông báo đang được cập nhật.");
++      }
++    },
++    continue: () => (nextCourse ? continueCourse(nextCourse) : toast("Tiếp tục học", "Chưa có khoá ACTIVE để học tiếp.")),
++    enterLesson: () => (nextCourse ? continueCourse(nextCourse) : toast("Vào học", "Chưa có bài học tiếp theo.")),
++    bookmark: () => toast("Đã lưu", "Đã lưu bài học hiện tại vào danh sách đánh dấu."),
++    findCourse: () => {
++      nav("/student");
++    },
++    remind: () => toast("Nhắc học", "Đã bật nhắc học theo lịch tuần hiện tại."),
++    downloadAll: () => toast("Tải chứng chỉ", "Danh sách chứng chỉ sẽ được tải khi endpoint export khả dụng."),
++    pdf: () => toast("PDF", "Tính năng tải PDF sẽ dùng endpoint chứng chỉ trong backend."),
++    share: () => toast("Chia sẻ", "Đã sao chép liên kết chứng chỉ."),
++    req: () => toast("Yêu cầu chứng chỉ", "Hoàn thành 100% bài học để mở chứng chỉ."),
++    faq: () => {
++      toast("FAQ", "Trang FAQ sẽ mở ở phiên bản tiếp theo.");
++    },
++    ticket: () => {
++      toast("Ticket", "Trang ticket sẽ mở ở phiên bản tiếp theo.");
++    },
++    chat: () => toast("Chat CSKH", "Widget chat sẽ được mở trong phiên bản tiếp theo."),
++  };
+
+   return (
+     <div
+       className="min-h-screen text-slate-900"
+       style={{
+         background:
+           "radial-gradient(900px 450px at 15% 0%, rgba(79,70,229,0.14), transparent 60%), radial-gradient(700px 380px at 90% 10%, rgba(245,158,11,0.10), transparent 60%), linear-gradient(to bottom, #f8fafc, #f8fafc)",
+       }}
+     >
+       <StudentHeader onBell={actions.bell} onContinue={actions.continue} />
+
+       <main className="px-4 md:px-8 py-6 space-y-6">
+         <StudentHero
+-          name="Minh Anh"
++          name="Học viên"
+           streakDays={streak}
++          activeCourses={activeCourses.length}
++          totalProgress={totalProgress}
++          certificates={courses.filter((c) => c.progress >= 100).length}
++          nextCourseTitle={nextCourse?.title ?? "Chưa có khoá học"}
++          nextLessonTitle={nextCourse?.nextLessonTitle ?? "Chưa có bài học"}
++          nextPercent={nextCourse?.progress ?? 0}
+           onEnterLesson={actions.enterLesson}
+           onBookmark={actions.bookmark}
+         />
+
+         <section className="grid gap-4 lg:grid-cols-3">
+-          <StudentCourses courses={courses} onFindCourse={actions.findCourse} />
++          <StudentCourses
++            courses={courses}
++            loading={loading}
++            onFindCourse={actions.findCourse}
++            onContinue={continueCourse}
++            onDetail={openDetail}
++            onCancel={cancelCourse}
++          />
+           <StudyPlan plan={plan} onToggle={togglePlan} streakDays={streak} onRemind={actions.remind} />
+         </section>
+
+         <section className="grid gap-4 lg:grid-cols-3">
+           <CertificatesPanel
++            completedCourses={courses.filter((c) => c.progress >= 100).length}
++            bestCourseName={bestCourse?.title ?? "Chưa có"}
++            inProgressCourseName={nextCourse?.title ?? "Chưa có"}
++            inProgressPercent={nextCourse?.progress ?? 0}
+             onDownloadAll={actions.downloadAll}
+             onPdf={actions.pdf}
+             onShare={actions.share}
+             onReq={actions.req}
+           />
+           <SupportPanel onFaq={actions.faq} onTicket={actions.ticket} onChat={actions.chat} />
+         </section>
+
+-        <footer className="py-6 text-center text-sm text-slate-500">
+-          © 2025 AYANAVITA • Student Portal (React Prototype)
+-        </footer>
++        <footer className="py-6 text-center text-sm text-slate-500">© 2025 AYANAVITA • Student Portal</footer>
+       </main>
+     </div>
+   );
+-}
+\ No newline at end of file
 +}
-diff --git a/beay/src/pages/student/StudentPortalPage.tsx b/beay/src/pages/student/StudentPortalPage.tsx
-new file mode 100644
-index 0000000000000000000000000000000000000000..ba08ae43c6c846c6d98e426d125e06d49d8e64b2
---- /dev/null
-+++ b/beay/src/pages/student/StudentPortalPage.tsx
-@@ -0,0 +1,27 @@
-+import { Link } from "react-router-dom";
-+import "./StudentCoursesTheme.css";
-+
-+export function StudentPortalPage() {
-+  return (
-+    <div className="student-page">
-+      <div className="student-shell">
-+        <h1 className="student-title">Student Portal</h1>
-+        <p className="student-subtitle">Chọn khu vực để học tập và theo dõi đơn hàng.</p>
-+
-+        <div className="student-grid">
-+          <div className="student-card">
-+            <h3 className="student-card-title">Khoá học của tôi</h3>
-+            <p className="student-subtitle">Danh sách khoá đã ghi danh, tiến độ và thao tác tiếp tục học.</p>
-+            <Link className="student-btn student-btn-primary" to="/student/courses">Mở trang My Courses</Link>
-+          </div>
-+
-+          <div className="student-card">
-+            <h3 className="student-card-title">Đơn hàng của tôi</h3>
-+            <p className="student-subtitle">Kiểm tra trạng thái thanh toán và các khoá học trong đơn.</p>
-+            <Link className="student-btn student-btn-primary" to="/student/orders">Mở trang My Orders</Link>
-+          </div>
-+        </div>
-+      </div>
-+    </div>
-+  );
+diff --git a/beay/src/pages/components/CertificatesPanel.tsx b/beay/src/pages/components/CertificatesPanel.tsx
+index a920bf9dd016bb3ae0acfdca90e46b37ba02b384..528b633f5850204a9541b408263857659049e13e 100644
+--- a/beay/src/pages/components/CertificatesPanel.tsx
++++ b/beay/src/pages/components/CertificatesPanel.tsx
+@@ -1,67 +1,51 @@
+-// src/pages/student/components/CertificatesPanel.tsx
+ type Props = {
++  completedCourses: number;
++  bestCourseName: string;
++  inProgressCourseName: string;
++  inProgressPercent: number;
+   onDownloadAll: () => void;
+   onPdf: () => void;
+   onShare: () => void;
+   onReq: () => void;
+ };
+
+ export function CertificatesPanel(props: Props) {
+   return (
+     <div className="rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-6 lg:col-span-2">
+       <div className="flex items-start justify-between gap-4">
+         <div>
+           <div className="text-xs font-extrabold text-slate-500">Chứng chỉ</div>
+-          <div className="text-lg font-extrabold">Đã đạt</div>
+-          <div className="mt-1 text-sm text-slate-600">Prototype: tải PDF / chia sẻ.</div>
++          <div className="text-lg font-extrabold">Đã đạt: {props.completedCourses}</div>
++          <div className="mt-1 text-sm text-slate-600">Kích hoạt khi hoàn thành 100% khoá học.</div>
+         </div>
+-        <button className="btn" onClick={props.onDownloadAll}>
+-          <i className="fa-solid fa-download mr-1" />
+-          Tải tất cả
+-        </button>
++        <button className="btn" onClick={props.onDownloadAll}><i className="fa-solid fa-download mr-1" />Tải tất cả</button>
+       </div>
+
+       <div className="mt-5 grid gap-4 md:grid-cols-2">
+         <div className="rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-4">
+           <div className="flex items-center justify-between">
+             <div>
+-              <div className="text-xs font-extrabold text-slate-500">Hoàn thành</div>
+-              <div className="text-lg font-extrabold mt-1">React UI Systems</div>
+-              <div className="text-sm text-slate-600 mt-1">Ngày: 2025-11-10</div>
+-            </div>
+-            <div className="h-12 w-12 rounded-2xl bg-amber-100 flex items-center justify-center">
+-              <i className="fa-solid fa-award text-amber-700" />
++              <div className="text-xs font-extrabold text-slate-500">Khoá xuất sắc</div>
++              <div className="text-lg font-extrabold mt-1">{props.bestCourseName}</div>
++              <div className="text-sm text-slate-600 mt-1">Đã sẵn sàng xuất chứng chỉ.</div>
+             </div>
++            <div className="h-12 w-12 rounded-2xl bg-amber-100 flex items-center justify-center"><i className="fa-solid fa-award text-amber-700" /></div>
+           </div>
+
+           <div className="mt-3 flex gap-2">
+-            <button className="btn btn-primary flex-1" onClick={props.onPdf}>
+-              Tải PDF
+-            </button>
+-            <button className="btn" onClick={props.onShare}>
+-              Chia sẻ
+-            </button>
++            <button className="btn btn-primary flex-1" onClick={props.onPdf}>Tải PDF</button>
++            <button className="btn" onClick={props.onShare}>Chia sẻ</button>
+           </div>
+         </div>
+
+         <div className="rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-4">
+           <div className="text-xs font-extrabold text-slate-500">Đang tiến hành</div>
+-          <div className="text-lg font-extrabold mt-1">Flutter LMS App</div>
+-
+-          <div className="mt-2 h-[10px] rounded-full bg-indigo-50 overflow-hidden border border-slate-200/70">
+-            <div className="h-full bg-gradient-to-br from-indigo-600 to-violet-600" style={{ width: "78%" }} />
+-          </div>
+-
+-          <div className="mt-3 text-sm text-slate-600">Còn 4 bài để lấy chứng chỉ.</div>
+-          <button className="mt-3 w-full btn" onClick={props.onReq}>
+-            Xem yêu cầu
+-          </button>
++          <div className="text-lg font-extrabold mt-1">{props.inProgressCourseName}</div>
++          <div className="mt-2 h-[10px] rounded-full bg-indigo-50 overflow-hidden border border-slate-200/70"><div className="h-full bg-gradient-to-br from-indigo-600 to-violet-600" style={{ width: `${props.inProgressPercent}%` }} /></div>
++          <div className="mt-3 text-sm text-slate-600">Đạt 100% để mở chứng chỉ.</div>
++          <button className="mt-3 w-full btn" onClick={props.onReq}>Xem yêu cầu</button>
+         </div>
+       </div>
+-
+-      <div className="mt-3 text-xs text-slate-500">
+-        API note: chứng chỉ thường cần endpoint export (VD: GET /me/certificates hoặc GET /courses/:id/certificate.pdf).
+-      </div>
+     </div>
+   );
+-}
+\ No newline at end of file
 +}
-diff --git a/beay/src/pages/student/student.i18n.ts b/beay/src/pages/student/student.i18n.ts
+diff --git a/beay/src/pages/components/StudentCourses.tsx b/beay/src/pages/components/StudentCourses.tsx
+index fb3b59c44588d0b5b1e41df8fdd4ef3bb450d91e..4f615f2134356d887e4db3fdec06bbcf7493e0df 100644
+--- a/beay/src/pages/components/StudentCourses.tsx
++++ b/beay/src/pages/components/StudentCourses.tsx
+@@ -1,81 +1,86 @@
+-// src/pages/student/components/StudentCourses.tsx
+-
+ import type { StudentCourse } from "../student/student.types";
+
+-
+ type Props = {
+   courses: StudentCourse[];
++  loading?: boolean;
+   onFindCourse: () => void;
++  onContinue: (course: StudentCourse) => void;
++  onDetail: (course: StudentCourse) => void;
++  onCancel: (course: StudentCourse) => void;
+ };
+
+ export function StudentCourses(props: Props) {
+   return (
+     <div className="rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-6 lg:col-span-2">
+       <div className="flex items-start justify-between gap-4">
+         <div>
+           <div className="text-xs font-extrabold text-slate-500">Khoá học</div>
+           <div className="text-lg font-extrabold">Đang tham gia</div>
+-          <div className="mt-1 text-sm text-slate-600">
+-            Enrollment ACTIVE mới xem nội dung (đúng rule backend).
+-          </div>
++          <div className="mt-1 text-sm text-slate-600">Dữ liệu thật từ API enrollments/progress.</div>
+         </div>
+         <button className="btn" onClick={props.onFindCourse}>
+           <i className="fa-solid fa-magnifying-glass mr-1" />
+           Tìm khoá
+         </button>
+       </div>
+
++      {props.loading && <div className="mt-4 text-sm text-slate-500">Đang tải khoá học...</div>}
++
++      {!props.loading && props.courses.length === 0 && (
++        <div className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600 ring-1 ring-slate-200">Bạn chưa ghi danh khoá học nào.</div>
++      )}
++
+       <div className="mt-5 grid gap-4 md:grid-cols-2">
+         {props.courses.map((c) => (
+-          <div key={c.title} className="rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-5">
++          <div key={c.id} className="rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-5">
+             <div className="flex items-start justify-between gap-4">
+               <div>
+                 <div className="text-lg font-extrabold">{c.title}</div>
+                 <div className="mt-1 text-sm text-slate-600">
+-                  {c.teacher} • {c.lessons}
++                  {c.teacher} • {c.lessons} bài
+                 </div>
+               </div>
+               <span className="chip">
+                 {c.active ? (
+                   <>
+                     <i className="fa-solid fa-circle text-emerald-500 mr-1" />
+-                    ACTIVE
++                    {c.status}
+                   </>
+                 ) : (
+                   <>
+                     <i className="fa-solid fa-lock text-amber-600 mr-1" />
+-                    LOCK
++                    {c.status}
+                   </>
+                 )}
+               </span>
+             </div>
+
+             <div className="mt-3">
+               <div className="flex items-center justify-between text-sm">
+                 <span className="text-slate-600">Tiến độ</span>
+                 <b>{c.progress}%</b>
+               </div>
+               <div className="mt-2 h-[10px] rounded-full bg-indigo-50 overflow-hidden border border-slate-200/70">
+                 <div className="h-full bg-gradient-to-br from-indigo-600 to-violet-600" style={{ width: `${c.progress}%` }} />
+               </div>
+               <div className="mt-2 text-sm text-slate-600">
+-                Tiếp theo: <b>{c.next}</b>
++                Hoàn thành: <b>{c.completedLessons}/{c.lessons}</b>
++              </div>
++              <div className="mt-1 text-sm text-slate-600">
++                Tiếp theo: <b>{c.nextLessonTitle}</b>
+               </div>
+             </div>
+
+             <div className="mt-4 flex gap-2">
+-              <button
+-                className="btn btn-primary flex-1"
+-                disabled={!c.active}
+-                style={!c.active ? { opacity: 0.55, cursor: "not-allowed" } : undefined}
+-              >
+-                {c.active ? "Vào học" : "Chờ kích hoạt"}
++              <button className="btn btn-primary flex-1" disabled={!c.active} style={!c.active ? { opacity: 0.55, cursor: "not-allowed" } : undefined} onClick={() => props.onContinue(c)}>
++                {c.active ? "Tiếp tục" : "Chờ kích hoạt"}
+               </button>
+-              <button className="btn">Chi tiết</button>
++              <button className="btn" onClick={() => props.onDetail(c)}>Chi tiết</button>
++              <button className="btn" disabled={!c.active} onClick={() => props.onCancel(c)}>Huỷ</button>
+             </div>
+           </div>
+         ))}
+       </div>
+     </div>
+   );
+-}
+\ No newline at end of file
++}
+diff --git a/beay/src/pages/components/StudentHero.tsx b/beay/src/pages/components/StudentHero.tsx
+index 8a87a14e9135e39d68c31374412eab1463faa84a..114898ec0c8f1d3c355af97d27fc64c632fee6b3 100644
+--- a/beay/src/pages/components/StudentHero.tsx
++++ b/beay/src/pages/components/StudentHero.tsx
+@@ -1,67 +1,61 @@
+-// src/pages/student/components/StudentHero.tsx
+ type Props = {
+   name: string;
+   streakDays: number;
++  activeCourses: number;
++  totalProgress: number;
++  certificates: number;
++  nextCourseTitle: string;
++  nextLessonTitle: string;
++  nextPercent: number;
+   onEnterLesson: () => void;
+   onBookmark: () => void;
+ };
+
+ export function StudentHero(props: Props) {
+   return (
+     <section className="rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-6">
+       <div className="flex items-start justify-between gap-6 flex-col lg:flex-row">
+         <div className="flex-1">
+           <div className="text-xs font-extrabold text-slate-500">Chào bạn</div>
+           <div className="text-2xl md:text-3xl font-extrabold">{props.name}</div>
+-          <div className="mt-2 text-slate-600">
+-            Mục tiêu tuần này: <b>hoàn thành 3 bài học</b> • Chuỗi học:{" "}
+-            <b>{props.streakDays} ngày</b>.
+-          </div>
++          <div className="mt-2 text-slate-600">Mục tiêu tuần này: <b>hoàn thành 3 bài học</b> • Chuỗi học: <b>{props.streakDays} ngày</b>.</div>
+
+           <div className="mt-5 grid gap-3 md:grid-cols-3">
+             <div className="p-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
+               <div className="text-xs font-extrabold text-slate-500">Khoá đang học</div>
+-              <div className="mt-1 text-2xl font-extrabold">2</div>
++              <div className="mt-1 text-2xl font-extrabold">{props.activeCourses}</div>
+             </div>
+             <div className="p-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
+               <div className="text-xs font-extrabold text-slate-500">Tiến độ tổng</div>
+-              <div className="mt-1 text-2xl font-extrabold">46%</div>
++              <div className="mt-1 text-2xl font-extrabold">{props.totalProgress}%</div>
+             </div>
+             <div className="p-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
+               <div className="text-xs font-extrabold text-slate-500">Chứng chỉ</div>
+-              <div className="mt-1 text-2xl font-extrabold">1</div>
++              <div className="mt-1 text-2xl font-extrabold">{props.certificates}</div>
+             </div>
+           </div>
+         </div>
+
+         <div className="w-full lg:w-[420px] rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-4">
+           <div className="flex items-center justify-between">
+             <div>
+               <div className="text-xs font-extrabold text-slate-500">Bài học tiếp theo</div>
+-              <div className="text-lg font-extrabold mt-1">Flutter LMS App</div>
+-              <div className="text-sm text-slate-600 mt-1">Bài 08 • State Management (GetX)</div>
++              <div className="text-lg font-extrabold mt-1">{props.nextCourseTitle}</div>
++              <div className="text-sm text-slate-600 mt-1">{props.nextLessonTitle}</div>
+             </div>
+-            <span className="chip">
+-              <i className="fa-solid fa-stopwatch text-amber-600 mr-1" /> 14 phút
+-            </span>
++            <span className="chip"><i className="fa-solid fa-stopwatch text-amber-600 mr-1" /> In progress</span>
+           </div>
+
+           <div className="mt-3 h-[10px] rounded-full bg-indigo-50 overflow-hidden border border-slate-200/70">
+-            <div className="h-full bg-gradient-to-br from-indigo-600 to-violet-600" style={{ width: "78%" }} />
++            <div className="h-full bg-gradient-to-br from-indigo-600 to-violet-600" style={{ width: `${props.nextPercent}%` }} />
+           </div>
+
+           <div className="mt-3 flex gap-2">
+-            <button className="btn btn-primary flex-1" onClick={props.onEnterLesson}>
+-              <i className="fa-solid fa-play mr-1" />
+-              Vào học
+-            </button>
+-            <button className="btn" onClick={props.onBookmark}>
+-              <i className="fa-regular fa-bookmark mr-1" />
+-              Lưu
+-            </button>
++            <button className="btn btn-primary flex-1" onClick={props.onEnterLesson}><i className="fa-solid fa-play mr-1" />Vào học</button>
++            <button className="btn" onClick={props.onBookmark}><i className="fa-regular fa-bookmark mr-1" />Lưu</button>
+           </div>
+         </div>
+       </div>
+     </section>
+   );
+-}
+\ No newline at end of file
++}
+diff --git a/beay/src/pages/student/student.api.ts b/beay/src/pages/student/student.api.ts
 new file mode 100644
-index 0000000000000000000000000000000000000000..183d499056f8a2caa713fef8611e0478e36c384a
+index 0000000000000000000000000000000000000000..0003a050d7faf339604dad0b6351746529959512
 --- /dev/null
-+++ b/beay/src/pages/student/student.i18n.ts
-@@ -0,0 +1,23 @@
-+import { useEffect, useState } from "react";
++++ b/beay/src/pages/student/student.api.ts
+@@ -0,0 +1,133 @@
++import type { EnrollmentStatus } from "./student.types";
 +
-+export type StudentLang = "vi" | "en";
++const API_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:8090").replace(/\/+$/, "");
++const ACCESS_TOKEN_KEY = "aya_admin_token";
 +
-+export const studentLanguageMeta: Record<StudentLang, { label: string; flagUrl: string }> = {
-+  vi: { label: "Tiếng Việt", flagUrl: "https://flagcdn.com/w40/vn.png" },
-+  en: { label: "English", flagUrl: "https://flagcdn.com/w40/gb.png" },
++function joinUrl(path: string) {
++  const cleanPath = path.startsWith("/") ? path : `/${path}`;
++  return `${API_BASE}${cleanPath}`;
++}
++
++async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
++  const headers = new Headers(init.headers);
++  const token = localStorage.getItem(ACCESS_TOKEN_KEY);
++
++  if (!headers.has("Content-Type") && init.body) headers.set("Content-Type", "application/json");
++  if (token) headers.set("Authorization", `Bearer ${token}`);
++
++  const response = await fetch(joinUrl(path), {
++    ...init,
++    headers,
++    credentials: "include",
++  });
++
++  const text = await response.text();
++  if (!response.ok) throw new Error(text || `HTTP ${response.status}`);
++  return text ? (JSON.parse(text) as T) : ({} as T);
++}
++
++export type ApiLesson = {
++  id: number;
++  title: string;
++  localizedTitle?: string;
++  description?: string | null;
++  localizedDescription?: string | null;
++  order?: number;
++  progress?: { status?: string; percent?: number } | null;
 +};
 +
-+export function useStudentViewPrefs() {
-+  const [lang, setLangState] = useState<StudentLang>(() => (localStorage.getItem("student_lang") as StudentLang) || "vi");
-+  const [theme, setThemeState] = useState<"light" | "dark">(() => (localStorage.getItem("student_theme") as "light" | "dark") || "light");
++export type ApiCourseProgress = {
++  courseId: number;
++  totalLessons: number;
++  completedLessons: number;
++  percent: number;
++  items?: Array<{ lessonId: number; status: string; seconds?: number }>;
++};
 +
-+  useEffect(() => {
-+    localStorage.setItem("student_lang", lang);
-+  }, [lang]);
++export type ApiCourseDetail = {
++  id: number;
++  topicId?: number | null;
++  topic?: { id: number; name: string } | null;
++  title: string;
++  shortDescription?: string | null;
++  description?: string | null;
++  time?: string | null;
++  slug?: string | null;
++  thumbnail?: string | null;
++  price: number;
++  published?: boolean;
++  objectives?: string[];
++  targetAudience?: string[];
++  benefits?: string[];
++  ratingAvg?: number;
++  ratingCount?: number;
++  enrollmentCount?: number;
++  videoCount?: number;
++  _count?: { lessons?: number };
++  createdAt?: string;
++  updatedAt?: string;
++};
 +
-+  useEffect(() => {
-+    localStorage.setItem("student_theme", theme);
-+  }, [theme]);
++export type ApiMyCourse = {
++  id: number;
++  courseId: number;
++  status: EnrollmentStatus;
++  course: {
++    id: number;
++    title: string;
++    price: number;
++    _count?: {
++      lessons?: number;
++    };
++  };
++  progress?: ApiCourseProgress;
++};
 +
-+  return { lang, setLang: setLangState, theme, setTheme: setThemeState };
-+}
++export type ApiLessonVideo = {
++  id: number;
++  title: string;
++  localizedTitle?: string;
++  description?: string | null;
++  localizedDescription?: string | null;
++  playbackUrl?: string;
++  durationSec?: number;
++  progress?: { watchedSec: number; durationSec: number; completed: boolean };
++};
++
++export type ApiLessonModule = {
++  id: number;
++  title: string;
++  localizedTitle?: string;
++  description?: string | null;
++  localizedDescription?: string | null;
++  videos: ApiLessonVideo[];
++  progress?: { watchedSec: number; durationSec: number; percent: number; completed: boolean };
++};
++
++export type ApiLessonDetail = {
++  id: number;
++  courseId: number;
++  title: string;
++  localizedTitle?: string;
++  description?: string | null;
++  localizedDescription?: string | null;
++  modules?: ApiLessonModule[];
++};
++
++export const studentApi = {
++  myCourses: (lang = "vi") => request<ApiMyCourse[]>(`/me/courses?lang=${encodeURIComponent(lang)}`),
++  courseDetail: (courseId: number, lang = "vi") => request<ApiCourseDetail>(`/courses/${courseId}?lang=${encodeURIComponent(lang)}`),
++  courseLessons: (courseId: number) => request<ApiLesson[]>(`/courses/${courseId}/lessons`),
++  courseLessonsOutline: (courseId: number, lang = "vi") => request<ApiLesson[]>(`/courses/${courseId}/lessons-outline?lang=${encodeURIComponent(lang)}`),
++  courseProgress: (courseId: number) => request<ApiCourseProgress>(`/me/courses/${courseId}/progress`),
++  lessonDetail: (lessonId: number, lang = "vi") => request<ApiLessonDetail>(`/lessons/${lessonId}?lang=${encodeURIComponent(lang)}`),
++  updateVideoProgress: (lessonId: number, videoId: number, watchedSec: number, completed = false) =>
++    request(`/lessons/${lessonId}/videos/${videoId}/progress`, {
++      method: "POST",
++      body: JSON.stringify({ watchedSec, completed }),
++    }),
++  completeModule: (lessonId: number, moduleId: number) =>
++    request(`/lessons/${lessonId}/modules/${moduleId}/complete`, { method: "POST" }),
++  cancelCourse: (courseId: number) => request<{ id: number; status: EnrollmentStatus }>(`/courses/${courseId}/cancel`, { method: "POST" }),
++  myProgress: () => request<Array<{ lessonId: number; lesson?: { courseId?: number; title?: string } }>>(`/me/progress`),
++};
+diff --git a/beay/src/pages/student/student.mock.ts b/beay/src/pages/student/student.mock.ts
+index cfcfb7eb422d85be04f7b99e6786b6a045fd3432..a1603daa6b0a5f84004b18ed64e95ed4bee9a83d 100644
+--- a/beay/src/pages/student/student.mock.ts
++++ b/beay/src/pages/student/student.mock.ts
+@@ -1,14 +1,49 @@
+-// src/pages/student/student.mock.ts
+ import type { StudentCourse, StudyPlanItem } from "./student.types";
+
+ export const MOCK_STUDENT_COURSES: StudentCourse[] = [
+-  { title: "Flutter LMS App", teacher: "Giảng viên A", progress: 78, lessons: "24 bài", next: "Bài 08 • GetX", active: true },
+-  { title: "NestJS + Prisma (LMS API)", teacher: "Giảng viên B", progress: 52, lessons: "18 bài", next: "Bài 05 • Guards", active: true },
+-  { title: "Marketing bán khoá", teacher: "Giảng viên C", progress: 0, lessons: "12 bài", next: "Bài 01 • Funnel", active: false },
++  {
++    id: 1,
++    courseId: 1,
++    status: "ACTIVE",
++    title: "Flutter LMS App",
++    teacher: "Giảng viên A",
++    price: 1990000,
++    lessons: 24,
++    progress: 78,
++    completedLessons: 19,
++    nextLessonTitle: "Bài 08 • GetX",
++    active: true,
++  },
++  {
++    id: 2,
++    courseId: 2,
++    status: "ACTIVE",
++    title: "NestJS + Prisma (LMS API)",
++    teacher: "Giảng viên B",
++    price: 1590000,
++    lessons: 18,
++    progress: 52,
++    completedLessons: 9,
++    nextLessonTitle: "Bài 05 • Guards",
++    active: true,
++  },
++  {
++    id: 3,
++    courseId: 3,
++    status: "PENDING",
++    title: "Marketing bán khoá",
++    teacher: "Giảng viên C",
++    price: 990000,
++    lessons: 12,
++    progress: 0,
++    completedLessons: 0,
++    nextLessonTitle: "Bài 01 • Funnel",
++    active: false,
++  },
+ ];
+
+ export const DEFAULT_PLAN: StudyPlanItem[] = [
+   { id: "mon", day: "Thứ 2", task: "Flutter • Bài 08", time: "14 phút", done: false },
+   { id: "wed", day: "Thứ 4", task: "NestJS • Bài 05", time: "18 phút", done: false },
+   { id: "fri", day: "Thứ 6", task: "Flutter • Quiz", time: "10 phút", done: false },
+-];
+\ No newline at end of file
++];
+diff --git a/beay/src/pages/student/student.types.ts b/beay/src/pages/student/student.types.ts
+index cac9c85307ceb22bee4a430308dc498c900f6977..6a7353ac3e5292fb880ee74ccfcdcacb10bab53b 100644
+--- a/beay/src/pages/student/student.types.ts
++++ b/beay/src/pages/student/student.types.ts
+@@ -1,17 +1,24 @@
+-// src/pages/student/student.types.ts
++export type EnrollmentStatus = "ACTIVE" | "PENDING" | "CANCELED" | "CANCELLED";
++
+ export type StudentCourse = {
++  id: number;
++  courseId: number;
++  status: EnrollmentStatus;
+   title: string;
+   teacher: string;
++  price: number;
++  lessons: number;
+   progress: number; // 0-100
+-  lessons: string; // "24 bài"
+-  next: string; // "Bài 08 • GetX"
+-  active: boolean; // Enrollment ACTIVE?
++  completedLessons: number;
++  nextLessonTitle: string;
++  nextLessonId?: number;
++  active: boolean;
+ };
+
+ export type StudyPlanItem = {
+   id: string;
+   day: string;
+   task: string;
+   time: string;
+   done: boolean;
+-};
+\ No newline at end of file
++};

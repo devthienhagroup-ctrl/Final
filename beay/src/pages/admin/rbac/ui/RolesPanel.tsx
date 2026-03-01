@@ -198,7 +198,7 @@ export function RolesPanel(props: {
             }}
         >
           <div className="text-xs font-extrabold text-slate-500">
-            Preset nhanh (đúng bảng đã chốt)
+            Preset nhanh ( Mặc định )
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-2">

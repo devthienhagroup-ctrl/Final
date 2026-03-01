@@ -1,59 +1,52 @@
-// src/pages/instructor/components/QuickActions.tsx
 type Props = {
-  onPublish: () => void;
-  onPreview: () => void;
-  onCoupon: () => void;
-  onSyllabus: () => void;
-};
+  onDetails: () => void
+  onEdit: () => void
+  onDelete: () => void
+  onProgress: () => void
+}
 
 export function QuickActions(props: Props) {
   return (
-    <div className="rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-6">
-      <div className="text-xs font-extrabold text-slate-500">Tác vụ nhanh</div>
-      <div className="text-lg font-extrabold">Xuất bản & QA</div>
-      <div className="mt-2 text-sm text-slate-600">Bổ sung: checklist + preview + tạo coupon.</div>
+    <div className='rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-6'>
+      <div className='text-xs font-extrabold text-slate-500'>Chi tiết / chỉnh sửa</div>
+      <div className='text-lg font-extrabold'>Theo dõi khóa học của tôi</div>
+      <div className='mt-2 text-sm text-slate-600'>
+        Mở chi tiết, chỉnh sửa nội dung và xóa khóa học do bạn tạo.
+      </div>
 
-      <div className="mt-4 space-y-3">
-        <label className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
-          <input type="checkbox" defaultChecked className="h-4 w-4" />
-          <span className="text-sm font-extrabold">Mô tả + mục tiêu khoá</span>
+      <div className='mt-4 space-y-3'>
+        <label className='flex items-center gap-3 p-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200'>
+          <input type='checkbox' defaultChecked className='h-4 w-4' />
+          <span className='text-sm font-extrabold'>Có thể tạo khóa học mới</span>
         </label>
-        <label className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
-          <input type="checkbox" defaultChecked className="h-4 w-4" />
-          <span className="text-sm font-extrabold">Giá + ưu đãi</span>
+        <label className='flex items-center gap-3 p-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200'>
+          <input type='checkbox' defaultChecked className='h-4 w-4' />
+          <span className='text-sm font-extrabold'>Có thể chỉnh sửa khóa học của tôi</span>
         </label>
-        <label className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
-          <input type="checkbox" className="h-4 w-4" />
-          <span className="text-sm font-extrabold">Preview bài học</span>
-        </label>
-        <label className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
-          <input type="checkbox" className="h-4 w-4" />
-          <span className="text-sm font-extrabold">Bật chứng chỉ</span>
+        <label className='flex items-center gap-3 p-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200'>
+          <input type='checkbox' defaultChecked className='h-4 w-4' />
+          <span className='text-sm font-extrabold'>Có thể xóa khóa học của tôi</span>
         </label>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <button className="btn btn-primary" onClick={props.onPublish}>
-          <i className="fa-solid fa-cloud-arrow-up mr-1" />
-          Publish
+      <div className='mt-4 grid grid-cols-2 gap-2'>
+        <button className='btn btn-primary' onClick={props.onDetails}>
+          <i className='fa-solid fa-circle-info mr-1' />
+          Chi tiết
         </button>
-        <button className="btn btn-accent" onClick={props.onPreview}>
-          <i className="fa-solid fa-eye mr-1" />
-          Preview
+        <button className='btn btn-accent' onClick={props.onEdit}>
+          <i className='fa-solid fa-pen-to-square mr-1' />
+          Chỉnh sửa
         </button>
-        <button className="btn" onClick={props.onCoupon}>
-          <i className="fa-solid fa-ticket mr-1" />
-          Coupon
+        <button className='btn' onClick={props.onDelete}>
+          <i className='fa-solid fa-trash mr-1' />
+          Xóa khóa học
         </button>
-        <button className="btn" onClick={props.onSyllabus}>
-          <i className="fa-solid fa-list-check mr-1" />
-          Syllabus
+        <button className='btn' onClick={props.onProgress}>
+          <i className='fa-solid fa-chart-line mr-1' />
+          Theo dõi
         </button>
-      </div>
-
-      <div className="mt-4 p-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200 text-sm text-slate-600">
-        Khi tách React: quyền <b>lessons.write</b> / <b>lessons.publish</b> kiểm soát nút Publish.
       </div>
     </div>
-  );
+  )
 }

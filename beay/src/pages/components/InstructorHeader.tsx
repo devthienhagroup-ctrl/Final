@@ -4,6 +4,7 @@ type Props = {
   onOpenRbac: () => void;
   onNotif: () => void;
   onNewCourse: () => void;
+  onLogout: () => void;
 };
 
 export function InstructorHeader(props: Props) {
@@ -36,6 +37,9 @@ export function InstructorHeader(props: Props) {
           </button>
           <button className="btn btn-primary inline-flex items-center gap-2" onClick={props.onNewCourse}>
             <i className="fa-solid fa-plus" /> Tạo khóa học
+          </button>
+          <button className="btn inline-flex items-center gap-2" onClick={props.onLogout}>
+            <i className="fa-solid fa-right-from-bracket" /> Đăng xuất
           </button>
         </div>
       </div>

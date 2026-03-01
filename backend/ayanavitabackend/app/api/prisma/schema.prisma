@@ -295,7 +295,6 @@ model Course {
   // ✅ ADD
   orderItems OrderItem[] // <— opposite for OrderItem.course
   courseReviews CourseReview[]
-  createdCourses Course[] @relation("CourseCreator")
 
   @@index([topicId])
   @@index([creatorId])

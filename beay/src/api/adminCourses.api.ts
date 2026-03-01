@@ -152,7 +152,7 @@ export type CourseManagementApi = {
   uploadModuleMedia: (lessonId: number, moduleId: string | number, file: File, type: 'video' | 'image', order?: number) => Promise<{ moduleId?: string; lessonId?: number; hlsPlaylistKey?: string; segmentCount?: number; imageKey?: string; sourceUrl?: string; storage: string; videoId?: number }>
 }
 
-export const adminCoursesApi: CourseManagementApi = {
+export const adminCoursesApi = {
   listTopics: () => get<CourseTopic[]>('/admin/course-topics', { auth: true }),
   createTopic: (body: TopicPayload) => post<CourseTopic>('/admin/course-topics', body, { auth: true }),
   updateTopic: (id: number, body: TopicPayload) => patch<CourseTopic>(`/admin/course-topics/${id}`, body, { auth: true }),

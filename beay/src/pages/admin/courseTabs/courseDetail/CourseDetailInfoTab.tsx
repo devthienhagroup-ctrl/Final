@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { adminCoursesApi, type CourseDetailAdmin, type CourseTopic } from '../../../../api/adminCourses.api'
+import { adminCoursesApi, type CourseDetailAdmin, type CourseManagementApi, type CourseTopic } from '../../../../api/adminCourses.api'
 import { AlertJs } from '../../../../utils/alertJs'
 import { autoTranslateFromVietnamese } from '../../tabs/i18nForm'
 
@@ -10,6 +10,7 @@ type Props = {
   topics: CourseTopic[]
   onUpdated: () => Promise<void> | void
   onDeleted: () => Promise<void> | void
+  coursesApi?: CourseManagementApi
 }
 
 type AdminLang = 'vi' | 'en' | 'de'
@@ -266,7 +267,7 @@ const cloneEditForm = (form: EditForm): EditForm => ({
   thumbnailFile: null,
 })
 
-export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated, onDeleted }: Props) {
+export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated, onDeleted, coursesApi = adminCoursesApi }: Props) {
   const [editing, setEditing] = useState(false)
   const [inputLang, setInputLang] = useState<AdminLang>('vi')
   const [submitting, setSubmitting] = useState(false)
@@ -305,7 +306,7 @@ export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated, onD
 
     try {
       setLoadingEditData(true)
-      const detail = await adminCoursesApi.getCourseDetail(course.id)
+      const detail = await coursesApi.getCourseDetail(course.id)
       const prepared = createEditForm(detail)
       setInitialEditForm(prepared)
       setInitialEditCourseId(course.id)
@@ -451,7 +452,7 @@ export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated, onD
       }))
       if (form.thumbnailFile) payload.append('thumbnail', form.thumbnailFile)
 
-      await adminCoursesApi.updateCourse(course.id, payload)
+      await coursesApi.updateCourse(course.id, payload)
       await onUpdated()
       await AlertJs.success(t.updateSuccessTitle, t.updateSuccessBody)
       setInitialEditForm(null)
@@ -546,7 +547,7 @@ export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated, onD
           onClick={async () => {
             const confirmed = await AlertJs.confirm(t.confirmDeleteCourse)
             if (!confirmed) return
-            await adminCoursesApi.deleteCourse(course.id)
+            await coursesApi.deleteCourse(course.id)
             await AlertJs.success(t.deleteSuccess)
             await onDeleted()
           }}

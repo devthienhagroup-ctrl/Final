@@ -35,6 +35,7 @@ model User {
   carts          Cart[]
 
   courseReviews CourseReview[]
+  createdCourses Course[] @relation("CourseCreator")
   // ✅ CMS (optional relations)
   cmsSectionVersions CmsSectionVersion[]
   mediaAssets        MediaAsset[]
@@ -279,6 +280,7 @@ model Course {
   ratingAvg           Float    @default(0)
   ratingCount         Int      @default(0)
   enrollmentCount     Int      @default(0)
+  creatorId           Int?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -288,12 +290,15 @@ model Course {
   topic       CourseTopic? @relation(fields: [topicId], references: [id], onDelete: Restrict)
   translations CourseTranslation[]
   contentTranslations CourseContentTranslation[]
+  creator             User? @relation("CourseCreator", fields: [creatorId], references: [id], onDelete: SetNull)
 
   // ✅ ADD
   orderItems OrderItem[] // <— opposite for OrderItem.course
   courseReviews CourseReview[]
+  createdCourses Course[] @relation("CourseCreator")
 
   @@index([topicId])
+  @@index([creatorId])
 }
 
 model CourseTranslation {

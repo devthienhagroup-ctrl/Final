@@ -21,6 +21,7 @@ import { ProductOrdersModule } from './product-orders/product-orders.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { BlogModule } from './blog/blog.module';
 import { RbacModule } from './rbac/rbac.module';
+import { InstructorModule } from './instructor/instructor.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { RbacModule } from './rbac/rbac.module';
     ReviewsModule,
     BlogModule,
     RbacModule,
+    InstructorModule,
   ],
 })
 export class AppModule {}

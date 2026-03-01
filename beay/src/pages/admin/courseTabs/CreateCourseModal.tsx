@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { autoTranslateFromVietnamese } from '../tabs/i18nForm'
-import { adminCoursesApi } from '../../../api/adminCourses.api'
+import { adminCoursesApi, type CourseManagementApi } from '../../../api/adminCourses.api'
 import { AlertJs } from '../../../utils/alertJs'
 import './CreateCourseModal.css'
 
@@ -14,6 +14,7 @@ type Props = {
   topics: TopicItem[]
   onClose: () => void
   onCreated: () => Promise<void> | void
+  coursesApi?: CourseManagementApi
 }
 
 type I18nText = Record<AdminLang, string>
@@ -147,7 +148,7 @@ const textMap: Record<AdminLang, Record<string, string>> = {
   },
 }
 
-export function CreateCourseModal({ open, lang, topics, onClose, onCreated }: Props) {
+export function CreateCourseModal({ open, lang, topics, onClose, onCreated, coursesApi = adminCoursesApi }: Props) {
   const [form, setForm] = useState<CourseForm>(() => initialForm())
   const [errors, setErrors] = useState<FormErrors>({})
   const [inputLang, setInputLang] = useState<AdminLang>('vi')
@@ -263,7 +264,7 @@ export function CreateCourseModal({ open, lang, topics, onClose, onCreated }: Pr
       }))
       if (form.thumbnailFile) payload.append('thumbnail', form.thumbnailFile)
 
-      await adminCoursesApi.createCourse(payload)
+      await coursesApi.createCourse(payload)
       await onCreated()
       await AlertJs.success(t.successTitle, t.successBody)
 

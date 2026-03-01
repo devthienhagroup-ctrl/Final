@@ -93,6 +93,8 @@ export type CourseAdmin = {
   updatedAt?: string
   videoCount?: number
   _count?: { lessons?: number }
+  creatorId?: number | null
+  creator?: { id: number; name?: string | null; email?: string | null } | null
 }
 
 export type TopicPayload = {
@@ -134,7 +136,23 @@ export type CourseListResponse = {
 
 export type CourseDetailAdmin = CourseAdmin
 
-export const adminCoursesApi = {
+
+export type CourseManagementApi = {
+  listTopics: () => Promise<CourseTopic[]>
+  listCourses: (params?: { topicId?: number; search?: string; page?: number; pageSize?: number; lang?: string }) => Promise<CourseListResponse>
+  createCourse: (body: CoursePayload | FormData) => Promise<CourseAdmin>
+  updateCourse: (id: number, body: Partial<CoursePayload> | FormData) => Promise<CourseAdmin>
+  deleteCourse: (id: number) => Promise<{ id: number }>
+  getCourseDetail: (id: number, lang?: string) => Promise<CourseDetailAdmin>
+  listCourseLessons: (courseId: number, lang?: string) => Promise<LessonOutlineAdmin[]>
+  getLessonDetail: (lessonId: number, lang?: string) => Promise<LessonDetailAdmin>
+  createLesson: (courseId: number, body: LessonPayload) => Promise<LessonAdmin>
+  updateLesson: (lessonId: number, body: Partial<LessonPayload>) => Promise<LessonAdmin>
+  deleteLesson: (lessonId: number) => Promise<{ id: number }>
+  uploadModuleMedia: (lessonId: number, moduleId: string | number, file: File, type: 'video' | 'image', order?: number) => Promise<{ moduleId?: string; lessonId?: number; hlsPlaylistKey?: string; segmentCount?: number; imageKey?: string; sourceUrl?: string; storage: string; videoId?: number }>
+}
+
+export const adminCoursesApi: CourseManagementApi = {
   listTopics: () => get<CourseTopic[]>('/admin/course-topics', { auth: true }),
   createTopic: (body: TopicPayload) => post<CourseTopic>('/admin/course-topics', body, { auth: true }),
   updateTopic: (id: number, body: TopicPayload) => patch<CourseTopic>(`/admin/course-topics/${id}`, body, { auth: true }),

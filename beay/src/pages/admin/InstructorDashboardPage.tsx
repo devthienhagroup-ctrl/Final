@@ -1,190 +1,91 @@
-// src/pages/instructor/InstructorDashboardPage.tsx
-import { useEffect, useMemo, useState } from "react";
-import { useToast } from "../../ui/toast";
-import type { Course } from "../instructor/instructor.types";
-import { MOCK_COURSES } from "../instructor/instructor.mock";
-import { LessonModal, type LessonDraftPayload } from "../components/LessonModal";
-import { InstructorHeader } from "../components/InstructorHeader";
-import { KpiGrid } from "../components/KpiGrid";
-import { CoursesGrid } from "../components/CoursesGrid";
-import { QuickActions } from "../components/QuickActions";
+import { useEffect, useMemo, useState } from 'react'
+import { useAuth } from '../../app/auth'
+import { instructorCoursesApi } from '../../api/instructorCourses.api'
+import type { CourseAdmin, CourseTopic } from '../../api/adminCourses.api'
+import { AlertJs } from '../../utils/alertJs'
+import { CoursesTab } from './courseTabs/CoursesTab'
+import './AdminSpaPage.css'
+import './AdminCoursesPage.css'
 
+type AdminLang = 'vi' | 'en' | 'de'
 
-type StatusFilter = "ALL" | "PUBLISHED" | "DRAFT";
+const text: Record<AdminLang, Record<string, string>> = {
+  vi: {
+    coursesTab: 'Khóa học của tôi',
+    filterByTopic: 'Lọc theo chủ đề', allTopics: 'Tất cả chủ đề', searchByCourseName: 'Tìm theo tên khóa học', searchPlaceholder: 'Nhập tên khóa học...',
+    titleCol: 'Tiêu đề', topicCol: 'Chủ đề', creatorCol: 'Người tạo', priceCol: 'Giá', ratingCol: 'Rating', enrollmentCol: 'Đăng ký', lessonCol: 'Bài học', videoCountCol: 'Video', createdAtCol: 'Tạo lúc', updatedAtCol: 'Sửa lúc', statusCol: 'Trạng thái', actions: 'Chi tiết / chỉnh sửa', unassigned: 'Chưa gán', publishedStatus: 'Published', draftStatus: 'Draft', pageLabel: 'Trang', totalCoursesLabel: 'Tổng khóa học', prevPage: 'Trước', nextPage: 'Sau', loading: 'Đang tải...'
+  },
+  en: { coursesTab: 'My courses', filterByTopic: 'Filter by topic', allTopics: 'All topics', searchByCourseName: 'Search by course name', searchPlaceholder: 'Enter course name...', titleCol: 'Title', topicCol: 'Topic', creatorCol: 'Created by', priceCol: 'Price', ratingCol: 'Rating', enrollmentCol: 'Enrollments', lessonCol: 'Lessons', videoCountCol: 'Videos', createdAtCol: 'Created at', updatedAtCol: 'Updated at', statusCol: 'Status', actions: 'Details / edit', unassigned: 'Unassigned', publishedStatus: 'Published', draftStatus: 'Draft', pageLabel: 'Page', totalCoursesLabel: 'Total courses', prevPage: 'Prev', nextPage: 'Next', loading: 'Loading...' },
+  de: { coursesTab: 'Meine Kurse', filterByTopic: 'Nach Thema filtern', allTopics: 'Alle Themen', searchByCourseName: 'Nach Kursname suchen', searchPlaceholder: 'Kursname eingeben...', titleCol: 'Titel', topicCol: 'Thema', creatorCol: 'Ersteller', priceCol: 'Preis', ratingCol: 'Bewertung', enrollmentCol: 'Anmeldungen', lessonCol: 'Lektionen', videoCountCol: 'Videos', createdAtCol: 'Erstellt am', updatedAtCol: 'Aktualisiert am', statusCol: 'Status', actions: 'Details / bearbeiten', unassigned: 'Nicht zugeordnet', publishedStatus: 'Published', draftStatus: 'Draft', pageLabel: 'Seite', totalCoursesLabel: 'Gesamtkurse', prevPage: 'Zurück', nextPage: 'Weiter', loading: 'Wird geladen...' },
+}
 
 export function InstructorDashboardPage() {
-  const { toast } = useToast();
+  const { logout } = useAuth()
+  const [lang] = useState<AdminLang>('vi')
+  const [loading, setLoading] = useState(true)
+  const [courses, setCourses] = useState<CourseAdmin[]>([])
+  const [topics, setTopics] = useState<CourseTopic[]>([])
+  const [selectedTopicId, setSelectedTopicId] = useState<number | 'all'>('all')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalItems, setTotalItems] = useState(0)
 
-  // ====== STATE (prototype) ======
-  const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<StatusFilter>("PUBLISHED");
-
-  const [courses] = useState<Course[]>(MOCK_COURSES);
-
-  // Modal
-  const [lessonOpen, setLessonOpen] = useState(false);
-  const [activeCourseId, setActiveCourseId] = useState<number | null>(null);
-  const [lessonModalKey, setLessonModalKey] = useState(0); // remount to reset form
-
-  // ====== DERIVED ======
-  const filteredCourses = useMemo(() => {
-    const kw = q.trim().toLowerCase();
-    return courses.filter((c) => {
-      const okQ = !kw || c.title.toLowerCase().includes(kw);
-      const okS = filter === "ALL" || c.status === filter;
-      return okQ && okS;
-    });
-  }, [courses, q, filter]);
-
-  const kpis = useMemo(() => {
-    const total = courses.length;
-    const published = courses.filter((c) => c.status === "PUBLISHED").length;
-    const students = courses.reduce((a, b) => a + b.students, 0);
-    const drafts = courses.reduce((a, b) => a + b.drafts, 0);
-    return {
-      managedCourses: total,
-      publishedCourses: published,
-      students,
-      draftLessons: drafts,
-      ratingAvg: 4.7,
-    };
-  }, [courses]);
-
-  // ====== ACTIONS ======
-  function openLessonModal(courseId: number) {
-    setActiveCourseId(courseId);
-    setLessonModalKey((k) => k + 1); // reset form on open without useEffect setState warnings
-    setLessonOpen(true);
-  }
-  function closeLessonModal() {
-    setLessonOpen(false);
-  }
-
-  function onSaveDraft(payload: LessonDraftPayload) {
-    // TODO API:
-    // POST /courses/:courseId/lessons  (draft)
-    // body: { title, type, content, status:"DRAFT" }
-    toast("Lưu draft", `Course#${payload.courseId} • Draft saved (prototype)`);
-    closeLessonModal();
-  }
-
-  function onPublish(payload: LessonDraftPayload) {
-    // TODO API:
-    // POST /courses/:courseId/lessons  (publish)
-    // hoặc POST /lessons/:id/publish tùy thiết kế
-    // RBAC: lessons.publish + courses.write
-    toast("Publish bài học", `Course#${payload.courseId} • Published (prototype)`);
-    closeLessonModal();
-  }
-
-  // ====== SHORTCUTS ======
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      const tag = (document.activeElement?.tagName || "").toUpperCase();
-      const typing = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
-
-      if (e.key === "/" && !typing) {
-        e.preventDefault();
-        const el = document.getElementById("instructor-search");
-        (el as HTMLInputElement | null)?.focus();
-        return;
-      }
-      if (e.key === "Escape") {
-        setLessonOpen(false);
-      }
+  const loadData = async () => {
+    setLoading(true)
+    try {
+      const [topicRows, courseRows] = await Promise.all([
+        instructorCoursesApi.listTopics(),
+        instructorCoursesApi.listCourses({ topicId: selectedTopicId === 'all' ? undefined : selectedTopicId, search: searchTerm, page, pageSize: 10, lang }),
+      ])
+      setTopics(topicRows)
+      setCourses(courseRows.items)
+      setTotalItems(courseRows.total)
+      setTotalPages(Math.max(1, Math.ceil(courseRows.total / Math.max(1, courseRows.pageSize))))
+    } catch {
+      await AlertJs.error('Không thể tải khóa học của giảng viên')
+    } finally {
+      setLoading(false)
     }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }
+
+  useEffect(() => { void loadData() }, [selectedTopicId, searchTerm, page, lang])
+
+  const title = useMemo(() => lang === 'vi' ? 'Bảng điều khiển giảng viên' : lang === 'en' ? 'Instructor dashboard' : 'Dozenten-Dashboard', [lang])
 
   return (
-    <div
-      className="min-h-screen text-slate-900"
-      style={{
-        background:
-          "radial-gradient(900px 450px at 15% 0%, rgba(79,70,229,0.14), transparent 60%), radial-gradient(700px 380px at 90% 10%, rgba(245,158,11,0.10), transparent 60%), linear-gradient(to bottom, #f8fafc, #f8fafc)",
-      }}
-    >
-      <InstructorHeader
-        onOpenStudent={() => toast("Học viên", "Đi tới Student Portal (prototype)")}
-        onOpenRbac={() => toast("RBAC", "Đi tới RBAC Settings (prototype)")}
-        onNotif={() => toast("Thông báo", "Prototype: mở notification center (sẽ làm ở React).")}
-        onNewCourse={() => {
-          // TODO API: POST /courses (instructor)
-          toast("Tạo khoá học", "React/Nest: POST /courses");
-        }}
-      />
-
-      <main className="px-4 md:px-8 py-6 space-y-6">
-        <KpiGrid kpis={kpis} />
-
-        <section className="grid gap-4 lg:grid-cols-3">
-          <div className="rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-6 lg:col-span-2">
-            <div className="flex items-start justify-between gap-4 flex-col md:flex-row">
-              <div>
-                <div className="text-xs font-extrabold text-slate-500">Khoá học</div>
-                <div className="text-lg font-extrabold">Quản lý nội dung</div>
-                <div className="mt-1 text-sm text-slate-600">
-                  Prototype: tạo lesson draft/publish, quản lý syllabus.
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    id="instructor-search"
-                    className="rounded-[14px] border border-slate-200/70 bg-white px-3 py-2 pl-11 outline-none focus:shadow-[0_0_0_6px_rgba(79,70,229,0.12)] focus:border-indigo-300"
-                    placeholder="Tìm khoá... (phím /)"
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                  />
-                </div>
-
-                <select
-                  className="rounded-[14px] border border-slate-200/70 bg-white px-3 py-2 outline-none focus:shadow-[0_0_0_6px_rgba(79,70,229,0.12)] focus:border-indigo-300"
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value as StatusFilter)}
-                >
-                  <option value="ALL">Tất cả</option>
-                  <option value="PUBLISHED">Đang bán</option>
-                  <option value="DRAFT">Draft</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="mt-5">
-              <CoursesGrid
-                courses={filteredCourses}
-                onAddLesson={(courseId) => openLessonModal(courseId)}
-                onManageCourse={(courseId) =>
-                  toast("Quản lý khoá", `React/Nest: GET /courses/${courseId} + /lessons`)
-                }
-              />
-            </div>
+    <div className='admin-shell'>
+      <header className='admin-card admin-card-glow' style={{ marginBottom: 16 }}>
+        <div className='admin-row' style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div className='admin-kicker'>{title}</div>
+            <h2 className='admin-title' style={{ margin: 0 }}>Quản lý khóa học cá nhân</h2>
           </div>
+          <button className='admin-btn admin-btn-ghost' onClick={logout}><i className='fa-solid fa-right-from-bracket' /> Đăng xuất</button>
+        </div>
+      </header>
 
-          <QuickActions
-            onPublish={() => toast("Publish", "RBAC: lessons.publish + courses.write")}
-            onPreview={() => toast("Preview", "Prototype: preview landing/course page")}
-            onCoupon={() => toast("Coupon", "Prototype: tạo voucher giảm giá theo khoá")}
-            onSyllabus={() => toast("Syllabus", "Prototype: kéo thả thứ tự bài học")}
-          />
-        </section>
-
-        <footer className="py-6 text-center text-sm text-slate-500">
-          © 2025 AYANAVITA • Instructor Dashboard (React Prototype)
-        </footer>
-      </main>
-
-      <LessonModal
-        key={lessonModalKey}
-        open={lessonOpen}
-        courseId={activeCourseId}
-        onClose={closeLessonModal}
-        onSaveDraft={onSaveDraft}
-        onPublish={onPublish}
-      />
+      {loading ? <div className='admin-card'>{text[lang].loading}</div> : (
+        <CoursesTab
+          courses={courses}
+          topics={topics}
+          text={text[lang]}
+          lang={lang}
+          selectedTopicId={selectedTopicId}
+          searchTerm={searchTerm}
+          page={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onChangeFilters={(patch) => {
+            if (patch.selectedTopicId !== undefined) setSelectedTopicId(patch.selectedTopicId)
+            if (patch.searchTerm !== undefined) setSearchTerm(patch.searchTerm)
+            setPage(1)
+          }}
+          onChangePage={setPage}
+          onCourseCreated={loadData}
+          coursesApi={instructorCoursesApi}
+        />
+      )}
     </div>
-  );
+  )
 }

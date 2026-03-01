@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   adminCoursesApi,
   type CourseDetailAdmin,
+  type CourseManagementApi,
   type LessonDetailAdmin,
   type CourseTopic,
   type LessonOutlineAdmin,
@@ -18,6 +19,7 @@ type Props = {
   topics: CourseTopic[]
   onCourseUpdated: () => Promise<void> | void
   onCourseDeleted: () => Promise<void> | void
+  coursesApi?: CourseManagementApi
 }
 
 type DetailTabKey = 'info' | 'lessons'
@@ -87,7 +89,7 @@ const normalizeTranslations = (translations?: LessonI18n) => {
   return translations
 }
 
-export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated, onCourseDeleted }: Props) {
+export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated, onCourseDeleted, coursesApi = adminCoursesApi }: Props) {
   const [activeTab, setActiveTab] = useState<DetailTabKey>('info')
   const [lessons, setLessons] = useState<LessonOutlineAdmin[]>([])
   const [lessonDetails, setLessonDetails] = useState<Record<number, LessonDetailAdmin>>({})
@@ -98,7 +100,7 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated, 
   const t = labels[lang]
 
   const loadLessons = async () => {
-    const data = await adminCoursesApi.listCourseLessons(course.id, lang)
+    const data = await coursesApi.listCourseLessons(course.id, lang)
     setLessons(data)
     setLessonDetails({})
     setLoadingDetailIds({})
@@ -124,7 +126,7 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated, 
     if (lessonDetails[lessonId] || loadingDetailIds[lessonId]) return
     setLoadingDetailIds((prev) => ({ ...prev, [lessonId]: true }))
     try {
-      const detail = await adminCoursesApi.getLessonDetail(lessonId, lang)
+      const detail = await coursesApi.getLessonDetail(lessonId, lang)
       setLessonDetails((prev) => ({ ...prev, [lessonId]: detail }))
     } finally {
       setLoadingDetailIds((prev) => ({ ...prev, [lessonId]: false }))
@@ -187,7 +189,7 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated, 
                         <button type='button' className='admin-btn admin-btn-ghost' onClick={async (e) => {
                           e.preventDefault()
                           e.stopPropagation()
-                          const detail = lessonDetails[lesson.id] ?? await adminCoursesApi.getLessonDetail(lesson.id, lang)
+                          const detail = lessonDetails[lesson.id] ?? await coursesApi.getLessonDetail(lesson.id, lang)
                           setEditingLesson(detail)
                           setOpenLessonModal(true)
                         }}>
@@ -198,7 +200,7 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated, 
                           e.stopPropagation()
                           const confirmed = await AlertJs.confirm(t.confirmDeleteLesson)
                           if (!confirmed) return
-                          await adminCoursesApi.deleteLesson(lesson.id)
+                          await coursesApi.deleteLesson(lesson.id)
                           await AlertJs.success(t.lessonDeleted)
                           await loadLessons()
                           await onCourseUpdated()
@@ -258,6 +260,7 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated, 
       )}
 
       <CreateLessonModal
+        coursesApi={coursesApi}
         open={openLessonModal}
         lang={lang}
         courseId={course.id}

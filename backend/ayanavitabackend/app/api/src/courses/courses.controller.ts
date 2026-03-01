@@ -129,8 +129,8 @@ export class CoursesController {
   @Roles('ADMIN')
   @Post()
   @UseInterceptors(FileInterceptor('thumbnail', { storage: memoryStorage() }))
-  create(@Body() rawData: any, @UploadedFile() thumbnail?: any) {
-    return this.courses.create(parseMultipartData(rawData) as CreateCourseDto, thumbnail)
+  create(@CurrentUser() user: JwtUser, @Body() rawData: any, @UploadedFile() thumbnail?: any) {
+    return this.courses.create(parseMultipartData(rawData) as CreateCourseDto, thumbnail, user.sub)
   }
 
   @UseGuards(AccessTokenGuard, RolesGuard)

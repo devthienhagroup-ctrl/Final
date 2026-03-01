@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { adminCoursesApi, type CourseAdmin, type CourseDetailAdmin, type CourseTopic } from '../../../api/adminCourses.api'
+import { adminCoursesApi, type CourseAdmin, type CourseDetailAdmin, type CourseManagementApi, type CourseTopic } from '../../../api/adminCourses.api'
+import { AlertJs } from '../../../utils/alertJs'
 import { CreateCourseModal } from './CreateCourseModal'
 import { CourseDetailTabs } from './courseDetail/CourseDetailTabs'
 
@@ -16,12 +17,13 @@ type Props = {
   onChangeFilters: (patch: { selectedTopicId?: number | 'all'; searchTerm?: string }) => void
   onChangePage: (page: number) => void
   onCourseCreated: () => Promise<void> | void
+  coursesApi?: CourseManagementApi
 }
 
 type CourseInnerTab = 'list' | 'detail'
 
-export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searchTerm, page, totalPages, totalItems, onChangeFilters, onChangePage, onCourseCreated }: Props) {
-  const courseTableColumnWidths = ['4%', '17%', '13%', '8%', '7%', '7%', '5%', '5%', '10%', '10%', '8%', '6%']
+export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searchTerm, page, totalPages, totalItems, onChangeFilters, onChangePage, onCourseCreated, coursesApi = adminCoursesApi }: Props) {
+  const courseTableColumnWidths = ['4%', '15%', '12%', '10%', '7%', '6%', '6%', '5%', '5%', '10%', '10%', '6%', '8%']
   const [openCreateModal, setOpenCreateModal] = useState(false)
   const [activeTab, setActiveTab] = useState<CourseInnerTab>('list')
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
@@ -43,7 +45,7 @@ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searc
     if (!selectedCourseId) return
     setLoadingDetail(true)
     try {
-      const detail = await adminCoursesApi.getCourseDetail(selectedCourseId, lang)
+      const detail = await coursesApi.getCourseDetail(selectedCourseId, lang)
       setSelectedCourse(detail)
     } finally {
       setLoadingDetail(false)
@@ -113,7 +115,7 @@ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searc
               </colgroup>
               <thead>
                 <tr>
-                  <th>ID</th><th>{text.titleCol}</th><th>{text.topicCol}</th><th>{text.priceCol}</th><th>{text.ratingCol}</th><th>{text.enrollmentCol}</th><th>{text.lessonCol}</th><th>{text.videoCountCol}</th><th>{text.createdAtCol}</th><th>{text.updatedAtCol}</th><th>{text.statusCol}</th><th>{text.actions}</th>
+                  <th>ID</th><th>{text.titleCol}</th><th>{text.topicCol}</th><th>{text.creatorCol || 'Người tạo'}</th><th>{text.priceCol}</th><th>{text.ratingCol}</th><th>{text.enrollmentCol}</th><th>{text.lessonCol}</th><th>{text.videoCountCol}</th><th>{text.createdAtCol}</th><th>{text.updatedAtCol}</th><th>{text.statusCol}</th><th>{text.actions}</th>
                 </tr>
               </thead>
               <tbody>
@@ -122,6 +124,7 @@ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searc
                     <td>{c.id}</td>
                     <td className='td-strong'>{c.title}</td>
                     <td>{c.topic ? displayTopicName(c.topic as CourseTopic) : text.unassigned}</td>
+                    <td>{c.creator?.name || c.creator?.email || '--'}</td>
                     <td>{(c.price || 0).toLocaleString('vi-VN')}đ</td>
                     <td>{c.ratingAvg ?? 0} ({c.ratingCount ?? 0})</td>
                     <td>{c.enrollmentCount ?? 0}</td>
@@ -131,16 +134,31 @@ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searc
                     <td>{c.updatedAt ? new Date(c.updatedAt).toLocaleString('vi-VN') : '--'}</td>
                     <td><span className={`status-pill ${c.published ? 'is-published' : 'is-draft'}`}>{c.published ? text.publishedStatus : text.draftStatus}</span></td>
                     <td>
-                      <button
-                        type='button'
-                        className='admin-btn admin-btn-ghost'
-                        onClick={() => {
-                          setSelectedCourseId(c.id)
-                          setActiveTab('detail')
-                        }}
-                      >
-                        <i className='fa-solid fa-eye' />
-                      </button>
+                      <div className='admin-row' style={{ gap: 6 }}>
+                        <button
+                          type='button'
+                          className='admin-btn admin-btn-ghost'
+                          onClick={() => {
+                            setSelectedCourseId(c.id)
+                            setActiveTab('detail')
+                          }}
+                          title={lang === 'vi' ? 'Chi tiết / chỉnh sửa' : lang === 'en' ? 'Details / edit' : 'Details / bearbeiten'}
+                        >
+                          <i className='fa-solid fa-pen-to-square' />
+                        </button>
+                        <button
+                          type='button'
+                          className='admin-btn admin-btn-danger'
+                          onClick={async () => {
+                            const ok = await AlertJs.confirm(lang === 'vi' ? 'Bạn có chắc muốn xóa khóa học này?' : lang === 'en' ? 'Delete this course?' : 'Diesen Kurs löschen?')
+                            if (!ok) return
+                            await coursesApi.deleteCourse(c.id)
+                            await onCourseCreated()
+                          }}
+                        >
+                          <i className='fa-solid fa-trash' />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -171,6 +189,7 @@ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searc
               await onCourseCreated()
               await refreshSelectedCourse()
             }}
+            coursesApi={coursesApi}
             onCourseDeleted={async () => {
               await onCourseCreated()
               setSelectedCourseId(null)
@@ -181,7 +200,7 @@ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searc
         </>
       )}
 
-      <CreateCourseModal open={openCreateModal} lang={lang} topics={topics} onClose={() => setOpenCreateModal(false)} onCreated={onCourseCreated} />
+      <CreateCourseModal open={openCreateModal} lang={lang} topics={topics} onClose={() => setOpenCreateModal(false)} onCreated={onCourseCreated} coursesApi={coursesApi} />
     </section>
   )
 }

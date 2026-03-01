@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { adminCoursesApi, type LessonDetailAdmin, type LessonI18n } from '../../../../api/adminCourses.api'
+import { adminCoursesApi, type CourseManagementApi, type LessonDetailAdmin, type LessonI18n } from '../../../../api/adminCourses.api'
 import { AlertJs } from '../../../../utils/alertJs'
 import { autoTranslateFromVietnamese } from '../../tabs/i18nForm'
 
@@ -10,6 +10,7 @@ type Props = {
   editingLesson?: LessonDetailAdmin | null
   onClose: () => void
   onSaved: () => Promise<void> | void
+  coursesApi?: CourseManagementApi
 }
 
 type AdminLang = 'vi' | 'en' | 'de'
@@ -271,7 +272,7 @@ const buildFormFromLesson = (lesson: LessonDetailAdmin): FormState => ({
     : [createEmptyModule()],
 })
 
-export function CreateLessonModal({ open, lang, courseId, editingLesson, onClose, onSaved }: Props) {
+export function CreateLessonModal({ open, lang, courseId, editingLesson, onClose, onSaved, coursesApi = adminCoursesApi }: Props) {
   const t = textByLang[lang]
   const [submitting, setSubmitting] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null)
@@ -516,10 +517,10 @@ export function CreateLessonModal({ open, lang, courseId, editingLesson, onClose
       }
 
       const persistedLesson = isEditMode && editingLesson
-        ? await adminCoursesApi.updateLesson(editingLesson.id, payload)
-        : await adminCoursesApi.createLesson(courseId, payload)
+        ? await coursesApi.updateLesson(editingLesson.id, payload)
+        : await coursesApi.createLesson(courseId, payload)
 
-      const detail = await adminCoursesApi.getLessonDetail(persistedLesson.id, lang)
+      const detail = await coursesApi.getLessonDetail(persistedLesson.id, lang)
       const totalMediaCount = form.modules.reduce((sum, module) => sum + module.medias.filter((media) => Boolean(media.file)).length, 0)
       setUploadProgress(totalMediaCount > 0 ? { current: 0, total: totalMediaCount } : null)
       let uploadedCount = 0
@@ -533,7 +534,7 @@ export function CreateLessonModal({ open, lang, courseId, editingLesson, onClose
           const media = inputModule.medias[mediaIndex]
           if (!media.file) continue
           const uploadType = media.mediaType === 'IMAGE' ? 'image' : 'video'
-          await adminCoursesApi.uploadModuleMedia(detail.id, createdModule.id, media.file, uploadType, media.order)
+          await coursesApi.uploadModuleMedia(detail.id, createdModule.id, media.file, uploadType, media.order)
           uploadedCount += 1
           setUploadProgress(totalMediaCount > 0 ? { current: uploadedCount, total: totalMediaCount } : null)
         }

@@ -39,6 +39,8 @@ export class CoursesService {
     enrollmentCount: true,
     createdAt: true,
     updatedAt: true,
+    creatorId: true,
+    creator: { select: { id: true, name: true, email: true } },
     _count: { select: { lessons: true } },
   } as const
 
@@ -77,7 +79,7 @@ export class CoursesService {
     }
   }
 
-  private buildCreateCoursePayload(dto: CreateCourseDto & { title: string }): Prisma.CourseUncheckedCreateInput {
+  private buildCreateCoursePayload(dto: CreateCourseDto & { title: string; creatorId?: number }): Prisma.CourseUncheckedCreateInput {
     return {
       title: dto.title,
       slug: dto.slug,
@@ -94,6 +96,7 @@ export class CoursesService {
       ...(dto.ratingAvg !== undefined ? { ratingAvg: dto.ratingAvg } : {}),
       ...(dto.ratingCount !== undefined ? { ratingCount: dto.ratingCount } : {}),
       ...(dto.enrollmentCount !== undefined ? { enrollmentCount: dto.enrollmentCount } : {}),
+      ...(dto.creatorId !== undefined ? { creatorId: dto.creatorId } : {}),
     }
   }
 
@@ -114,6 +117,7 @@ export class CoursesService {
       ...(dto.ratingAvg !== undefined ? { ratingAvg: dto.ratingAvg } : {}),
       ...(dto.ratingCount !== undefined ? { ratingCount: dto.ratingCount } : {}),
       ...(dto.enrollmentCount !== undefined ? { enrollmentCount: dto.enrollmentCount } : {}),
+      ...(dto.creatorId !== undefined ? { creatorId: dto.creatorId } : {}),
     }
   }
 
@@ -262,12 +266,12 @@ export class CoursesService {
     }
   }
 
-  async create(dto: CreateCourseDto, thumbnailFile?: { buffer: Buffer; mimetype?: string }) {
+  async create(dto: CreateCourseDto, thumbnailFile?: { buffer: Buffer; mimetype?: string }, creatorId?: number) {
     if (!dto.title?.trim()) throw new BadRequestException('Title is required')
     const normalizedDto = this.hydratePrimaryContent(dto) as CreateCourseDto
     try {
       const thumbnailUrl = thumbnailFile ? (await this.courseMedia.uploadThumbnail(thumbnailFile)).url : normalizedDto.thumbnail
-      const created = await this.prisma.course.create({ data: this.buildCreateCoursePayload({ ...normalizedDto, title: normalizedDto.title!.trim(), thumbnail: thumbnailUrl }), select: this.baseCourseSelect })
+      const created = await this.prisma.course.create({ data: this.buildCreateCoursePayload({ ...normalizedDto, title: normalizedDto.title!.trim(), thumbnail: thumbnailUrl, creatorId }), select: this.baseCourseSelect })
       await this.syncCourseTranslations(created.id, normalizedDto)
       return created
     } catch (e) {
@@ -309,6 +313,50 @@ export class CoursesService {
 
     return this.prisma.course.delete({ where: { id }, select: { id: true } })
   }
+
+  async findAllByCreator(query: CourseQueryDto, creatorId: number) {
+    const scopedQuery = { ...query }
+    const courseLocale = this.resolveCourseLocale(scopedQuery.lang)
+    const topicLocale = courseLocale
+    const where: Prisma.CourseWhereInput = {
+      creatorId,
+      ...(scopedQuery.topicId ? { topicId: scopedQuery.topicId } : {}),
+      ...(scopedQuery.search?.trim() ? { OR: [{ title: { contains: scopedQuery.search.trim() } }, { slug: { contains: scopedQuery.search.trim() } }] } : {}),
+    }
+    const page = Math.max(1, Number(scopedQuery.page || 1)); const pageSize = Math.min(100, Math.max(1, Number(scopedQuery.pageSize || 10)))
+    const [rows, total] = await Promise.all([
+      this.prisma.course.findMany({
+        where,
+        select: {
+          ...this.baseCourseSelect,
+          translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, title: true, shortDescription: true, description: true, objectives: true, targetAudience: true, benefits: true } },
+          contentTranslations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, objectives: true, targetAudience: true, benefits: true } },
+          topic: { select: { id: true, name: true, translations: { where: { locale: { in: [topicLocale, 'vi'] } }, select: { locale: true, name: true } } } },
+        },
+        skip: (page - 1) * pageSize, take: pageSize, orderBy: { id: 'desc' },
+      }),
+      this.prisma.course.count({ where }),
+    ])
+    const courseIds = rows.map((r) => r.id)
+    if (!courseIds.length) return { items: [], total, page, pageSize }
+    const videoRows = await this.prisma.$queryRaw<Array<{ courseId: number; videoCount: bigint | number }>>`SELECT l.courseId as courseId, COUNT(v.id) as videoCount FROM LessonVideo v INNER JOIN LessonModule m ON m.id = v.moduleId INNER JOIN Lesson l ON l.id = m.lessonId WHERE l.courseId IN (${Prisma.join(courseIds)}) GROUP BY l.courseId`
+    const videoCountMap = new Map(videoRows.map((r) => [Number(r.courseId), Number(r.videoCount)]))
+    const items = rows.map((row: any) => {
+      const tr = row.translations?.find((x: any) => x.locale === courseLocale) || row.translations?.find((x: any) => x.locale === 'vi')
+      const ct = row.translations?.find((x: any) => x.locale === courseLocale) || row.translations?.find((x: any) => x.locale === 'vi')
+      const legacyCt = row.contentTranslations?.find((x: any) => x.locale === courseLocale) || row.contentTranslations?.find((x: any) => x.locale === 'vi')
+      const tt = row.topic?.translations?.find((x: any) => x.locale === topicLocale) || row.topic?.translations?.find((x: any) => x.locale === 'vi')
+      return { ...row, title: tr?.title || row.title, shortDescription: tr?.shortDescription || row.shortDescription, description: tr?.description || row.description, objectives: ct?.objectives || legacyCt?.objectives || row.objectives, targetAudience: ct?.targetAudience || legacyCt?.targetAudience || row.targetAudience, benefits: ct?.benefits || legacyCt?.benefits || row.benefits, topic: row.topic ? { id: row.topic.id, name: tt?.name || row.topic.name } : null, videoCount: videoCountMap.get(row.id) || 0 }
+    })
+    return { items, total, page, pageSize }
+  }
+
+  async assertCreator(courseId: number, userId: number) {
+    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, creatorId: true } })
+    if (!course) throw new NotFoundException('Course not found')
+    if (course.creatorId !== userId) throw new ForbiddenException('You do not have permission for this course')
+  }
+
 
   async listLessons(user: { sub: number; role: string }, courseId: number) { /* kept */
     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } }); if (!course) throw new NotFoundException('Course not found'); await this.enrollments.assertEnrolledOrAdmin(user, courseId); if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')

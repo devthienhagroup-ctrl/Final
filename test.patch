@@ -1,178 +1,394 @@
-diff --git a/beay/src/pages/admin/AdminCoursesPage.css b/beay/src/pages/admin/AdminCoursesPage.css
-index b0be78ae6d0e1daf4b38d97f687279cc7eb58b36..8fc804ba5b3160294d8bbbef45eb2b1f1aa79e68 100644
---- a/beay/src/pages/admin/AdminCoursesPage.css
-+++ b/beay/src/pages/admin/AdminCoursesPage.css
-@@ -932,25 +932,63 @@
- .lesson-media-card {
-   border: 1px solid #cbd5e1;
-   border-radius: 10px;
-   padding: 10px;
-   background: #fff;
+diff --git a/beay/src/pages/admin/InstructorDashboardPage.tsx b/beay/src/pages/admin/InstructorDashboardPage.tsx
+index 3833a475c3a69350fc3f2e98391f6c416fc1dae7..63582a1dbae7f0f1175f07c083647f72e38266c4 100644
+--- a/beay/src/pages/admin/InstructorDashboardPage.tsx
++++ b/beay/src/pages/admin/InstructorDashboardPage.tsx
+@@ -27,118 +27,156 @@ const managerText: Record<string, string> = {
+   lessonCol: 'Bài học',
+   videoCountCol: 'Video',
+   createdAtCol: 'Tạo lúc',
+   updatedAtCol: 'Sửa lúc',
+   statusCol: 'Trạng thái',
+   actions: 'Chi tiết / chỉnh sửa',
+   unassigned: 'Chưa gán',
+   publishedStatus: 'Published',
+   draftStatus: 'Draft',
+   pageLabel: 'Trang',
+   totalCoursesLabel: 'Tổng khóa học',
+   prevPage: 'Trước',
+   nextPage: 'Sau',
+   loading: 'Đang tải...',
  }
 
- .admin-courses-theme-dark .lesson-outline-card {
-   background: #0f172a;
-   border-color: #334155;
- }
+ const mapToInstructorCard = (course: CourseAdmin): Course => ({
+   id: course.id,
+   title: course.title,
+   status: course.published ? 'PUBLISHED' : 'DRAFT',
+   lessons: course._count?.lessons || 0,
+   drafts: course.published ? 0 : Math.max(1, course._count?.lessons || 0),
+   students: course.enrollmentCount || 0,
+ })
 
- .admin-courses-theme-dark .lesson-outline-title {
-   color: #e2e8f0;
- }
-
- .admin-courses-theme-dark .lesson-module-card {
-   background: #0b1220;
-   border-color: #334155;
- }
-
- .admin-courses-theme-dark .lesson-media-card {
-   background: #020617;
-   border-color: #1e293b;
- }
-+
-+/* Course list table: keep status/actions readable and define all 13 columns */
-+.admin-table-courses-full.no-scroll-table th:nth-child(2),
-+.admin-table-courses-full.no-scroll-table td:nth-child(2) { width: 16%; }
-+.admin-table-courses-full.no-scroll-table th:nth-child(3),
-+.admin-table-courses-full.no-scroll-table td:nth-child(3) { width: 12%; }
-+.admin-table-courses-full.no-scroll-table th:nth-child(4),
-+.admin-table-courses-full.no-scroll-table td:nth-child(4) { width: 10%; }
-+.admin-table-courses-full.no-scroll-table th:nth-child(5),
-+.admin-table-courses-full.no-scroll-table td:nth-child(5) { width: 7%; }
-+.admin-table-courses-full.no-scroll-table th:nth-child(6),
-+.admin-table-courses-full.no-scroll-table td:nth-child(6) { width: 6%; }
-+.admin-table-courses-full.no-scroll-table th:nth-child(7),
-+.admin-table-courses-full.no-scroll-table td:nth-child(7) { width: 5%; }
-+.admin-table-courses-full.no-scroll-table th:nth-child(8),
-+.admin-table-courses-full.no-scroll-table td:nth-child(8) { width: 5%; }
-+.admin-table-courses-full.no-scroll-table th:nth-child(9),
-+.admin-table-courses-full.no-scroll-table td:nth-child(9) { width: 5%; }
-+.admin-table-courses-full.no-scroll-table th:nth-child(10),
-+.admin-table-courses-full.no-scroll-table td:nth-child(10) { width: 9%; }
-+.admin-table-courses-full.no-scroll-table th:nth-child(11),
-+.admin-table-courses-full.no-scroll-table td:nth-child(11) { width: 9%; }
-+.admin-table-courses-full.no-scroll-table th:nth-child(12),
-+.admin-table-courses-full.no-scroll-table td:nth-child(12) { width: 8%; }
-+.admin-table-courses-full.no-scroll-table th:nth-child(13),
-+.admin-table-courses-full.no-scroll-table td:nth-child(13) { width: 8%; }
-+
-+.admin-table-courses-full td:nth-child(12) .status-pill {
-+  padding: 8px 14px;
-+  font-size: 14px;
-+  min-width: 92px;
-+  justify-content: center;
++type InstructorStats = {
++  managedCourses: number
++  publishedCourses: number
++  students: number
++  draftLessons: number
++  ratingAvg: number
 +}
 +
-+.admin-table-courses-full td:nth-child(13) .admin-row {
-+  justify-content: center;
-+  flex-wrap: nowrap;
++const defaultInstructorStats: InstructorStats = {
++  managedCourses: 0,
++  publishedCourses: 0,
++  students: 0,
++  draftLessons: 0,
++  ratingAvg: 0,
 +}
-diff --git a/beay/src/pages/admin/courseTabs/CoursesTab.tsx b/beay/src/pages/admin/courseTabs/CoursesTab.tsx
-index e37a747444739ae669adfa09dc6d2727e80d6dca..7a2d20377c3c7a0e028bebe7bfb8a06a62689dc4 100644
---- a/beay/src/pages/admin/courseTabs/CoursesTab.tsx
-+++ b/beay/src/pages/admin/courseTabs/CoursesTab.tsx
-@@ -1,51 +1,51 @@
- import { useEffect, useState } from 'react'
- import { adminCoursesApi, type CourseAdmin, type CourseDetailAdmin, type CourseManagementApi, type CourseTopic } from '../../../api/adminCourses.api'
- import { AlertJs } from '../../../utils/alertJs'
- import { CreateCourseModal } from './CreateCourseModal'
- import { CourseDetailTabs } from './courseDetail/CourseDetailTabs'
++
+ export function InstructorDashboardPage() {
+   const { toast } = useToast()
+   const { logout } = useAuth()
 
- type Props = {
-   courses: CourseAdmin[]
-   topics: CourseTopic[]
-   text: Record<string, string>
-   lang: 'vi' | 'en' | 'de'
-   selectedTopicId: number | 'all'
-   searchTerm: string
-   page: number
-   totalPages: number
-   totalItems: number
-   onChangeFilters: (patch: { selectedTopicId?: number | 'all'; searchTerm?: string }) => void
-   onChangePage: (page: number) => void
-   onCourseCreated: () => Promise<void> | void
-   coursesApi?: CourseManagementApi
- }
-
- type CourseInnerTab = 'list' | 'detail'
-
- export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searchTerm, page, totalPages, totalItems, onChangeFilters, onChangePage, onCourseCreated, coursesApi = adminCoursesApi }: Props) {
--  const courseTableColumnWidths = ['4%', '18%', '14%', '12%', '8%', '7%', '6%', '6%', '6%', '9%', '9%', '6%', '7%']
-+  const courseTableColumnWidths = ['4%', '16%', '12%', '10%', '7%', '6%', '5%', '5%', '5%', '9%', '9%', '8%', '8%']
-   const [openCreateModal, setOpenCreateModal] = useState(false)
-   const [activeTab, setActiveTab] = useState<CourseInnerTab>('list')
+   const [lang] = useState<AdminLang>('vi')
+   const [courses, setCourses] = useState<CourseAdmin[]>([])
+-  const [allCoursesCount, setAllCoursesCount] = useState(0)
+   const [topics, setTopics] = useState<CourseTopic[]>([])
+   const [selectedTopicId, setSelectedTopicId] = useState<number | 'all'>('all')
+   const [searchTerm, setSearchTerm] = useState('')
+   const [page, setPage] = useState(1)
+   const [totalPages, setTotalPages] = useState(1)
+   const [totalItems, setTotalItems] = useState(0)
    const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
    const [selectedCourse, setSelectedCourse] = useState<CourseDetailAdmin | null>(null)
    const [loadingDetail, setLoadingDetail] = useState(false)
+   const [openCreateModal, setOpenCreateModal] = useState(false)
++  const [stats, setStats] = useState<InstructorStats>(defaultInstructorStats)
++
++  const loadInstructorStats = async () => {
++    const pageSize = 50
++    const firstPage = await instructorCoursesApi.listCourses({ page: 1, pageSize, lang })
++    const pages = Math.max(1, Math.ceil(firstPage.total / Math.max(1, firstPage.pageSize)))
++
++    const remainingResponses = pages > 1
++      ? await Promise.all(
++        Array.from({ length: pages - 1 }, (_, idx) =>
++          instructorCoursesApi.listCourses({ page: idx + 2, pageSize, lang }),
++        ),
++      )
++      : []
++
++    const allCourses = [firstPage, ...remainingResponses].flatMap((response) => response.items)
++    const mappedCourses = allCourses.map(mapToInstructorCard)
++    const managedCourses = firstPage.total
++    const publishedCourses = mappedCourses.filter((course) => course.status === 'PUBLISHED').length
++    const students = mappedCourses.reduce((acc, course) => acc + course.students, 0)
++    const draftLessons = mappedCourses.reduce((acc, course) => acc + course.lessons, 0)
++    const ratingCourses = allCourses.filter((course) => typeof course.ratingAvg === 'number')
++    const ratingAvg = ratingCourses.length
++      ? Number((ratingCourses.reduce((acc, course) => acc + Number(course.ratingAvg || 0), 0) / ratingCourses.length).toFixed(1))
++      : 0
++
++    setStats({ managedCourses, publishedCourses, students, draftLessons, ratingAvg })
++  }
 
-   const displayTopicName = (topic: CourseTopic) => {
-     if (lang === 'de') return topic.translations?.de?.name || topic.name
-     if (lang === 'en') return topic.translations?.['en']?.name || topic.name
-     return topic.translations?.vi?.name || topic.name
+   const loadCourses = async () => {
+-    const [topicRows, allRows, courseRows] = await Promise.all([
++    const [topicRows, courseRows] = await Promise.all([
+       instructorCoursesApi.listTopics(),
+-      instructorCoursesApi.listCourses({ page: 1, pageSize: 1, lang }),
+       instructorCoursesApi.listCourses({
+         topicId: selectedTopicId === 'all' ? undefined : selectedTopicId,
+         search: searchTerm,
+         page,
+         pageSize: 4,
+         lang,
+       }),
+     ])
+     setTopics(topicRows)
+-    setAllCoursesCount(allRows.total)
+     setCourses(courseRows.items)
+     setTotalItems(courseRows.total)
+     setTotalPages(Math.max(1, Math.ceil(courseRows.total / Math.max(1, courseRows.pageSize))))
    }
 
    useEffect(() => {
-     if (activeTab !== 'detail' || !selectedCourseId) return
-     void refreshSelectedCourse()
-   }, [activeTab, selectedCourseId, lang])
+     void loadCourses().catch(() => toast('Lỗi', 'Không thể tải dữ liệu khóa học giảng viên'))
+   }, [selectedTopicId, searchTerm, page, lang])
 
-   const refreshSelectedCourse = async () => {
-     if (!selectedCourseId) return
++  useEffect(() => {
++    void loadInstructorStats().catch(() => toast('Lỗi', 'Không thể tải thống kê khóa học của bạn'))
++  }, [lang])
++
+   const refreshSelectedCourse = async (courseId: number) => {
      setLoadingDetail(true)
      try {
-       const detail = await coursesApi.getCourseDetail(selectedCourseId, lang)
+       const detail = await instructorCoursesApi.getCourseDetail(courseId, lang)
        setSelectedCourse(detail)
+       setSelectedCourseId(courseId)
      } finally {
        setLoadingDetail(false)
-@@ -112,51 +112,51 @@ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searc
-                 {courseTableColumnWidths.map((width, index) => (
-                   <col key={`${width}-${index}`} style={{ width }} />
-                 ))}
-               </colgroup>
-               <thead>
-                 <tr>
-                   <th>ID</th><th>{text.titleCol}</th><th>{text.topicCol}</th><th>{text.creatorCol || 'Người tạo'}</th><th>{text.priceCol}</th><th>{text.ratingCol}</th><th>{text.enrollmentCol}</th><th>{text.lessonCol}</th><th>{text.videoCountCol}</th><th>{text.createdAtCol}</th><th>{text.updatedAtCol}</th><th>{text.statusCol}</th><th>{text.actions}</th>
-                 </tr>
-               </thead>
-               <tbody>
-                 {courses.map((c) => (
-                   <tr key={c.id}>
-                     <td>{c.id}</td>
-                     <td className='td-strong'>{c.title}</td>
-                     <td>{c.topic ? displayTopicName(c.topic as CourseTopic) : text.unassigned}</td>
-                     <td>{c.creator?.name || c.creator?.email || '--'}</td>
-                     <td>{(c.price || 0).toLocaleString('vi-VN')}đ</td>
-                     <td>{c.ratingAvg ?? 0} ({c.ratingCount ?? 0})</td>
-                     <td>{c.enrollmentCount ?? 0}</td>
-                     <td>{c._count?.lessons ?? 0}</td>
-                     <td>{c.videoCount ?? 0}</td>
-                     <td>{c.createdAt ? new Date(c.createdAt).toLocaleString('vi-VN') : '--'}</td>
-                     <td>{c.updatedAt ? new Date(c.updatedAt).toLocaleString('vi-VN') : '--'}</td>
-                     <td><span className={`status-pill ${c.published ? 'is-published' : 'is-draft'}`}>{c.published ? text.publishedStatus : text.draftStatus}</span></td>
-                     <td>
--                      <div className='admin-row' style={{ gap: 6 }}>
-+                      <div className='admin-row admin-row-nowrap' style={{ gap: 6 }}>
-                         <button
-                           type='button'
-                           className='admin-btn admin-btn-ghost'
-                           onClick={() => {
-                             setSelectedCourseId(c.id)
-                             setActiveTab('detail')
-                           }}
-                           title={lang === 'vi' ? 'Chi tiết / chỉnh sửa' : lang === 'en' ? 'Details / edit' : 'Details / bearbeiten'}
-                         >
-                           <i className='fa-solid fa-eye' />
-                         </button>
-                         <button
-                           type='button'
-                           className='admin-btn admin-btn-danger'
-                           onClick={async () => {
-                             const ok = await AlertJs.confirm(lang === 'vi' ? 'Bạn có chắc muốn xóa khóa học này?' : lang === 'en' ? 'Delete this course?' : 'Diesen Kurs löschen?')
-                             if (!ok) return
-                             await coursesApi.deleteCourse(c.id)
-                             await onCourseCreated()
-                           }}
-                         >
-                           <i className='fa-solid fa-trash' />
-                         </button>
-                       </div>
-                     </td>
+     }
+   }
+
+   useEffect(() => {
+     if (!selectedCourseId) {
+       setSelectedCourse(null)
+       return
+     }
+     void refreshSelectedCourse(selectedCourseId).catch(() => toast('Lỗi', 'Không thể tải chi tiết khóa học'))
+   }, [selectedCourseId, lang])
+
+-  const kpis = useMemo(() => {
+-    const list = courses.map(mapToInstructorCard)
+-    const total = allCoursesCount
+-    const published = list.filter((c) => c.status === 'PUBLISHED').length
+-    const students = list.reduce((a, b) => a + b.students, 0)
+-    const drafts = list.reduce((a, b) => a + b.drafts, 0)
+-    return { managedCourses: total, publishedCourses: published, students, draftLessons: drafts, ratingAvg: 4.7 }
+-  }, [courses, allCoursesCount])
++  const kpis = useMemo(() => stats, [stats])
+
+   return (
+     <div
+       className='min-h-screen text-slate-900'
+       style={{
+         background:
+           'radial-gradient(900px 450px at 15% 0%, rgba(79,70,229,0.14), transparent 60%), radial-gradient(700px 380px at 90% 10%, rgba(245,158,11,0.10), transparent 60%), linear-gradient(to bottom, #f8fafc, #f8fafc)',
+       }}
+     >
+       <InstructorHeader
+         onOpenStudent={() => toast('Học viên', 'Theo dõi học viên của các khóa học bạn tạo.')}
+         onOpenRbac={() => toast('RBAC', 'Quyền giảng viên được giới hạn trên khóa học của chính mình.')}
+         onNotif={() => toast('Thông báo', 'Thông báo giảng viên.')}
+         onNewCourse={() => {
+           setOpenCreateModal(true)
+         }}
+         onLogout={logout}
+       />
+
+       <main className='px-4 md:px-8 py-6 space-y-6'>
+         <KpiGrid kpis={kpis} />
+
+         <section className='grid gap-4 xl:grid-cols-[1.15fr_1.25fr]'>
+           <div className='rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-6'>
+             <div className='flex items-start justify-between gap-4 flex-col md:flex-row'>
+@@ -209,47 +247,59 @@ export function InstructorDashboardPage() {
+             onDetails={() => selectedCourseId && void refreshSelectedCourse(selectedCourseId)}
+             onEdit={() => selectedCourseId && void refreshSelectedCourse(selectedCourseId)}
+             onDelete={() => toast('Xóa khóa học', 'Nút xóa đã có trong danh sách khóa học.')}
+             onProgress={() => toast('Theo dõi', 'Theo dõi tiến độ theo từng khóa học của bạn.')}
+             selectedCourse={selectedCourse}
+             loadingDetail={loadingDetail}
+           />
+         </section>
+
+         <section className='rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-6'>
+           <div className='mb-3 flex items-center justify-between'>
+             <h3 className='text-lg font-bold'>Chi tiết khóa học / bài học / module / video</h3>
+             <button type='button' className='rounded-lg bg-indigo-600 px-3 py-2 text-white' onClick={() => setOpenCreateModal(true)}>
+               Thêm khóa học mới
+             </button>
+           </div>
+           {loadingDetail && <p className='text-sm text-slate-500'>Đang tải chi tiết...</p>}
+           {!loadingDetail && selectedCourse && (
+             <CourseDetailTabs
+               course={selectedCourse}
+               lang={lang}
+               text={managerText}
+               topics={topics}
+               onCourseUpdated={async () => {
+                 await loadCourses()
++                await loadInstructorStats()
+                 if (selectedCourseId) await refreshSelectedCourse(selectedCourseId)
+               }}
+               coursesApi={instructorCoursesApi}
+               onCourseDeleted={async () => {
+                 await loadCourses()
++                await loadInstructorStats()
+                 setSelectedCourseId(null)
+                 setSelectedCourse(null)
+               }}
+             />
+           )}
+           {!loadingDetail && !selectedCourse && <p className='text-sm text-slate-500'>Chọn khóa học ở cột trái để xem và quản lý chi tiết.</p>}
+         </section>
+
+-        <CreateCourseModal open={openCreateModal} lang={lang} topics={topics} onClose={() => setOpenCreateModal(false)} onCreated={loadCourses} coursesApi={instructorCoursesApi} />
++        <CreateCourseModal
++          open={openCreateModal}
++          lang={lang}
++          topics={topics}
++          onClose={() => setOpenCreateModal(false)}
++          onCreated={async () => {
++            await loadCourses()
++            await loadInstructorStats()
++          }}
++          coursesApi={instructorCoursesApi}
++        />
+
+         <footer className='py-6 text-center text-sm text-slate-500'>
+           © 2025 AYANAVITA • Instructor Dashboard
+         </footer>
+       </main>
+     </div>
+   )
+ }
+diff --git a/beay/src/pages/components/KpiGrid.tsx b/beay/src/pages/components/KpiGrid.tsx
+index 03299a4afd0415a83bd27a7e3f60da1f252ec430..2f383b81bc567199eeeeb4dc3b02dd7e95112150 100644
+--- a/beay/src/pages/components/KpiGrid.tsx
++++ b/beay/src/pages/components/KpiGrid.tsx
+@@ -11,43 +11,43 @@ type Props = {
+
+ function Card(props: { title: string; value: string; note: string; icon: string }) {
+   return (
+     <div className="rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-5">
+       <div className="text-xs font-extrabold text-slate-500">{props.title}</div>
+       <div className="mt-2 text-3xl font-extrabold">{props.value}</div>
+       <div className="mt-2 text-sm text-slate-600">
+         <i className={props.icon} /> {props.note}
+       </div>
+     </div>
+   );
+ }
+
+ export function KpiGrid({ kpis }: Props) {
+   return (
+     <section className="grid gap-4 md:grid-cols-4">
+       <Card
+         title="Khoá đang quản lý"
+         value={String(kpis.managedCourses)}
+         note={`${kpis.publishedCourses} đang bán`}
+         icon="fa-solid fa-circle text-emerald-500 mr-1"
+       />
+       <Card
+         title="Học viên"
+         value={new Intl.NumberFormat("vi-VN").format(kpis.students)}
+-        note="+6.8% tháng"
+-        icon="fa-solid fa-arrow-trend-up text-emerald-600 mr-1"
++        note="Tổng học viên các khóa"
++        icon="fa-solid fa-user-graduate text-indigo-600 mr-1"
+       />
+       <Card
+-        title="Bài học (Draft)"
++        title="Bài học"
+         value={String(kpis.draftLessons)}
+-        note="Cần publish"
+-        icon="fa-solid fa-pen mr-1 text-amber-600"
++        note="Tổng bài học toàn khóa"
++        icon="fa-solid fa-book-open mr-1 text-cyan-600"
+       />
+       <Card
+         title="Đánh giá trung bình"
+         value={String(kpis.ratingAvg)}
+         note="Top instructor"
+         icon="fa-solid fa-star text-amber-500 mr-1"
+       />
+     </section>
+   );
+-}
+\ No newline at end of file
++}
+diff --git a/beay/src/pages/components/QuickActions.tsx b/beay/src/pages/components/QuickActions.tsx
+index baef67b730de79dc9ccda5c3a6f2e2a4152bf680..76101ac0707f8f3b1b83462d4e7d764d37212eac 100644
+--- a/beay/src/pages/components/QuickActions.tsx
++++ b/beay/src/pages/components/QuickActions.tsx
+@@ -1,62 +1,81 @@
+ import type { CourseDetailAdmin } from '../../api/adminCourses.api'
+
+ type Props = {
+   onDetails: () => void
+   onEdit: () => void
+   onDelete: () => void
+   onProgress: () => void
+   selectedCourse: CourseDetailAdmin | null
+   loadingDetail: boolean
+ }
+
+ export function QuickActions(props: Props) {
+   const lessonCount = props.selectedCourse?._count?.lessons || 0
+   const topicName = props.selectedCourse?.topic?.name || 'Chưa có chủ đề'
++  const shortDescription = props.selectedCourse?.shortDescription?.trim() || 'Chưa có mô tả ngắn cho khóa học này.'
++  const description = props.selectedCourse?.description?.trim() || 'Chưa có mô tả chi tiết. Hãy cập nhật để học viên hiểu rõ giá trị khóa học.'
++  const thumbnail = props.selectedCourse?.thumbnail?.trim() || 'https://placehold.co/720x400/e2e8f0/334155?text=Course+Thumbnail'
++
++  const formatPrice = (price?: number) => new Intl.NumberFormat('vi-VN').format(price || 0)
+
+   return (
+     <div className='rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-6'>
+-      <div className='text-xs font-extrabold text-slate-500'>Chi tiết / chỉnh sửa</div>
+-      <div className='text-lg font-extrabold'>Chi tiết khóa học đã chọn</div>
++      <div className='text-xs font-extrabold text-slate-500'>Sơ bộ khóa học</div>
++      <div className='text-lg font-extrabold'>Thông tin khái quát khóa học đã chọn</div>
+       <div className='mt-2 text-sm text-slate-600'>
+-        Xem nhanh thông tin khóa học trước khi chuyển sang chỉnh sửa hoặc theo dõi tiến độ.
++        Hiển thị nhanh các thông số chính để giảng viên nắm tổng quan trước khi đi vào chi tiết.
+       </div>
+
+       {props.loadingDetail && <div className='mt-4 rounded-2xl bg-slate-50 p-3 text-sm text-slate-500'>Đang tải chi tiết khóa học...</div>}
+
+       {!props.loadingDetail && !props.selectedCourse && (
+         <div className='mt-4 rounded-2xl bg-slate-50 p-3 text-sm text-slate-500'>
+           Chọn một khóa học từ danh sách bên trái để hiển thị thông tin chi tiết.
+         </div>
+       )}
+
+       {!props.loadingDetail && props.selectedCourse && (
+         <div className='mt-4 space-y-3'>
+           <div className='rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200'>
+-            <div className='text-xs font-semibold text-slate-500'>Khóa học #{props.selectedCourse.id}</div>
++            <img src={thumbnail} alt={props.selectedCourse.title} className='h-40 w-full rounded-xl object-cover ring-1 ring-slate-200' />
++
++            <div className='mt-3 text-xs font-semibold text-slate-500'>Khóa học #{props.selectedCourse.id}</div>
+             <div className='mt-1 text-sm font-extrabold text-slate-900 line-clamp-2'>{props.selectedCourse.title}</div>
+-            <div className='mt-2 flex flex-wrap items-center gap-2 text-xs'>
+-              <span className={`rounded-full px-2 py-1 font-bold ${props.selectedCourse.published ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
++
++            <div className='mt-2 text-xs font-bold text-slate-500'>Mô tả ngắn</div>
++            <p className='mt-1 text-sm text-slate-700 line-clamp-2'>{shortDescription}</p>
++
++            <div className='mt-2 text-xs font-bold text-slate-500'>Mô tả chi tiết</div>
++            <p className='mt-1 text-sm text-slate-700 line-clamp-3'>{description}</p>
++
++            <div className='mt-3 flex flex-wrap items-center gap-2 text-xs'>
++              <span className={`rounded-full px-2.5 py-1 font-bold ${props.selectedCourse.published ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                 {props.selectedCourse.published ? 'Published' : 'Draft'}
+               </span>
+-              <span className='text-slate-500'>{topicName}</span>
++              <span className='rounded-full px-2.5 py-1 font-bold bg-violet-100 text-violet-700'>{topicName}</span>
++              <span className='rounded-full px-2.5 py-1 font-bold bg-cyan-100 text-cyan-700'>{lessonCount} bài học</span>
++              <span className='rounded-full px-2.5 py-1 font-bold bg-indigo-100 text-indigo-700'>{props.selectedCourse.enrollmentCount || 0} học viên</span>
++              <span className='rounded-full px-2.5 py-1 font-bold bg-rose-100 text-rose-700'>{formatPrice(props.selectedCourse.price)}đ</span>
++              <span className='rounded-full px-2.5 py-1 font-bold bg-orange-100 text-orange-700'>⭐ {props.selectedCourse.ratingAvg?.toFixed(1) || '0.0'}</span>
+             </div>
+           </div>
+
+-          <div className='grid grid-cols-2 gap-2 text-sm'>
+-            <div className='rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200'>
+-              <div className='text-xs text-slate-500'>Bài học</div>
+-              <div className='font-extrabold text-slate-900'>{lessonCount}</div>
+-            </div>
+-            <div className='rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200'>
+-              <div className='text-xs text-slate-500'>Học viên</div>
+-              <div className='font-extrabold text-slate-900'>{props.selectedCourse.enrollmentCount || 0}</div>
+-            </div>
++          <div className='grid grid-cols-2 gap-2'>
++            <button type='button' onClick={props.onDetails} className='rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50'>
++              Xem chi tiết
++            </button>
++            <button type='button' onClick={props.onEdit} className='rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100'>
++              Chỉnh sửa
++            </button>
++            <button type='button' onClick={props.onProgress} className='rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm font-semibold text-cyan-700 hover:bg-cyan-100'>
++              Theo dõi tiến độ
++            </button>
++            <button type='button' onClick={props.onDelete} className='rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100'>
++              Xóa khóa học
++            </button>
+           </div>
+         </div>
+       )}
+-
+-      <div className='mt-4 grid grid-cols-2 gap-2'>
+-      </div>
+     </div>
+   )
+ }

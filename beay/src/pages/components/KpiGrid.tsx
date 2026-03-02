@@ -33,14 +33,14 @@ export function KpiGrid({ kpis }: Props) {
       <Card
         title="Học viên"
         value={new Intl.NumberFormat("vi-VN").format(kpis.students)}
-        note="+6.8% tháng"
-        icon="fa-solid fa-arrow-trend-up text-emerald-600 mr-1"
+        note="Tổng học viên các khóa"
+        icon="fa-solid fa-user-graduate text-indigo-600 mr-1"
       />
       <Card
-        title="Bài học (Draft)"
+        title="Bài học"
         value={String(kpis.draftLessons)}
-        note="Cần publish"
-        icon="fa-solid fa-pen mr-1 text-amber-600"
+        note="Tổng bài học toàn khóa"
+        icon="fa-solid fa-book-open mr-1 text-cyan-600"
       />
       <Card
         title="Đánh giá trung bình"

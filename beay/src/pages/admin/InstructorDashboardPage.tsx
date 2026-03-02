@@ -49,13 +49,28 @@ const mapToInstructorCard = (course: CourseAdmin): Course => ({
   students: course.enrollmentCount || 0,
 })
 
+type InstructorStats = {
+  managedCourses: number
+  publishedCourses: number
+  students: number
+  draftLessons: number
+  ratingAvg: number
+}
+
+const defaultInstructorStats: InstructorStats = {
+  managedCourses: 0,
+  publishedCourses: 0,
+  students: 0,
+  draftLessons: 0,
+  ratingAvg: 0,
+}
+
 export function InstructorDashboardPage() {
   const { toast } = useToast()
   const { logout } = useAuth()
 
   const [lang] = useState<AdminLang>('vi')
   const [courses, setCourses] = useState<CourseAdmin[]>([])
-  const [allCoursesCount, setAllCoursesCount] = useState(0)
   const [topics, setTopics] = useState<CourseTopic[]>([])
   const [selectedTopicId, setSelectedTopicId] = useState<number | 'all'>('all')
   const [searchTerm, setSearchTerm] = useState('')
@@ -66,11 +81,38 @@ export function InstructorDashboardPage() {
   const [selectedCourse, setSelectedCourse] = useState<CourseDetailAdmin | null>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [openCreateModal, setOpenCreateModal] = useState(false)
+  const [stats, setStats] = useState<InstructorStats>(defaultInstructorStats)
+
+  const loadInstructorStats = async () => {
+    const pageSize = 50
+    const firstPage = await instructorCoursesApi.listCourses({ page: 1, pageSize, lang })
+    const pages = Math.max(1, Math.ceil(firstPage.total / Math.max(1, firstPage.pageSize)))
+
+    const remainingResponses = pages > 1
+      ? await Promise.all(
+        Array.from({ length: pages - 1 }, (_, idx) =>
+          instructorCoursesApi.listCourses({ page: idx + 2, pageSize, lang }),
+        ),
+      )
+      : []
+
+    const allCourses = [firstPage, ...remainingResponses].flatMap((response) => response.items)
+    const mappedCourses = allCourses.map(mapToInstructorCard)
+    const managedCourses = firstPage.total
+    const publishedCourses = mappedCourses.filter((course) => course.status === 'PUBLISHED').length
+    const students = mappedCourses.reduce((acc, course) => acc + course.students, 0)
+    const draftLessons = mappedCourses.reduce((acc, course) => acc + course.lessons, 0)
+    const ratingCourses = allCourses.filter((course) => typeof course.ratingAvg === 'number')
+    const ratingAvg = ratingCourses.length
+      ? Number((ratingCourses.reduce((acc, course) => acc + Number(course.ratingAvg || 0), 0) / ratingCourses.length).toFixed(1))
+      : 0
+
+    setStats({ managedCourses, publishedCourses, students, draftLessons, ratingAvg })
+  }
 
   const loadCourses = async () => {
-    const [topicRows, allRows, courseRows] = await Promise.all([
+    const [topicRows, courseRows] = await Promise.all([
       instructorCoursesApi.listTopics(),
-      instructorCoursesApi.listCourses({ page: 1, pageSize: 1, lang }),
       instructorCoursesApi.listCourses({
         topicId: selectedTopicId === 'all' ? undefined : selectedTopicId,
         search: searchTerm,
@@ -80,7 +122,6 @@ export function InstructorDashboardPage() {
       }),
     ])
     setTopics(topicRows)
-    setAllCoursesCount(allRows.total)
     setCourses(courseRows.items)
     setTotalItems(courseRows.total)
     setTotalPages(Math.max(1, Math.ceil(courseRows.total / Math.max(1, courseRows.pageSize))))
@@ -89,6 +130,10 @@ export function InstructorDashboardPage() {
   useEffect(() => {
     void loadCourses().catch(() => toast('Lỗi', 'Không thể tải dữ liệu khóa học giảng viên'))
   }, [selectedTopicId, searchTerm, page, lang])
+
+  useEffect(() => {
+    void loadInstructorStats().catch(() => toast('Lỗi', 'Không thể tải thống kê khóa học của bạn'))
+  }, [lang])
 
   const refreshSelectedCourse = async (courseId: number) => {
     setLoadingDetail(true)
@@ -109,14 +154,7 @@ export function InstructorDashboardPage() {
     void refreshSelectedCourse(selectedCourseId).catch(() => toast('Lỗi', 'Không thể tải chi tiết khóa học'))
   }, [selectedCourseId, lang])
 
-  const kpis = useMemo(() => {
-    const list = courses.map(mapToInstructorCard)
-    const total = allCoursesCount
-    const published = list.filter((c) => c.status === 'PUBLISHED').length
-    const students = list.reduce((a, b) => a + b.students, 0)
-    const drafts = list.reduce((a, b) => a + b.drafts, 0)
-    return { managedCourses: total, publishedCourses: published, students, draftLessons: drafts, ratingAvg: 4.7 }
-  }, [courses, allCoursesCount])
+  const kpis = useMemo(() => stats, [stats])
 
   return (
     <div
@@ -231,11 +269,13 @@ export function InstructorDashboardPage() {
               topics={topics}
               onCourseUpdated={async () => {
                 await loadCourses()
+                await loadInstructorStats()
                 if (selectedCourseId) await refreshSelectedCourse(selectedCourseId)
               }}
               coursesApi={instructorCoursesApi}
               onCourseDeleted={async () => {
                 await loadCourses()
+                await loadInstructorStats()
                 setSelectedCourseId(null)
                 setSelectedCourse(null)
               }}
@@ -244,7 +284,17 @@ export function InstructorDashboardPage() {
           {!loadingDetail && !selectedCourse && <p className='text-sm text-slate-500'>Chọn khóa học ở cột trái để xem và quản lý chi tiết.</p>}
         </section>
 
-        <CreateCourseModal open={openCreateModal} lang={lang} topics={topics} onClose={() => setOpenCreateModal(false)} onCreated={loadCourses} coursesApi={instructorCoursesApi} />
+        <CreateCourseModal
+          open={openCreateModal}
+          lang={lang}
+          topics={topics}
+          onClose={() => setOpenCreateModal(false)}
+          onCreated={async () => {
+            await loadCourses()
+            await loadInstructorStats()
+          }}
+          coursesApi={instructorCoursesApi}
+        />
 
         <footer className='py-6 text-center text-sm text-slate-500'>
           © 2025 AYANAVITA • Instructor Dashboard

@@ -26,15 +26,6 @@ export function InstructorHeader(props: Props) {
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="btn hidden md:inline-flex items-center gap-2" onClick={props.onOpenStudent}>
-            <i className="fa-solid fa-user-graduate" /> Học viên
-          </button>
-          <button className="btn hidden md:inline-flex items-center gap-2" onClick={props.onOpenRbac}>
-            <i className="fa-solid fa-user-shield" /> RBAC
-          </button>
-          <button className="btn inline-flex items-center gap-2" onClick={props.onNotif}>
-            <i className="fa-regular fa-bell" /> Thông báo
-          </button>
           <button className="btn btn-primary inline-flex items-center gap-2" onClick={props.onNewCourse}>
             <i className="fa-solid fa-plus" /> Tạo khóa học
           </button>

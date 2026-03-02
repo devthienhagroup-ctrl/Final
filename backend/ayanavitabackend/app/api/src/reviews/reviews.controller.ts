@@ -84,55 +84,55 @@ export class ReviewsController {
   @UseGuards(AccessTokenGuard, PermissionGuard)
   @Permissions('reviews.read')
   @Get('admin/list')
-  adminList(@CurrentUser() user: JwtUser, @Query() query: AdminReviewsQueryDto) {
-    return this.reviewsService.adminList(user, query)
+  adminList(@CurrentUser() _user: JwtUser, @Query() query: AdminReviewsQueryDto) {
+    return this.reviewsService.adminList(query)
   }
 
   @UseGuards(AccessTokenGuard, PermissionGuard)
   @Permissions('reviews.manage')
   @Patch('admin/:id/hide')
-  adminHide(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
-    return this.reviewsService.adminHide(user, id)
+  adminHide(@CurrentUser() _user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.reviewsService.adminHide(id)
   }
 
   @UseGuards(AccessTokenGuard, PermissionGuard)
   @Permissions('reviews.manage')
   @Patch('admin/:id/show')
-  adminShow(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
-    return this.reviewsService.adminShow(user, id)
+  adminShow(@CurrentUser() _user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.reviewsService.adminShow(id)
   }
 
   @UseGuards(AccessTokenGuard, PermissionGuard)
   @Permissions('reviews.manage')
   @Patch('admin/:id/spam')
-  adminSpam(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
-    return this.reviewsService.adminSpam(user, id)
+  adminSpam(@CurrentUser() _user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.reviewsService.adminSpam(id)
   }
 
   @UseGuards(AccessTokenGuard, PermissionGuard)
   @Permissions('reviews.manage')
   @Patch('admin/:id/unspam')
-  adminUnspam(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
-    return this.reviewsService.adminUnspam(user, id)
+  adminUnspam(@CurrentUser() _user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.reviewsService.adminUnspam(id)
   }
 
   @UseGuards(AccessTokenGuard, PermissionGuard)
   @Permissions('reviews.manage')
   @Patch('admin/bulk')
   adminBulk(
-    @CurrentUser() user: JwtUser,
+    @CurrentUser() _user: JwtUser,
     @Body() body: { ids?: number[]; action?: 'show' | 'hide' | 'spam' | 'unspam' | 'delete' },
   ) {
     const action = body?.action
     const ids = (body?.ids || []).filter((x) => Number.isInteger(Number(x))).map((x) => Number(x))
     if (!action || !ids.length) throw new BadRequestException('Thiếu action hoặc ids')
-    return this.reviewsService.adminBulk(user, ids, action)
+    return this.reviewsService.adminBulk(ids, action)
   }
 
   @UseGuards(AccessTokenGuard, PermissionGuard)
   @Permissions('reviews.manage')
   @Delete('admin/:id')
-  adminDelete(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
-    return this.reviewsService.adminDelete(user, id)
+  adminDelete(@CurrentUser() _user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.reviewsService.adminDelete(id)
   }
 }

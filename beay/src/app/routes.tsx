@@ -47,31 +47,29 @@ export function AppRoutes() {
             <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/login" element={<LoginPage />} />
 
-
-      <Route element={<RequireAuth />}>
-
-        <Route path="/admin/orders" element={<RequirePermission permission="orders.read"><OrderAdminPage /></RequirePermission>} />
-        <Route path="/admin/rbac" element={<RequirePermission permission="role.read"><AdminRbacPage /></RequirePermission>} />
-        <Route path="/admin/services" element={<RequirePermission permission="spa_services.read"><AdminSpaPage /></RequirePermission>} />
-        <Route path="/admin/courses" element={<RequirePermission permission="courses.read"><AdminCoursesPage /></RequirePermission>} />
-        <Route path="/admin/reviews" element={<RequirePermission permission="reviews.read"><ReviewsAdminPage /></RequirePermission>} />
-        <Route path="/admin/blog" element={<RequirePermission permission="blogs.read"><BlogAdminPage /></RequirePermission>} />
-        <Route path="/admin/product" element={<RequirePermission permission="products.read"><ProductAdminListPage /></RequirePermission>} />
-        <Route path="/admin/product/:productId" element={<RequirePermission permission="products.read"><ProductAdminDetailPage /></RequirePermission>} />
-        <Route path="/student" element={<RequirePermission permission="my_courses.read"><StudentPortalPage /></RequirePermission>} />
-        <Route path="/instructor" element={<RequirePermission permission="courses.write"><InstructorDashboardPage /></RequirePermission>} />
-        <Route path="/student/courses/:id" element={<RequirePermission permission="my_courses.read"><StudentCourseDetailPage /></RequirePermission>} />
-        <Route path="/student/lessons/:id" element={<RequirePermission permission="my_courses.read"><StudentLessonPlayerPage /></RequirePermission>} />
-          <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-          <Route
-              path="/admin/cms"
-              element={<RequirePermission permission="cms.read"><AdminToastProvider><CmsPagesPage /></AdminToastProvider></RequirePermission>}
-          />
-          <Route
-              path="/admin/cms/pages/:slug"
-              element={<RequirePermission permission="cms.write"><AdminToastProvider><CmsEditPage /></AdminToastProvider></RequirePermission>}
-          />
-      </Route>
+            <Route element={<RequireAuth />}>
+                <Route path="/admin/orders" element={<RequirePermission permission="orders.read"><OrderAdminPage /></RequirePermission>} />
+                <Route path="/admin/rbac" element={<RequirePermission permission="role.read"><AdminRbacPage /></RequirePermission>} />
+                <Route path="/admin/services" element={<RequirePermission permission="spa_services.read"><AdminSpaPage /></RequirePermission>} />
+                <Route path="/admin/courses" element={<RequirePermission permission="courses.read"><AdminCoursesPage /></RequirePermission>} />
+                <Route path="/admin/reviews" element={<RequirePermission permission="reviews.read"><ReviewsAdminPage /></RequirePermission>} />
+                <Route path="/admin/blog" element={<RequirePermission permission="blogs.read"><BlogAdminPage /></RequirePermission>} />
+                <Route path="/admin/product" element={<RequirePermission permission="products.read"><ProductAdminListPage /></RequirePermission>} />
+                <Route path="/admin/product/:productId" element={<RequirePermission permission="products.read"><ProductAdminDetailPage /></RequirePermission>} />
+                <Route path="/student" element={<RequirePermission permission="my_courses.read"><StudentPortalPage /></RequirePermission>} />
+                <Route path="/instructor" element={<RequirePermission permission="courses.write"><InstructorDashboardPage /></RequirePermission>} />
+                <Route path="/student/courses/:id" element={<RequirePermission permission="my_courses.read"><StudentCourseDetailPage /></RequirePermission>} />
+                <Route path="/student/lessons/:id" element={<RequirePermission permission="my_courses.read"><StudentLessonPlayerPage /></RequirePermission>} />
+                <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+                <Route
+                    path="/admin/cms"
+                    element={<RequirePermission permission="cms.read"><AdminToastProvider><CmsPagesPage /></AdminToastProvider></RequirePermission>}
+                />
+                <Route
+                    path="/admin/cms/pages/:slug"
+                    element={<RequirePermission permission="cms.write"><AdminToastProvider><CmsEditPage /></AdminToastProvider></RequirePermission>}
+                />
+            </Route>
 
             <Route path="*" element={<div className="p-6">404</div>} />
         </Routes>

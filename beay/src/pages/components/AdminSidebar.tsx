@@ -67,7 +67,7 @@ export function AdminSidebar({ open, onClose, onConnectPay }: Props) {
             <i className="fa-solid fa-gauge-high text-indigo-600" />
             <span className="font-semibold">Tổng quan</span>
           </a>
-          <a href="#courses" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+          <a href="/admin/courses" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-book-open text-amber-600" />
             <span className="font-semibold">Khóa học</span>
           </a>
@@ -75,6 +75,10 @@ export function AdminSidebar({ open, onClose, onConnectPay }: Props) {
           <a href="/admin/product" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-box text-emerald-700" />
             <span className="font-semibold">Sản phẩm</span>
+          </a>
+          <a href="/admin/services" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+            <i className="fa-solid fa-spa text-violet-700" />
+            <span className="font-semibold">Dịch vụ</span>
           </a>
           <a href="#students" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-users text-cyan-700" />
@@ -94,14 +98,11 @@ export function AdminSidebar({ open, onClose, onConnectPay }: Props) {
             <i className="fa-solid fa-star text-yellow-700" />
             <span className="font-semibold">Đánh giá</span>
           </a>
-          <a href="#analytics" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
-            <i className="fa-solid fa-chart-line text-violet-700" />
-            <span className="font-semibold">Báo cáo</span>
-          </a>
-          <a href="#settings" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
-            <i className="fa-solid fa-gear text-slate-700" />
-            <span className="font-semibold">Cài đặt</span>
-          </a>
+
+          {/*<a href="#settings" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">*/}
+          {/*  <i className="fa-solid fa-gear text-slate-700" />*/}
+          {/*  <span className="font-semibold">Cài đặt</span>*/}
+          {/*</a>*/}
         </nav>
 
         {/* <div className="mt-6 card p-4">

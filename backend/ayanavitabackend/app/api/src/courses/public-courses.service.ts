@@ -48,10 +48,11 @@ export class PublicCoursesService {
             id: true,
             title: true,
             slug: true,
+            description: true,
             order: true,
             translations: {
               where: { locale: { in: [locale, 'vi'] } },
-              select: { locale: true, title: true },
+              select: { locale: true, title: true, description: true },
             },
             modules: {
               where: { published: true },
@@ -59,10 +60,11 @@ export class PublicCoursesService {
               select: {
                 id: true,
                 title: true,
+                description: true,
                 order: true,
                 translations: {
                   where: { locale: { in: [locale, 'vi'] } },
-                  select: { locale: true, title: true },
+                  select: { locale: true, title: true, description: true },
                 },
               },
             },
@@ -117,6 +119,10 @@ export class PublicCoursesService {
           lesson.translations.find((item) => item.locale === locale)?.title ||
           lesson.translations.find((item) => item.locale === 'vi')?.title ||
           lesson.title,
+        description:
+          lesson.translations.find((item) => item.locale === locale)?.description ||
+          lesson.translations.find((item) => item.locale === 'vi')?.description ||
+          lesson.description,
         modules: lesson.modules.map((module) => ({
           id: module.id,
           order: module.order,
@@ -124,6 +130,10 @@ export class PublicCoursesService {
             module.translations.find((item) => item.locale === locale)?.title ||
             module.translations.find((item) => item.locale === 'vi')?.title ||
             module.title,
+          description:
+            module.translations.find((item) => item.locale === locale)?.description ||
+            module.translations.find((item) => item.locale === 'vi')?.description ||
+            module.description,
         })),
       })),
       reviews: course.courseReviews,

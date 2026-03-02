@@ -1,18 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../ui/toast";
-import type { StudentCourse, StudyPlanItem } from "../student/student.types";
-import { loadPlan, savePlan } from "../student/student.storage";
-import { DEFAULT_PLAN, MOCK_STUDENT_COURSES } from "../student/student.mock";
+import type { StudentCourse } from "../student/student.types";
+import { MOCK_STUDENT_COURSES } from "../student/student.mock";
 import { studentApi } from "../student/student.api";
 import { StudentHeader } from "../components/StudentHeader";
 import { StudentHero } from "../components/StudentHero";
 import { StudentCourses } from "../components/StudentCourses";
-import { StudyPlan } from "../components/StudyPlan";
-import { CertificatesPanel } from "../components/CertificatesPanel";
-import { SupportPanel } from "../components/SupportPanel";
-
-const LS_KEY_PLAN = "aya_student_plan";
+import { LearningOverviewChart } from "../components/LearningOverviewChart";
 
 function sortLessons<T extends { id: number; order?: number }>(lessons: T[]): T[] {
   return [...lessons].sort((a, b) => {
@@ -29,12 +24,19 @@ export function StudentPortalPage() {
 
   const [courses, setCourses] = useState<StudentCourse[]>(MOCK_STUDENT_COURSES);
   const [loading, setLoading] = useState<boolean>(true);
-  const [plan, setPlan] = useState<StudyPlanItem[]>(() => loadPlan(LS_KEY_PLAN, DEFAULT_PLAN));
+  const [overviewLoading, setOverviewLoading] = useState<boolean>(true);
+  const [overview, setOverview] = useState({
+    activeCourses: 0,
+    pendingCourses: 0,
+    canceledCourses: 0,
+    totalLessons: 0,
+    completedLessons: 0,
+  });
 
   const streak = useMemo(() => {
-    const done = plan.filter((x) => x.done).length;
-    return 5 + done;
-  }, [plan]);
+    const doneRatio = overview.totalLessons > 0 ? overview.completedLessons / overview.totalLessons : 0;
+    return Math.max(5, Math.round(5 + doneRatio * 10));
+  }, [overview.completedLessons, overview.totalLessons]);
 
   const activeCourses = useMemo(() => courses.filter((c) => c.active), [courses]);
   const totalProgress = useMemo(() => {
@@ -43,19 +45,10 @@ export function StudentPortalPage() {
     return Math.round(total / activeCourses.length);
   }, [activeCourses]);
 
-  const bestCourse = useMemo(() => {
-    if (courses.length === 0) return null;
-    return [...courses].sort((a, b) => b.progress - a.progress)[0];
-  }, [courses]);
-
   const nextCourse = useMemo(() => {
     if (activeCourses.length === 0) return null;
     return [...activeCourses].sort((a, b) => b.progress - a.progress)[0];
   }, [activeCourses]);
-
-  useEffect(() => {
-    savePlan(LS_KEY_PLAN, plan);
-  }, [plan]);
 
   async function loadCourses() {
     setLoading(true);
@@ -118,14 +111,72 @@ export function StudentPortalPage() {
     }
   }
 
+  async function loadOverview() {
+    setOverviewLoading(true);
+    try {
+      const stats = await studentApi.learningStats();
+      setOverview({
+        activeCourses: stats.activeCourses,
+        pendingCourses: stats.pendingCourses,
+        canceledCourses: stats.canceledCourses,
+        totalLessons: stats.totalLessons,
+        completedLessons: stats.completedLessons,
+      });
+    } catch {
+      // fallback by aggregating existing endpoints if statistics endpoint is unavailable
+      try {
+        const rows = await studentApi.myCourses("vi");
+        const activeCourses = rows.filter((x) => x.status === "ACTIVE").length;
+        const pendingCourses = rows.filter((x) => x.status === "PENDING").length;
+        const canceledCourses = rows.filter((x) => x.status === "CANCELED" || x.status === "CANCELLED").length;
+
+        const progressRows = await Promise.all(
+          rows.map(async (row) => {
+            if (row.progress) return row.progress;
+            try {
+              return await studentApi.courseProgress(row.courseId);
+            } catch {
+              return null;
+            }
+          }),
+        );
+
+        const totals = progressRows.reduce(
+          (acc, item) => {
+            if (!item) return acc;
+            acc.totalLessons += item.totalLessons;
+            acc.completedLessons += item.completedLessons;
+            return acc;
+          },
+          { totalLessons: 0, completedLessons: 0 },
+        );
+
+        setOverview({
+          activeCourses,
+          pendingCourses,
+          canceledCourses,
+          totalLessons: totals.totalLessons,
+          completedLessons: totals.completedLessons,
+        });
+      } catch {
+        setOverview({
+          activeCourses: activeCourses.length,
+          pendingCourses: courses.filter((x) => x.status === "PENDING").length,
+          canceledCourses: courses.filter((x) => x.status === "CANCELED" || x.status === "CANCELLED").length,
+          totalLessons: courses.reduce((sum, c) => sum + c.lessons, 0),
+          completedLessons: courses.reduce((sum, c) => sum + c.completedLessons, 0),
+        });
+      }
+    } finally {
+      setOverviewLoading(false);
+    }
+  }
+
   useEffect(() => {
     loadCourses();
+    loadOverview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  function togglePlan(id: string, done: boolean) {
-    setPlan((prev) => prev.map((x) => (x.id === id ? { ...x, done } : x)));
-  }
 
   async function continueCourse(course: StudentCourse) {
     if (!course.active) return;
@@ -175,18 +226,6 @@ export function StudentPortalPage() {
     findCourse: () => {
       nav("/student");
     },
-    remind: () => toast("Nhắc học", "Đã bật nhắc học theo lịch tuần hiện tại."),
-    downloadAll: () => toast("Tải chứng chỉ", "Danh sách chứng chỉ sẽ được tải khi endpoint export khả dụng."),
-    pdf: () => toast("PDF", "Tính năng tải PDF sẽ dùng endpoint chứng chỉ trong backend."),
-    share: () => toast("Chia sẻ", "Đã sao chép liên kết chứng chỉ."),
-    req: () => toast("Yêu cầu chứng chỉ", "Hoàn thành 100% bài học để mở chứng chỉ."),
-    faq: () => {
-      toast("FAQ", "Trang FAQ sẽ mở ở phiên bản tiếp theo.");
-    },
-    ticket: () => {
-      toast("Ticket", "Trang ticket sẽ mở ở phiên bản tiếp theo.");
-    },
-    chat: () => toast("Chat CSKH", "Widget chat sẽ được mở trong phiên bản tiếp theo."),
   };
 
   return (
@@ -205,7 +244,7 @@ export function StudentPortalPage() {
           streakDays={streak}
           activeCourses={activeCourses.length}
           totalProgress={totalProgress}
-          certificates={courses.filter((c) => c.progress >= 100).length}
+          completedLessons={overview.completedLessons}
           nextCourseTitle={nextCourse?.title ?? "Chưa có khoá học"}
           nextLessonTitle={nextCourse?.nextLessonTitle ?? "Chưa có bài học"}
           nextPercent={nextCourse?.progress ?? 0}
@@ -222,21 +261,14 @@ export function StudentPortalPage() {
             onDetail={openDetail}
             onCancel={cancelCourse}
           />
-          <StudyPlan plan={plan} onToggle={togglePlan} streakDays={streak} onRemind={actions.remind} />
-        </section>
-
-        <section className="grid gap-4 lg:grid-cols-3">
-          <CertificatesPanel
-            completedCourses={courses.filter((c) => c.progress >= 100).length}
-            bestCourseName={bestCourse?.title ?? "Chưa có"}
-            inProgressCourseName={nextCourse?.title ?? "Chưa có"}
-            inProgressPercent={nextCourse?.progress ?? 0}
-            onDownloadAll={actions.downloadAll}
-            onPdf={actions.pdf}
-            onShare={actions.share}
-            onReq={actions.req}
+          <LearningOverviewChart
+            loading={overviewLoading}
+            activeCourses={overview.activeCourses}
+            pendingCourses={overview.pendingCourses}
+            canceledCourses={overview.canceledCourses}
+            completedLessons={overview.completedLessons}
+            remainingLessons={Math.max(overview.totalLessons - overview.completedLessons, 0)}
           />
-          <SupportPanel onFaq={actions.faq} onTicket={actions.ticket} onChat={actions.chat} />
         </section>
 
         <footer className="py-6 text-center text-sm text-slate-500">© 2025 AYANAVITA • Student Portal</footer>

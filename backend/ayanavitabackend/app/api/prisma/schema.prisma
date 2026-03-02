@@ -270,7 +270,7 @@ model Course {
   time                String?  @db.VarChar(120)
   shortDescription    String?  @db.VarChar(500)
   slug                String   @unique
-  description         String?
+  description         String?  @db.LongText
   thumbnail           String?
   price               Int      @default(0)
   published           Boolean  @default(false)

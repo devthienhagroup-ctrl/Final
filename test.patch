@@ -234,3 +234,313 @@ index c8dbeb626872f1646c2b4f83868ffa9bd8c9df35..ff1e5f322f6a5aad1eb80f9b0801c7e4
                  </div>
                </div>
              </Link>
+diff --git a/Home/ayanavita-fontend-final/src/pages/CourseDetailPage.tsx b/Home/ayanavita-fontend-final/src/pages/CourseDetailPage.tsx
+index 67a2be9dff59a9a24c45f8f53ea452d5b09b3c6c..160f285717a4d4c931c48ba773149f6bbdad7b66 100644
+--- a/Home/ayanavita-fontend-final/src/pages/CourseDetailPage.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/CourseDetailPage.tsx
+@@ -1,33 +1,33 @@
+ import React, { useEffect, useMemo, useState } from "react";
+ import { useNavigate, useParams } from "react-router-dom";
+ import { http } from "../api/http";
+ import { SiteHeader } from "../components/layout/SiteHeader";
+ import { Footer } from "../components/layout/Footer";
+
+-type ModuleItem = { id: number; order: number; title: string };
+-type LessonItem = { id: number; order: number; title: string; modules: ModuleItem[] };
++type ModuleItem = { id: number; order: number; title: string; description?: string | null };
++type LessonItem = { id: number; order: number; title: string; description?: string | null; modules: ModuleItem[] };
+ type ReviewItem = {
+   id: number;
+   stars: number;
+   comment?: string | null;
+   customerName?: string | null;
+   createdAt: string;
+ };
+
+ type CourseDetail = {
+   id: number;
+   slug: string;
+   title: string;
+   shortDescription?: string | null;
+   description?: string | null;
+   time?: string | null;
+   thumbnail?: string | null;
+   price: number;
+   ratingAvg: number;
+   ratingCount: number;
+   enrollmentCount: number;
+   topic?: { id: number; name: string } | null;
+   lessons: LessonItem[];
+   reviews: ReviewItem[];
+ };
+
+@@ -155,103 +155,133 @@ export default function CourseDetailPage() {
+       const amount = Number(payload.total || course.price || 0);
+
+       if (!content) {
+         window.alert("Không lấy được thông tin chuyển khoản từ hệ thống.");
+         return;
+       }
+
+       setQrData({ bankCode, accountNumber, accountName, content, amount });
+       setQrOpen(true);
+     } catch (error: any) {
+       if (error?.response?.status === 401) {
+         nav(toRegisterUrl(course.slug, lang));
+         return;
+       }
+       window.alert(error?.response?.data?.message || "Không thể tạo đơn đăng ký. Vui lòng thử lại.");
+     } finally {
+       setOrdering(false);
+     }
+   };
+
+   return (
+     <div className="text-slate-900">
+       <SiteHeader />
+       <main className="px-4 py-8">
+         <div className="max-w-6xl mx-auto grid gap-4">
+-          <button className="btn w-fit" type="button" onClick={() => nav("/courses")}>← Khóa học</button>
++          <button className="inline-flex w-fit items-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-fuchsia-600 px-4 py-2 font-bold text-white shadow-lg shadow-indigo-500/25 transition hover:scale-[1.02]" type="button" onClick={() => nav("/courses")}>
++            <i className="fa-solid fa-arrow-left" />
++            Khóa học
++          </button>
+
+           {loading ? (
+             <div className="card p-8">Đang tải...</div>
+           ) : !course ? (
+             <div className="card p-8">Không tìm thấy khóa học.</div>
+           ) : (
+             <section className="grid gap-4 lg:grid-cols-10">
+               <div className="lg:col-span-7 grid gap-4">
+                 <article className="card p-6">
+-                  <div className="chip w-fit">{course.topic?.name || "Course"}</div>
+-                  <h1 className="text-3xl font-extrabold mt-3">{course.title}</h1>
+-                  <p className="text-slate-700 mt-2">{course.shortDescription || course.description}</p>
++                  <div className="inline-flex w-fit items-center gap-2 rounded-xl bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-700">
++                    <i className="fa-solid fa-layer-group" />
++                    {course.topic?.name || "Course"}
++                  </div>
++                  <h1 className="mt-3 text-3xl font-extrabold">{course.title}</h1>
++                  <p className="mt-2 text-slate-700">{course.shortDescription || course.description}</p>
+                 </article>
+
+                 <article className="card p-6">
+                   <h2 className="text-xl font-extrabold">Nội dung khóa học</h2>
+-                  <p className="text-sm text-slate-600 mt-1">{course.lessons.length} bài học • {totalModules} module</p>
++                  <p className="mt-2 flex flex-wrap gap-2 text-sm">
++                    <span className="inline-flex items-center gap-2 rounded-xl bg-cyan-100 px-3 py-1 font-bold text-cyan-700">
++                      <i className="fa-solid fa-book-open" /> {course.lessons.length} bài học
++                    </span>
++                    <span className="inline-flex items-center gap-2 rounded-xl bg-emerald-100 px-3 py-1 font-bold text-emerald-700">
++                      <i className="fa-solid fa-cubes" /> {totalModules} phần nội dung
++                    </span>
++                  </p>
+
+                   <div className="mt-4 grid gap-3">
+                     {course.lessons.map((lesson) => (
+-                      <article key={lesson.id} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+-                        <div className="font-extrabold">Bài {lesson.order + 1}: {lesson.title}</div>
+-                        <ul className="mt-2 space-y-1 text-sm text-slate-700">
++                      <article key={lesson.id} className="rounded-2xl bg-gradient-to-r from-slate-50 to-indigo-50 p-4 ring-1 ring-indigo-100">
++                        <div className="flex items-center gap-2 font-extrabold text-indigo-700">
++                          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600 text-xs text-white">{lesson.order + 1}</span>
++                          {lesson.title}
++                        </div>
++                        {lesson.description ? (
++                          <p className="mt-2 text-sm text-slate-600">{lesson.description}</p>
++                        ) : null}
++                        <ul className="mt-3 space-y-2 text-sm text-slate-700">
+                           {lesson.modules.map((module) => (
+-                            <li key={module.id}>• Module {module.order + 1}: {module.title}</li>
++                            <li key={module.id} className="rounded-xl bg-white px-3 py-2 ring-1 ring-slate-200">
++                              <p className="font-semibold text-slate-900">{module.title}</p>
++                              {module.description ? (
++                                <p className="mt-1 text-xs text-slate-600">{module.description}</p>
++                              ) : null}
++                            </li>
+                           ))}
+                         </ul>
+                       </article>
+                     ))}
+                   </div>
+                 </article>
+               </div>
+
+               <aside className="lg:col-span-3 grid gap-4">
+                 <article className="card overflow-hidden">
+                   <img src={thumbnail} alt={course.title} className="w-full h-48 object-cover" />
+-                  <div className="p-4 text-xs text-slate-500">Thumbnail khóa học</div>
+                 </article>
+
+                 <article className="card p-5">
+                   <div className="text-2xl font-extrabold text-indigo-700">{money(course.price)}</div>
+-                  <div className="mt-3 flex flex-wrap gap-2 text-sm">
+-                    <span className="chip">⏱ {formatHour(course.time)}</span>
+-                    <span className="chip">⭐ {course.ratingAvg.toFixed(1)} ({course.ratingCount})</span>
+-                    <span className="chip">👥 {course.enrollmentCount}</span>
++                  <div className="mt-3 grid gap-2 text-sm">
++                    <span className="inline-flex items-center gap-2 rounded-xl bg-emerald-100 px-3 py-2 font-bold text-emerald-700">
++                      <i className="fa-solid fa-clock" /> {formatHour(course.time)}
++                    </span>
++                    <span className="inline-flex items-center gap-2 rounded-xl bg-amber-100 px-3 py-2 font-bold text-amber-700">
++                      <i className="fa-solid fa-star" /> {course.ratingAvg.toFixed(1)} ({course.ratingCount})
++                    </span>
++                    <span className="inline-flex items-center gap-2 rounded-xl bg-indigo-100 px-3 py-2 font-bold text-indigo-700">
++                      <i className="fa-solid fa-users" /> {course.enrollmentCount} học viên
++                    </span>
+                   </div>
+                   <button
+-                    className="btn btn-primary w-full mt-4"
++                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-fuchsia-600 px-4 py-3 font-extrabold text-white shadow-lg shadow-indigo-500/30 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-70"
+                     type="button"
+                     onClick={onRegister}
+                     disabled={ordering}
+                   >
++                    <i className="fa-solid fa-bolt" />
+                     {ordering ? "Đang tạo mã QR..." : REGISTER_LABEL[lang] || REGISTER_LABEL.vi}
+                   </button>
+                 </article>
+
+                 <article className="card p-5">
+                   <h2 className="text-lg font-extrabold">Đánh giá khóa học</h2>
+                   <div className="mt-3 grid gap-3">
+                     {course.reviews.length ? (
+                       course.reviews.slice(0, 3).map((review) => (
+                         <article key={review.id} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                           <div className="font-bold">{review.customerName || "Học viên"}</div>
+                           <div className="text-sm text-amber-600">
+                             {"★".repeat(Math.max(1, Math.min(5, review.stars)))}
+                           </div>
+                           <div className="text-sm text-slate-700 mt-1">{review.comment || "-"}</div>
+                         </article>
+                       ))
+                     ) : (
+                       <div className="text-sm text-slate-600">Chưa có đánh giá.</div>
+                     )}
+                   </div>
+                 </article>
+               </aside>
+             </section>
+           )}
+diff --git a/backend/ayanavitabackend/app/api/src/courses/public-courses.service.ts b/backend/ayanavitabackend/app/api/src/courses/public-courses.service.ts
+index d41df75bbfe23bc6cb66034ed85bbc279135f553..ff5a315e4c1b910ccd6a6964a3ea6e803633f93b 100644
+--- a/backend/ayanavitabackend/app/api/src/courses/public-courses.service.ts
++++ b/backend/ayanavitabackend/app/api/src/courses/public-courses.service.ts
+@@ -26,65 +26,67 @@ export class PublicCoursesService {
+             title: true,
+             shortDescription: true,
+             description: true,
+             objectives: true,
+             targetAudience: true,
+             benefits: true,
+           },
+         },
+         topic: {
+           select: {
+             id: true,
+             name: true,
+             translations: {
+               where: { locale: { in: [locale, 'vi'] } },
+               select: { locale: true, name: true },
+             },
+           },
+         },
+         lessons: {
+           where: { published: true },
+           orderBy: { order: 'asc' },
+           select: {
+             id: true,
+             title: true,
+             slug: true,
++            description: true,
+             order: true,
+             translations: {
+               where: { locale: { in: [locale, 'vi'] } },
+-              select: { locale: true, title: true },
++              select: { locale: true, title: true, description: true },
+             },
+             modules: {
+               where: { published: true },
+               orderBy: { order: 'asc' },
+               select: {
+                 id: true,
+                 title: true,
++                description: true,
+                 order: true,
+                 translations: {
+                   where: { locale: { in: [locale, 'vi'] } },
+-                  select: { locale: true, title: true },
++                  select: { locale: true, title: true, description: true },
+                 },
+               },
+             },
+           },
+         },
+         courseReviews: {
+           orderBy: { createdAt: 'desc' },
+           take: 20,
+           select: {
+             id: true,
+             stars: true,
+             comment: true,
+             customerName: true,
+             createdAt: true,
+           },
+         },
+       },
+     })
+
+     if (!course) throw new NotFoundException('Course not found')
+
+     const courseTr =
+       course.translations.find((item) => item.locale === locale) ||
+       course.translations.find((item) => item.locale === 'vi')
+
+@@ -95,38 +97,46 @@ export class PublicCoursesService {
+       shortDescription: courseTr?.shortDescription || course.shortDescription,
+       description: courseTr?.description || course.description,
+       time: course.time,
+       thumbnail: course.thumbnail,
+       price: course.price,
+       ratingAvg: course.ratingAvg,
+       ratingCount: course.ratingCount,
+       enrollmentCount: course.enrollmentCount,
+       topic: course.topic
+         ? {
+             id: course.topic.id,
+             name:
+               course.topic.translations.find((item) => item.locale === locale)?.name ||
+               course.topic.translations.find((item) => item.locale === 'vi')?.name ||
+               course.topic.name,
+           }
+         : null,
+       lessons: course.lessons.map((lesson) => ({
+         id: lesson.id,
+         slug: lesson.slug,
+         order: lesson.order,
+         title:
+           lesson.translations.find((item) => item.locale === locale)?.title ||
+           lesson.translations.find((item) => item.locale === 'vi')?.title ||
+           lesson.title,
++        description:
++          lesson.translations.find((item) => item.locale === locale)?.description ||
++          lesson.translations.find((item) => item.locale === 'vi')?.description ||
++          lesson.description,
+         modules: lesson.modules.map((module) => ({
+           id: module.id,
+           order: module.order,
+           title:
+             module.translations.find((item) => item.locale === locale)?.title ||
+             module.translations.find((item) => item.locale === 'vi')?.title ||
+             module.title,
++          description:
++            module.translations.find((item) => item.locale === locale)?.description ||
++            module.translations.find((item) => item.locale === 'vi')?.description ||
++            module.description,
+         })),
+       })),
+       reviews: course.courseReviews,
+     }
+   }
+ }

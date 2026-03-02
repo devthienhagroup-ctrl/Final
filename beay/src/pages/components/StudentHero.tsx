@@ -3,7 +3,7 @@ type Props = {
   streakDays: number;
   activeCourses: number;
   totalProgress: number;
-  certificates: number;
+  completedLessons: number;
   nextCourseTitle: string;
   nextLessonTitle: string;
   nextPercent: number;
@@ -30,8 +30,8 @@ export function StudentHero(props: Props) {
               <div className="mt-1 text-2xl font-extrabold">{props.totalProgress}%</div>
             </div>
             <div className="p-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
-              <div className="text-xs font-extrabold text-slate-500">Chứng chỉ</div>
-              <div className="mt-1 text-2xl font-extrabold">{props.certificates}</div>
+              <div className="text-xs font-extrabold text-slate-500">Bài đã hoàn thành</div>
+              <div className="mt-1 text-2xl font-extrabold">{props.completedLessons}</div>
             </div>
           </div>
         </div>

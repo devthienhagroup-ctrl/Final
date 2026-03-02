@@ -83,6 +83,15 @@ export type ApiMyCourse = {
   progress?: ApiCourseProgress;
 };
 
+export type ApiLearningStats = {
+  activeCourses: number;
+  pendingCourses: number;
+  canceledCourses: number;
+  totalLessons: number;
+  completedLessons: number;
+  averageProgress: number;
+};
+
 export type ApiLessonVideo = {
   id: number;
   title: string;
@@ -130,4 +139,5 @@ export const studentApi = {
     request(`/lessons/${lessonId}/modules/${moduleId}/complete`, { method: "POST" }),
   cancelCourse: (courseId: number) => request<{ id: number; status: EnrollmentStatus }>(`/courses/${courseId}/cancel`, { method: "POST" }),
   myProgress: () => request<Array<{ lessonId: number; lesson?: { courseId?: number; title?: string } }>>(`/me/progress`),
+  learningStats: () => request<ApiLearningStats>(`/me/courses/statistics`),
 };

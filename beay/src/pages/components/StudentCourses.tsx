@@ -28,32 +28,6 @@ export function StudentCourses(props: Props) {
         </button>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl bg-emerald-50 px-4 py-3 ring-1 ring-emerald-100">
-          <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
-            <i className="fa-solid fa-graduation-cap" />
-          </div>
-          <div className="mt-2 text-xs font-bold text-emerald-700">Đang học</div>
-          <div className="text-xl font-black text-emerald-900">{activeCount}</div>
-        </div>
-
-        <div className="rounded-2xl bg-sky-50 px-4 py-3 ring-1 ring-sky-100">
-          <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
-            <i className="fa-solid fa-chart-line" />
-          </div>
-          <div className="mt-2 text-xs font-bold text-sky-700">Tiến độ TB</div>
-          <div className="text-xl font-black text-sky-900">{avgProgress}%</div>
-        </div>
-
-        <div className="rounded-2xl bg-violet-50 px-4 py-3 ring-1 ring-violet-100">
-          <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
-            <i className="fa-solid fa-circle-check" />
-          </div>
-          <div className="mt-2 text-xs font-bold text-violet-700">Hoàn thành</div>
-          <div className="text-xl font-black text-violet-900">{finishedCount}</div>
-        </div>
-      </div>
-
       {props.loading && <div className="mt-4 text-sm text-slate-500">Đang tải khoá học...</div>}
 
       {!props.loading && props.courses.length === 0 && (
@@ -62,7 +36,19 @@ export function StudentCourses(props: Props) {
 
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         {props.courses.map((c) => (
-          <div key={c.id} className="relative rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-5">
+          <div
+            key={c.id}
+            className="relative cursor-pointer rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-5"
+            onClick={() => props.onDetail(c)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                props.onDetail(c);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+          >
             <span className="absolute left-3 top-3 inline-flex h-3.5 w-3.5 rounded-full border-2 border-emerald-200 bg-emerald-400" />
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -102,11 +88,26 @@ export function StudentCourses(props: Props) {
               </div>
             </div>
 
-            <div className="mt-4 flex gap-2">
-              <button className="btn btn-primary flex-1" onClick={() => props.onDetail(c)}>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                className="btn btn-primary !px-3 !py-1.5 !text-sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  props.onDetail(c);
+                }}
+              >
                 Chi tiết
               </button>
-              <button className="btn" disabled={!c.active} onClick={() => props.onCancel(c)}>Huỷ</button>
+              <button
+                className="btn"
+                disabled={!c.active}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  props.onCancel(c);
+                }}
+              >
+                Huỷ
+              </button>
             </div>
           </div>
         ))}

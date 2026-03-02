@@ -190,7 +190,7 @@ export function StudentPortalPage() {
       }
 
       toast("Tiếp tục học", `Mở bài học: ${nextLesson.title}`);
-      nav(`/student/lessons/${nextLesson.id}?courseId=${course.courseId}`);
+      nav(`/student/courses/${course.courseId}?lessonId=${nextLesson.id}&lang=vi`);
     } catch (error: any) {
       toast("Không thể vào học", error?.message || "Không lấy được danh sách bài học.");
     }

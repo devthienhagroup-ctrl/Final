@@ -16,6 +16,28 @@ export function LearningOverviewChart(props: Props) {
   useEffect(() => {
     if (!canvasRef.current) return;
 
+    const totalLessons = props.completedLessons + props.remainingLessons;
+    const centerTextPlugin = {
+      id: "centerText",
+      afterDraw(chart: Chart) {
+        const { ctx } = chart;
+        const meta = chart.getDatasetMeta(0);
+        const arc = meta.data[0];
+        if (!arc) return;
+
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "700 24px Inter, sans-serif";
+        ctx.fillText(String(totalLessons), arc.x, arc.y - 6);
+        ctx.fillStyle = "#64748b";
+        ctx.font = "500 12px Inter, sans-serif";
+        ctx.fillText("Tổng bài", arc.x, arc.y + 14);
+        ctx.restore();
+      },
+    };
+
     const chart = new Chart(canvasRef.current, {
       type: "doughnut",
       data: {
@@ -23,9 +45,10 @@ export function LearningOverviewChart(props: Props) {
         datasets: [
           {
             data: [props.completedLessons, props.remainingLessons, props.pendingCourses, props.canceledCourses],
-            backgroundColor: ["#4f46e5", "#a5b4fc", "#f59e0b", "#ef4444"],
+            backgroundColor: ["#818cf8", "#bfdbfe", "#fcd34d", "#fda4af"],
             borderWidth: 0,
-            hoverOffset: 8,
+            radius: "78%",
+            hoverOffset: 6,
           },
         ],
       },
@@ -43,8 +66,9 @@ export function LearningOverviewChart(props: Props) {
             },
           },
         },
-        cutout: "68%",
+        cutout: "74%",
       },
+      plugins: [centerTextPlugin],
     });
 
     return () => chart.destroy();
@@ -68,7 +92,7 @@ export function LearningOverviewChart(props: Props) {
         <div className="mt-5 text-sm text-slate-500">Đang tải thống kê...</div>
       ) : (
         <>
-          <div className="mt-5 h-[280px]">
+          <div className="mt-5 h-[220px]">
             <canvas ref={canvasRef} />
           </div>
           <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
@@ -86,4 +110,3 @@ export function LearningOverviewChart(props: Props) {
     </div>
   );
 }
-

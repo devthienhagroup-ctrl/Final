@@ -21,17 +21,20 @@ export function StudentHero(props: Props) {
           <div className="mt-2 text-slate-600">Mục tiêu tuần này: <b>hoàn thành 3 bài học</b> • Chuỗi học: <b>{props.streakDays} ngày</b>.</div>
 
           <div className="mt-5 grid gap-3 md:grid-cols-3">
-            <div className="p-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
-              <div className="text-xs font-extrabold text-slate-500">Khoá đang học</div>
-              <div className="mt-1 text-2xl font-extrabold">{props.activeCourses}</div>
+            <div className="p-4 rounded-2xl bg-emerald-50 ring-1 ring-emerald-200/70">
+              <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600"><i className="fa-solid fa-graduation-cap" /></div>
+              <div className="mt-2 text-xs font-extrabold text-emerald-700">Khoá đang học</div>
+              <div className="mt-1 text-2xl font-extrabold text-emerald-900">{props.activeCourses}</div>
             </div>
-            <div className="p-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
-              <div className="text-xs font-extrabold text-slate-500">Tiến độ tổng</div>
-              <div className="mt-1 text-2xl font-extrabold">{props.totalProgress}%</div>
+            <div className="p-4 rounded-2xl bg-sky-50 ring-1 ring-sky-200/70">
+              <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-600"><i className="fa-solid fa-chart-line" /></div>
+              <div className="mt-2 text-xs font-extrabold text-sky-700">Tiến độ tổng</div>
+              <div className="mt-1 text-2xl font-extrabold text-sky-900">{props.totalProgress}%</div>
             </div>
-            <div className="p-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
-              <div className="text-xs font-extrabold text-slate-500">Bài đã hoàn thành</div>
-              <div className="mt-1 text-2xl font-extrabold">{props.completedLessons}</div>
+            <div className="p-4 rounded-2xl bg-violet-50 ring-1 ring-violet-200/70">
+              <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-violet-600"><i className="fa-solid fa-circle-check" /></div>
+              <div className="mt-2 text-xs font-extrabold text-violet-700">Bài đã hoàn thành</div>
+              <div className="mt-1 text-2xl font-extrabold text-violet-900">{props.completedLessons}</div>
             </div>
           </div>
         </div>

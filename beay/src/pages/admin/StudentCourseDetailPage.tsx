@@ -1,125 +1,110 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useToast } from "../../ui/toast";
-import { studentApi, type ApiCourseDetail, type ApiCourseProgress, type ApiLesson, type ApiLessonDetail } from "../student/student.api";
+import { studentApi, type ApiCourseDetail, type ApiCourseProgress, type ApiLesson, type ApiLessonDetail, type ApiLessonVideo } from "../student/student.api";
 
 type Lang = "vi" | "en" | "de";
+type RatingState = { stars: number; comment: string; createdAt: string };
+
+const clamp2: CSSProperties = {
+  display: "-webkit-box",
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: "vertical",
+  overflow: "hidden",
+};
 
 const i18n: Record<Lang, Record<string, string>> = {
   vi: {
-    title: "Chi tiết khoá học",
-    descFallback: "Khoá học được đồng bộ từ API AYANAVITA.",
+    title: "COURSE DETAIL",
     back: "Quay lại",
-    continue: "Tiếp tục học",
-    reload: "Tải lại",
+    continue: "Start learning",
+    reset: "Reset progress",
     loading: "Đang tải dữ liệu...",
-    lessonList: "Danh sách bài học",
+    lessonList: "Nội dung khoá học",
     progress: "Tiến độ",
-    lessonDone: "Hoàn thành",
-    price: "Giá",
-    lessonCount: "Số bài",
-    videoCount: "Số video",
-    topic: "Chủ đề",
-    duration: "Thời lượng",
-    rating: "Đánh giá",
-    enrolled: "Lượt ghi danh",
-    status: "Trạng thái",
-    objectives: "Mục tiêu khoá học",
-    targetAudience: "Đối tượng phù hợp",
-    benefits: "Lợi ích nhận được",
+    objective: "Mục tiêu",
+    audience: "Đối tượng",
+    benefits: "Lợi ích",
     noLesson: "Khoá học chưa có bài học.",
-    updatedAt: "Cập nhật",
-    moduleCount: "Số module",
-    content: "Nội dung khoá học",
-    noModule: "Chưa có nội dung module.",
-    heroTag: "Khoá học nổi bật",
-    thumbnail: "Thumbnail khoá học",
-    register: "Đăng ký",
     reviewTitle: "Đánh giá khoá học",
-    noReview: "Chưa có đánh giá.",
+    reviewDone: "Bạn đã đánh giá khoá học này.",
+    reviewOnce: "Mỗi học viên chỉ được đánh giá 1 lần / 1 khoá học.",
+    submit: "Gửi đánh giá",
+    continueLesson: "Player",
+    noModule: "Bài học chưa có module/video.",
+    completeModule: "Đánh dấu hoàn thành",
+    watched: "Đã xem",
+    descCourse: "Mô tả khoá học",
+    descLesson: "Mô tả bài học",
+    descModule: "Mô tả module",
   },
   en: {
-    title: "Course Detail",
-    descFallback: "Course data is synced from AYANAVITA API.",
+    title: "COURSE DETAIL",
     back: "Back",
-    continue: "Continue",
-    reload: "Reload",
+    continue: "Start learning",
+    reset: "Reset progress",
     loading: "Loading data...",
-    lessonList: "Lesson list",
+    lessonList: "Curriculum",
     progress: "Progress",
-    lessonDone: "Completed",
-    price: "Price",
-    lessonCount: "Lessons",
-    videoCount: "Videos",
-    topic: "Topic",
-    duration: "Duration",
-    rating: "Rating",
-    enrolled: "Enrollments",
-    status: "Status",
-    objectives: "Objectives",
-    targetAudience: "Target audience",
+    objective: "Objectives",
+    audience: "Target audience",
     benefits: "Benefits",
-    noLesson: "No lessons in this course yet.",
-    updatedAt: "Updated",
-    moduleCount: "Modules",
-    content: "Course content",
-    noModule: "No module content yet.",
-    heroTag: "Featured course",
-    thumbnail: "Course thumbnail",
-    register: "Register",
-    reviewTitle: "Course reviews",
-    noReview: "No reviews yet.",
+    noLesson: "No lessons yet.",
+    reviewTitle: "Course review",
+    reviewDone: "You already reviewed this course.",
+    reviewOnce: "Each student can review only once per course.",
+    submit: "Submit review",
+    continueLesson: "Player",
+    noModule: "No modules/videos yet.",
+    completeModule: "Mark done",
+    watched: "Watched",
+    descCourse: "Course description",
+    descLesson: "Lesson description",
+    descModule: "Module description",
   },
   de: {
-    title: "Kursdetails",
-    descFallback: "Kursdaten werden von der AYANAVITA-API synchronisiert.",
+    title: "KURSDETAIL",
     back: "Zurück",
-    continue: "Weiterlernen",
-    reload: "Neu laden",
-    loading: "Daten werden geladen...",
-    lessonList: "Lektionsliste",
+    continue: "Start learning",
+    reset: "Fortschritt zurücksetzen",
+    loading: "Lade Daten...",
+    lessonList: "Kursinhalt",
     progress: "Fortschritt",
-    lessonDone: "Abgeschlossen",
-    price: "Preis",
-    lessonCount: "Lektionen",
-    videoCount: "Videos",
-    topic: "Thema",
-    duration: "Dauer",
-    rating: "Bewertung",
-    enrolled: "Einschreibungen",
-    status: "Status",
-    objectives: "Lernziele",
-    targetAudience: "Zielgruppe",
+    objective: "Lernziele",
+    audience: "Zielgruppe",
     benefits: "Vorteile",
-    noLesson: "Dieser Kurs hat noch keine Lektionen.",
-    updatedAt: "Aktualisiert",
-    moduleCount: "Module",
-    content: "Kursinhalt",
-    noModule: "Noch kein Modulinhalt.",
-    heroTag: "Empfohlener Kurs",
-    thumbnail: "Kurs-Thumbnail",
-    register: "Anmelden",
-    reviewTitle: "Kursbewertungen",
-    noReview: "Noch keine Bewertungen.",
+    noLesson: "Noch keine Lektionen.",
+    reviewTitle: "Kursbewertung",
+    reviewDone: "Sie haben bereits bewertet.",
+    reviewOnce: "Eine Bewertung pro Kurs.",
+    submit: "Bewerten",
+    continueLesson: "Player",
+    noModule: "Noch keine Module/Videos.",
+    completeModule: "Als erledigt markieren",
+    watched: "Angesehen",
+    descCourse: "Kursbeschreibung",
+    descLesson: "Lektionsbeschreibung",
+    descModule: "Modulbeschreibung",
   },
 };
 
 function sortLessons(ls: ApiLesson[]) {
-  return [...ls].sort((a, b) => {
-    const ao = a.order ?? 0;
-    const bo = b.order ?? 0;
-    if (ao !== bo) return ao - bo;
-    return a.id - b.id;
-  });
+  return [...ls].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id - b.id);
+}
+
+function reviewStorageKey(courseId: number) {
+  return `student_course_review_${courseId}`;
 }
 
 export function StudentCourseDetailPage() {
   const nav = useNavigate();
   const { id } = useParams();
+  const [sp, setSp] = useSearchParams();
   const { toast } = useToast();
-  const courseId = Number(id || 0);
 
-  const [lang, setLang] = useState<Lang>("vi");
+  const courseId = Number(id || 0);
+  const lang = ((sp.get("lang") as Lang) || "vi");
+  const lessonIdFromQuery = Number(sp.get("lessonId") || 0);
   const t = i18n[lang];
 
   const [loading, setLoading] = useState(true);
@@ -127,175 +112,221 @@ export function StudentCourseDetailPage() {
   const [course, setCourse] = useState<ApiCourseDetail | null>(null);
   const [lessons, setLessons] = useState<ApiLesson[]>([]);
   const [progress, setProgress] = useState<ApiCourseProgress | null>(null);
-  const [lessonDetails, setLessonDetails] = useState<Record<number, ApiLessonDetail>>({});
+  const [activeLesson, setActiveLesson] = useState<ApiLessonDetail | null>(null);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+  const [myReview, setMyReview] = useState<RatingState | null>(null);
+  const [openModules, setOpenModules] = useState<Record<number, boolean>>({});
 
-  async function loadData() {
+  const completedLessonIds = useMemo(() => new Set((progress?.items || []).filter((x) => x.status === "COMPLETED").map((x) => x.lessonId)), [progress]);
+
+  async function loadData(targetLessonId?: number) {
     if (!courseId) return;
     setLoading(true);
     setErr(null);
     try {
-      const [courseData, progressData] = await Promise.all([
+      const [courseData, progressData, lessonRows] = await Promise.all([
         studentApi.courseDetail(courseId, lang),
         studentApi.courseProgress(courseId),
+        studentApi.courseLessons(courseId),
       ]);
-      const fullLessons = await studentApi.courseLessons(courseId);
+      const sortedLessons = sortLessons(lessonRows);
+      const fallbackLessonId = sortedLessons[Math.min(progressData.completedLessons ?? 0, Math.max(0, sortedLessons.length - 1))]?.id;
+      const selectedLessonId = targetLessonId || lessonIdFromQuery || fallbackLessonId || sortedLessons[0]?.id;
+
       setCourse(courseData);
-      const sortedLessons = sortLessons(fullLessons);
-      setLessons(sortedLessons);
       setProgress(progressData);
-      const detailRows = await Promise.all(sortedLessons.map(async (lesson) => {
-        try {
-          const detail = await studentApi.lessonDetail(lesson.id, lang);
-          return [lesson.id, detail] as const;
-        } catch {
-          return null;
-        }
-      }));
-      setLessonDetails(Object.fromEntries(detailRows.filter(Boolean) as Array<[number, ApiLessonDetail]>));
-    } catch {
-      try {
-        const [courseData, outlineLessons] = await Promise.all([
-          studentApi.courseDetail(courseId, lang),
-          studentApi.courseLessonsOutline(courseId, lang),
-        ]);
-        setCourse(courseData);
-        setLessons(sortLessons(outlineLessons));
-        setProgress(null);
-        setLessonDetails({});
-      } catch (e: any) {
-        setErr(e?.message || "Cannot load course detail.");
+      setLessons(sortedLessons);
+
+      if (selectedLessonId) {
+        const lessonDetail = await studentApi.lessonDetail(selectedLessonId, lang);
+        setActiveLesson(lessonDetail);
+      } else {
+        setActiveLesson(null);
       }
+    } catch (e: any) {
+      setErr(e?.message || "Cannot load course detail.");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    void loadData();
+    void loadData(lessonIdFromQuery || undefined);
+    const raw = localStorage.getItem(reviewStorageKey(courseId));
+    setMyReview(raw ? (JSON.parse(raw) as RatingState) : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courseId, lang]);
+  }, [courseId, lang, lessonIdFromQuery]);
 
-  const nextLessonId = useMemo(() => {
-    if (!lessons.length) return 0;
-    const completed = progress?.completedLessons ?? 0;
-    const idx = Math.min(completed, Math.max(0, lessons.length - 1));
-    return lessons[idx]?.id || lessons[0].id;
-  }, [lessons, progress]);
-
-  function onContinue() {
-    if (!nextLessonId) {
-      toast("Không có bài học", t.noLesson);
-      return;
-    }
-    nav(`/student/lessons/${nextLessonId}?courseId=${courseId}&lang=${lang}`);
+  async function openLesson(lessonId: number) {
+    const next = new URLSearchParams(sp);
+    next.set("lessonId", String(lessonId));
+    setSp(next);
+    const lessonDetail = await studentApi.lessonDetail(lessonId, lang);
+    setActiveLesson(lessonDetail);
   }
 
-  return (
-    <div className="min-h-screen text-slate-900" style={{ background: "radial-gradient(1000px 500px at 15% 0%, rgba(79,70,229,0.18), transparent 60%), radial-gradient(800px 400px at 90% 10%, rgba(34,197,94,0.12), transparent 60%), linear-gradient(to bottom, #f8fafc, #eef2ff)" }}>
-      <main className="px-4 md:px-8 py-6 space-y-6">
-        <div className="rounded-[18px] border border-white/80 bg-white/95 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <span className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-xs font-extrabold text-indigo-700 ring-1 ring-indigo-200">
-                <i className="fa-solid fa-sparkles text-violet-500" />
-                {t.heroTag}
-              </span>
-              <h1 className="text-2xl font-extrabold text-slate-900">{course?.title || `Course #${courseId}`}</h1>
-              <p className="mt-1 max-w-4xl text-sm text-slate-600">{course?.description || t.descFallback}</p>
-            </div>
+  async function markVideoDone(video: ApiLessonVideo) {
+    if (!activeLesson) return;
+    await studentApi.updateVideoProgress(activeLesson.id, video.id, video.durationSec || 0, true);
+    await loadData(activeLesson.id);
+  }
 
-            <div className="flex flex-wrap items-center gap-2">
-              {(["vi", "en", "de"] as Lang[]).map((code) => (
-                <button key={code} className={`btn ${lang === code ? "btn-primary" : ""}`} onClick={() => setLang(code)}>{code.toUpperCase()}</button>
-              ))}
-              <button className="btn" onClick={() => nav("/student")}><i className="fa-solid fa-arrow-left mr-1" /> {t.back}</button>
-              <button className="btn btn-primary" onClick={onContinue}><i className="fa-solid fa-circle-play mr-1" /> {t.continue}</button>
-              <button className="btn" onClick={() => void loadData()}><i className="fa-solid fa-rotate-right mr-1" /> {t.reload}</button>
+  async function completeModule(moduleId: number) {
+    if (!activeLesson) return;
+    await studentApi.completeModule(activeLesson.id, moduleId);
+    await loadData(activeLesson.id);
+  }
+
+  function submitReview() {
+    if (myReview) return;
+    const payload: RatingState = { stars: rating, comment: comment.trim(), createdAt: new Date().toISOString() };
+    localStorage.setItem(reviewStorageKey(courseId), JSON.stringify(payload));
+    setMyReview(payload);
+    toast("Thành công", "Đã gửi đánh giá khoá học.");
+  }
+
+  const lessonProgressPercent = useMemo(() => {
+    if (!activeLesson?.modules?.length) return 0;
+    const done = activeLesson.modules.filter((m) => m.progress?.completed).length;
+    return Math.round((done / activeLesson.modules.length) * 100);
+  }, [activeLesson]);
+
+  return (
+    <div className="min-h-screen text-slate-900" style={{ background: "radial-gradient(900px 420px at 10% 0%, rgba(79,70,229,0.14), transparent 60%), radial-gradient(700px 380px at 95% 10%, rgba(14,165,233,0.14), transparent 60%), linear-gradient(to bottom, #f8fafc, #eef2ff)" }}>
+      <main className="mx-auto max-w-[1300px] px-4 py-6 md:px-8 space-y-5">
+        <section className="rounded-[20px] border border-white/80 bg-white/95 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.10)]">
+          <div className="grid gap-4 lg:grid-cols-[1.1fr_1.6fr]">
+            <div className="relative overflow-hidden rounded-2xl">
+              <img className="h-[220px] w-full object-cover" src={course?.thumbnail || "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&auto=format&fit=crop"} alt={course?.title || "thumbnail"} />
+              <div className="absolute bottom-3 left-3 flex gap-2 text-xs font-bold">
+                <span className="rounded-xl bg-white/90 px-2 py-1">⭐ {course?.ratingAvg || 0}</span>
+                <span className="rounded-xl bg-white/90 px-2 py-1">👥 {course?.enrollmentCount || 0}</span>
+                <span className="rounded-xl bg-white/90 px-2 py-1">⏱ {course?.time || "0 phút"}</span>
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-extrabold text-slate-500">{t.title}</div>
+              <h1 className="text-4xl font-black leading-tight">{course?.title || `Course #${courseId}`}</h1>
+              <div className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-sm font-medium text-black ring-1 ring-slate-200">{course?.shortDescription || course?.description || "Player + curriculum + quiz + assignment."}</div>
+              <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
+                <span className="rounded-xl bg-amber-100 px-3 py-1 text-amber-700">💰 {course?.price?.toLocaleString("vi-VN") || 0}</span>
+                <span className="rounded-xl bg-blue-100 px-3 py-1 text-blue-700">📘 Beginner</span>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button className="btn" onClick={() => nav("/student")}>← {t.back}</button>
+                <button className="btn" onClick={() => void loadData(activeLesson?.id)}><i className="fa-solid fa-rotate-right mr-1" />{t.reset}</button>
+                <button className="btn btn-primary" onClick={() => activeLesson?.id && openLesson(activeLesson.id)}><i className="fa-solid fa-play mr-1" />{t.continue}</button>
+              </div>
             </div>
           </div>
-        </div>
+        </section>
 
         {loading && <div className="rounded-xl bg-white px-4 py-3 text-sm text-slate-600 ring-1 ring-slate-200">{t.loading}</div>}
         {err && <div className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">{err}</div>}
 
-        <section className="grid gap-4 lg:grid-cols-3">
-          <div className="rounded-[18px] border border-white/80 bg-white/95 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.08)] lg:col-span-2">
-            <h2 className="text-lg font-extrabold">{t.content}</h2>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <span className="inline-flex items-center gap-1 rounded-xl bg-blue-100 px-3 py-1 text-sm font-bold text-blue-700 ring-1 ring-blue-200">
-                <i className="fa-solid fa-book-open text-blue-500" />
-                {lessons.length} {t.lessonCount.toLowerCase()}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-xl bg-violet-100 px-3 py-1 text-sm font-bold text-violet-700 ring-1 ring-violet-200">
-                <i className="fa-solid fa-cubes text-violet-500" />
-                {Object.values(lessonDetails).reduce((sum, item) => sum + (item.modules?.length || 0), 0)} {t.moduleCount.toLowerCase()}
-              </span>
-            </div>
-            <div className="mt-4 space-y-3">
-              {lessons.map((lesson, idx) => (
-                <button key={lesson.id} className="w-full rounded-2xl bg-gradient-to-br from-white to-indigo-50 px-4 py-3 text-left ring-1 ring-indigo-100 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md" onClick={() => nav(`/student/lessons/${lesson.id}?courseId=${courseId}&lang=${lang}`)}>
-                  <div className="font-bold">Bài {idx + 1}: {lesson.localizedTitle || lesson.title}</div>
-                  <div className="text-xs text-slate-500">{lesson.localizedDescription || lesson.description || `Lesson ID: ${lesson.id}`}</div>
-                  <div className="mt-2 space-y-1">
-                    {(lessonDetails[lesson.id]?.modules || []).map((m) => (
-                      <div key={m.id} className="rounded-xl bg-white/90 px-3 py-2 ring-1 ring-slate-200">
-                        <div className="text-sm font-bold text-slate-800">{m.localizedTitle || m.title}</div>
-                        <div className="text-xs text-slate-600">{m.localizedDescription || m.description || "-"}</div>
+        <section className="grid gap-4 xl:grid-cols-[1.75fr_1fr]">
+          <div className="space-y-4">
+            <div className="rounded-[20px] border border-white/80 bg-white/95 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-xl font-black">{t.continueLesson}: {activeLesson?.localizedTitle || activeLesson?.title || "-"}</h2>
+                <span className="chip">{lessonProgressPercent}%</span>
+              </div>
+              <div className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-black ring-1 ring-slate-200"><b>{t.descLesson}:</b> {activeLesson?.localizedDescription || activeLesson?.description || "-"}</div>
+              {activeLesson?.modules?.map((m) => {
+                const isOpen = openModules[m.id] ?? true;
+                return (
+                  <div key={m.id} className="relative mb-3 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
+                    <span className="absolute left-3 top-3 inline-flex h-3 w-3 rounded-full border-2 border-violet-200 bg-violet-400" />
+                    <div className="ml-5 flex items-start justify-between gap-2">
+                      <div>
+                        <div className="font-bold">{m.localizedTitle || m.title}</div>
+                        <div className="mt-1 rounded-lg bg-white px-2 py-1 text-sm text-black ring-1 ring-slate-200"><b>{t.descModule}:</b> {m.localizedDescription || m.description || "-"}</div>
                       </div>
-                    ))}
-                    {!(lessonDetails[lesson.id]?.modules || []).length && <div className="text-xs text-slate-400">{t.noModule}</div>}
+                      <div className="flex items-center gap-2">
+                        <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" onClick={() => void completeModule(m.id)} title={t.completeModule}><i className="fa-solid fa-check" /></button>
+                        <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600 ring-1 ring-slate-200" onClick={() => setOpenModules((prev) => ({ ...prev, [m.id]: !isOpen }))}>
+                          <i className={`fa-solid ${isOpen ? "fa-chevron-up" : "fa-chevron-down"}`} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {isOpen && (
+                      <div className="mt-3 space-y-2">
+                        {m.videos?.map((v) => (
+                          <div key={v.id} className="rounded-xl bg-white p-2 ring-1 ring-slate-200">
+                            <div className="text-sm font-semibold">{v.localizedTitle || v.title}</div>
+                            {v.playbackUrl ? <video className="mt-2 w-full rounded-lg border border-slate-200" controls src={v.playbackUrl} onEnded={() => void markVideoDone(v)} /> : null}
+                            <div className="mt-2 text-right">
+                              <button className="btn" onClick={() => void markVideoDone(v)}>{t.watched} {v.progress?.completed ? "✓" : ""}</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </button>
-              ))}
-              {!lessons.length && !loading && <div className="text-sm text-slate-500">{t.noLesson}</div>}
+                );
+              })}
+              {!activeLesson?.modules?.length && <div className="text-sm text-slate-500">{t.noModule}</div>}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200"><h3 className="font-bold">{t.objective}</h3><ul className="mt-2 list-disc pl-4 text-sm text-black">{(course?.objectives || []).map((x, i) => <li key={`${x}-${i}`}>{x}</li>)}</ul></div>
+              <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200"><h3 className="font-bold">{t.audience}</h3><ul className="mt-2 list-disc pl-4 text-sm text-black">{(course?.targetAudience || []).map((x, i) => <li key={`${x}-${i}`}>{x}</li>)}</ul></div>
+              <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200"><h3 className="font-bold">{t.benefits}</h3><ul className="mt-2 list-disc pl-4 text-sm text-black">{(course?.benefits || []).map((x, i) => <li key={`${x}-${i}`}>{x}</li>)}</ul></div>
             </div>
           </div>
 
           <div className="space-y-4">
-            <div className="overflow-hidden rounded-[18px] border border-white/80 bg-white/95 p-0 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
-              <img className="h-[210px] w-full object-cover transition duration-500 hover:scale-105" src={course?.thumbnail || "https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=1200&auto=format&fit=crop"} alt={course?.title || "course thumbnail"} />
-              <div className="p-4 text-sm text-slate-600">{t.thumbnail}</div>
-            </div>
-
-            <div className="rounded-[18px] border border-white/80 bg-white/95 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
-              <h3 className="text-4xl font-black text-indigo-700">{course?.price?.toLocaleString("vi-VN") || 0} đ</h3>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span className="inline-flex items-center gap-1 rounded-xl bg-amber-100 px-3 py-1 font-bold text-amber-800 ring-1 ring-amber-200"><i className="fa-solid fa-clock text-amber-500" /> {course?.time || "0 Hour"}</span>
-                <span className="inline-flex items-center gap-1 rounded-xl bg-fuchsia-100 px-3 py-1 font-bold text-fuchsia-800 ring-1 ring-fuchsia-200"><i className="fa-solid fa-star text-fuchsia-500" /> {course?.ratingAvg || 0} ({course?.ratingCount || 0})</span>
-                <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-100 px-3 py-1 font-bold text-emerald-800 ring-1 ring-emerald-200"><i className="fa-solid fa-user-group text-emerald-500" /> {course?.enrollmentCount || 0}</span>
+            <div className="rounded-[20px] border border-white/80 bg-white/95 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
+              <h3 className="text-lg font-black">{t.lessonList}</h3>
+              <div className="mt-2 flex items-center justify-between text-sm text-slate-600"><span>{t.progress}</span><b>{progress?.percent || 0}%</b></div>
+              <div className="mt-2 h-[8px] overflow-hidden rounded-full bg-indigo-100"><div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500" style={{ width: `${progress?.percent || 0}%` }} /></div>
+              <div className="mt-3 space-y-2">
+                {lessons.map((lesson, idx) => {
+                  const isDone = completedLessonIds.has(lesson.id) || (lesson.progress?.percent || 0) >= 100;
+                  return (
+                    <button key={lesson.id} className={`relative w-full rounded-xl px-3 py-2 text-left ring-1 ${activeLesson?.id === lesson.id ? "bg-indigo-50 ring-indigo-200" : "bg-slate-50 ring-slate-200"}`} onClick={() => void openLesson(lesson.id)}>
+                      <span className="absolute left-2 top-2 inline-flex h-3 w-3 rounded-full border-2 border-sky-200 bg-sky-400" />
+                      <div className="ml-4 flex items-center justify-between">
+                        <div>
+                          <div className="text-xs text-slate-500">Bài {idx + 1}</div>
+                          <div className="font-semibold">{lesson.localizedTitle || lesson.title}</div>
+                          <div className="mt-1 rounded-lg bg-white px-2 py-1 text-xs text-black ring-1 ring-slate-200" style={clamp2}>{lesson.localizedDescription || lesson.description || "Không có mô tả."}</div>
+                        </div>
+                        <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${isDone ? "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" : "bg-amber-100 text-amber-700 ring-1 ring-amber-200"}`}>
+                          <i className={`fa-solid ${isDone ? "fa-check" : "fa-clock"}`} />
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+                {!lessons.length && <div className="text-sm text-slate-500">{t.noLesson}</div>}
               </div>
-              <button className="mt-4 w-full rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-500 px-4 py-3 text-lg font-extrabold text-white shadow-[0_10px_25px_rgba(99,102,241,0.35)] transition hover:brightness-110" onClick={onContinue}>{t.register}</button>
             </div>
 
-            <div className="rounded-[18px] border border-white/80 bg-white/95 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
-              <h3 className="text-3xl font-black text-slate-900">{t.reviewTitle}</h3>
-              <div className="mt-2 text-sm text-slate-600">{t.noReview}</div>
+            <div className="rounded-[20px] border border-white/80 bg-white/95 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
+              <h3 className="text-lg font-black">{t.reviewTitle}</h3>
+              {myReview ? (
+                <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800 ring-1 ring-emerald-200">
+                  <div>{t.reviewDone}</div>
+                  <div className="mt-1">⭐ {myReview.stars}/5 • {myReview.comment || "(Không có nhận xét)"}</div>
+                </div>
+              ) : (
+                <>
+                  <div className="mt-2 text-xs text-slate-500">{t.reviewOnce}</div>
+                  <div className="mt-3 flex gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button key={star} className={`h-9 w-9 rounded-lg ring-1 ${rating >= star ? "bg-amber-100 text-amber-700 ring-amber-200" : "bg-slate-100 text-slate-500 ring-slate-200"}`} onClick={() => setRating(star)}>
+                        <i className="fa-solid fa-star" />
+                      </button>
+                    ))}
+                  </div>
+                  <textarea className="mt-3 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-300" rows={3} placeholder="Chia sẻ cảm nhận của bạn..." value={comment} onChange={(e) => setComment(e.target.value)} />
+                  <button className="btn btn-primary mt-3 w-full" onClick={submitReview}>{t.submit}</button>
+                </>
+              )}
             </div>
-          </div>
-
-        </section>
-
-        <section className="grid gap-4 lg:grid-cols-3">
-          <div className="rounded-[18px] border border-white/80 bg-white/95 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
-            <h3 className="text-base font-extrabold">{t.objectives}</h3>
-            <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">
-              {(course?.objectives || []).map((x, i) => <li key={`${x}-${i}`}>{x}</li>)}
-              {!(course?.objectives || []).length && <li className="list-none text-slate-400">-</li>}
-            </ul>
-          </div>
-          <div className="rounded-[18px] border border-white/80 bg-white/95 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
-            <h3 className="text-base font-extrabold">{t.targetAudience}</h3>
-            <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">
-              {(course?.targetAudience || []).map((x, i) => <li key={`${x}-${i}`}>{x}</li>)}
-              {!(course?.targetAudience || []).length && <li className="list-none text-slate-400">-</li>}
-            </ul>
-          </div>
-          <div className="rounded-[18px] border border-white/80 bg-white/95 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
-            <h3 className="text-base font-extrabold">{t.benefits}</h3>
-            <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">
-              {(course?.benefits || []).map((x, i) => <li key={`${x}-${i}`}>{x}</li>)}
-              {!(course?.benefits || []).length && <li className="list-none text-slate-400">-</li>}
-            </ul>
           </div>
         </section>
       </main>

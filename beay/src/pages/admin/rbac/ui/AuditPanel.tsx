@@ -9,7 +9,7 @@ export function AuditPanel(props: { audit: AuditItem[]; onClear: () => void }) {
       <div className="text-lg font-extrabold">Nhật ký thay đổi</div>
       <div className="mt-1 text-sm text-slate-600">Hiển thị text để dễ đọc, có giới hạn chiều cao.</div>
 
-      <ul className="mt-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-3 space-y-2 overflow-auto" style={{ maxHeight: 420 }}>
+      <ul className="mt-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-3 space-y-2 overflow-auto" style={{ maxHeight: 720 }}>
         {list.length ? (
           list.map((a, idx) => (
             <li key={`${a.at}-${idx}`} className="text-sm text-slate-700 border-b border-slate-200/70 pb-2 last:border-0 last:pb-0">

@@ -15,7 +15,7 @@ function RequireAuth() {
   const { token } = useAuth()
   const location = useLocation()
 
-  if (!token) return <Navigate to="/admin/login" replace state={{ from: location.pathname }} />
+  if (!token) return <Navigate to="/login" replace state={{ from: location.pathname }} />
   return <Outlet />
 }
 
@@ -31,7 +31,7 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
-      <Route path="/admin/login" element={<LoginPage />} />
+      <Route path="/login" element={<LoginPage />} />
 
       <Route element={<RequireAuth />}>
         <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
@@ -40,7 +40,7 @@ export function AppRoutes() {
         <Route path="/admin/services" element={<RequirePermission permission="spa_services.read"><AdminSpaPage /></RequirePermission>} />
         <Route path="/admin/courses" element={<RequirePermission permission="courses.read"><AdminCoursesPage /></RequirePermission>} />
         <Route path="/student" element={<StudentPortalPage />} />
-        <Route path="/instructor" element={<InstructorDashboardPage />} />
+        <Route path="/instructor" element={<InstructorDashboardPage permission="courses.write"/>} />
         <Route path="/student/courses/:id" element={<StudentCourseDetailPage />} />
         <Route path="/student/lessons/:id" element={<StudentLessonPlayerPage />} />
       </Route>

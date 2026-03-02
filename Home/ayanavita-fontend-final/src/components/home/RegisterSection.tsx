@@ -7,6 +7,7 @@ export type RegisterPayload = {
   phone: string;
   email: string;
   password: string;
+  role: 'LECTURER' | 'USER';
   interest?: string;
 };
 
@@ -46,6 +47,9 @@ export type RegisterSectionCmsData = {
   confirmPasswordPlaceholder?: string;
   interestLabel?: string;
   interestPlaceholder?: string;
+  roleLabel?: string;
+  roleUserLabel?: string;
+  roleLecturerLabel?: string;
 
   // Dòng đồng ý điều khoản (tách text thuần)
   termsPrefix?: string;
@@ -116,6 +120,9 @@ export const defaultRegisterSectionCmsData: RegisterSectionCmsData = {
   confirmPasswordPlaceholder: "Nhập lại mật khẩu",
   interestLabel: "Bạn quan tâm lĩnh vực nào?",
   interestPlaceholder: "Chọn lĩnh vực quan tâm",
+  roleLabel: "Bạn là ai? *",
+  roleUserLabel: "Người dùng",
+  roleLecturerLabel: "Giảng viên",
 
   termsPrefix: "Tôi đồng ý với ",
   termsLink1: "Điều khoản",
@@ -160,6 +167,7 @@ type RegisterFormState = {
   password: string;
   confirmPassword: string;
   interest: string;
+  role: 'LECTURER' | 'USER';
   terms: boolean;
 };
 
@@ -171,6 +179,7 @@ const INITIAL_FORM: RegisterFormState = {
   password: "",
   confirmPassword: "",
   interest: "",
+  role: 'USER',
   terms: false,
 };
 
@@ -279,6 +288,7 @@ export const RegisterSection: React.FC<RegisterSectionProps> = ({
         email: form.email.trim(),
         password: form.password,
         interest: form.interest || undefined,
+        role: form.role,
         otp: otpValue,
         acceptedPolicy: form.terms,
       };
@@ -291,6 +301,7 @@ export const RegisterSection: React.FC<RegisterSectionProps> = ({
           phone: payload.phone,
           email: payload.email,
           password: payload.password,
+          role: payload.role,
           otp: payload.otp,
           acceptedPolicy: payload.acceptedPolicy,
         });
@@ -469,6 +480,18 @@ export const RegisterSection: React.FC<RegisterSectionProps> = ({
                       <option value="design">Thiết kế & Sáng tạo</option>
                       <option value="language">Ngoại ngữ</option>
                       <option value="softskills">Kỹ năng mềm</option>
+                    </select>
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="text-sm font-semibold text-slate-700">{content.roleLabel}</label>
+                    <select
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none ring-indigo-100 focus:ring-4"
+                      value={form.role}
+                      onChange={(e) => setForm((s) => ({ ...s, role: e.target.value as "LECTURER" | "USER" }))}
+                    >
+                      <option value="USER">{content.roleUserLabel} </option>
+                      <option value="LECTURER">{content.roleLecturerLabel} </option>
                     </select>
                   </div>
 

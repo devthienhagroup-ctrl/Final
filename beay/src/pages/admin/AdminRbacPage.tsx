@@ -32,6 +32,7 @@ type AssignmentFormState = { userId: number; userEmail: string; role: string };
 type DeleteTarget = { key: string } | null;
 
 const PAGE_SIZE = 10;
+const PROTECTED_ROLES = new Set(["LECTURER", "STAFF", "USER", "ADMIN"]);
 
 export function AdminRbacPage() {
   const { toast } = useToast();
@@ -165,12 +166,21 @@ export function AdminRbacPage() {
   }
 
   function openDeleteRoleModal(key: string) {
+    if (PROTECTED_ROLES.has(key)) {
+      toast("Role hệ thống", `Không thể xoá role ${key}.`);
+      return;
+    }
     setDeleteTarget({ key });
   }
 
   async function confirmDeleteRole() {
     const key = deleteTarget?.key;
     if (!key) return;
+    if (PROTECTED_ROLES.has(key)) {
+      toast("Role hệ thống", `Không thể xoá role ${key}.`);
+      setDeleteTarget(null);
+      return;
+    }
     const roleId = roleIdMap[key];
     if (!roleId) return;
     await apiDeleteRole(roleId);
@@ -280,7 +290,7 @@ export function AdminRbacPage() {
       />
       <main className="px-4 md:px-8 py-6 space-y-6">
         <section className="grid gap-4 lg:grid-cols-3">
-          <RolesPanel roles={visibleRoles} activeRole={activeRole} onSelectRole={setActiveRole} search={roleSearch} onSearch={setRoleSearch} onNewRole={openCreateRoleModal} onEditRole={openEditRoleModal} onDeleteRole={openDeleteRoleModal} onJumpRole={setActiveRole} />
+          <RolesPanel roles={visibleRoles} activeRole={activeRole} onSelectRole={setActiveRole} search={roleSearch} onSearch={setRoleSearch} onNewRole={openCreateRoleModal} onEditRole={openEditRoleModal} onDeleteRole={openDeleteRoleModal} protectedRoles={PROTECTED_ROLES} onJumpRole={setActiveRole} />
           <PermissionsMatrix activeRole={activeRole} moduleFilter={moduleFilter} onChangeModuleFilter={setModuleFilter} presetSelectOptions={[{ value: "KEEP", label: "Preset: (không đổi)" }, { value: "STRICT", label: "Preset: Nghiêm ngặt" }, { value: "USER", label: "Preset: USER" }, { value: "STAFF", label: "Preset: STAFF" }, { value: "BRANCH_MANAGER", label: "Preset: BRANCH_MANAGER" }, { value: "LECTURER", label: "Preset: LECTURER" }, { value: "SUPPORT", label: "Preset: SUPPORT" }, { value: "OPS", label: "Preset: OPS" }, { value: "FINANCE", label: "Preset: FINANCE" }, { value: "ADMIN", label: "Preset: ADMIN" }]} onApplyPreset={(v) => { if (v !== "KEEP") void applyPresetToActive(v as PresetKey); }} onAll={() => void allPerms()} onNone={() => void nonePerms()} perms={filteredPerms} activePermSet={activePermSet} onTogglePerm={(k, c) => void togglePerm(k, c)} roles={roles} />
         </section>
         <section className="grid gap-4 lg:grid-cols-3">

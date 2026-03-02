@@ -148,10 +148,6 @@ export default function CoursePlayerPage() {
                     <i className="fa-solid fa-users text-indigo-600" />
                     {new Intl.NumberFormat("vi-VN").format(course.students)}
                   </span>
-                  <span className="chip">
-                    <i className="fa-solid fa-clock text-emerald-600" />
-                    {totalMins} phút
-                  </span>
                 </div>
               </div>
             </div>

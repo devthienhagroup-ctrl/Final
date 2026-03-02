@@ -15,6 +15,8 @@ export class RegisterNewDto {
   @MinLength(6)
   password!: string
 
+  @IsEnum(['LECTURER', 'USER'])
+  role!: 'LECTURER' | 'USER'
 
   @IsOptional()
   @IsDateString()

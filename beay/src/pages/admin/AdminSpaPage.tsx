@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   spaAdminApi,
   type Appointment,
@@ -58,6 +59,7 @@ const uiText: Record<AdminLang, Record<string, string>> = {
     themeLight: "Sáng",
     themeDark: "Tối",
     themeSwitch: "Chuyển giao diện",
+    backDashboard: "Về dashboard",
     logout: "Đăng xuất",
   },
   en: {
@@ -83,6 +85,7 @@ const uiText: Record<AdminLang, Record<string, string>> = {
     themeLight: "Light",
     themeDark: "Dark",
     themeSwitch: "Theme switch",
+    backDashboard: "Back to dashboard",
     logout: "Logout",
   },
   de: {
@@ -108,6 +111,7 @@ const uiText: Record<AdminLang, Record<string, string>> = {
     themeLight: "Hell",
     themeDark: "Dunkel",
     themeSwitch: "Design umschalten",
+    backDashboard: "Zurück zum Dashboard",
     logout: "Abmelden",
   },
 };
@@ -304,7 +308,9 @@ const getVietnameseError = (error: unknown, fallback: string) => {
 };
 
 export default function AdminSpaPage() {
-  const { user, logout } = useAuth();
+  const nav = useNavigate();
+  const { user, logout, can } = useAuth();
+  const canAccessDashboard = can("dashboard.admin");
   const isStaff = user?.role === "STAFF";
   const [tab, setTab] = useState<TabKey>(isStaff ? "appointments" : "branches");
   const [loading, setLoading] = useState(false);
@@ -557,6 +563,15 @@ export default function AdminSpaPage() {
               {theme === "dark" ? t.themeDark : t.themeLight}
             </span>
           </label>
+          {canAccessDashboard ? (
+            <button
+              type="button"
+              className="btn admin-btn text-slate-900"
+              onClick={() => nav("/admin/dashboard")}
+            >
+              <i className="fa-solid fa-gauge" /> {t.backDashboard}
+            </button>
+          ) : null}
           <button
             type="button"
             className="admin-btn admin-btn-danger"

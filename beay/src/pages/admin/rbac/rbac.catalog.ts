@@ -8,6 +8,7 @@ export const MODULES = [
   { key: "booking", name: "Đặt lịch", desc: "Khách đặt lịch, xác nhận/huỷ" },
   { key: "products", name: "Quản lý sản phẩm (thiết bị cứng)", desc: "Sản phẩm, kho, giá" },
   { key: "courses", name: "Quản lý khóa học", desc: "Khoá, bài học, publish" },
+  { key: "dashboard", name: "Dashboard", desc: "Truy cập trang tổng quan quản trị" },
   { key: "my_courses", name: "Khóa học của tôi", desc: "Enrollment, tiến độ, chứng chỉ" },
   { key: "cms", name: "CMS", desc: "Landing/pages/sections" },
   { key: "cart", name: "Giỏ hàng", desc: "Thêm/sửa/xoá giỏ" },
@@ -78,6 +79,7 @@ const PERM_KEYS = [
   "blogs.read",
   "blogs.write",
   "blogs.manage",
+  "dashboard.admin",
 ] as const;
 
 export const PERMS: PermDef[] = PERM_KEYS.map((key) => {

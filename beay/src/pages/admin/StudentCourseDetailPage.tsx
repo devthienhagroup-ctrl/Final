@@ -160,7 +160,8 @@ function reviewStorageKey(courseId: number) {
 
 export function StudentCourseDetailPage() {
   const nav = useNavigate();
-  const { logout } = useAuth();
+  const { logout, can } = useAuth();
+  const canAccessDashboard = can("dashboard.admin");
   const { id } = useParams();
   const [sp, setSp] = useSearchParams();
   const { toast } = useToast();
@@ -323,6 +324,7 @@ export function StudentCourseDetailPage() {
         <div className="mx-auto flex h-16 w-full max-w-[1300px] items-center justify-between px-4 md:px-8">
           <div className="flex items-center gap-3">
             <button className="btn" onClick={() => nav("/student")}>← {t.back}</button>
+            {canAccessDashboard ? <button className="btn" onClick={() => nav("/admin/dashboard")}>🏠 Dashboard</button> : null}
             <div className="text-sm font-bold text-slate-700">{course?.title || `${t.courseFallback} #${courseId}`}</div>
           </div>
           <button className="btn" onClick={handleLogout}>

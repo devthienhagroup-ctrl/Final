@@ -99,6 +99,11 @@ export function AdminSidebar({ open, onClose, onConnectPay }: Props) {
             <span className="font-semibold">Đánh giá</span>
           </a>
 
+          <a href="/admin/blog" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+            <i className="fa-solid fa-newspaper text-yellow-700" />
+            <span className="font-semibold">Quản lý blog</span>
+          </a>
+
           {/*<a href="#settings" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">*/}
           {/*  <i className="fa-solid fa-gear text-slate-700" />*/}
           {/*  <span className="font-semibold">Cài đặt</span>*/}

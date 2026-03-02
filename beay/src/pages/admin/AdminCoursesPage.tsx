@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   adminCoursesApi,
   type CourseAdmin,
@@ -88,6 +89,7 @@ const uiText: Record<AdminLang, Record<string, string>> = {
     totalCoursesLabel: "Tổng khóa học",
     prevPage: "Trước",
     nextPage: "Sau",
+    backDashboard: "Về dashboard",
     logout: "Đăng xuất",
   },
   en: {
@@ -152,6 +154,7 @@ const uiText: Record<AdminLang, Record<string, string>> = {
     totalCoursesLabel: "Total courses",
     prevPage: "Prev",
     nextPage: "Next",
+    backDashboard: "Back to dashboard",
     logout: "Logout",
   },
   de: {
@@ -216,6 +219,7 @@ const uiText: Record<AdminLang, Record<string, string>> = {
     totalCoursesLabel: "Gesamtkurse",
     prevPage: "Zurück",
     nextPage: "Weiter",
+    backDashboard: "Zurück zum Dashboard",
     logout: "Abmelden",
   },
 };
@@ -283,7 +287,9 @@ export default function AdminCoursesPage() {
   });
 
   const t = uiText[lang];
-  const { logout } = useAuth();
+  const nav = useNavigate();
+  const { logout, can } = useAuth();
+  const canAccessDashboard = can("dashboard.admin");
 
   const loadTopics = async () => {
     setLoading(true);
@@ -452,6 +458,16 @@ export default function AdminCoursesPage() {
             <span className="admin-courses-theme-toggle-thumb" />
           </button>
 
+
+          {canAccessDashboard ? (
+            <button
+              type="button"
+              className="btn admin-btn text-slate-900"
+              onClick={() => nav("/admin/dashboard")}
+            >
+              <i className="fa-solid fa-gauge" /> {t.backDashboard}
+            </button>
+          ) : null}
           <button
             type="button"
             className="admin-btn admin-btn-danger"

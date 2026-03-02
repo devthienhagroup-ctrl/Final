@@ -3,6 +3,7 @@ type Props = {
   onBell: () => void;
   onContinue: () => void;
   onLogout: () => void;
+  onBackDashboard?: () => void;
 };
 
 export function StudentHeader(props: Props) {
@@ -26,6 +27,11 @@ export function StudentHeader(props: Props) {
           <button className="btn btn-primary inline-flex items-center gap-2" onClick={props.onContinue}>
             <i className="fa-solid fa-play" /> Tiếp tục học
           </button>
+          {props.onBackDashboard ? (
+            <button className="btn inline-flex items-center gap-2" onClick={props.onBackDashboard}>
+              <i className="fa-solid fa-gauge" /> Về dashboard
+            </button>
+          ) : null}
           <button className="btn inline-flex items-center gap-2" onClick={props.onLogout}>
             <i className="fa-solid fa-right-from-bracket" /> Đăng xuất
           </button>

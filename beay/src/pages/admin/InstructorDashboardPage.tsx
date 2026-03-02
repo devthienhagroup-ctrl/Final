@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../ui/toast'
 import { useAuth } from '../../app/auth'
 import { instructorCoursesApi } from '../../api/instructorCourses.api'
@@ -52,9 +53,11 @@ const mapToInstructorCard = (course: CourseAdmin): Course => ({
 export function InstructorDashboardPage() {
   const { toast } = useToast()
   const { logout, can } = useAuth()
+  const nav = useNavigate()
 
   const [lang] = useState<AdminLang>('vi')
   const canWriteCourse = can('courses.write')
+  const canAccessDashboard = can('dashboard.admin')
   const [courses, setCourses] = useState<CourseAdmin[]>([])
   const [allCoursesCount, setAllCoursesCount] = useState(0)
   const [topics, setTopics] = useState<CourseTopic[]>([])
@@ -143,6 +146,13 @@ export function InstructorDashboardPage() {
       />
 
       <main className='px-4 md:px-8 py-6 space-y-6'>
+        {canAccessDashboard ? (
+          <div>
+            <button type='button' className='btn inline-flex items-center gap-2' onClick={() => nav('/admin/dashboard')}>
+              <i className='fa-solid fa-gauge' /> Về dashboard
+            </button>
+          </div>
+        ) : null}
         <KpiGrid kpis={kpis} />
 
         <section className='grid gap-4 xl:grid-cols-[1.15fr_1.25fr]'>

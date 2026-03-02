@@ -1242,6 +1242,7 @@ export default function AdminOrdersDemo() {
                             <h2>Quản lý đơn hàng</h2>
                             <p className="hint">Tìm kiếm nhanh theo mã đơn / tên / email, lọc theo ngày và tổng tiền.</p>
                         </div>
+                        {/*
                         <div
                             className="pill"
                             id="btnExport"
@@ -1251,6 +1252,7 @@ export default function AdminOrdersDemo() {
                             <i className="fa-solid fa-file-arrow-down" style={{ opacity: 0.85 }}></i>
                             <span style={{ fontSize: 13, fontWeight: 700 }}>Export</span>
                         </div>
+                        */}
                     </div>
 
                     <div className="stats" id="stats">
@@ -1690,13 +1692,13 @@ export default function AdminOrdersDemo() {
 
                                 <div style={{ display: "flex", gap: 10, paddingBottom: 8, flexWrap: "wrap" }}>
                                     {(activeOrder.status === "pending" || activeOrder.status === "paid") && (
-                                        <button className="btn ghost" id="btnConfirmShipping" onClick={confirmOrderShipping}>
+                                        <button className="btn " id="btnConfirmShipping" onClick={confirmOrderShipping}>
                                             <i className="fa-solid fa-truck" style={{ opacity: 0.85 }}></i>
                                             Xác nhận đơn → Đang giao
                                         </button>
                                     )}
                                     {activeOrder.status === "cancel_requested" && (
-                                        <button className="btn ghost" onClick={approveCancelRequest}>
+                                        <button className="btn " onClick={approveCancelRequest}>
                                             <i className="fa-solid fa-ban" style={{ opacity: 0.85 }}></i>
                                             Chấp nhận yêu cầu hủy
                                         </button>

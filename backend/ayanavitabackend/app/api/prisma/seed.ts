@@ -225,7 +225,7 @@ const ROLE_SEEDS: RoleSeed[] = [
     code: 'ADMIN',
     scopeType: 'GLOBAL',
     description: 'Quản trị hệ thống',
-    permissions: ['role.read','role.manage','reviews.read','reviews.manage','blogs.read','blogs.write','blogs.manage'],
+    permissions: ['dashboard.admin','role.read','role.manage','reviews.read','reviews.manage','blogs.read','blogs.write','blogs.manage'],
   },
 ]
 

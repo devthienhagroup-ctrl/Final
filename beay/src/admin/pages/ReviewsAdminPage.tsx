@@ -1685,9 +1685,11 @@ export function ReviewsAdminPage() {
             <button className="ar-pill" onClick={fakeRefresh}>
               <i className="fas fa-sync-alt" /> Làm mới
             </button>
+            {/*
             <button className="ar-pill" onClick={exportCSV}>
               <i className="fas fa-download" /> Export CSV
             </button>
+            */}
             <span className={`ar-loading ${loading ? "show" : ""}`}>
               <span className="ar-spinner" /> Đang tải…
             </span>

@@ -5,6 +5,13 @@ import { useAuth } from "../../app/auth";
 
 type LocationState = { from?: string };
 
+function resolveDefaultRoute(permissions: string[]) {
+  if (permissions.includes("dashboard.admin")) return "/admin/dashboard";
+  if (permissions.includes("courses.write")) return "/instructor";
+  if (permissions.includes("my_courses.read")) return "/student";
+  return "/login";
+}
+
 function GoogleIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
@@ -52,7 +59,7 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [dark, setDark] = useState(false);
 
-  const from = useMemo(() => state?.from || "/admin/dashboard", [state]);
+  const from = useMemo(() => state?.from || "", [state]);
 
   useEffect(() => {
     const savedEmail = localStorage.getItem("aya_admin_email");
@@ -67,12 +74,14 @@ export function LoginPage() {
     try {
       const cleanEmail = email.trim();
       const result = await login(cleanEmail, password);
-      setTokenPair(result.accessToken, result.refreshToken, result.user?.permissions ?? result.permissions ?? []);
+      const permissions = result.user?.permissions ?? result.permissions ?? [];
+      setTokenPair(result.accessToken, result.refreshToken, permissions);
 
       if (remember) localStorage.setItem("aya_admin_email", cleanEmail);
       else localStorage.removeItem("aya_admin_email");
 
-      nav(from, { replace: true });
+      const targetPath = from || resolveDefaultRoute(permissions);
+      nav(targetPath, { replace: true });
     } catch (error: unknown) {
       if (error && typeof error === "object" && "message" in error) {
         setErr(String((error as { message?: unknown }).message ?? "Đăng nhập thất bại"));

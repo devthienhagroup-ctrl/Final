@@ -21,7 +21,8 @@ function sortLessons<T extends { id: number; order?: number }>(lessons: T[]): T[
 
 export function StudentPortalPage() {
   const { toast } = useToast();
-  const { logout } = useAuth();
+  const { logout, can } = useAuth();
+  const canAccessDashboard = can("dashboard.admin");
   const nav = useNavigate();
 
   const [courses, setCourses] = useState<StudentCourse[]>(MOCK_STUDENT_COURSES);
@@ -238,7 +239,7 @@ export function StudentPortalPage() {
           "radial-gradient(900px 450px at 15% 0%, rgba(79,70,229,0.14), transparent 60%), radial-gradient(700px 380px at 90% 10%, rgba(245,158,11,0.10), transparent 60%), linear-gradient(to bottom, #f8fafc, #f8fafc)",
       }}
     >
-      <StudentHeader onBell={actions.bell} onContinue={actions.continue} onLogout={logout} />
+      <StudentHeader onBell={actions.bell} onContinue={actions.continue} onLogout={logout} onBackDashboard={canAccessDashboard ? () => nav("/admin/dashboard") : undefined} />
 
       <main className="px-4 md:px-8 py-6 space-y-6">
         <StudentHero

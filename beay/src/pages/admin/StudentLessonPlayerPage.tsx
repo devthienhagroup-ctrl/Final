@@ -12,7 +12,7 @@ export function StudentLessonPlayerPage() {
 
   function handleLogout() {
     logout();
-    nav("/admin/login", { replace: true });
+    nav("/login", { replace: true });
   }
 
   useEffect(() => {

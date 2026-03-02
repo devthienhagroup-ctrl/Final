@@ -25,7 +25,7 @@ function RequireAuth() {
     const location = useLocation();
 
     if (!token) {
-        return <Navigate to="/admin/login" replace state={{ from: location.pathname }} />;
+        return <Navigate to="/login" replace state={{ from: location.pathname }} />;
     }
 
     return <Outlet />;

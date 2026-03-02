@@ -249,7 +249,7 @@ export function StudentCourseDetailPage() {
 
   function handleLogout() {
     logout();
-    nav("/admin/login", { replace: true });
+    nav("/login", { replace: true });
   }
 
   async function markVideoDone(video: ApiLessonVideo) {

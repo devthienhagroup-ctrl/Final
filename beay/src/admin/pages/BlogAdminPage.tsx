@@ -8,6 +8,7 @@ import {
   adminUpdateBlog,
 } from "../api/blogAdmin.api";
 import type { BlogAdminItem, BlogStatus } from "../api/blogAdmin.api";
+import { useAuth } from "../../app/auth";
 
 const initialForm = {
   title: "",
@@ -513,6 +514,11 @@ width: 100%;
 `;
 
 export function BlogAdminPage() {
+  const { can } = useAuth();
+  const canReadBlog = can("blogs.read");
+  const canWriteBlog = can("blogs.write");
+  const canManageBlog = can("blogs.manage");
+
   const [items, setItems] = useState<BlogAdminItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -539,6 +545,7 @@ export function BlogAdminPage() {
   const viewSum = useMemo(() => items.reduce((s, it) => s + Number(it.views || 0), 0), [items]);
 
   const loadData = async () => {
+    if (!canReadBlog) return;
     setLoading(true);
     setError("");
     try {
@@ -582,6 +589,7 @@ export function BlogAdminPage() {
   };
 
   const startCreate = () => {
+    if (!canWriteBlog) return;
     setEditing(null);
     setForm(initialForm);
     setCoverImageFile(undefined);
@@ -589,6 +597,7 @@ export function BlogAdminPage() {
   };
 
   const startEdit = (item: BlogAdminItem) => {
+    if (!canWriteBlog) return;
     setEditing(item);
     setForm({
       title: item.title,
@@ -603,6 +612,7 @@ export function BlogAdminPage() {
   };
 
   const submitForm = async (event: FormEvent) => {
+    if (!canWriteBlog) return;
     event.preventDefault();
     setSaving(true);
     setError("");
@@ -642,6 +652,7 @@ export function BlogAdminPage() {
   };
 
   const handleDelete = async (item: BlogAdminItem) => {
+    if (!canManageBlog) return;
     if (!confirm(`Xóa bài viết "${item.title}"?`)) return;
     try {
       await adminDeleteBlog(item.id);
@@ -653,6 +664,7 @@ export function BlogAdminPage() {
   };
 
   const runCleanup = async () => {
+    if (!canManageBlog) return;
     try {
       await adminCleanupViewTrackers();
       setMessage("Đã chạy cleanup view tracker");
@@ -706,15 +718,15 @@ export function BlogAdminPage() {
                   <i className="fa-solid fa-rotate-right" style={{ opacity: 0.7 }} />
                 </div>
 
-                <div className="pill" title="Tạo bài viết" onClick={startCreate}>
+                {canWriteBlog ? <div className="pill" title="Tạo bài viết" onClick={startCreate}>
                   <i className="fa-solid fa-pen-to-square" style={{ opacity: 0.85 }} />
                   <span style={{ fontSize: 13, fontWeight: 700 }}>Tạo bài</span>
-                </div>
+                </div> : null}
 
-                <div className="pill" title="Cleanup view tracker" onClick={() => void runCleanup()}>
+                {canManageBlog ? <div className="pill" title="Cleanup view tracker" onClick={() => void runCleanup()}>
                   <i className="fa-solid fa-broom" style={{ opacity: 0.85 }} />
                   <span style={{ fontSize: 13, fontWeight: 700 }}>Clear tracker</span>
-                </div>
+                </div> : null}
               </div>
             </div>
           </div>
@@ -903,12 +915,12 @@ export function BlogAdminPage() {
                         <td>{new Date(item.updatedAt).toLocaleString("vi-VN")}</td>
                         <td style={{ textAlign: "right" }}>
                           <div className="table-actions">
-                            <button className="icon-btn" title="Sửa" onClick={() => startEdit(item)}>
+                            {canWriteBlog ? <button className="icon-btn" title="Sửa" onClick={() => startEdit(item)}>
                               <i className="fa-solid fa-pen" />
-                            </button>
-                            <button className="icon-btn" title="Xóa" onClick={() => void handleDelete(item)}>
+                            </button> : null}
+                            {canManageBlog ? <button className="icon-btn" title="Xóa" onClick={() => void handleDelete(item)}>
                               <i className="fa-solid fa-trash" style={{ color: "#b91c1c" }} />
-                            </button>
+                            </button> : null}
                           </div>
                         </td>
                       </tr>
@@ -1068,10 +1080,10 @@ export function BlogAdminPage() {
                 </div>
 
                 <div style={{ display: "flex", gap: 10, paddingBottom: 8, flexWrap: "wrap" }}>
-                  <button ref={submitBtnRef} className="btn primary" type="submit" disabled={saving}>
+                  {canWriteBlog ? <button ref={submitBtnRef} className="btn primary" type="submit" disabled={saving}>
                     <i className="fa-solid fa-circle-check" style={{ opacity: 0.95 }} />
                     {saving ? "Đang lưu..." : editing ? "Cập nhật" : "Tạo bài"}
-                  </button>
+                  </button> : null}
                   <button className="btn ghost" type="button" onClick={resetForm}>
                     <i className="fa-solid fa-ban" style={{ opacity: 0.85 }} /> Hủy
                   </button>

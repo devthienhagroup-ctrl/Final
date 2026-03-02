@@ -41,14 +41,14 @@ export class BlogController {
   }
 
   @UseGuards(AccessTokenGuard, PermissionGuard)
-  @Permissions('cms.read')
+  @Permissions('blogs.read')
   @Get('admin')
-  listAdmin(@Query() query: BlogQueryDto) {
-    return this.blogService.listAdmin(query)
+  listAdmin(@CurrentUser() user: JwtUser, @Query() query: BlogQueryDto) {
+    return this.blogService.listAdmin(user, query)
   }
 
   @UseGuards(AccessTokenGuard, PermissionGuard)
-  @Permissions('cms.write')
+  @Permissions('blogs.write')
   @Post('admin')
   @UseInterceptors(
     FileInterceptor('coverImageFile', {
@@ -65,7 +65,7 @@ export class BlogController {
   }
 
   @UseGuards(AccessTokenGuard, PermissionGuard)
-  @Permissions('cms.write')
+  @Permissions('blogs.write')
   @Patch('admin/:id')
   @UseInterceptors(
     FileInterceptor('coverImageFile', {
@@ -73,15 +73,15 @@ export class BlogController {
       limits: { fileSize: 10 * 1024 * 1024 },
     }),
   )
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateBlogPostDto, @UploadedFile() file?: any) {
-    return this.blogService.update(id, dto, file)
+  update(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Body() dto: UpdateBlogPostDto, @UploadedFile() file?: any) {
+    return this.blogService.update(user, id, dto, file)
   }
 
   @UseGuards(AccessTokenGuard, PermissionGuard)
-  @Permissions('cms.manage')
+  @Permissions('blogs.manage')
   @Delete('admin/:id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.blogService.remove(id)
+  remove(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.blogService.remove(user, id)
   }
 
   @UseGuards(AccessTokenGuard)
@@ -103,7 +103,7 @@ export class BlogController {
   }
 
   @UseGuards(AccessTokenGuard, PermissionGuard)
-  @Permissions('cms.manage')
+  @Permissions('blogs.manage')
   @Post('admin/view-trackers/cleanup')
   runCleanup(@CurrentUser() user: JwtUser) {
     return this.blogService.triggerCleanup(user)

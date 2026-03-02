@@ -19,10 +19,8 @@ import { memoryStorage } from 'multer'
 import type { Request } from 'express'
 import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
 import { Permissions } from '../auth/decorators/permissions.decorator'
-import { Roles } from '../auth/decorators/roles.decorator'
 import { AccessTokenGuard } from '../auth/guards/access-token.guard'
 import { PermissionGuard } from '../auth/guards/permission.guard'
-import { RolesGuard } from '../auth/guards/roles.guard'
 import { CreateReviewDto } from './dto/create-review.dto'
 import { HelpfulHistoryQueryDto, MergeHelpfulDto } from './dto/review-helpful.dto'
 import { AdminReviewsQueryDto, PublicReviewsQueryDto } from './dto/reviews-query.dto'
@@ -83,57 +81,58 @@ export class ReviewsController {
     return this.reviewsService.mergeLocalHelpful(user.sub, dto.reviewIds || [])
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('reviews.read')
   @Get('admin/list')
-  adminList(@Query() query: AdminReviewsQueryDto) {
-    return this.reviewsService.adminList(query)
+  adminList(@CurrentUser() user: JwtUser, @Query() query: AdminReviewsQueryDto) {
+    return this.reviewsService.adminList(user, query)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('reviews.manage')
   @Patch('admin/:id/hide')
-  adminHide(@Param('id', ParseIntPipe) id: number) {
-    return this.reviewsService.adminHide(id)
+  adminHide(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.reviewsService.adminHide(user, id)
   }
 
   @UseGuards(AccessTokenGuard, PermissionGuard)
-  @Permissions('support.manage')
+  @Permissions('reviews.manage')
   @Patch('admin/:id/show')
-  adminShow(@Param('id', ParseIntPipe) id: number) {
-    return this.reviewsService.adminShow(id)
+  adminShow(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.reviewsService.adminShow(user, id)
   }
 
   @UseGuards(AccessTokenGuard, PermissionGuard)
-  @Permissions('support.manage')
+  @Permissions('reviews.manage')
   @Patch('admin/:id/spam')
-  adminSpam(@Param('id', ParseIntPipe) id: number) {
-    return this.reviewsService.adminSpam(id)
+  adminSpam(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.reviewsService.adminSpam(user, id)
   }
 
   @UseGuards(AccessTokenGuard, PermissionGuard)
-  @Permissions('support.manage')
+  @Permissions('reviews.manage')
   @Patch('admin/:id/unspam')
-  adminUnspam(@Param('id', ParseIntPipe) id: number) {
-    return this.reviewsService.adminUnspam(id)
+  adminUnspam(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.reviewsService.adminUnspam(user, id)
   }
 
   @UseGuards(AccessTokenGuard, PermissionGuard)
-  @Permissions('support.manage')
+  @Permissions('reviews.manage')
   @Patch('admin/bulk')
   adminBulk(
+    @CurrentUser() user: JwtUser,
     @Body() body: { ids?: number[]; action?: 'show' | 'hide' | 'spam' | 'unspam' | 'delete' },
   ) {
     const action = body?.action
     const ids = (body?.ids || []).filter((x) => Number.isInteger(Number(x))).map((x) => Number(x))
     if (!action || !ids.length) throw new BadRequestException('Thiếu action hoặc ids')
-    return this.reviewsService.adminBulk(ids, action)
+    return this.reviewsService.adminBulk(user, ids, action)
   }
 
   @UseGuards(AccessTokenGuard, PermissionGuard)
-  @Permissions('support.manage')
+  @Permissions('reviews.manage')
   @Delete('admin/:id')
-  adminDelete(@Param('id', ParseIntPipe) id: number) {
-    return this.reviewsService.adminDelete(id)
+  adminDelete(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.reviewsService.adminDelete(user, id)
   }
 }

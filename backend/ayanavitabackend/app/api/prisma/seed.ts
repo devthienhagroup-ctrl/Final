@@ -207,13 +207,13 @@ const ROLE_SEEDS: RoleSeed[] = [
     code: 'SUPPORT',
     scopeType: 'GLOBAL',
     description: 'CSKH toàn hệ thống (hạn chế)',
-    permissions: ['support.read','support.write','support.manage','orders.read','booking.read','appointments.read','courses.read','my_courses.read'],
+    permissions: ['support.read','support.write','support.manage','orders.read','booking.read','appointments.read','courses.read','my_courses.read','reviews.read','reviews.manage','blogs.read'],
   },
   {
     code: 'OPS',
     scopeType: 'GLOBAL',
     description: 'Vận hành toàn hệ thống',
-    permissions: ['orders.read','orders.manage','orders.export','booking.read','booking.approve','booking.manage','appointments.read','appointments.manage','packages.read','packages.write','packages.manage','products.read','products.write','cms.read','cms.write','role.read'],
+    permissions: ['orders.read','orders.manage','orders.export','booking.read','booking.approve','booking.manage','appointments.read','appointments.manage','packages.read','packages.write','packages.manage','products.read','products.write','cms.read','cms.write','role.read','reviews.read','reviews.manage','blogs.read','blogs.write','blogs.manage'],
   },
   {
     code: 'FINANCE',
@@ -225,7 +225,7 @@ const ROLE_SEEDS: RoleSeed[] = [
     code: 'ADMIN',
     scopeType: 'GLOBAL',
     description: 'Quản trị hệ thống',
-    permissions: ['role.read','role.manage'],
+    permissions: ['role.read','role.manage','reviews.read','reviews.manage','blogs.read','blogs.write','blogs.manage'],
   },
 ]
 

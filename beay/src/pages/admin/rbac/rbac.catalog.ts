@@ -16,6 +16,8 @@ export const MODULES = [
   { key: "payments", name: "Thanh toán", desc: "Gateway, capture, refund, reconcile" },
   { key: "packages", name: "Quản lý gói dịch vụ", desc: "Gói spa/gói membership/gói học" },
   { key: "support", name: "Support/Ticket/Chat", desc: "CSKH, ticket, chat" },
+  { key: "reviews", name: "Quản lý đánh giá", desc: "Duyệt, ẩn/hiện, xử lý vi phạm đánh giá" },
+  { key: "blogs", name: "Quản lý blog", desc: "Quản trị bài viết blog" },
 ] as const;
 
 export const ACTIONS = [
@@ -71,6 +73,11 @@ const PERM_KEYS = [
   "payments.refund",
   "orders.refund",
   "role.manage",
+  "reviews.read",
+  "reviews.manage",
+  "blogs.read",
+  "blogs.write",
+  "blogs.manage",
 ] as const;
 
 export const PERMS: PermDef[] = PERM_KEYS.map((key) => {

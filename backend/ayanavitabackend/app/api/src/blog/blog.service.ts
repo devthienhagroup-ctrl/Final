@@ -9,7 +9,7 @@ import {
 import { BlogPostStatus } from '@prisma/client'
 import type { Request } from 'express'
 import { JwtUser } from '../auth/decorators/current-user.decorator'
-import { hasAnyPermission } from '../auth/permission-utils'
+import { hasAnyPermission, isGlobalScope } from '../auth/permission-utils'
 import { PrismaService } from '../prisma/prisma.service'
 import { ImageUploadService } from '../services/ImageUploadService'
 import { BlogQueryDto, BlogSortMode } from './dto/blog-query.dto'
@@ -70,7 +70,12 @@ export class BlogService implements OnModuleInit, OnModuleDestroy {
     return xff || req.ip || '0.0.0.0'
   }
 
+  private assertGlobalScope(user: JwtUser) {
+    if (!isGlobalScope(user)) throw new ForbiddenException('Không đủ scope để quản lý blog')
+  }
+
   async create(author: JwtUser, dto: CreateBlogPostDto, file?: any) {
+    this.assertGlobalScope(author)
     let coverImage = dto.coverImage?.trim() || null
 
     if (file) {
@@ -131,7 +136,8 @@ export class BlogService implements OnModuleInit, OnModuleDestroy {
     return { page, pageSize, total, items }
   }
 
-  async listAdmin(query: BlogQueryDto) {
+  async listAdmin(user: JwtUser, query: BlogQueryDto) {
+    this.assertGlobalScope(user)
     const page = query.page || 1
     const pageSize = query.pageSize || 10
     const skip = (page - 1) * pageSize
@@ -225,7 +231,8 @@ export class BlogService implements OnModuleInit, OnModuleDestroy {
     })
   }
 
-  async update(id: number, dto: UpdateBlogPostDto, file?: any) {
+  async update(user: JwtUser, id: number, dto: UpdateBlogPostDto, file?: any) {
+    this.assertGlobalScope(user)
     const current = await this.prisma.blogPost.findUnique({ where: { id } })
     if (!current) throw new NotFoundException('Blog không tồn tại')
 
@@ -253,7 +260,8 @@ export class BlogService implements OnModuleInit, OnModuleDestroy {
     })
   }
 
-  async remove(id: number) {
+  async remove(user: JwtUser, id: number) {
+    this.assertGlobalScope(user)
     await this.prisma.blogPost.delete({ where: { id } })
     return { ok: true }
   }
@@ -311,7 +319,8 @@ export class BlogService implements OnModuleInit, OnModuleDestroy {
   }
 
   async triggerCleanup(user: JwtUser) {
-    if (!hasAnyPermission(user, ['cms.manage'])) throw new ForbiddenException('Không có quyền')
+    if (!hasAnyPermission(user, ['blogs.manage'])) throw new ForbiddenException('Không có quyền')
+    this.assertGlobalScope(user)
     await this.clearExpiredViewTrackers()
     return { ok: true }
   }

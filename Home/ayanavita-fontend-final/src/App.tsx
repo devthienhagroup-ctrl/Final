@@ -28,6 +28,8 @@ import AccountCenter from "./pages/AccountCenter";
 export default function App() {
     return (
         <Routes>
+            <Route path="/login" element={<LoginPage/>} />
+
             <Route element={<Layout/>}>
 
                 <Route path="/" element={<HomePage/>}/>
@@ -51,7 +53,6 @@ export default function App() {
                 <Route path="/products/:slug" element={<ProductDetailPage/>}/>
                 <Route path="/courses/:slug" element={<CourseDetailPage/>}/>
                 <Route path="/courses/player" element={<CoursePlayerPage/>}/>
-                // truy cập: /courses/detail?courseId=CR-1001
                 <Route path="/courses/:courseId/lesson" element={<LessonDetailPage/>}/>
                 <Route path="/reviews" element={<ReviewsCenterPage/>}/>
 

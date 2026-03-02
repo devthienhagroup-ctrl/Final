@@ -41,14 +41,25 @@ export class ProductOrdersController {
   @Permissions('orders.manage')
   @Patch('admin/:id/status')
   adminUpdateStatus(
+    @CurrentUser() user: JwtUser,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AdminUpdateProductOrderStatusDto,
   ) {
-    return this.productOrders.adminUpdateStatus(id, dto.status as ProductOrderStatus)
+    return this.productOrders.adminUpdateStatus(id, dto.status as ProductOrderStatus, user.sub)
+  }
+
+  @Post(':id/request-cancel')
+  requestCancel(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.productOrders.requestCancel(user.sub, id)
   }
 
   @Get(':id')
   myOrderDetail(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
     return this.productOrders.myOrderDetail(user.sub, id)
+  }
+
+  @Post(':id/payment-qr')
+  myOrderPaymentQr(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.productOrders.myOrderPaymentQr(user.sub, id)
   }
 }

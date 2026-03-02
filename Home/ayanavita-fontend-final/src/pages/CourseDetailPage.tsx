@@ -68,11 +68,6 @@ const REGISTER_LABEL: Record<string, string> = {
   de: "Registrieren",
 };
 
-const toRegisterUrl = (courseSlug: string, lang: string) => {
-  const qs = new URLSearchParams({ auth: "login", lang, course: courseSlug });
-  return `/?${qs.toString()}`;
-};
-
 function buildQrUrl(bankCode: string, accountNumber: string, amount: number, content: string, accountName: string) {
   const qs = new URLSearchParams({
     amount: String(Math.max(0, amount || 0)),
@@ -134,7 +129,8 @@ export default function CourseDetailPage() {
     if (!course) return;
     const token = localStorage.getItem("aya_access_token");
     if (!token) {
-      nav(toRegisterUrl(course.slug, lang));
+      const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
+      nav(`/login?next=${next}`);
       return;
     }
 
@@ -163,7 +159,8 @@ export default function CourseDetailPage() {
       setQrOpen(true);
     } catch (error: any) {
       if (error?.response?.status === 401) {
-        nav(toRegisterUrl(course.slug, lang));
+        const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
+      nav(`/login?next=${next}`);
         return;
       }
       window.alert(error?.response?.data?.message || "Không thể tạo đơn đăng ký. Vui lòng thử lại.");

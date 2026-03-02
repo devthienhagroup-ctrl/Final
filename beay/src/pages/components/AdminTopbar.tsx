@@ -41,7 +41,7 @@ export function AdminTopbar(props: Props) {
             <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               id="adminSearchInput"
-              className="input pl-11"
+              className="input !pl-11"
               placeholder="Tìm khóa học, học viên, đơn hàng... (phím /)"
               value={props.search}
               onChange={(e) => props.onSearchChange(e.target.value)}
@@ -60,10 +60,6 @@ export function AdminTopbar(props: Props) {
             <option value="90">90 ngày</option>
           </select>
 
-          <button onClick={props.onToggleTheme} className="btn hidden md:inline-flex items-center gap-2" title="Đổi theme">
-            <i className={`fa-solid ${props.theme === "dark" ? "fa-sun" : "fa-moon"}`} />
-            Theme
-          </button>
 
           <button onClick={props.onOpenNotif} className="btn hidden md:inline-flex items-center gap-2">
             <i className="fa-regular fa-bell" />

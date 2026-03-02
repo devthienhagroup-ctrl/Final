@@ -1,342 +1,13 @@
-diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202603310001_add_course_creator/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202603310001_add_course_creator/migration.sql
-new file mode 100644
-index 0000000000000000000000000000000000000000..dbefbe1b98051c6b373a050aaec20ced6db82217
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/prisma/migrations/202603310001_add_course_creator/migration.sql
-@@ -0,0 +1,9 @@
-+ALTER TABLE `Course`
-+  ADD COLUMN `creatorId` INTEGER NULL;
-+
-+CREATE INDEX `Course_creatorId_idx` ON `Course`(`creatorId`);
-+
-+ALTER TABLE `Course`
-+  ADD CONSTRAINT `Course_creatorId_fkey`
-+  FOREIGN KEY (`creatorId`) REFERENCES `User`(`id`)
-+  ON DELETE SET NULL ON UPDATE CASCADE;
-diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-index 10ddb56dfd914f39b46228135e8f27d5e34c9a20..1033b51c57a5c48f5b048b27e1e3c93b7a2de2ad 100644
---- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
-+++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-@@ -13,50 +13,51 @@ model User {
-   email              String   @unique
-   password           String
-   name               String?
-   phone              String?
-   birthDate          DateTime?
-   gender             Gender?
-   address            String?  @db.VarChar(500)
-   role               UserRole @default(USER)
-   roleId             Int?
-   roleRef            RbacRole? @relation("UserRbacRole", fields: [roleId], references: [id], onDelete: SetNull)
-   isActive           Boolean  @default(true)
-   hashedRefreshToken String?  @db.Text
-   createdAt          DateTime @default(now())
-   updatedAt          DateTime @updatedAt
-
-   // ✅ ADD
-   enrollments    Enrollment[]
-   courseAccesses CourseAccess[]
-   lessonProgress LessonProgress[]
-   lessonVideoProgress LessonVideoProgress[]
-   orders         Order[] // <— opposite for Order.user
-   productOrders  ProductOrder[]
-   carts          Cart[]
-
-   courseReviews CourseReview[]
-+  createdCourses Course[] @relation("CourseCreator")
-   // ✅ CMS (optional relations)
-   cmsSectionVersions CmsSectionVersion[]
-   mediaAssets        MediaAsset[]
-   serviceReviews     ServiceReview[]
-   reviews            Review[]
-   specialistProfile  Specialist?
-   reviewHelpfulVotes ReviewHelpful[]
-   blogPosts          BlogPost[]
-   blogSaves          BlogSavedPost[]
-   roleAuditLogsAsActor  RoleAuditLog[] @relation("RoleAuditActor")
-   roleAuditLogsAsTarget RoleAuditLog[] @relation("RoleAuditTarget")
-
-   @@index([roleId])
- }
-
- model Branch {
-   id          Int                @id @default(autoincrement())
-   code        String             @unique @db.VarChar(32)
-   name        String             @db.VarChar(255)
-   address     String             @db.VarChar(255)
-   phone       String?            @db.VarChar(30)
-   isActive    Boolean            @default(true)
-   createdAt   DateTime           @default(now())
-   updatedAt   DateTime           @updatedAt
-   services    BranchService[]
-@@ -257,65 +258,69 @@ model RegistrationOtp {
-   email     String   @unique
-   code      String   @db.VarChar(6)
-   expiresAt DateTime
-   usedAt    DateTime?
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
- }
-
- model Course {
-   id                  Int      @id @default(autoincrement())
-   topicId             Int?
-   title               String
-   time                String?  @db.VarChar(120)
-   shortDescription    String?  @db.VarChar(500)
-   slug                String   @unique
-   description         String?
-   thumbnail           String?
-   price               Int      @default(0)
-   published           Boolean  @default(false)
-   objectives          Json?
-   targetAudience      Json?
-   benefits            Json?
-   ratingAvg           Float    @default(0)
-   ratingCount         Int      @default(0)
-   enrollmentCount     Int      @default(0)
-+  creatorId           Int?
-   createdAt           DateTime @default(now())
-   updatedAt           DateTime @updatedAt
-
-   lessons     Lesson[]
-   enrollments Enrollment[]
-   accesses    CourseAccess[]
-   topic       CourseTopic? @relation(fields: [topicId], references: [id], onDelete: Restrict)
-   translations CourseTranslation[]
-   contentTranslations CourseContentTranslation[]
-+  creator             User? @relation("CourseCreator", fields: [creatorId], references: [id], onDelete: SetNull)
-
-   // ✅ ADD
-   orderItems OrderItem[] // <— opposite for OrderItem.course
-   courseReviews CourseReview[]
-+  createdCourses Course[] @relation("CourseCreator")
-
-   @@index([topicId])
-+  @@index([creatorId])
- }
-
- model CourseTranslation {
-   id               Int      @id @default(autoincrement())
-   courseId         Int
-   locale           String   @db.VarChar(10)
-   title            String   @db.VarChar(255)
-   shortDescription String?  @db.VarChar(500)
-   description      String?  @db.Text
-   objectives       Json?
-   targetAudience   Json?
-   benefits         Json?
-   createdAt        DateTime @default(now())
-   updatedAt        DateTime @updatedAt
-
-   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-   @@unique([courseId, locale])
-   @@index([locale])
- }
-
- model CourseTopic {
-   id          Int      @id @default(autoincrement())
-   name        String   @unique @db.VarChar(120)
-   description String?  @db.VarChar(255)
-diff --git a/backend/ayanavitabackend/app/api/src/app.module.ts b/backend/ayanavitabackend/app/api/src/app.module.ts
-index 225ca453c68aad71fa3fd98650fba99806569bbb..4a7529d083191973cbb99d4ea66d896ec4a57e9d 100644
---- a/backend/ayanavitabackend/app/api/src/app.module.ts
-+++ b/backend/ayanavitabackend/app/api/src/app.module.ts
-@@ -1,50 +1,52 @@
- import { Module } from '@nestjs/common';
-
- import { PrismaModule } from './prisma/prisma.module';
-
- import { AuthModule } from './auth/auth.module';
- import { UsersModule } from './users/users.module';
-
- import { CoursesModule } from './courses/courses.module';
- import { CourseTopicsModule } from './course-topics/course-topics.module';
- import { LessonsModule } from './lessons/lessons.module';
- import { EnrollmentsModule } from './enrollments/enrollments.module';
- import { ProgressModule } from './progress/progress.module';
-
- import { OrdersModule } from './orders/orders.module';
- import { BookingModule } from './booking/booking.module';
-
- import { CmsModule } from './cms/cms.module';
- import { CatalogModule } from './catalog/catalog.module';
- import { CartModule } from './cart/cart.module';
- import { ProductOrdersModule } from './product-orders/product-orders.module';
- import { ReviewsModule } from './reviews/reviews.module';
- import { BlogModule } from './blog/blog.module';
- import { RbacModule } from './rbac/rbac.module';
-+import { InstructorModule } from './instructor/instructor.module';
-
- @Module({
-   imports: [
-     PrismaModule,
-
-     UsersModule,
-     AuthModule,
-
-     CoursesModule,
-     CourseTopicsModule,
-     LessonsModule,
-     EnrollmentsModule,
-     ProgressModule,
-
-     OrdersModule,
-     BookingModule,
-
-     CmsModule,
-     CatalogModule,
-     CartModule,
-     ProductOrdersModule,
-     ReviewsModule,
-     BlogModule,
-     RbacModule,
-+    InstructorModule,
-   ],
- })
- export class AppModule {}
-\ No newline at end of file
-diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-index 204ae962c7d1ba9f2b131c06f11e9082527f4a11..fa651481fc76cbfb73407f716cea9acc25902cc0 100644
---- a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-+++ b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
-@@ -107,44 +107,44 @@ export class CoursesController {
-   }
-
-   @UseGuards(AccessTokenGuard)
-   @Get(':id/lessons/:lessonId')
-   getLesson(
-     @CurrentUser() user: any,
-     @Param('id', ParseIntPipe) courseId: number,
-     @Param('lessonId', ParseIntPipe) lessonId: number,
-   ) {
-     return this.courses.getLessonDetail(user, courseId, lessonId)
-   }
-
-   @UseGuards(AccessTokenGuard, RolesGuard)
-   @Roles('ADMIN')
-   @Post('thumbnail/upload')
-   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
-   uploadThumbnail(@UploadedFile() file?: any) {
-     if (!file) return { message: 'Missing thumbnail file' }
-     return this.courses.uploadThumbnail(file)
-   }
-
-   @UseGuards(AccessTokenGuard, RolesGuard)
-   @Roles('ADMIN')
-   @Post()
-   @UseInterceptors(FileInterceptor('thumbnail', { storage: memoryStorage() }))
--  create(@Body() rawData: any, @UploadedFile() thumbnail?: any) {
--    return this.courses.create(parseMultipartData(rawData) as CreateCourseDto, thumbnail)
-+  create(@CurrentUser() user: JwtUser, @Body() rawData: any, @UploadedFile() thumbnail?: any) {
-+    return this.courses.create(parseMultipartData(rawData) as CreateCourseDto, thumbnail, user.sub)
-   }
-
-   @UseGuards(AccessTokenGuard, RolesGuard)
-   @Roles('ADMIN')
-   @Patch(':id')
-   @UseInterceptors(FileInterceptor('thumbnail', { storage: memoryStorage() }))
-   update(@Param('id', ParseIntPipe) id: number, @Body() rawData: any, @UploadedFile() thumbnail?: any) {
-     return this.courses.update(id, parseMultipartData(rawData) as UpdateCourseDto, thumbnail)
-   }
-
-   @UseGuards(AccessTokenGuard, RolesGuard)
-   @Roles('ADMIN')
-   @Delete(':id')
-   remove(@Param('id', ParseIntPipe) id: number) {
-     return this.courses.remove(id)
-   }
- }
 diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-index 4062589b026b2e2f15494563449fcccb9829b738..a7fd607223276466b455d709d432c06a01c90b21 100644
+index a7fd607223276466b455d709d432c06a01c90b21..f38d021f4c1bb42b6d2ea72bc9328369ba479d7b 100644
 --- a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
 +++ b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
-@@ -17,125 +17,129 @@ export class CoursesService {
-   constructor(
-     private readonly prisma: PrismaService,
-     private readonly enrollments: EnrollmentsService,
-     private readonly courseMedia: CoursesMediaService,
-   ) {}
-
-   private readonly baseCourseSelect = {
-     id: true,
-     topicId: true,
-     title: true,
-     time: true,
-     shortDescription: true,
-     slug: true,
-     description: true,
-     thumbnail: true,
-     price: true,
-     published: true,
-     objectives: true,
-     targetAudience: true,
-     benefits: true,
-     ratingAvg: true,
-     ratingCount: true,
-     enrollmentCount: true,
-     createdAt: true,
-     updatedAt: true,
-+    creatorId: true,
-+    creator: { select: { id: true, name: true, email: true } },
-     _count: { select: { lessons: true } },
-   } as const
-
-   private resolveCourseLocale(lang?: string): Locale {
-     const activeLang = (lang || 'vi').toLowerCase()
-     if (activeLang === 'en-us' || activeLang === 'en') return 'en'
-     if (activeLang === 'de') return 'de'
-     return 'vi'
-   }
-
-   private normalizeLocalizedList(value: unknown): MultiLingualStringList {
-     const empty: MultiLingualStringList = { vi: [], en: [], de: [] }
-     if (Array.isArray(value)) return { ...empty, vi: value.filter((item): item is string => typeof item === 'string') }
-     if (!value || typeof value !== 'object') return empty
-     const input = value as Record<string, unknown>
-     return {
-       vi: Array.isArray(input.vi) ? input.vi.filter((item): item is string => typeof item === 'string') : [],
-       en: Array.isArray(input.en) ? input.en.filter((item): item is string => typeof item === 'string') : [],
-       de: Array.isArray(input.de) ? input.de.filter((item): item is string => typeof item === 'string') : [],
-     }
-   }
-
-
-   private hydratePrimaryContent(dto: Partial<CreateCourseDto>): Partial<CreateCourseDto> {
-     const objectivesByLocale = this.normalizeLocalizedList(dto.objectives)
-     const targetAudienceByLocale = this.normalizeLocalizedList(dto.targetAudience)
-     const benefitsByLocale = this.normalizeLocalizedList(dto.benefits)
-
-     const viContent = dto.contentTranslations?.vi
-
-     return {
-       ...dto,
-       objectives: (dto.objectives !== undefined ? objectivesByLocale.vi : (viContent?.objectives || objectivesByLocale.vi)) as any,
-       targetAudience: (dto.targetAudience !== undefined ? targetAudienceByLocale.vi : (viContent?.targetAudience || targetAudienceByLocale.vi)) as any,
-       benefits: (dto.benefits !== undefined ? benefitsByLocale.vi : (viContent?.benefits || benefitsByLocale.vi)) as any,
-     }
-   }
-
--  private buildCreateCoursePayload(dto: CreateCourseDto & { title: string }): Prisma.CourseUncheckedCreateInput {
-+  private buildCreateCoursePayload(dto: CreateCourseDto & { title: string; creatorId?: number }): Prisma.CourseUncheckedCreateInput {
-     return {
-       title: dto.title,
-       slug: dto.slug,
-       ...(dto.description !== undefined ? { description: dto.description } : {}),
-       ...(dto.shortDescription !== undefined ? { shortDescription: dto.shortDescription } : {}),
-       ...(dto.time !== undefined ? { time: String(dto.time) } : {}),
-       ...(dto.thumbnail !== undefined ? { thumbnail: dto.thumbnail } : {}),
-       ...(dto.price !== undefined ? { price: dto.price } : {}),
-       ...(dto.published !== undefined ? { published: dto.published } : {}),
-       ...(dto.topicId !== undefined ? { topicId: dto.topicId } : {}),
-       ...(dto.objectives !== undefined ? { objectives: dto.objectives as any } : {}),
-       ...(dto.targetAudience !== undefined ? { targetAudience: dto.targetAudience as any } : {}),
+@@ -95,51 +95,50 @@ export class CoursesService {
        ...(dto.benefits !== undefined ? { benefits: dto.benefits as any } : {}),
        ...(dto.ratingAvg !== undefined ? { ratingAvg: dto.ratingAvg } : {}),
        ...(dto.ratingCount !== undefined ? { ratingCount: dto.ratingCount } : {}),
        ...(dto.enrollmentCount !== undefined ? { enrollmentCount: dto.enrollmentCount } : {}),
-+      ...(dto.creatorId !== undefined ? { creatorId: dto.creatorId } : {}),
+       ...(dto.creatorId !== undefined ? { creatorId: dto.creatorId } : {}),
      }
    }
 
@@ -357,7 +28,7 @@ index 4062589b026b2e2f15494563449fcccb9829b738..a7fd607223276466b455d709d432c06a
        ...(dto.ratingAvg !== undefined ? { ratingAvg: dto.ratingAvg } : {}),
        ...(dto.ratingCount !== undefined ? { ratingCount: dto.ratingCount } : {}),
        ...(dto.enrollmentCount !== undefined ? { enrollmentCount: dto.enrollmentCount } : {}),
-+      ...(dto.creatorId !== undefined ? { creatorId: dto.creatorId } : {}),
+-      ...(dto.creatorId !== undefined ? { creatorId: dto.creatorId } : {}),
      }
    }
 
@@ -383,2194 +54,335 @@ index 4062589b026b2e2f15494563449fcccb9829b738..a7fd607223276466b455d709d432c06a
            select: { locale: true, title: true, description: true },
          },
        },
-@@ -240,98 +244,142 @@ export class CoursesService {
-     const ct = (c as any).translations?.find((x: any) => x.locale === courseLocale) || (c as any).translations?.find((x: any) => x.locale === 'vi')
-     const legacyCt = (c as any).contentTranslations?.find((x: any) => x.locale === courseLocale) || (c as any).contentTranslations?.find((x: any) => x.locale === 'vi')
-     const tt = (c as any).topic?.translations?.find((x: any) => x.locale === courseLocale) || (c as any).topic?.translations?.find((x: any) => x.locale === 'vi')
-
-     const videoRows = await this.prisma.$queryRaw<Array<{ videoCount: bigint | number }>>`
-       SELECT COUNT(v.id) as videoCount
-       FROM LessonVideo v
-       INNER JOIN LessonModule m ON m.id = v.moduleId
-       INNER JOIN Lesson l ON l.id = m.lessonId
-       WHERE l.courseId = ${id}
-     `
-
-     return {
-       ...c,
-       title: tr?.title || c.title,
-       shortDescription: tr?.shortDescription || c.shortDescription,
-       description: tr?.description || c.description,
-       objectives: ct?.objectives || legacyCt?.objectives || c.objectives,
-       targetAudience: ct?.targetAudience || legacyCt?.targetAudience || c.targetAudience,
-       benefits: ct?.benefits || legacyCt?.benefits || c.benefits,
-       topic: (c as any).topic ? { id: (c as any).topic.id, name: tt?.name || (c as any).topic.name } : null,
-       videoCount: Number(videoRows[0]?.videoCount || 0),
-     }
-   }
-
--  async create(dto: CreateCourseDto, thumbnailFile?: { buffer: Buffer; mimetype?: string }) {
-+  async create(dto: CreateCourseDto, thumbnailFile?: { buffer: Buffer; mimetype?: string }, creatorId?: number) {
-     if (!dto.title?.trim()) throw new BadRequestException('Title is required')
-     const normalizedDto = this.hydratePrimaryContent(dto) as CreateCourseDto
-     try {
-       const thumbnailUrl = thumbnailFile ? (await this.courseMedia.uploadThumbnail(thumbnailFile)).url : normalizedDto.thumbnail
--      const created = await this.prisma.course.create({ data: this.buildCreateCoursePayload({ ...normalizedDto, title: normalizedDto.title!.trim(), thumbnail: thumbnailUrl }), select: this.baseCourseSelect })
-+      const created = await this.prisma.course.create({ data: this.buildCreateCoursePayload({ ...normalizedDto, title: normalizedDto.title!.trim(), thumbnail: thumbnailUrl, creatorId }), select: this.baseCourseSelect })
-       await this.syncCourseTranslations(created.id, normalizedDto)
-       return created
-     } catch (e) {
-       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException('Slug already exists')
-       throw e
-     }
-   }
-
-   async update(id: number, dto: UpdateCourseDto, thumbnailFile?: { buffer: Buffer; mimetype?: string; originalname?: string }) {
-     const normalizedDto = this.hydratePrimaryContent(dto) as UpdateCourseDto
-     const existing = await this.prisma.course.findUnique({ where: { id }, select: { id: true, thumbnail: true } })
-     if (!existing) throw new NotFoundException('Course not found')
-
-     let nextThumbnail = normalizedDto.thumbnail
-     if (thumbnailFile) {
-       const uploaded = await this.courseMedia.uploadThumbnail(thumbnailFile)
-       nextThumbnail = uploaded.url
-       if (existing.thumbnail) {
-         await this.courseMedia.deleteThumbnailByUrl(existing.thumbnail)
-       }
-     }
-
-     const updated = await this.prisma.course.update({
-       where: { id },
-       data: this.buildUpdateCoursePayload({ ...normalizedDto, ...(nextThumbnail !== undefined ? { thumbnail: nextThumbnail } : {}) }),
-       select: this.baseCourseSelect,
-     })
-     await this.syncCourseTranslations(id, normalizedDto)
-     return updated
-   }
-
-   async remove(id: number) {
-     const existing = await this.prisma.course.findUnique({ where: { id }, select: { id: true, thumbnail: true } })
-     if (!existing) throw new NotFoundException('Course not found')
-
-     if (existing.thumbnail) {
-       await this.courseMedia.deleteThumbnailByUrl(existing.thumbnail)
-     }
-
-     return this.prisma.course.delete({ where: { id }, select: { id: true } })
-   }
-
-+  async findAllByCreator(query: CourseQueryDto, creatorId: number) {
-+    const scopedQuery = { ...query }
-+    const courseLocale = this.resolveCourseLocale(scopedQuery.lang)
-+    const topicLocale = courseLocale
-+    const where: Prisma.CourseWhereInput = {
-+      creatorId,
-+      ...(scopedQuery.topicId ? { topicId: scopedQuery.topicId } : {}),
-+      ...(scopedQuery.search?.trim() ? { OR: [{ title: { contains: scopedQuery.search.trim() } }, { slug: { contains: scopedQuery.search.trim() } }] } : {}),
-+    }
-+    const page = Math.max(1, Number(scopedQuery.page || 1)); const pageSize = Math.min(100, Math.max(1, Number(scopedQuery.pageSize || 10)))
-+    const [rows, total] = await Promise.all([
-+      this.prisma.course.findMany({
-+        where,
-+        select: {
-+          ...this.baseCourseSelect,
-+          translations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, title: true, shortDescription: true, description: true, objectives: true, targetAudience: true, benefits: true } },
-+          contentTranslations: { where: { locale: { in: [courseLocale, 'vi'] } }, select: { locale: true, objectives: true, targetAudience: true, benefits: true } },
-+          topic: { select: { id: true, name: true, translations: { where: { locale: { in: [topicLocale, 'vi'] } }, select: { locale: true, name: true } } } },
-+        },
-+        skip: (page - 1) * pageSize, take: pageSize, orderBy: { id: 'desc' },
-+      }),
-+      this.prisma.course.count({ where }),
-+    ])
-+    const courseIds = rows.map((r) => r.id)
-+    if (!courseIds.length) return { items: [], total, page, pageSize }
-+    const videoRows = await this.prisma.$queryRaw<Array<{ courseId: number; videoCount: bigint | number }>>`SELECT l.courseId as courseId, COUNT(v.id) as videoCount FROM LessonVideo v INNER JOIN LessonModule m ON m.id = v.moduleId INNER JOIN Lesson l ON l.id = m.lessonId WHERE l.courseId IN (${Prisma.join(courseIds)}) GROUP BY l.courseId`
-+    const videoCountMap = new Map(videoRows.map((r) => [Number(r.courseId), Number(r.videoCount)]))
-+    const items = rows.map((row: any) => {
-+      const tr = row.translations?.find((x: any) => x.locale === courseLocale) || row.translations?.find((x: any) => x.locale === 'vi')
-+      const ct = row.translations?.find((x: any) => x.locale === courseLocale) || row.translations?.find((x: any) => x.locale === 'vi')
-+      const legacyCt = row.contentTranslations?.find((x: any) => x.locale === courseLocale) || row.contentTranslations?.find((x: any) => x.locale === 'vi')
-+      const tt = row.topic?.translations?.find((x: any) => x.locale === topicLocale) || row.topic?.translations?.find((x: any) => x.locale === 'vi')
-+      return { ...row, title: tr?.title || row.title, shortDescription: tr?.shortDescription || row.shortDescription, description: tr?.description || row.description, objectives: ct?.objectives || legacyCt?.objectives || row.objectives, targetAudience: ct?.targetAudience || legacyCt?.targetAudience || row.targetAudience, benefits: ct?.benefits || legacyCt?.benefits || row.benefits, topic: row.topic ? { id: row.topic.id, name: tt?.name || row.topic.name } : null, videoCount: videoCountMap.get(row.id) || 0 }
-+    })
-+    return { items, total, page, pageSize }
-+  }
-+
-+  async assertCreator(courseId: number, userId: number) {
-+    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, creatorId: true } })
-+    if (!course) throw new NotFoundException('Course not found')
-+    if (course.creatorId !== userId) throw new ForbiddenException('You do not have permission for this course')
-+  }
-+
-+
-   async listLessons(user: { sub: number; role: string }, courseId: number) { /* kept */
-     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } }); if (!course) throw new NotFoundException('Course not found'); await this.enrollments.assertEnrolledOrAdmin(user, courseId); if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
-     const lessons = await this.prisma.lesson.findMany({ where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) }, select: { id: true, courseId: true, title: true, slug: true, order: true, published: true, createdAt: true, updatedAt: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] })
-     if (user.role === 'ADMIN') return lessons.map((l) => ({ ...l, locked: false, lockReason: null, progress: null }))
-     const progressRows = await this.prisma.lessonProgress.findMany({ where: { userId: user.sub, lessonId: { in: lessons.map((l) => l.id) } }, select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true } })
-     const progressMap = new Map(progressRows.map((p) => [p.lessonId, p])); let prevCompleted = true
-     return lessons.map((lesson, idx) => { const progress = progressMap.get(lesson.id) ?? null; const locked = idx === 0 ? false : prevCompleted === false; const lockReason = locked ? 'PREV_NOT_COMPLETED' : null; prevCompleted = progress?.status === ProgressStatus.COMPLETED; return { ...lesson, locked, lockReason, progress } })
-   }
-
-   async getLessonDetail(user: { sub: number; role: string }, courseId: number, lessonId: number) { /* kept */
-     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } }); if (!course) throw new NotFoundException('Course not found'); await this.enrollments.assertEnrolledOrAdmin(user, courseId); if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
-     const lesson = await this.prisma.lesson.findFirst({ where: { id: lessonId, courseId }, select: { id: true, courseId: true, title: true, slug: true, content: true, videoUrl: true, order: true, published: true, createdAt: true, updatedAt: true } }); if (!lesson) throw new NotFoundException('Lesson not found')
-     if (user.role !== 'ADMIN' && !lesson.published) throw new NotFoundException('Lesson not found')
-     if (user.role !== 'ADMIN') { const orderedLessons = await this.prisma.lesson.findMany({ where: { courseId, published: true }, select: { id: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] }); const idx = orderedLessons.findIndex((l) => l.id === lessonId); if (idx < 0) throw new NotFoundException('Lesson not found'); if (idx > 0) { const prevLessonId = orderedLessons[idx - 1].id; const prevProgress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId: prevLessonId } }, select: { status: true } }); if (prevProgress?.status !== ProgressStatus.COMPLETED) throw new ForbiddenException('Lesson locked') } }
-     const progress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId } }, select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true } })
-     return { ...lesson, progress: progress ?? null }
-   }
-
-   async listReviews(courseId: number) {
-     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } })
-     if (!course) throw new NotFoundException('Course not found')
-
-     const rows = await this.prisma.courseReview.findMany({
-       where: { courseId },
-       orderBy: { createdAt: 'desc' },
-diff --git a/backend/ayanavitabackend/app/api/src/instructor/instructor.controller.ts b/backend/ayanavitabackend/app/api/src/instructor/instructor.controller.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..fd8a450324c78dcaed60b821ab6e9e2b8beb79d6
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/instructor/instructor.controller.ts
-@@ -0,0 +1,130 @@
-+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common'
-+import { FileInterceptor } from '@nestjs/platform-express'
-+import { memoryStorage } from 'multer'
-+import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
-+import { Roles } from '../auth/decorators/roles.decorator'
-+import { AccessTokenGuard } from '../auth/guards/access-token.guard'
-+import { RolesGuard } from '../auth/guards/roles.guard'
-+import { CourseQueryDto } from '../courses/dto/course-query.dto'
-+import { CreateCourseDto } from '../courses/dto/create-course.dto'
-+import { UpdateCourseDto } from '../courses/dto/update-course.dto'
-+import { CoursesService } from '../courses/courses.service'
-+import { LessonsService } from '../lessons/lessons.service'
-+import { CreateLessonDto } from '../lessons/dto/create-lesson.dto'
-+import { UpdateLessonDto } from '../lessons/dto/update-lesson.dto'
-+import { PrismaService } from '../prisma/prisma.service'
-+import { CourseTopicsService } from '../course-topics/course-topics.service'
-+
-+type MultipartBody = Record<string, any>
-+const parseMultipartData = (input: MultipartBody) => {
-+  const data = { ...input }
-+  for (const [key, value] of Object.entries(data)) {
-+    if (typeof value !== 'string') continue
-+    const trimmed = value.trim()
-+    if (trimmed === 'true' || trimmed === 'false') { data[key] = trimmed === 'true'; continue }
-+    if (/^-?\d+(\.\d+)?$/.test(trimmed) && key !== 'slug') { data[key] = Number(trimmed); continue }
-+    if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
-+      try { data[key] = JSON.parse(trimmed) } catch { data[key] = value }
-+    }
-+  }
-+  return data
-+}
-+
-+@UseGuards(AccessTokenGuard, RolesGuard)
-+@Roles('MANAGER')
-+@Controller('instructor')
-+export class InstructorController {
-+  constructor(
-+    private readonly courses: CoursesService,
-+    private readonly lessons: LessonsService,
-+    private readonly prisma: PrismaService,
-+    private readonly courseTopics: CourseTopicsService,
-+  ) {}
-+
-+  @Get('course-topics')
-+  listTopics() {
-+    return this.courseTopics.list()
-+  }
-+
-+  @Get('courses')
-+  findCourses(@CurrentUser() user: JwtUser, @Query() query: CourseQueryDto) {
-+    return this.courses.findAllByCreator(query, user.sub)
-+  }
-+
-+  @Get('courses/:id')
-+  async findCourse(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
-+    await this.courses.assertCreator(id, user.sub)
-+    return this.courses.findOne(id, lang)
-+  }
-+
-+  @Get('courses/:id/lessons-outline')
-+  async lessonsOutline(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
-+    await this.courses.assertCreator(id, user.sub)
-+    return this.courses.lessonsOutline({ sub: user.sub, role: 'ADMIN' }, id, lang)
-+  }
-+
-+  @Post('courses')
-+  @UseInterceptors(FileInterceptor('thumbnail', { storage: memoryStorage() }))
-+  createCourse(@CurrentUser() user: JwtUser, @Body() rawData: any, @UploadedFile() thumbnail?: any) {
-+    return this.courses.create(parseMultipartData(rawData) as CreateCourseDto, thumbnail, user.sub)
-+  }
-+
-+  @Patch('courses/:id')
-+  @UseInterceptors(FileInterceptor('thumbnail', { storage: memoryStorage() }))
-+  async updateCourse(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Body() rawData: any, @UploadedFile() thumbnail?: any) {
-+    await this.courses.assertCreator(id, user.sub)
-+    return this.courses.update(id, parseMultipartData(rawData) as UpdateCourseDto, thumbnail)
-+  }
-+
-+  @Delete('courses/:id')
-+  async deleteCourse(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
-+    await this.courses.assertCreator(id, user.sub)
-+    return this.courses.remove(id)
-+  }
-+
-+  @Get('lessons/:id')
-+  async lessonDetail(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
-+    const lesson = await this.prisma.lesson.findUnique({ where: { id }, select: { id: true, courseId: true } })
-+    if (!lesson) return this.lessons.findOne({ ...user, role: 'ADMIN' }, id, lang)
-+    await this.courses.assertCreator(lesson.courseId, user.sub)
-+    return this.lessons.findOne({ ...user, role: 'ADMIN' }, id, lang)
-+  }
-+
-+  @Post('courses/:courseId/lessons')
-+  async createLesson(@CurrentUser() user: JwtUser, @Param('courseId', ParseIntPipe) courseId: number, @Body() dto: CreateLessonDto) {
-+    await this.courses.assertCreator(courseId, user.sub)
-+    return this.lessons.create(courseId, dto)
-+  }
-+
-+  @Patch('lessons/:id')
-+  async updateLesson(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Body() dto: UpdateLessonDto) {
-+    const lesson = await this.prisma.lesson.findUnique({ where: { id }, select: { courseId: true } })
-+    if (!lesson) return this.lessons.update(id, dto)
-+    await this.courses.assertCreator(lesson.courseId, user.sub)
-+    return this.lessons.update(id, dto)
-+  }
-+
-+  @Delete('lessons/:id')
-+  async deleteLesson(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
-+    const lesson = await this.prisma.lesson.findUnique({ where: { id }, select: { courseId: true } })
-+    if (!lesson) return this.lessons.remove(id)
-+    await this.courses.assertCreator(lesson.courseId, user.sub)
-+    return this.lessons.remove(id)
-+  }
-+
-+  @Post('lessons/:id/modules/:moduleId/media/upload')
-+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
-+  async uploadLessonMedia(
-+    @CurrentUser() user: JwtUser,
-+    @Param('id', ParseIntPipe) lessonId: number,
-+    @Param('moduleId') moduleId: string,
-+    @UploadedFile() file?: any,
-+    @Body('type') type?: string,
-+    @Body('order') order?: string,
-+  ) {
-+    const lesson = await this.prisma.lesson.findUnique({ where: { id: lessonId }, select: { courseId: true } })
-+    if (lesson) await this.courses.assertCreator(lesson.courseId, user.sub)
-+    const parsedOrder = Number(order)
-+    return this.lessons.uploadModuleMedia(lessonId, moduleId, type === 'image' ? 'image' : 'video', file, Number.isFinite(parsedOrder) ? parsedOrder : undefined)
-+  }
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/instructor/instructor.module.ts b/backend/ayanavitabackend/app/api/src/instructor/instructor.module.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..0fd18fab460f0e701403161e199e38b5624cd73a
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/instructor/instructor.module.ts
-@@ -0,0 +1,12 @@
-+import { Module } from '@nestjs/common'
-+import { InstructorController } from './instructor.controller'
-+import { CoursesModule } from '../courses/courses.module'
-+import { LessonsModule } from '../lessons/lessons.module'
-+import { PrismaModule } from '../prisma/prisma.module'
-+import { CourseTopicsModule } from '../course-topics/course-topics.module'
-+
-+@Module({
-+  imports: [CoursesModule, LessonsModule, PrismaModule, CourseTopicsModule],
-+  controllers: [InstructorController],
-+})
-+export class InstructorModule {}
-diff --git a/backend/ayanavitabackend/app/api/src/lessons/lessons.module.ts b/backend/ayanavitabackend/app/api/src/lessons/lessons.module.ts
-index eb9a9c26f736098fdf833243cb5c87a94919766c..e8fdf2d4d6c42c2ff30ba24fa016cdbdd1859991 100644
---- a/backend/ayanavitabackend/app/api/src/lessons/lessons.module.ts
-+++ b/backend/ayanavitabackend/app/api/src/lessons/lessons.module.ts
-@@ -1,14 +1,15 @@
- import { Module } from '@nestjs/common'
- import { LessonsController } from './lessons.controller'
- import { LessonsService } from './lessons.service'
- import { PrismaModule } from '../prisma/prisma.module'
- import { EnrollmentsModule } from '../enrollments/enrollments.module'
- import { LessonsMediaService } from './lessons-media.service'
-
-
- @Module({
-   imports: [PrismaModule, EnrollmentsModule],
-   controllers: [LessonsController],
-   providers: [LessonsService, LessonsMediaService],
-+  exports: [LessonsService],
- })
- export class LessonsModule {}
-diff --git a/beay/src/api/adminCourses.api.ts b/beay/src/api/adminCourses.api.ts
-index 327083e20d00f9e2759b0498db0c7d6f4a15e3a4..db031fa629d09d96b449e101369c8f043f45dee8 100644
---- a/beay/src/api/adminCourses.api.ts
-+++ b/beay/src/api/adminCourses.api.ts
-@@ -71,91 +71,109 @@ export type LessonDetailAdmin = LessonAdmin & { modules: LessonModuleAdmin[] }
-
- export type CourseAdmin = {
-   id: number
-   topicId?: number | null
-   title: string
-   time?: string | null
-   shortDescription?: string | null
-   slug: string
-   description?: string | null
-   thumbnail?: string | null
-   published: boolean
-   price: number
-   topic?: { id: number; name: string } | null
-   translations?: Record<string, { title: string; shortDescription?: string; description?: string; objectives?: string[]; targetAudience?: string[]; benefits?: string[] }>
-   objectives?: string[]
-   targetAudience?: string[]
-   benefits?: string[]
-   contentTranslations?: Record<string, { objectives?: string[]; targetAudience?: string[]; benefits?: string[] }>
-   ratingAvg?: number
-   ratingCount?: number
-   enrollmentCount?: number
-   createdAt?: string
-   updatedAt?: string
-   videoCount?: number
-   _count?: { lessons?: number }
-+  creatorId?: number | null
-+  creator?: { id: number; name?: string | null; email?: string | null } | null
- }
-
- export type TopicPayload = {
-   name?: string
-   description?: string
-   translations?: {
-     vi?: { name?: string; description?: string }
-     'en-US'?: { name?: string; description?: string }
-     de?: { name?: string; description?: string }
-   }
- }
-
- export type CoursePayload = {
-   topicId?: number
-   title: string
-   time?: string
-   shortDescription?: string
-   slug: string
-   description?: string
-   thumbnail?: string
-   price?: number
-   published?: boolean
-   translations?: Record<string, { title: string; shortDescription?: string; description?: string; objectives?: string[]; targetAudience?: string[]; benefits?: string[] }>
-   objectives?: string[]
-   targetAudience?: string[]
-   benefits?: string[]
-   contentTranslations?: Record<string, { objectives?: string[]; targetAudience?: string[]; benefits?: string[] }>
-   ratingAvg?: number
-   ratingCount?: number
-   enrollmentCount?: number
- }
-
- export type CourseListResponse = {
-   items: CourseAdmin[]
-   total: number
-   page: number
-   pageSize: number
- }
-
- export type CourseDetailAdmin = CourseAdmin
-
-+
-+export type CourseManagementApi = {
-+  listTopics: () => Promise<CourseTopic[]>
-+  listCourses: (params?: { topicId?: number; search?: string; page?: number; pageSize?: number; lang?: string }) => Promise<CourseListResponse>
-+  createCourse: (body: CoursePayload | FormData) => Promise<CourseAdmin>
-+  updateCourse: (id: number, body: Partial<CoursePayload> | FormData) => Promise<CourseAdmin>
-+  deleteCourse: (id: number) => Promise<{ id: number }>
-+  getCourseDetail: (id: number, lang?: string) => Promise<CourseDetailAdmin>
-+  listCourseLessons: (courseId: number, lang?: string) => Promise<LessonOutlineAdmin[]>
-+  getLessonDetail: (lessonId: number, lang?: string) => Promise<LessonDetailAdmin>
-+  createLesson: (courseId: number, body: LessonPayload) => Promise<LessonAdmin>
-+  updateLesson: (lessonId: number, body: Partial<LessonPayload>) => Promise<LessonAdmin>
-+  deleteLesson: (lessonId: number) => Promise<{ id: number }>
-+  uploadModuleMedia: (lessonId: number, moduleId: string | number, file: File, type: 'video' | 'image', order?: number) => Promise<{ moduleId?: string; lessonId?: number; hlsPlaylistKey?: string; segmentCount?: number; imageKey?: string; sourceUrl?: string; storage: string; videoId?: number }>
-+}
-+
- export const adminCoursesApi = {
-   listTopics: () => get<CourseTopic[]>('/admin/course-topics', { auth: true }),
-   createTopic: (body: TopicPayload) => post<CourseTopic>('/admin/course-topics', body, { auth: true }),
-   updateTopic: (id: number, body: TopicPayload) => patch<CourseTopic>(`/admin/course-topics/${id}`, body, { auth: true }),
-   deleteTopic: (id: number) => del<{ id: number }>(`/admin/course-topics/${id}`, { auth: true }),
-   listCourses: (params?: { topicId?: number; search?: string; page?: number; pageSize?: number; lang?: string }) => {
-     const qs = new URLSearchParams()
-     if (params?.topicId) qs.set('topicId', String(params.topicId))
-     if (params?.search?.trim()) qs.set('search', params.search.trim())
-     if (params?.page) qs.set('page', String(params.page))
-     if (params?.pageSize) qs.set('pageSize', String(params.pageSize))
-     if (params?.lang) qs.set('lang', params.lang)
-     const suffix = qs.toString() ? `?${qs.toString()}` : ''
-     return get<CourseListResponse>(`/courses${suffix}`, { auth: true })
-   },
-   createCourse: (body: CoursePayload | FormData) => post<CourseAdmin>('/courses', body, { auth: true }),
-   updateCourse: (id: number, body: Partial<CoursePayload> | FormData) => patch<CourseAdmin>(`/courses/${id}`, body, { auth: true }),
-   deleteCourse: (id: number) => del<{ id: number }>(`/courses/${id}`, { auth: true }),
-   getCourseDetail: (id: number, lang?: string) => {
-     const qs = new URLSearchParams()
-     if (lang) qs.set('lang', lang)
-     const suffix = qs.toString() ? `?${qs.toString()}` : ''
-     return get<CourseDetailAdmin>(`/courses/${id}${suffix}`, { auth: true })
-   },
-
-diff --git a/beay/src/api/instructorCourses.api.ts b/beay/src/api/instructorCourses.api.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..2b04f1b87be1f7801fd4a1800790c7238fee45f5
---- /dev/null
-+++ b/beay/src/api/instructorCourses.api.ts
-@@ -0,0 +1,47 @@
-+import { del, get, patch, post } from './http'
-+import type { CourseAdmin, CourseDetailAdmin, CourseListResponse, CourseManagementApi, CoursePayload, CourseTopic, LessonAdmin, LessonDetailAdmin, LessonOutlineAdmin, LessonPayload } from './adminCourses.api'
-+
-+export const instructorCoursesApi: CourseManagementApi = {
-+  listTopics: () => get<CourseTopic[]>('/instructor/course-topics', { auth: true }),
-+  listCourses: (params) => {
-+    const qs = new URLSearchParams()
-+    if (params?.topicId) qs.set('topicId', String(params.topicId))
-+    if (params?.search?.trim()) qs.set('search', params.search.trim())
-+    if (params?.page) qs.set('page', String(params.page))
-+    if (params?.pageSize) qs.set('pageSize', String(params.pageSize))
-+    if (params?.lang) qs.set('lang', params.lang)
-+    const suffix = qs.toString() ? `?${qs.toString()}` : ''
-+    return get<CourseListResponse>(`/instructor/courses${suffix}`, { auth: true })
-+  },
-+  createCourse: (body: CoursePayload | FormData) => post<CourseAdmin>('/instructor/courses', body, { auth: true }),
-+  updateCourse: (id: number, body: Partial<CoursePayload> | FormData) => patch<CourseAdmin>(`/instructor/courses/${id}`, body, { auth: true }),
-+  deleteCourse: (id: number) => del<{ id: number }>(`/instructor/courses/${id}`, { auth: true }),
-+  getCourseDetail: (id: number, lang?: string) => {
-+    const qs = new URLSearchParams()
-+    if (lang) qs.set('lang', lang)
-+    const suffix = qs.toString() ? `?${qs.toString()}` : ''
-+    return get<CourseDetailAdmin>(`/instructor/courses/${id}${suffix}`, { auth: true })
-+  },
-+  listCourseLessons: (courseId: number, lang?: string) => {
-+    const qs = new URLSearchParams()
-+    if (lang) qs.set('lang', lang)
-+    const suffix = qs.toString() ? `?${qs.toString()}` : ''
-+    return get<LessonOutlineAdmin[]>(`/instructor/courses/${courseId}/lessons-outline${suffix}`, { auth: true })
-+  },
-+  getLessonDetail: (lessonId: number, lang?: string) => {
-+    const qs = new URLSearchParams()
-+    if (lang) qs.set('lang', lang)
-+    const suffix = qs.toString() ? `?${qs.toString()}` : ''
-+    return get<LessonDetailAdmin>(`/instructor/lessons/${lessonId}${suffix}`, { auth: true })
-+  },
-+  createLesson: (courseId: number, body: LessonPayload) => post<LessonAdmin>(`/instructor/courses/${courseId}/lessons`, body, { auth: true }),
-+  updateLesson: (lessonId: number, body: Partial<LessonPayload>) => patch<LessonAdmin>(`/instructor/lessons/${lessonId}`, body, { auth: true }),
-+  deleteLesson: (lessonId: number) => del<{ id: number }>(`/instructor/lessons/${lessonId}`, { auth: true }),
-+  uploadModuleMedia: (lessonId, moduleId, file, type, order) => {
-+    const body = new FormData()
-+    body.append('file', file)
-+    body.append('type', type)
-+    if (order !== undefined) body.append('order', String(order))
-+    return post<{ moduleId?: string; lessonId?: number; hlsPlaylistKey?: string; segmentCount?: number; imageKey?: string; sourceUrl?: string; storage: string; videoId?: number }>(`/instructor/lessons/${lessonId}/modules/${moduleId}/media/upload`, body, { auth: true })
-+  },
-+}
-diff --git a/beay/src/pages/admin/AdminCoursesPage.tsx b/beay/src/pages/admin/AdminCoursesPage.tsx
-index 035243dc3931a3980e269a085af1cbaf0c61a4ab..45b7ea6b95a89e542963c68fb718c4ed694e7c13 100644
---- a/beay/src/pages/admin/AdminCoursesPage.tsx
-+++ b/beay/src/pages/admin/AdminCoursesPage.tsx
-@@ -50,50 +50,51 @@ const uiText: Record<AdminLang, Record<string, string>> = {
-     topicNamePlaceholder: "Nhập tên chủ đề",
-     topicDescription: "Mô tả ngắn",
-     topicDescriptionPlaceholder: "Mô tả tuỳ chọn",
-     updateTopic: "Cập nhật chủ đề",
-     createTopic: "Tạo chủ đề",
-     cancelEdit: "Huỷ chỉnh sửa",
-     topicList: "Danh sách chủ đề",
-     courseCountCol: "Số khoá học",
-     actions: "Thao tác",
-     editTopic: "Sửa chủ đề",
-     deleteTopic: "Xoá chủ đề",
-     validateName: "Vui lòng nhập tên chủ đề cho ngôn ngữ hiện tại",
-     updateSuccess: "Đã cập nhật chủ đề",
-     createSuccess: "Đã tạo chủ đề mới",
-     deleteSuccess: "Đã xóa chủ đề thành công",
-     loadFailed: "Không thể tải dữ liệu quản trị khóa học",
-     saveFailed: "Lưu chủ đề thất bại",
-     deleteFailed: "Không thể xóa chủ đề",
-     displayMode: "Chế độ hiển thị",
-     filterByTopic: "Lọc theo chủ đề",
-     allTopics: "Tất cả chủ đề",
-     searchByCourseName: "Tìm theo tên khóa học",
-     searchPlaceholder: "Nhập tên khóa học...",
-     titleCol: "Tiêu đề",
-     topicCol: "Chủ đề",
-+    creatorCol: "Người tạo",
-     priceCol: "Giá",
-     ratingCol: "Rating",
-     enrollmentCol: "Đăng ký",
-     lessonCol: "Bài học",
-     videoCountCol: "Video",
-     createdAtCol: "Tạo lúc",
-     updatedAtCol: "Sửa lúc",
-     statusCol: "Trạng thái",
-     unassigned: "Chưa gán",
-     publishedStatus: "Published",
-     draftStatus: "Draft",
-     pageLabel: "Trang",
-     totalCoursesLabel: "Tổng khóa học",
-     prevPage: "Trước",
-     nextPage: "Sau",
-     logout: "Đăng xuất",
-   },
-   en: {
-     kicker: "COURSE ADMIN CENTER",
-     title: "Manage course topics & categories",
-     subtitle:
-       "Service-admin style interface with multilingual input and language-based display for operators.",
-     darkMode: "Dark mode",
-     topicCount: "Course topics",
-     topicCountDesc: "Existing topic groups",
-@@ -113,50 +114,51 @@ const uiText: Record<AdminLang, Record<string, string>> = {
-     topicNamePlaceholder: "Enter topic name",
-     topicDescription: "Short description",
-     topicDescriptionPlaceholder: "Optional description",
-     updateTopic: "Update topic",
-     createTopic: "Create topic",
-     cancelEdit: "Cancel edit",
-     topicList: "Topic list",
-     courseCountCol: "Course count",
-     actions: "Actions",
-     editTopic: "Edit topic",
-     deleteTopic: "Delete topic",
-     validateName: "Please enter topic name for active language",
-     updateSuccess: "Topic updated",
-     createSuccess: "Topic created",
-     deleteSuccess: "Topic deleted successfully",
-     loadFailed: "Unable to load course admin data",
-     saveFailed: "Failed to save topic",
-     deleteFailed: "Unable to delete topic",
-     displayMode: "Display mode",
-     filterByTopic: "Filter by topic",
-     allTopics: "All topics",
-     searchByCourseName: "Search by course name",
-     searchPlaceholder: "Enter course name...",
-     titleCol: "Title",
-     topicCol: "Topic",
-+    creatorCol: "Created by",
-     priceCol: "Price",
-     ratingCol: "Rating",
-     enrollmentCol: "Enrollments",
-     lessonCol: "Lessons",
-     videoCountCol: "Videos",
-     createdAtCol: "Created at",
-     updatedAtCol: "Updated at",
-     statusCol: "Status",
-     unassigned: "Unassigned",
-     publishedStatus: "Published",
-     draftStatus: "Draft",
-     pageLabel: "Page",
-     totalCoursesLabel: "Total courses",
-     prevPage: "Prev",
-     nextPage: "Next",
-     logout: "Logout",
-   },
-   de: {
-     kicker: "KURS-ADMIN-ZENTRUM",
-     title: "Kursthemen & Kategorien verwalten",
-     subtitle:
-       "Service-Management-Stil mit mehrsprachiger Eingabe und sprachabhängiger Anzeige für Admins.",
-     darkMode: "Dark mode",
-     topicCount: "Kursthemen",
-     topicCountDesc: "Vorhandene Themengruppen",
-@@ -176,50 +178,51 @@ const uiText: Record<AdminLang, Record<string, string>> = {
-     topicNamePlaceholder: "Themenname eingeben",
-     topicDescription: "Kurzbeschreibung",
-     topicDescriptionPlaceholder: "Optionale Beschreibung",
-     updateTopic: "Thema aktualisieren",
-     createTopic: "Thema erstellen",
-     cancelEdit: "Bearbeitung abbrechen",
-     topicList: "Themenliste",
-     courseCountCol: "Kursanzahl",
-     actions: "Aktionen",
-     editTopic: "Thema bearbeiten",
-     deleteTopic: "Thema löschen",
-     validateName: "Bitte Themenname für aktive Sprache eingeben",
-     updateSuccess: "Thema wurde aktualisiert",
-     createSuccess: "Thema wurde erstellt",
-     deleteSuccess: "Thema erfolgreich gelöscht",
-     loadFailed: "Kursverwaltungsdaten konnten nicht geladen werden",
-     saveFailed: "Thema konnte nicht gespeichert werden",
-     deleteFailed: "Thema konnte nicht gelöscht werden",
-     displayMode: "Anzeigemodus",
-     filterByTopic: "Nach Thema filtern",
-     allTopics: "Alle Themen",
-     searchByCourseName: "Nach Kursname suchen",
-     searchPlaceholder: "Kursname eingeben...",
-     titleCol: "Titel",
-     topicCol: "Thema",
-+    creatorCol: "Ersteller",
-     priceCol: "Preis",
-     ratingCol: "Bewertung",
-     enrollmentCol: "Anmeldungen",
-     lessonCol: "Lektionen",
-     videoCountCol: "Videos",
-     createdAtCol: "Erstellt am",
-     updatedAtCol: "Aktualisiert am",
-     statusCol: "Status",
-     unassigned: "Nicht zugeordnet",
-     publishedStatus: "Published",
-     draftStatus: "Draft",
-     pageLabel: "Seite",
-     totalCoursesLabel: "Gesamtkurse",
-     prevPage: "Zurück",
-     nextPage: "Weiter",
-     logout: "Abmelden",
-   },
- };
-
- const languageMeta: Record<
-   AdminLang,
-   { label: string; code: string; flagUrl: string }
- > = {
-   en: {
-     label: "English (US)",
 diff --git a/beay/src/pages/admin/InstructorDashboardPage.tsx b/beay/src/pages/admin/InstructorDashboardPage.tsx
-index 82ef417b1fd4ded5c5e4eec45e31a12c2fe674ff..4296506ad1281df4a38e1450619bc00ae6a8499d 100644
+index 4296506ad1281df4a38e1450619bc00ae6a8499d..6bf45ec73a7c57e15fca3d3d1d2c374199996776 100644
 --- a/beay/src/pages/admin/InstructorDashboardPage.tsx
 +++ b/beay/src/pages/admin/InstructorDashboardPage.tsx
-@@ -1,190 +1,218 @@
--// src/pages/instructor/InstructorDashboardPage.tsx
--import { useEffect, useMemo, useState } from "react";
--import { useToast } from "../../ui/toast";
--import type { Course } from "../instructor/instructor.types";
--import { MOCK_COURSES } from "../instructor/instructor.mock";
--import { LessonModal, type LessonDraftPayload } from "../components/LessonModal";
--import { InstructorHeader } from "../components/InstructorHeader";
--import { KpiGrid } from "../components/KpiGrid";
--import { CoursesGrid } from "../components/CoursesGrid";
--import { QuickActions } from "../components/QuickActions";
--
--
--type StatusFilter = "ALL" | "PUBLISHED" | "DRAFT";
-+import { useEffect, useMemo, useState } from 'react'
-+import { useToast } from '../../ui/toast'
-+import { useAuth } from '../../app/auth'
-+import { instructorCoursesApi } from '../../api/instructorCourses.api'
-+import type { CourseAdmin, CourseTopic } from '../../api/adminCourses.api'
-+import type { Course } from '../instructor/instructor.types'
-+import { InstructorHeader } from '../components/InstructorHeader'
-+import { KpiGrid } from '../components/KpiGrid'
-+import { CoursesGrid } from '../components/CoursesGrid'
-+import { QuickActions } from '../components/QuickActions'
-+import { CoursesTab } from './courseTabs/CoursesTab'
-+
-+type StatusFilter = 'ALL' | 'PUBLISHED' | 'DRAFT'
-+type AdminLang = 'vi' | 'en' | 'de'
-+
-+const managerText: Record<string, string> = {
-+  coursesTab: 'Khóa học của tôi',
-+  filterByTopic: 'Lọc theo chủ đề',
-+  allTopics: 'Tất cả chủ đề',
-+  searchByCourseName: 'Tìm theo tên khóa học',
-+  searchPlaceholder: 'Nhập tên khóa học...',
-+  titleCol: 'Tiêu đề',
-+  topicCol: 'Chủ đề',
-+  creatorCol: 'Người tạo',
-+  priceCol: 'Giá',
-+  ratingCol: 'Rating',
-+  enrollmentCol: 'Đăng ký',
-+  lessonCol: 'Bài học',
-+  videoCountCol: 'Video',
-+  createdAtCol: 'Tạo lúc',
-+  updatedAtCol: 'Sửa lúc',
-+  statusCol: 'Trạng thái',
-+  actions: 'Chi tiết / chỉnh sửa',
-+  unassigned: 'Chưa gán',
-+  publishedStatus: 'Published',
-+  draftStatus: 'Draft',
-+  pageLabel: 'Trang',
-+  totalCoursesLabel: 'Tổng khóa học',
-+  prevPage: 'Trước',
-+  nextPage: 'Sau',
-+  loading: 'Đang tải...',
-+}
-+
-+const mapToInstructorCard = (course: CourseAdmin): Course => ({
-+  id: course.id,
-+  title: course.title,
-+  status: course.published ? 'PUBLISHED' : 'DRAFT',
-+  lessons: course._count?.lessons || 0,
-+  drafts: course.published ? 0 : Math.max(1, course._count?.lessons || 0),
-+  students: course.enrollmentCount || 0,
-+})
+@@ -1,218 +1,253 @@
+ import { useEffect, useMemo, useState } from 'react'
+ import { useToast } from '../../ui/toast'
+ import { useAuth } from '../../app/auth'
+ import { instructorCoursesApi } from '../../api/instructorCourses.api'
+-import type { CourseAdmin, CourseTopic } from '../../api/adminCourses.api'
++import type { CourseAdmin, CourseDetailAdmin, CourseTopic } from '../../api/adminCourses.api'
+ import type { Course } from '../instructor/instructor.types'
+ import { InstructorHeader } from '../components/InstructorHeader'
+ import { KpiGrid } from '../components/KpiGrid'
+-import { CoursesGrid } from '../components/CoursesGrid'
+ import { QuickActions } from '../components/QuickActions'
+-import { CoursesTab } from './courseTabs/CoursesTab'
++import { CourseDetailTabs } from './courseTabs/courseDetail/CourseDetailTabs'
++import { CreateCourseModal } from './courseTabs/CreateCourseModal'
+
+-type StatusFilter = 'ALL' | 'PUBLISHED' | 'DRAFT'
+ type AdminLang = 'vi' | 'en' | 'de'
+
+ const managerText: Record<string, string> = {
+   coursesTab: 'Khóa học của tôi',
+   filterByTopic: 'Lọc theo chủ đề',
+   allTopics: 'Tất cả chủ đề',
+   searchByCourseName: 'Tìm theo tên khóa học',
+   searchPlaceholder: 'Nhập tên khóa học...',
+   titleCol: 'Tiêu đề',
+   topicCol: 'Chủ đề',
+   creatorCol: 'Người tạo',
+   priceCol: 'Giá',
+   ratingCol: 'Rating',
+   enrollmentCol: 'Đăng ký',
+   lessonCol: 'Bài học',
+   videoCountCol: 'Video',
+   createdAtCol: 'Tạo lúc',
+   updatedAtCol: 'Sửa lúc',
+   statusCol: 'Trạng thái',
+   actions: 'Chi tiết / chỉnh sửa',
+   unassigned: 'Chưa gán',
+   publishedStatus: 'Published',
+   draftStatus: 'Draft',
+   pageLabel: 'Trang',
+   totalCoursesLabel: 'Tổng khóa học',
+   prevPage: 'Trước',
+   nextPage: 'Sau',
+   loading: 'Đang tải...',
+ }
+
+ const mapToInstructorCard = (course: CourseAdmin): Course => ({
+   id: course.id,
+   title: course.title,
+   status: course.published ? 'PUBLISHED' : 'DRAFT',
+   lessons: course._count?.lessons || 0,
+   drafts: course.published ? 0 : Math.max(1, course._count?.lessons || 0),
+   students: course.enrollmentCount || 0,
+ })
 
  export function InstructorDashboardPage() {
--  const { toast } = useToast();
--
--  // ====== STATE (prototype) ======
--  const [q, setQ] = useState("");
--  const [filter, setFilter] = useState<StatusFilter>("PUBLISHED");
--
--  const [courses] = useState<Course[]>(MOCK_COURSES);
-+  const { toast } = useToast()
-+  const { logout } = useAuth()
-+
-+  const [q, setQ] = useState('')
-+  const [filter, setFilter] = useState<StatusFilter>('PUBLISHED')
-+  const [lang] = useState<AdminLang>('vi')
-+  const [courses, setCourses] = useState<CourseAdmin[]>([])
-+  const [topics, setTopics] = useState<CourseTopic[]>([])
-+  const [selectedTopicId, setSelectedTopicId] = useState<number | 'all'>('all')
-+  const [searchTerm, setSearchTerm] = useState('')
-+  const [page, setPage] = useState(1)
-+  const [totalPages, setTotalPages] = useState(1)
-+  const [totalItems, setTotalItems] = useState(0)
-+  const [managerOpen, setManagerOpen] = useState(false)
-+
-+  const loadCourses = async () => {
-+    const [topicRows, courseRows] = await Promise.all([
-+      instructorCoursesApi.listTopics(),
-+      instructorCoursesApi.listCourses({
-+        topicId: selectedTopicId === 'all' ? undefined : selectedTopicId,
-+        search: searchTerm,
-+        page,
-+        pageSize: 10,
-+        lang,
-+      }),
-+    ])
-+    setTopics(topicRows)
-+    setCourses(courseRows.items)
-+    setTotalItems(courseRows.total)
-+    setTotalPages(Math.max(1, Math.ceil(courseRows.total / Math.max(1, courseRows.pageSize))))
+   const { toast } = useToast()
+   const { logout } = useAuth()
+
+-  const [q, setQ] = useState('')
+-  const [filter, setFilter] = useState<StatusFilter>('PUBLISHED')
+   const [lang] = useState<AdminLang>('vi')
+   const [courses, setCourses] = useState<CourseAdmin[]>([])
++  const [allCoursesCount, setAllCoursesCount] = useState(0)
+   const [topics, setTopics] = useState<CourseTopic[]>([])
+   const [selectedTopicId, setSelectedTopicId] = useState<number | 'all'>('all')
+   const [searchTerm, setSearchTerm] = useState('')
+   const [page, setPage] = useState(1)
+   const [totalPages, setTotalPages] = useState(1)
+   const [totalItems, setTotalItems] = useState(0)
+-  const [managerOpen, setManagerOpen] = useState(false)
++  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
++  const [selectedCourse, setSelectedCourse] = useState<CourseDetailAdmin | null>(null)
++  const [loadingDetail, setLoadingDetail] = useState(false)
++  const [openCreateModal, setOpenCreateModal] = useState(false)
+
+   const loadCourses = async () => {
+-    const [topicRows, courseRows] = await Promise.all([
++    const [topicRows, allRows, courseRows] = await Promise.all([
+       instructorCoursesApi.listTopics(),
++      instructorCoursesApi.listCourses({ page: 1, pageSize: 1, lang }),
+       instructorCoursesApi.listCourses({
+         topicId: selectedTopicId === 'all' ? undefined : selectedTopicId,
+         search: searchTerm,
+         page,
+-        pageSize: 10,
++        pageSize: 4,
+         lang,
+       }),
+     ])
+     setTopics(topicRows)
++    setAllCoursesCount(allRows.total)
+     setCourses(courseRows.items)
+     setTotalItems(courseRows.total)
+     setTotalPages(Math.max(1, Math.ceil(courseRows.total / Math.max(1, courseRows.pageSize))))
+   }
+
+   useEffect(() => {
+     void loadCourses().catch(() => toast('Lỗi', 'Không thể tải dữ liệu khóa học giảng viên'))
+   }, [selectedTopicId, searchTerm, page, lang])
+
+-  const filteredCourses = useMemo(() => {
+-    const list = courses.map(mapToInstructorCard)
+-    const kw = q.trim().toLowerCase()
+-    return list.filter((c) => {
+-      const okQ = !kw || c.title.toLowerCase().includes(kw)
+-      const okS = filter === 'ALL' || c.status === filter
+-      return okQ && okS
+-    })
+-  }, [courses, q, filter])
++  const refreshSelectedCourse = async (courseId: number) => {
++    setLoadingDetail(true)
++    try {
++      const detail = await instructorCoursesApi.getCourseDetail(courseId, lang)
++      setSelectedCourse(detail)
++      setSelectedCourseId(courseId)
++    } finally {
++      setLoadingDetail(false)
++    }
 +  }
-
--  // Modal
--  const [lessonOpen, setLessonOpen] = useState(false);
--  const [activeCourseId, setActiveCourseId] = useState<number | null>(null);
--  const [lessonModalKey, setLessonModalKey] = useState(0); // remount to reset form
++
 +  useEffect(() => {
-+    void loadCourses().catch(() => toast('Lỗi', 'Không thể tải dữ liệu khóa học giảng viên'))
-+  }, [selectedTopicId, searchTerm, page, lang])
-
--  // ====== DERIVED ======
-   const filteredCourses = useMemo(() => {
--    const kw = q.trim().toLowerCase();
--    return courses.filter((c) => {
--      const okQ = !kw || c.title.toLowerCase().includes(kw);
--      const okS = filter === "ALL" || c.status === filter;
--      return okQ && okS;
--    });
--  }, [courses, q, filter]);
-+    const list = courses.map(mapToInstructorCard)
-+    const kw = q.trim().toLowerCase()
-+    return list.filter((c) => {
-+      const okQ = !kw || c.title.toLowerCase().includes(kw)
-+      const okS = filter === 'ALL' || c.status === filter
-+      return okQ && okS
-+    })
-+  }, [courses, q, filter])
++    if (!selectedCourseId) {
++      setSelectedCourse(null)
++      return
++    }
++    void refreshSelectedCourse(selectedCourseId).catch(() => toast('Lỗi', 'Không thể tải chi tiết khóa học'))
++  }, [selectedCourseId, lang])
 
    const kpis = useMemo(() => {
--    const total = courses.length;
--    const published = courses.filter((c) => c.status === "PUBLISHED").length;
--    const students = courses.reduce((a, b) => a + b.students, 0);
--    const drafts = courses.reduce((a, b) => a + b.drafts, 0);
--    return {
--      managedCourses: total,
--      publishedCourses: published,
--      students,
--      draftLessons: drafts,
--      ratingAvg: 4.7,
--    };
--  }, [courses]);
--
--  // ====== ACTIONS ======
--  function openLessonModal(courseId: number) {
--    setActiveCourseId(courseId);
--    setLessonModalKey((k) => k + 1); // reset form on open without useEffect setState warnings
--    setLessonOpen(true);
--  }
--  function closeLessonModal() {
--    setLessonOpen(false);
--  }
--
--  function onSaveDraft(payload: LessonDraftPayload) {
--    // TODO API:
--    // POST /courses/:courseId/lessons  (draft)
--    // body: { title, type, content, status:"DRAFT" }
--    toast("Lưu draft", `Course#${payload.courseId} • Draft saved (prototype)`);
--    closeLessonModal();
--  }
--
--  function onPublish(payload: LessonDraftPayload) {
--    // TODO API:
--    // POST /courses/:courseId/lessons  (publish)
--    // hoặc POST /lessons/:id/publish tùy thiết kế
--    // RBAC: lessons.publish + courses.write
--    toast("Publish bài học", `Course#${payload.courseId} • Published (prototype)`);
--    closeLessonModal();
--  }
--
--  // ====== SHORTCUTS ======
--  useEffect(() => {
--    function onKeyDown(e: KeyboardEvent) {
--      const tag = (document.activeElement?.tagName || "").toUpperCase();
--      const typing = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
--
--      if (e.key === "/" && !typing) {
--        e.preventDefault();
--        const el = document.getElementById("instructor-search");
--        (el as HTMLInputElement | null)?.focus();
--        return;
--      }
--      if (e.key === "Escape") {
--        setLessonOpen(false);
--      }
--    }
--    window.addEventListener("keydown", onKeyDown);
--    return () => window.removeEventListener("keydown", onKeyDown);
--  }, []);
-+    const list = courses.map(mapToInstructorCard)
-+    const total = list.length
-+    const published = list.filter((c) => c.status === 'PUBLISHED').length
-+    const students = list.reduce((a, b) => a + b.students, 0)
-+    const drafts = list.reduce((a, b) => a + b.drafts, 0)
-+    return { managedCourses: total, publishedCourses: published, students, draftLessons: drafts, ratingAvg: 4.7 }
-+  }, [courses])
+     const list = courses.map(mapToInstructorCard)
+-    const total = list.length
++    const total = allCoursesCount
+     const published = list.filter((c) => c.status === 'PUBLISHED').length
+     const students = list.reduce((a, b) => a + b.students, 0)
+     const drafts = list.reduce((a, b) => a + b.drafts, 0)
+     return { managedCourses: total, publishedCourses: published, students, draftLessons: drafts, ratingAvg: 4.7 }
+-  }, [courses])
++  }, [courses, allCoursesCount])
 
    return (
      <div
--      className="min-h-screen text-slate-900"
-+      className='min-h-screen text-slate-900'
+       className='min-h-screen text-slate-900'
        style={{
          background:
--          "radial-gradient(900px 450px at 15% 0%, rgba(79,70,229,0.14), transparent 60%), radial-gradient(700px 380px at 90% 10%, rgba(245,158,11,0.10), transparent 60%), linear-gradient(to bottom, #f8fafc, #f8fafc)",
-+          'radial-gradient(900px 450px at 15% 0%, rgba(79,70,229,0.14), transparent 60%), radial-gradient(700px 380px at 90% 10%, rgba(245,158,11,0.10), transparent 60%), linear-gradient(to bottom, #f8fafc, #f8fafc)',
+           'radial-gradient(900px 450px at 15% 0%, rgba(79,70,229,0.14), transparent 60%), radial-gradient(700px 380px at 90% 10%, rgba(245,158,11,0.10), transparent 60%), linear-gradient(to bottom, #f8fafc, #f8fafc)',
        }}
      >
        <InstructorHeader
--        onOpenStudent={() => toast("Học viên", "Đi tới Student Portal (prototype)")}
--        onOpenRbac={() => toast("RBAC", "Đi tới RBAC Settings (prototype)")}
--        onNotif={() => toast("Thông báo", "Prototype: mở notification center (sẽ làm ở React).")}
-+        onOpenStudent={() => toast('Học viên', 'Theo dõi học viên của các khóa học bạn tạo.')}
-+        onOpenRbac={() => toast('RBAC', 'Quyền giảng viên được giới hạn trên khóa học của chính mình.')}
-+        onNotif={() => toast('Thông báo', 'Thông báo giảng viên.')}
+         onOpenStudent={() => toast('Học viên', 'Theo dõi học viên của các khóa học bạn tạo.')}
+         onOpenRbac={() => toast('RBAC', 'Quyền giảng viên được giới hạn trên khóa học của chính mình.')}
+         onNotif={() => toast('Thông báo', 'Thông báo giảng viên.')}
          onNewCourse={() => {
--          // TODO API: POST /courses (instructor)
--          toast("Tạo khoá học", "React/Nest: POST /courses");
-+          setManagerOpen(true)
-+          toast('Tạo khóa học', 'Mở khu vực chi tiết / chỉnh sửa để tạo khóa học mới.')
+-          setManagerOpen(true)
+-          toast('Tạo khóa học', 'Mở khu vực chi tiết / chỉnh sửa để tạo khóa học mới.')
++          setOpenCreateModal(true)
          }}
-+        onLogout={logout}
+         onLogout={logout}
        />
 
--      <main className="px-4 md:px-8 py-6 space-y-6">
-+      <main className='px-4 md:px-8 py-6 space-y-6'>
+       <main className='px-4 md:px-8 py-6 space-y-6'>
          <KpiGrid kpis={kpis} />
 
--        <section className="grid gap-4 lg:grid-cols-3">
--          <div className="rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-6 lg:col-span-2">
--            <div className="flex items-start justify-between gap-4 flex-col md:flex-row">
-+        <section className='grid gap-4 lg:grid-cols-3'>
-+          <div className='rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-6 lg:col-span-2'>
-+            <div className='flex items-start justify-between gap-4 flex-col md:flex-row'>
+-        <section className='grid gap-4 lg:grid-cols-3'>
+-          <div className='rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-6 lg:col-span-2'>
++        <section className='grid gap-4 xl:grid-cols-[1.15fr_1.25fr]'>
++          <div className='rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-6'>
+             <div className='flex items-start justify-between gap-4 flex-col md:flex-row'>
                <div>
--                <div className="text-xs font-extrabold text-slate-500">Khoá học</div>
--                <div className="text-lg font-extrabold">Quản lý nội dung</div>
--                <div className="mt-1 text-sm text-slate-600">
--                  Prototype: tạo lesson draft/publish, quản lý syllabus.
-+                <div className='text-xs font-extrabold text-slate-500'>Khoá học</div>
-+                <div className='text-lg font-extrabold'>Quản lý nội dung</div>
-+                <div className='mt-1 text-sm text-slate-600'>
-+                  Giảng viên chỉ quản lý khóa học do chính mình tạo.
+                 <div className='text-xs font-extrabold text-slate-500'>Khoá học</div>
+                 <div className='text-lg font-extrabold'>Quản lý nội dung</div>
+                 <div className='mt-1 text-sm text-slate-600'>
+-                  Giảng viên chỉ quản lý khóa học do chính mình tạo.
++                  Giảng viên chỉ quản lý khóa học do chính mình tạo. Hiển thị 4 thẻ / trang.
                  </div>
                </div>
 
--              <div className="flex items-center gap-2">
--                <div className="relative">
--                  <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-+              <div className='flex items-center gap-2'>
-+                <div className='relative'>
-+                  <i className='fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400' />
-                   <input
--                    id="instructor-search"
--                    className="rounded-[14px] border border-slate-200/70 bg-white px-3 py-2 pl-11 outline-none focus:shadow-[0_0_0_6px_rgba(79,70,229,0.12)] focus:border-indigo-300"
--                    placeholder="Tìm khoá... (phím /)"
-+                    id='instructor-search'
-+                    className='rounded-[14px] border border-slate-200/70 bg-white px-3 py-2 pl-11 outline-none focus:shadow-[0_0_0_6px_rgba(79,70,229,0.12)] focus:border-indigo-300'
-+                    placeholder='Tìm khoá... (phím /)'
-                     value={q}
-                     onChange={(e) => setQ(e.target.value)}
-                   />
-                 </div>
-
+-              <div className='flex items-center gap-2'>
+-                <div className='relative'>
+-                  <i className='fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400' />
+-                  <input
+-                    id='instructor-search'
+-                    className='rounded-[14px] border border-slate-200/70 bg-white px-3 py-2 pl-11 outline-none focus:shadow-[0_0_0_6px_rgba(79,70,229,0.12)] focus:border-indigo-300'
+-                    placeholder='Tìm khoá... (phím /)'
+-                    value={q}
+-                    onChange={(e) => setQ(e.target.value)}
+-                  />
+-                </div>
+-
++              <div className='flex items-center gap-2 flex-wrap'>
                  <select
--                  className="rounded-[14px] border border-slate-200/70 bg-white px-3 py-2 outline-none focus:shadow-[0_0_0_6px_rgba(79,70,229,0.12)] focus:border-indigo-300"
-+                  className='rounded-[14px] border border-slate-200/70 bg-white px-3 py-2 outline-none focus:shadow-[0_0_0_6px_rgba(79,70,229,0.12)] focus:border-indigo-300'
-                   value={filter}
-                   onChange={(e) => setFilter(e.target.value as StatusFilter)}
+                   className='rounded-[14px] border border-slate-200/70 bg-white px-3 py-2 outline-none focus:shadow-[0_0_0_6px_rgba(79,70,229,0.12)] focus:border-indigo-300'
+-                  value={filter}
+-                  onChange={(e) => setFilter(e.target.value as StatusFilter)}
++                  value={selectedTopicId === 'all' ? 'all' : String(selectedTopicId)}
++                  onChange={(e) => {
++                    setSelectedTopicId(e.target.value === 'all' ? 'all' : Number(e.target.value))
++                    setPage(1)
++                  }}
                  >
--                  <option value="ALL">Tất cả</option>
--                  <option value="PUBLISHED">Đang bán</option>
--                  <option value="DRAFT">Draft</option>
-+                  <option value='ALL'>Tất cả</option>
-+                  <option value='PUBLISHED'>Đang bán</option>
-+                  <option value='DRAFT'>Draft</option>
+-                  <option value='ALL'>Tất cả</option>
+-                  <option value='PUBLISHED'>Đang bán</option>
+-                  <option value='DRAFT'>Draft</option>
++                  <option value='all'>Tất cả chủ đề</option>
++                  {topics.map((topic) => (<option key={topic.id} value={topic.id}>{topic.translations?.vi?.name || topic.name}</option>))}
                  </select>
++
++                <input
++                  className='rounded-[14px] border border-slate-200/70 bg-white px-3 py-2 outline-none focus:shadow-[0_0_0_6px_rgba(79,70,229,0.12)] focus:border-indigo-300'
++                  placeholder='Nhập tên khóa học...'
++                  value={searchTerm}
++                  onChange={(e) => {
++                    setSearchTerm(e.target.value)
++                    setPage(1)
++                  }}
++                />
                </div>
              </div>
 
--            <div className="mt-5">
-+            <div className='mt-5'>
-               <CoursesGrid
-                 courses={filteredCourses}
--                onAddLesson={(courseId) => openLessonModal(courseId)}
--                onManageCourse={(courseId) =>
--                  toast("Quản lý khoá", `React/Nest: GET /courses/${courseId} + /lessons`)
--                }
-+                onAddLesson={(_courseId) => {
-+                  setManagerOpen(true)
-+                  toast('Bài học', 'Vào Chi tiết / chỉnh sửa để tạo lesson giống Admin.')
-+                }}
-+                onManageCourse={(_courseId) => {
-+                  setManagerOpen(true)
-+                }}
-               />
+-            <div className='mt-5'>
+-              <CoursesGrid
+-                courses={filteredCourses}
+-                onAddLesson={(_courseId) => {
+-                  setManagerOpen(true)
+-                  toast('Bài học', 'Vào Chi tiết / chỉnh sửa để tạo lesson giống Admin.')
+-                }}
+-                onManageCourse={(_courseId) => {
+-                  setManagerOpen(true)
+-                }}
+-              />
++            <div className='mt-5 grid gap-3 sm:grid-cols-2'>
++              {courses.map((course) => (
++                <button
++                  key={course.id}
++                  type='button'
++                  onClick={() => {
++                    void refreshSelectedCourse(course.id)
++                  }}
++                  className={`text-left rounded-xl border p-4 transition ${selectedCourseId === course.id ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-indigo-300 hover:bg-slate-50'}`}
++                >
++                  <div className='font-bold line-clamp-2'>{course.title}</div>
++                  <div className='mt-2 text-xs text-slate-500'>#{course.id} • {course.topic?.name || 'Chưa có chủ đề'}</div>
++                  <div className='mt-2 flex gap-2 text-xs'>
++                    <span className={`px-2 py-1 rounded-full ${course.published ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{course.published ? 'Published' : 'Draft'}</span>
++                    <span>{course._count?.lessons || 0} bài học</span>
++                  </div>
++                </button>
++              ))}
++              {!courses.length && <div className='text-sm text-slate-500'>Không có khóa học phù hợp bộ lọc.</div>}
++            </div>
++
++            <div className='mt-4 flex items-center justify-between text-sm text-slate-600'>
++              <span>Trang {Math.min(page, totalPages)} / {totalPages} • Tổng {totalItems}</span>
++              <div className='flex gap-2'>
++                <button type='button' className='rounded-lg border px-3 py-1.5 disabled:opacity-50' disabled={page <= 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))}>Trước</button>
++                <button type='button' className='rounded-lg border px-3 py-1.5 disabled:opacity-50' disabled={page >= totalPages} onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}>Sau</button>
++              </div>
              </div>
            </div>
 
            <QuickActions
--            onPublish={() => toast("Publish", "RBAC: lessons.publish + courses.write")}
--            onPreview={() => toast("Preview", "Prototype: preview landing/course page")}
--            onCoupon={() => toast("Coupon", "Prototype: tạo voucher giảm giá theo khoá")}
--            onSyllabus={() => toast("Syllabus", "Prototype: kéo thả thứ tự bài học")}
-+            onDetails={() => setManagerOpen(true)}
-+            onEdit={() => setManagerOpen(true)}
-+            onDelete={() => toast('Xóa khóa học', 'Nút xóa đã có trong danh sách khóa học.')}
-+            onProgress={() => toast('Theo dõi', 'Theo dõi tiến độ theo từng khóa học của bạn.')}
+-            onDetails={() => setManagerOpen(true)}
+-            onEdit={() => setManagerOpen(true)}
++            onDetails={() => selectedCourseId && void refreshSelectedCourse(selectedCourseId)}
++            onEdit={() => selectedCourseId && void refreshSelectedCourse(selectedCourseId)}
+             onDelete={() => toast('Xóa khóa học', 'Nút xóa đã có trong danh sách khóa học.')}
+             onProgress={() => toast('Theo dõi', 'Theo dõi tiến độ theo từng khóa học của bạn.')}
            />
          </section>
 
--        <footer className="py-6 text-center text-sm text-slate-500">
--          © 2025 AYANAVITA • Instructor Dashboard (React Prototype)
-+        {managerOpen && (
-+          <section>
-+            <CoursesTab
-+              courses={courses}
-+              topics={topics}
+-        {managerOpen && (
+-          <section>
+-            <CoursesTab
+-              courses={courses}
+-              topics={topics}
+-              text={managerText}
++        <section className='rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-6'>
++          <div className='mb-3 flex items-center justify-between'>
++            <h3 className='text-lg font-bold'>Chi tiết khóa học / bài học / module / video</h3>
++            <button type='button' className='rounded-lg bg-indigo-600 px-3 py-2 text-white' onClick={() => setOpenCreateModal(true)}>
++              Thêm khóa học mới
++            </button>
++          </div>
++          {loadingDetail && <p className='text-sm text-slate-500'>Đang tải chi tiết...</p>}
++          {!loadingDetail && selectedCourse && (
++            <CourseDetailTabs
++              course={selectedCourse}
+               lang={lang}
+-              selectedTopicId={selectedTopicId}
+-              searchTerm={searchTerm}
+-              page={page}
+-              totalPages={totalPages}
+-              totalItems={totalItems}
+-              onChangeFilters={(patch) => {
+-                if (patch.selectedTopicId !== undefined) setSelectedTopicId(patch.selectedTopicId)
+-                if (patch.searchTerm !== undefined) setSearchTerm(patch.searchTerm)
+-                setPage(1)
 +              text={managerText}
-+              lang={lang}
-+              selectedTopicId={selectedTopicId}
-+              searchTerm={searchTerm}
-+              page={page}
-+              totalPages={totalPages}
-+              totalItems={totalItems}
-+              onChangeFilters={(patch) => {
-+                if (patch.selectedTopicId !== undefined) setSelectedTopicId(patch.selectedTopicId)
-+                if (patch.searchTerm !== undefined) setSearchTerm(patch.searchTerm)
-+                setPage(1)
++              topics={topics}
++              onCourseUpdated={async () => {
++                await loadCourses()
++                if (selectedCourseId) await refreshSelectedCourse(selectedCourseId)
+               }}
+-              onChangePage={setPage}
+-              onCourseCreated={loadCourses}
+               coursesApi={instructorCoursesApi}
++              onCourseDeleted={async () => {
++                await loadCourses()
++                setSelectedCourseId(null)
++                setSelectedCourse(null)
 +              }}
-+              onChangePage={setPage}
-+              onCourseCreated={loadCourses}
-+              coursesApi={instructorCoursesApi}
-+            />
-+          </section>
-+        )}
+             />
+-          </section>
+-        )}
++          )}
++          {!loadingDetail && !selectedCourse && <p className='text-sm text-slate-500'>Chọn khóa học ở cột trái để xem và quản lý chi tiết.</p>}
++        </section>
 +
-+        <footer className='py-6 text-center text-sm text-slate-500'>
-+          © 2025 AYANAVITA • Instructor Dashboard
++        <CreateCourseModal open={openCreateModal} lang={lang} topics={topics} onClose={() => setOpenCreateModal(false)} onCreated={loadCourses} coursesApi={instructorCoursesApi} />
+
+         <footer className='py-6 text-center text-sm text-slate-500'>
+           © 2025 AYANAVITA • Instructor Dashboard
          </footer>
        </main>
--
--      <LessonModal
--        key={lessonModalKey}
--        open={lessonOpen}
--        courseId={activeCourseId}
--        onClose={closeLessonModal}
--        onSaveDraft={onSaveDraft}
--        onPublish={onPublish}
--      />
      </div>
--  );
--}
-\ No newline at end of file
-+  )
-+}
-diff --git a/beay/src/pages/admin/courseTabs/CoursesTab.tsx b/beay/src/pages/admin/courseTabs/CoursesTab.tsx
-index 3808a3e5d3fde08fb289243cebf40af73b50e843..954481dce94d499822ae71634bfe2657678e1375 100644
---- a/beay/src/pages/admin/courseTabs/CoursesTab.tsx
-+++ b/beay/src/pages/admin/courseTabs/CoursesTab.tsx
-@@ -1,71 +1,73 @@
- import { useEffect, useState } from 'react'
--import { adminCoursesApi, type CourseAdmin, type CourseDetailAdmin, type CourseTopic } from '../../../api/adminCourses.api'
-+import { adminCoursesApi, type CourseAdmin, type CourseDetailAdmin, type CourseManagementApi, type CourseTopic } from '../../../api/adminCourses.api'
-+import { AlertJs } from '../../../utils/alertJs'
- import { CreateCourseModal } from './CreateCourseModal'
- import { CourseDetailTabs } from './courseDetail/CourseDetailTabs'
-
- type Props = {
-   courses: CourseAdmin[]
-   topics: CourseTopic[]
-   text: Record<string, string>
-   lang: 'vi' | 'en' | 'de'
-   selectedTopicId: number | 'all'
-   searchTerm: string
-   page: number
-   totalPages: number
-   totalItems: number
-   onChangeFilters: (patch: { selectedTopicId?: number | 'all'; searchTerm?: string }) => void
-   onChangePage: (page: number) => void
-   onCourseCreated: () => Promise<void> | void
-+  coursesApi?: CourseManagementApi
- }
-
- type CourseInnerTab = 'list' | 'detail'
-
--export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searchTerm, page, totalPages, totalItems, onChangeFilters, onChangePage, onCourseCreated }: Props) {
--  const courseTableColumnWidths = ['4%', '17%', '13%', '8%', '7%', '7%', '5%', '5%', '10%', '10%', '8%', '6%']
-+export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searchTerm, page, totalPages, totalItems, onChangeFilters, onChangePage, onCourseCreated, coursesApi = adminCoursesApi }: Props) {
-+  const courseTableColumnWidths = ['4%', '15%', '12%', '10%', '7%', '6%', '6%', '5%', '5%', '10%', '10%', '6%', '8%']
-   const [openCreateModal, setOpenCreateModal] = useState(false)
-   const [activeTab, setActiveTab] = useState<CourseInnerTab>('list')
-   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
-   const [selectedCourse, setSelectedCourse] = useState<CourseDetailAdmin | null>(null)
-   const [loadingDetail, setLoadingDetail] = useState(false)
-
-   const displayTopicName = (topic: CourseTopic) => {
-     if (lang === 'de') return topic.translations?.de?.name || topic.name
-     if (lang === 'en') return topic.translations?.['en']?.name || topic.name
-     return topic.translations?.vi?.name || topic.name
-   }
-
-   useEffect(() => {
-     if (activeTab !== 'detail' || !selectedCourseId) return
-     void refreshSelectedCourse()
-   }, [activeTab, selectedCourseId, lang])
-
-   const refreshSelectedCourse = async () => {
-     if (!selectedCourseId) return
-     setLoadingDetail(true)
-     try {
--      const detail = await adminCoursesApi.getCourseDetail(selectedCourseId, lang)
-+      const detail = await coursesApi.getCourseDetail(selectedCourseId, lang)
-       setSelectedCourse(detail)
-     } finally {
-       setLoadingDetail(false)
-     }
-   }
-
-   return (
-     <section className='admin-card admin-card-glow admin-course-management-card'>
-       <div className='admin-row' style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-         <h3 className='admin-card-title'><i className='fa-solid fa-graduation-cap' /> {text.coursesTab}</h3>
-         <button className='admin-btn admin-btn-save' type='button' onClick={() => setOpenCreateModal(true)}>
-           <i className='fa-solid fa-circle-plus' /> {lang === 'vi' ? 'Thêm khóa học mới' : lang === 'en' ? 'Add new course' : 'Neuen Kurs hinzufügen'}
-         </button>
-       </div>
-
-       <div className='admin-tabs' style={{ marginBottom: 10 }}>
-         <button className={`admin-tab ${activeTab === 'list' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('list')}>
-           <i className='fa-solid fa-table-list' /> {lang === 'vi' ? 'Danh sách' : lang === 'en' ? 'List' : 'Liste'}
-         </button>
-         <button className={`admin-tab ${activeTab === 'detail' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('detail')} disabled={!selectedCourseId}>
-           <i className='fa-solid fa-eye' /> {lang === 'vi' ? 'Chi tiết' : lang === 'en' ? 'Details' : 'Details'}
-         </button>
-       </div>
-
-       <hr style={{ marginBottom: 20 }}/>
-@@ -91,97 +93,114 @@ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searc
-
-             <label className='admin-field' style={{ marginBottom: 0, minWidth: 280 }}>
-               <span className='admin-label'>{text.searchByCourseName}</span>
-               <input
-                 className='admin-input'
-                 value={searchTerm}
-                 placeholder={text.searchPlaceholder}
-                 onChange={(e) => {
-                   onChangeFilters({ searchTerm: e.target.value })
-                 }}
-               />
-             </label>
-           </div>
-
-
-
-           <div className='admin-table-wrap' style={{ paddingRight: 12, boxSizing: 'border-box' }}>
-             <table className='admin-table admin-table-courses-full no-scroll-table'>
-               <colgroup>
-                 {courseTableColumnWidths.map((width, index) => (
-                   <col key={`${width}-${index}`} style={{ width }} />
-                 ))}
-               </colgroup>
-               <thead>
-                 <tr>
--                  <th>ID</th><th>{text.titleCol}</th><th>{text.topicCol}</th><th>{text.priceCol}</th><th>{text.ratingCol}</th><th>{text.enrollmentCol}</th><th>{text.lessonCol}</th><th>{text.videoCountCol}</th><th>{text.createdAtCol}</th><th>{text.updatedAtCol}</th><th>{text.statusCol}</th><th>{text.actions}</th>
-+                  <th>ID</th><th>{text.titleCol}</th><th>{text.topicCol}</th><th>{text.creatorCol || 'Người tạo'}</th><th>{text.priceCol}</th><th>{text.ratingCol}</th><th>{text.enrollmentCol}</th><th>{text.lessonCol}</th><th>{text.videoCountCol}</th><th>{text.createdAtCol}</th><th>{text.updatedAtCol}</th><th>{text.statusCol}</th><th>{text.actions}</th>
-                 </tr>
-               </thead>
-               <tbody>
-                 {courses.map((c) => (
-                   <tr key={c.id}>
-                     <td>{c.id}</td>
-                     <td className='td-strong'>{c.title}</td>
-                     <td>{c.topic ? displayTopicName(c.topic as CourseTopic) : text.unassigned}</td>
-+                    <td>{c.creator?.name || c.creator?.email || '--'}</td>
-                     <td>{(c.price || 0).toLocaleString('vi-VN')}đ</td>
-                     <td>{c.ratingAvg ?? 0} ({c.ratingCount ?? 0})</td>
-                     <td>{c.enrollmentCount ?? 0}</td>
-                     <td>{c._count?.lessons ?? 0}</td>
-                     <td>{c.videoCount ?? 0}</td>
-                     <td>{c.createdAt ? new Date(c.createdAt).toLocaleString('vi-VN') : '--'}</td>
-                     <td>{c.updatedAt ? new Date(c.updatedAt).toLocaleString('vi-VN') : '--'}</td>
-                     <td><span className={`status-pill ${c.published ? 'is-published' : 'is-draft'}`}>{c.published ? text.publishedStatus : text.draftStatus}</span></td>
-                     <td>
--                      <button
--                        type='button'
--                        className='admin-btn admin-btn-ghost'
--                        onClick={() => {
--                          setSelectedCourseId(c.id)
--                          setActiveTab('detail')
--                        }}
--                      >
--                        <i className='fa-solid fa-eye' />
--                      </button>
-+                      <div className='admin-row' style={{ gap: 6 }}>
-+                        <button
-+                          type='button'
-+                          className='admin-btn admin-btn-ghost'
-+                          onClick={() => {
-+                            setSelectedCourseId(c.id)
-+                            setActiveTab('detail')
-+                          }}
-+                          title={lang === 'vi' ? 'Chi tiết / chỉnh sửa' : lang === 'en' ? 'Details / edit' : 'Details / bearbeiten'}
-+                        >
-+                          <i className='fa-solid fa-pen-to-square' />
-+                        </button>
-+                        <button
-+                          type='button'
-+                          className='admin-btn admin-btn-danger'
-+                          onClick={async () => {
-+                            const ok = await AlertJs.confirm(lang === 'vi' ? 'Bạn có chắc muốn xóa khóa học này?' : lang === 'en' ? 'Delete this course?' : 'Diesen Kurs löschen?')
-+                            if (!ok) return
-+                            await coursesApi.deleteCourse(c.id)
-+                            await onCourseCreated()
-+                          }}
-+                        >
-+                          <i className='fa-solid fa-trash' />
-+                        </button>
-+                      </div>
-                     </td>
-                   </tr>
-                 ))}
-               </tbody>
-             </table>
-           </div>
-
-           <div className='admin-row' style={{ justifyContent: 'space-between', marginTop: 12 }}>
-             <span>{text.pageLabel} {Math.min(page, totalPages)} / {totalPages} • {text.totalCoursesLabel} {totalItems}</span>
-             <div className='admin-row'>
-               <button className='admin-btn admin-btn-ghost' type='button' disabled={page <= 1} onClick={() => onChangePage(Math.max(1, page - 1))}>{text.prevPage}</button>
-               <button className='admin-btn admin-btn-ghost' type='button' disabled={page >= totalPages} onClick={() => onChangePage(Math.min(totalPages, page + 1))}>{text.nextPage}</button>
-             </div>
-           </div>
-         </>
-       )}
-
-       {activeTab === 'detail' && (
-         <>
-           {!selectedCourseId && <p className='admin-helper'>{lang === 'vi' ? 'Vui lòng chọn khóa học ở tab danh sách.' : lang === 'en' ? 'Please select a course from list tab.' : 'Bitte wählen Sie einen Kurs aus der Liste.'}</p>}
-           {loadingDetail && <p className='admin-helper'>{text.loading}</p>}
-           {!loadingDetail && selectedCourse && <CourseDetailTabs
-             course={selectedCourse}
-             lang={lang}
-             text={text}
-             topics={topics}
-             onCourseUpdated={async () => {
-               await onCourseCreated()
-               await refreshSelectedCourse()
-             }}
-+            coursesApi={coursesApi}
-             onCourseDeleted={async () => {
-               await onCourseCreated()
-               setSelectedCourseId(null)
-               setSelectedCourse(null)
-               setActiveTab('list')
-             }}
-           />}
-         </>
-       )}
-
--      <CreateCourseModal open={openCreateModal} lang={lang} topics={topics} onClose={() => setOpenCreateModal(false)} onCreated={onCourseCreated} />
-+      <CreateCourseModal open={openCreateModal} lang={lang} topics={topics} onClose={() => setOpenCreateModal(false)} onCreated={onCourseCreated} coursesApi={coursesApi} />
-     </section>
    )
  }
-diff --git a/beay/src/pages/admin/courseTabs/CreateCourseModal.tsx b/beay/src/pages/admin/courseTabs/CreateCourseModal.tsx
-index 50b1e5d533c07ea59c5638fc13d1cdd61f9ce96b..e215c555eff3061b1717e22e419b966bb0e1e658 100644
---- a/beay/src/pages/admin/courseTabs/CreateCourseModal.tsx
-+++ b/beay/src/pages/admin/courseTabs/CreateCourseModal.tsx
-@@ -1,41 +1,42 @@
- import { useMemo, useState } from 'react'
- import { autoTranslateFromVietnamese } from '../tabs/i18nForm'
--import { adminCoursesApi } from '../../../api/adminCourses.api'
-+import { adminCoursesApi, type CourseManagementApi } from '../../../api/adminCourses.api'
- import { AlertJs } from '../../../utils/alertJs'
- import './CreateCourseModal.css'
-
- type AdminLang = 'vi' | 'en' | 'de'
-
- type TopicItem = { id: number; name: string; translations?: { vi?: { name?: string }; en?: { name?: string }; de?: { name?: string } } }
-
- type Props = {
-   open: boolean
-   lang: AdminLang
-   topics: TopicItem[]
-   onClose: () => void
-   onCreated: () => Promise<void> | void
-+  coursesApi?: CourseManagementApi
- }
-
- type I18nText = Record<AdminLang, string>
- type I18nStringArray = Record<AdminLang, string[]>
- type FormErrors = Partial<Record<'topicId' | 'title' | 'price' | 'time', string>>
-
- type CourseForm = {
-   title: I18nText
-   shortDescription: I18nText
-   description: I18nText
-   thumbnailFile?: File | null
-   time: string
-   price: string
-   published: boolean
-   topicId?: number
-   objectives: I18nStringArray
-   targetAudience: I18nStringArray
-   benefits: I18nStringArray
- }
-
- const emptyI18n = (): I18nText => ({ vi: '', en: '', de: '' })
- const emptyI18nArray = (): I18nStringArray => ({ vi: [''], en: [''], de: [''] })
-
- const initialForm = (): CourseForm => ({
-   title: emptyI18n(),
-@@ -125,51 +126,51 @@ const textMap: Record<AdminLang, Record<string, string>> = {
-     invalidPrice: 'Preis muss eine gültige Zahl und größer oder gleich 0 sein.',
-     invalidTime: 'Dauer muss eine gültige Zahl und größer oder gleich 0 sein.',
-     langInput: 'Eingabesprache',
-     courseInfo: 'I. Kursinformationen',
-     topic: 'Thema *',
-     titleLabel: 'Titel *',
-     shortDescription: 'Kurzbeschreibung',
-     description: 'Beschreibung',
-     thumbnailUpload: 'Thumbnail (Bild hochladen)',
-     price: 'Preis',
-     time: 'Dauer (Stunden)',
-     published: 'Veröffentlicht',
-     addItem: 'Zeile hinzufügen',
-     remove: 'Löschen',
-     objective: 'Ziele',
-     audience: 'Zielgruppe',
-     benefits: 'Vorteile',
-     successTitle: 'Kurs erfolgreich erstellt',
-     successBody: 'Der Kurs wurde als Entwurf erstellt. Bitte legen Sie alle Lektionen an, bevor Sie veröffentlichen.',
-     draftLockedNote: 'Nach dem Erstellen des Kurses müssen zuerst alle Lektionen angelegt werden, bevor veröffentlicht werden kann.',
-     topicRequired: 'Bitte wählen Sie ein Thema für diesen Kurs aus.',
-     titleRequired: 'Bitte geben Sie den vietnamesischen Kurstitel ein.',
-   },
- }
-
--export function CreateCourseModal({ open, lang, topics, onClose, onCreated }: Props) {
-+export function CreateCourseModal({ open, lang, topics, onClose, onCreated, coursesApi = adminCoursesApi }: Props) {
-   const [form, setForm] = useState<CourseForm>(() => initialForm())
-   const [errors, setErrors] = useState<FormErrors>({})
-   const [inputLang, setInputLang] = useState<AdminLang>('vi')
-   const [submitting, setSubmitting] = useState(false)
-   const t = textMap[lang]
-
-   const displayTopicName = (topic: TopicItem) => {
-     if (lang === 'en') return topic.translations?.en?.name || topic.name
-     if (lang === 'de') return topic.translations?.de?.name || topic.name
-     return topic.translations?.vi?.name || topic.name
-   }
-
-   const slug = useMemo(() => slugify(form.title.vi || ''), [form.title.vi])
-
-   const translateVietnameseToOthers = async (value: string, updater: (en: string, de: string) => void) => {
-     const [en, de] = await Promise.all([autoTranslateFromVietnamese(value, 'en-US'), autoTranslateFromVietnamese(value, 'de')])
-     updater(en, de)
-   }
-
-   const updateI18nField = (field: 'title' | 'shortDescription' | 'description', value: string) => {
-     setForm((prev) => ({ ...prev, [field]: { ...prev[field], [inputLang]: value } }))
-     if (inputLang !== 'vi') return
-     void translateVietnameseToOthers(value, (en, de) => setForm((prev) => ({ ...prev, [field]: { ...prev[field], en, de } })))
-   }
-
-@@ -241,51 +242,51 @@ export function CreateCourseModal({ open, lang, topics, onClose, onCreated }: Pr
-         en: form.objectives.en.filter((v) => v.trim()),
-         de: form.objectives.de.filter((v) => v.trim()),
-       }))
-       payload.append('targetAudience', JSON.stringify({
-         vi: form.targetAudience.vi.filter((v) => v.trim()),
-         en: form.targetAudience.en.filter((v) => v.trim()),
-         de: form.targetAudience.de.filter((v) => v.trim()),
-       }))
-       payload.append('benefits', JSON.stringify({
-         vi: form.benefits.vi.filter((v) => v.trim()),
-         en: form.benefits.en.filter((v) => v.trim()),
-         de: form.benefits.de.filter((v) => v.trim()),
-       }))
-       payload.append('translations', JSON.stringify({
-         vi: { title: form.title.vi, shortDescription: form.shortDescription.vi, description: form.description.vi },
-         en: { title: form.title.en, shortDescription: form.shortDescription.en, description: form.description.en },
-         de: { title: form.title.de, shortDescription: form.shortDescription.de, description: form.description.de },
-       }))
-       payload.append('contentTranslations', JSON.stringify({
-         vi: { objectives: form.objectives.vi.filter((v) => v.trim()), targetAudience: form.targetAudience.vi.filter((v) => v.trim()), benefits: form.benefits.vi.filter((v) => v.trim()) },
-         en: { objectives: form.objectives.en.filter((v) => v.trim()), targetAudience: form.targetAudience.en.filter((v) => v.trim()), benefits: form.benefits.en.filter((v) => v.trim()) },
-         de: { objectives: form.objectives.de.filter((v) => v.trim()), targetAudience: form.targetAudience.de.filter((v) => v.trim()), benefits: form.benefits.de.filter((v) => v.trim()) },
-       }))
-       if (form.thumbnailFile) payload.append('thumbnail', form.thumbnailFile)
-
--      await adminCoursesApi.createCourse(payload)
-+      await coursesApi.createCourse(payload)
-       await onCreated()
-       await AlertJs.success(t.successTitle, t.successBody)
-
-       onClose()
-       setForm(initialForm())
-       setErrors({})
-       setInputLang('vi')
-     } finally {
-       setSubmitting(false)
-     }
-   }
-
-   if (!open) return null
-
-   return (
-     <div className='admin-modal-backdrop' role='dialog' aria-modal='true'>
-       <div className='admin-modal create-course-modal'>
-         <div className='admin-modal-header'>
-           <h4><i className='fa-solid fa-circle-plus create-course-icon-orange' /> {t.title}</h4>
-           <div className='admin-row'>
-             <span className='create-course-muted'>{t.langInput}:</span>
-             {(['vi', 'en', 'de'] as AdminLang[]).map((code) => (
-               <button key={code} type='button' className={`admin-btn ${inputLang === code ? 'admin-btn-primary' : 'admin-btn-ghost'}`} onClick={() => setInputLang(code)}>{code.toUpperCase()}</button>
-             ))}
-             <button type='button' className='admin-btn admin-btn-ghost' onClick={onClose}>{t.close}</button>
-diff --git a/beay/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx b/beay/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx
-index 8841d9f51657ae7e7a319d20184e8143699f96fc..0e9b361a6b8f51f33af272186c91cacb6bfa43d6 100644
---- a/beay/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx
-+++ b/beay/src/pages/admin/courseTabs/courseDetail/CourseDetailInfoTab.tsx
-@@ -1,37 +1,38 @@
- import { useMemo, useState } from 'react'
--import { adminCoursesApi, type CourseDetailAdmin, type CourseTopic } from '../../../../api/adminCourses.api'
-+import { adminCoursesApi, type CourseDetailAdmin, type CourseManagementApi, type CourseTopic } from '../../../../api/adminCourses.api'
- import { AlertJs } from '../../../../utils/alertJs'
- import { autoTranslateFromVietnamese } from '../../tabs/i18nForm'
-
- type Props = {
-   course: CourseDetailAdmin
-   lang: 'vi' | 'en' | 'de'
-   text: Record<string, string>
-   topics: CourseTopic[]
-   onUpdated: () => Promise<void> | void
-   onDeleted: () => Promise<void> | void
-+  coursesApi?: CourseManagementApi
- }
-
- type AdminLang = 'vi' | 'en' | 'de'
- type I18nText = Record<AdminLang, string>
- type I18nStringArray = Record<AdminLang, string[]>
-
- type EditForm = {
-   topicId?: number
-   title: I18nText
-   shortDescription: I18nText
-   description: I18nText
-   time: string
-   price: string
-   published: boolean
-   thumbnailFile?: File | null
-   objectives: I18nStringArray
-   targetAudience: I18nStringArray
-   benefits: I18nStringArray
- }
-
- type CourseTranslationItem = {
-   locale: string
-   title?: string
-   shortDescription?: string
-   description?: string
-@@ -244,90 +245,90 @@ const createEditForm = (course: CourseDetailAdmin): EditForm => {
-
-
- const cloneEditForm = (form: EditForm): EditForm => ({
-   ...form,
-   title: { ...form.title },
-   shortDescription: { ...form.shortDescription },
-   description: { ...form.description },
-   objectives: {
-     vi: [...form.objectives.vi],
-     en: [...form.objectives.en],
-     de: [...form.objectives.de],
-   },
-   targetAudience: {
-     vi: [...form.targetAudience.vi],
-     en: [...form.targetAudience.en],
-     de: [...form.targetAudience.de],
-   },
-   benefits: {
-     vi: [...form.benefits.vi],
-     en: [...form.benefits.en],
-     de: [...form.benefits.de],
-   },
-   thumbnailFile: null,
- })
-
--export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated, onDeleted }: Props) {
-+export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated, onDeleted, coursesApi = adminCoursesApi }: Props) {
-   const [editing, setEditing] = useState(false)
-   const [inputLang, setInputLang] = useState<AdminLang>('vi')
-   const [submitting, setSubmitting] = useState(false)
-   const [loadingEditData, setLoadingEditData] = useState(false)
-   const [form, setForm] = useState<EditForm>(() => createEditForm(course))
-   const [initialEditForm, setInitialEditForm] = useState<EditForm | null>(null)
-   const [initialEditCourseId, setInitialEditCourseId] = useState<number | null>(null)
-
-   const t = i18n[lang]
-   const canPublish = (course._count?.lessons ?? 0) > 0 && (course.videoCount ?? 0) > 0
-   const currentImageName = getCurrentImageName(course.thumbnail)
-
-   const displayTopicName = (topic: CourseTopic) => {
-     if (lang === 'de') return topic.translations?.de?.name || topic.name
-     if (lang === 'en') return topic.translations?.en?.name || topic.name
-     return topic.translations?.vi?.name || topic.name
-   }
-
-   const localizedTitle = (() => {
-     const tr = normalizeTranslations(course.translations).find((item) => item.locale === lang)
-     return tr?.title || course.title || '--'
-   })()
-   const localizedShortDescription = (() => {
-     const tr = normalizeTranslations(course.translations).find((item) => item.locale === lang)
-     return tr?.shortDescription || course.shortDescription || '--'
-   })()
-
-   const startEdit = async () => {
-     setInputLang('vi')
-
-     if (initialEditForm && initialEditCourseId === course.id) {
-       setForm(cloneEditForm(initialEditForm))
-       setEditing(true)
-       return
-     }
-
-     try {
-       setLoadingEditData(true)
--      const detail = await adminCoursesApi.getCourseDetail(course.id)
-+      const detail = await coursesApi.getCourseDetail(course.id)
-       const prepared = createEditForm(detail)
-       setInitialEditForm(prepared)
-       setInitialEditCourseId(course.id)
-       setForm(cloneEditForm(prepared))
-     } catch {
-       setForm(createEditForm(course))
-     } finally {
-       setLoadingEditData(false)
-       setEditing(true)
-     }
-   }
-
-   const slug = useMemo(() => slugify(form.title.vi || ''), [form.title.vi])
-
-   const translateVietnameseToOthers = async (value: string, updater: (en: string, de: string) => void) => {
-     const [en, de] = await Promise.all([
-       autoTranslateFromVietnamese(value, 'en-US').catch(() => ''),
-       autoTranslateFromVietnamese(value, 'de').catch(() => ''),
-     ])
-     updater(en || '', de || '')
-   }
-
-   const updateI18nField = (field: 'title' | 'shortDescription' | 'description', value: string) => {
-     setForm((prev) => ({ ...prev, [field]: { ...prev[field], [inputLang]: value } }))
-     if (inputLang !== 'vi') return
-@@ -429,51 +430,51 @@ export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated, onD
-           description: form.description.de.trim(),
-           objectives: form.objectives.de.filter((v) => v.trim()),
-           targetAudience: form.targetAudience.de.filter((v) => v.trim()),
-           benefits: form.benefits.de.filter((v) => v.trim()),
-         },
-       }))
-       payload.append('contentTranslations', JSON.stringify({
-         vi: {
-           objectives: form.objectives.vi.filter((v) => v.trim()),
-           targetAudience: form.targetAudience.vi.filter((v) => v.trim()),
-           benefits: form.benefits.vi.filter((v) => v.trim()),
-         },
-         en: {
-           objectives: form.objectives.en.filter((v) => v.trim()),
-           targetAudience: form.targetAudience.en.filter((v) => v.trim()),
-           benefits: form.benefits.en.filter((v) => v.trim()),
-         },
-         de: {
-           objectives: form.objectives.de.filter((v) => v.trim()),
-           targetAudience: form.targetAudience.de.filter((v) => v.trim()),
-           benefits: form.benefits.de.filter((v) => v.trim()),
-         },
-       }))
-       if (form.thumbnailFile) payload.append('thumbnail', form.thumbnailFile)
-
--      await adminCoursesApi.updateCourse(course.id, payload)
-+      await coursesApi.updateCourse(course.id, payload)
-       await onUpdated()
-       await AlertJs.success(t.updateSuccessTitle, t.updateSuccessBody)
-       setInitialEditForm(null)
-       setInitialEditCourseId(null)
-       setEditing(false)
-     } finally {
-       setSubmitting(false)
-     }
-   }
-
-   if (editing) {
-     return (
-       <div className='admin-row' style={{ gap: 12, flexWrap: 'wrap' }}>
-         <div className='admin-row' style={{ width: '100%', justifyContent: 'space-between' }}>
-           <h4 style={{ margin: 0 }}><i className='fa-solid fa-pen-to-square' /> {t.editTitle}</h4>
-           <div className='admin-row' style={{ gap: 8 }}>
-             {(['vi', 'en', 'de'] as AdminLang[]).map((code) => (
-               <button key={code} type='button' className={`admin-btn ${inputLang === code ? 'admin-btn-primary' : 'admin-btn-ghost'}`} onClick={() => setInputLang(code)}>{code.toUpperCase()}</button>
-             ))}
-             <button type='button' className='admin-btn admin-btn-ghost' onClick={() => setEditing(false)} disabled={submitting}>{t.cancel}</button>
-             <button type='button' className='admin-btn admin-btn-save' onClick={submitUpdate} disabled={submitting}>{submitting ? t.saving : t.save}</button>
-           </div>
-         </div>
-
-         <label className='admin-field' style={{ flex: '1 1 300px' }}><span className='admin-label'>{t.topic}</span><select className='admin-input' value={form.topicId || ''} onChange={(e) => setForm((prev) => ({ ...prev, topicId: Number(e.target.value) || undefined }))}><option value=''>--</option>{topics.map((item) => <option key={item.id} value={item.id}>{displayTopicName(item)}</option>)}</select></label>
-@@ -524,51 +525,51 @@ export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated, onD
-                 </div>
-               ))}
-               <button type='button' className='admin-btn admin-btn-ghost' onClick={() => addI18nListItem(field)}><i className='fa-solid fa-plus' /> {t.addItem}</button>
-             </div>
-           ))}
-         </div>
-       </div>
-     )
-   }
-
-   const topic = topics.find((item) => item.id === course.topicId)
-   const currentTranslation = normalizeTranslations(course.translations).find((item) => item.locale === lang)
-   const listItems = (items?: string[]) => (
-     items?.length ? <ul style={{ margin: '6px 0 0', paddingInlineStart: 18 }}>{items.map((item, idx) => <li key={`${item}-${idx}`}>{item}</li>)}</ul> : '--'
-   )
-
-   return (
-     <div className='admin-row' style={{ gap: 14, flexWrap: 'wrap', alignItems: 'stretch' }}>
-       <div style={{ flex: '1 1 100%', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-         <button
-           type='button'
-           className='admin-btn admin-btn-danger'
-           onClick={async () => {
-             const confirmed = await AlertJs.confirm(t.confirmDeleteCourse)
-             if (!confirmed) return
--            await adminCoursesApi.deleteCourse(course.id)
-+            await coursesApi.deleteCourse(course.id)
-             await AlertJs.success(t.deleteSuccess)
-             await onDeleted()
-           }}
-         >
-           <i className='fa-solid fa-trash' /> {t.deleteCourse}
-         </button>
-         <button type='button' className='admin-btn admin-btn-ghost' onClick={() => void startEdit()} disabled={loadingEditData}>
-           <i className='fa-solid fa-pen' /> {loadingEditData ? t.saving : t.edit}
-         </button>
-       </div>
-       <div style={{ flex: '1 1 100%', borderBottom: '1px dashed rgba(148, 163, 184, 0.35)', paddingBottom: 12 }}>
-         <div className='admin-row' style={{ gap: 12, alignItems: 'flex-start', flexWrap: 'nowrap' }}>
-           {course.thumbnail ? (
-             <img
-               src={course.thumbnail}
-               alt={course.title}
-               style={{ width: 250, height: 150, objectFit: 'cover', borderRadius: 8, border: '1px solid rgba(148, 163, 184, 0.35)', flexShrink: 0 }}
-             />
-           ) : (
-             <div style={{ width: 250, height: 150, borderRadius: 8, border: '1px dashed rgba(148, 163, 184, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 12, flexShrink: 0 }}>{t.noImage}</div>
-           )}
-           <div style={{ minWidth: 0 }}>
-             <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 4 }}><i className='fa-solid fa-heading' style={{ width: 16, color: '#22d3ee' }} /><span style={{ fontSize: 13, color: '#94a3b8' }}>{text.titleCol}</span></div>
-             <div style={{ fontWeight: 800, fontSize: 26, lineHeight: 1.25, marginBottom: 8, color: '#22c55e' }}>{localizedTitle}</div>
-             <div className='admin-row' style={{ gap: 8, alignItems: 'center', marginBottom: 4 }}><i className='fa-solid fa-align-left' style={{ width: 16, color: '#22d3ee' }} /><span style={{ fontSize: 13, color: '#94a3b8' }}>{t.shortDescription}</span></div>
-diff --git a/beay/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx b/beay/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx
-index 7b2a92ead97c12c21d69b854a9feb198702826cf..844f2fd11c03d54d45d283407d97eeb35e2e2848 100644
---- a/beay/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx
-+++ b/beay/src/pages/admin/courseTabs/courseDetail/CourseDetailTabs.tsx
-@@ -1,45 +1,47 @@
- import { useEffect, useMemo, useState } from 'react'
- import {
-   adminCoursesApi,
-   type CourseDetailAdmin,
-+  type CourseManagementApi,
-   type LessonDetailAdmin,
-   type CourseTopic,
-   type LessonOutlineAdmin,
-   type LessonI18n,
- } from '../../../../api/adminCourses.api'
- import { CourseDetailInfoTab } from './CourseDetailInfoTab'
- import { CreateLessonModal } from './CreateLessonModal'
- import { AlertJs } from '../../../../utils/alertJs'
-
- type Props = {
-   course: CourseDetailAdmin
-   lang: 'vi' | 'en' | 'de'
-   text: Record<string, string>
-   topics: CourseTopic[]
-   onCourseUpdated: () => Promise<void> | void
-   onCourseDeleted: () => Promise<void> | void
-+  coursesApi?: CourseManagementApi
- }
-
- type DetailTabKey = 'info' | 'lessons'
-
- const labels = {
-   vi: {
-     info: 'Thông tin khóa học',
-     lessons: 'Danh sách bài học',
-     add: 'Thêm bài học mới',
-     edit: 'Sửa bài học',
-     deleteLesson: 'Xóa bài học',
-     deleteCourse: 'Xóa khóa học',
-     noData: 'Chưa có bài học nào.',
-     loading: 'Đang tải...',
-     lessonOrder: 'Thứ tự bài',
-     moduleOrder: 'Thứ tự module',
-     mediaOrder: 'Thứ tự media',
-     confirmDeleteLesson: 'Bạn có chắc muốn xóa bài học này?',
-     confirmDeleteCourse: 'Bạn có chắc muốn xóa khóa học này?',
-     lessonDeleted: 'Đã xóa bài học.',
-     courseDeleted: 'Đã xóa khóa học.',
-   },
-   en: {
-     info: 'Course Information',
-     lessons: 'Lesson list',
-@@ -65,88 +67,88 @@ const labels = {
-     deleteLesson: 'Lektion löschen',
-     deleteCourse: 'Kurs löschen',
-     noData: 'Noch keine Lektionen.',
-     loading: 'Wird geladen...',
-     lessonOrder: 'Reihenfolge Lektion',
-     moduleOrder: 'Reihenfolge Modul',
-     mediaOrder: 'Reihenfolge Medien',
-     confirmDeleteLesson: 'Möchten Sie diese Lektion wirklich löschen?',
-     confirmDeleteCourse: 'Möchten Sie diesen Kurs wirklich löschen?',
-     lessonDeleted: 'Lektion gelöscht.',
-     courseDeleted: 'Kurs gelöscht.',
-   },
- } as const
-
- const normalizeTranslations = (translations?: LessonI18n) => {
-   if (!translations) return {}
-   if (Array.isArray(translations)) {
-     return translations.reduce<Record<string, { title?: string; description?: string }>>((acc, item) => {
-       acc[item.locale] = { title: item.title, description: item.description }
-       return acc
-     }, {})
-   }
-   return translations
- }
-
--export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated, onCourseDeleted }: Props) {
-+export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated, onCourseDeleted, coursesApi = adminCoursesApi }: Props) {
-   const [activeTab, setActiveTab] = useState<DetailTabKey>('info')
-   const [lessons, setLessons] = useState<LessonOutlineAdmin[]>([])
-   const [lessonDetails, setLessonDetails] = useState<Record<number, LessonDetailAdmin>>({})
-   const [loadingDetailIds, setLoadingDetailIds] = useState<Record<number, boolean>>({})
-   const [openLessonModal, setOpenLessonModal] = useState(false)
-   const [editingLesson, setEditingLesson] = useState<LessonDetailAdmin | null>(null)
-
-   const t = labels[lang]
-
-   const loadLessons = async () => {
--    const data = await adminCoursesApi.listCourseLessons(course.id, lang)
-+    const data = await coursesApi.listCourseLessons(course.id, lang)
-     setLessons(data)
-     setLessonDetails({})
-     setLoadingDetailIds({})
-   }
-
-   const getLocalizedText = <T extends { title?: string; description?: string; translations?: LessonI18n; localizedTitle?: string; localizedDescription?: string }>(item: T) => {
-     const map = normalizeTranslations(item.translations)
-     const localeText = map[lang]
-     return {
-       title: item.localizedTitle || localeText?.title || item.title || '--',
-       description: item.localizedDescription || localeText?.description || item.description || '--',
-     }
-   }
-
-   const resolveMediaUrl = (value?: string) => {
-     const raw = (value || '').trim()
-     if (!raw) return ''
-     if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
-     return ''
-   }
-
-   const loadLessonDetail = async (lessonId: number) => {
-     if (lessonDetails[lessonId] || loadingDetailIds[lessonId]) return
-     setLoadingDetailIds((prev) => ({ ...prev, [lessonId]: true }))
-     try {
--      const detail = await adminCoursesApi.getLessonDetail(lessonId, lang)
-+      const detail = await coursesApi.getLessonDetail(lessonId, lang)
-       setLessonDetails((prev) => ({ ...prev, [lessonId]: detail }))
-     } finally {
-       setLoadingDetailIds((prev) => ({ ...prev, [lessonId]: false }))
-     }
-   }
-
-   useEffect(() => {
-     if (activeTab === 'lessons') {
-       void loadLessons()
-     }
-   }, [activeTab, lang, course.id])
-
-   const sortedLessons = useMemo(() => [...lessons].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id - b.id), [lessons])
-
-   return (
-     <section>
-       <div className='admin-tabs' style={{ marginBottom: 10 }}>
-         <button className={`admin-tab ${activeTab === 'info' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('info')}>
-           <i className='fa-solid fa-circle-info' /> {t.info}
-         </button>
-         <button className={`admin-tab ${activeTab === 'lessons' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('lessons')}>
-           <i className='fa-solid fa-list-check' /> {t.lessons}
-         </button>
-       </div>
-
-@@ -165,62 +167,62 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated,
-               </button>
-             </div>
-           </div>
-
-           {!sortedLessons.length && <p className='admin-helper'>{t.noData}</p>}
-           {!!sortedLessons.length && (
-             <ul className='lesson-outline-list'>
-               {sortedLessons.map((lesson) => (
-                 <li key={lesson.id} className='lesson-outline-item'>
-                   <details className='lesson-outline-card' onToggle={(e) => {
-                     const target = e.currentTarget
-                     if (target.open) {
-                       void loadLessonDetail(lesson.id)
-                     }
-                   }}>
-                     <summary className='lesson-outline-summary'>
-                       <div>
-                         <div className='lesson-outline-title'>{lesson.localizedTitle || lesson.title}</div>
-                         <div className='admin-helper'>{t.lessonOrder}: {lesson.order ?? 0}</div>
-                       </div>
-                       <div className='admin-row' style={{ gap: 8 }}>
-                         <i className='fa-solid fa-chevron-down lesson-outline-chevron' aria-hidden='true' />
-                         <button type='button' className='admin-btn admin-btn-ghost' onClick={async (e) => {
-                           e.preventDefault()
-                           e.stopPropagation()
--                          const detail = lessonDetails[lesson.id] ?? await adminCoursesApi.getLessonDetail(lesson.id, lang)
-+                          const detail = lessonDetails[lesson.id] ?? await coursesApi.getLessonDetail(lesson.id, lang)
-                           setEditingLesson(detail)
-                           setOpenLessonModal(true)
-                         }}>
-                           <i className='fa-solid fa-pen' /> {t.edit}
-                         </button>
-                         <button type='button' className='admin-btn admin-btn-danger' onClick={async (e) => {
-                           e.preventDefault()
-                           e.stopPropagation()
-                           const confirmed = await AlertJs.confirm(t.confirmDeleteLesson)
-                           if (!confirmed) return
--                          await adminCoursesApi.deleteLesson(lesson.id)
-+                          await coursesApi.deleteLesson(lesson.id)
-                           await AlertJs.success(t.lessonDeleted)
-                           await loadLessons()
-                           await onCourseUpdated()
-                         }}>
-                           <i className='fa-solid fa-trash' /> {t.deleteLesson}
-                         </button>
-                       </div>
-                     </summary>
-
-                     <div>
-                       <div className='admin-helper'>{lesson.localizedDescription || lesson.description || '--'}</div>
-
-                       {loadingDetailIds[lesson.id] && <div className='admin-helper'>{t.loading}</div>}
-
-                       {!loadingDetailIds[lesson.id] && lessonDetails[lesson.id]?.modules?.map((module) => {
-                         const moduleText = getLocalizedText(module)
-                         const moduleVideos = [...module.videos].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id - b.id)
-                         return (
-                           <div key={module.id} className='lesson-module-card'>
-                             <div style={{ fontWeight: 700 }}>{moduleText.title}</div>
-                             <div className='admin-helper'>{t.moduleOrder}: {module.order ?? 0}</div>
-                             <div className='admin-helper' style={{ marginBottom: 8 }}>{moduleText.description}</div>
-
-                             <div className='lesson-media-grid'>
-                               {moduleVideos.map((media) => {
-@@ -236,41 +238,42 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated,
-                                       isImage ? (
-                                         <img src={mediaUrl} alt={mediaText.title} style={{ width: '100%', maxWidth: 360, borderRadius: 8, marginTop: 6 }} />
-                                       ) : (
-                                         <video src={mediaUrl} controls style={{ width: '100%', maxWidth: 360, marginTop: 6 }} />
-                                       )
-                                     ) : (
-                                       <div className='admin-helper'>--</div>
-                                     )}
-                                   </div>
-                                 )
-                               })}
-                             </div>
-                           </div>
-                         )
-                       })}
-                     </div>
-                   </details>
-                 </li>
-               ))}
-             </ul>
-           )}
-         </div>
-       )}
-
-       <CreateLessonModal
-+        coursesApi={coursesApi}
-         open={openLessonModal}
-         lang={lang}
-         courseId={course.id}
-         editingLesson={editingLesson}
-         onClose={() => {
-           setOpenLessonModal(false)
-           setEditingLesson(null)
-         }}
-         onSaved={async () => {
-           await loadLessons()
-           await onCourseUpdated()
-         }}
-       />
-     </section>
-   )
- }
-diff --git a/beay/src/pages/admin/courseTabs/courseDetail/CreateLessonModal.tsx b/beay/src/pages/admin/courseTabs/courseDetail/CreateLessonModal.tsx
-index a53be7a136ba214f263284d4d9f300bf9755a043..18f72b35e3fe733236762409b030648c1f62337d 100644
---- a/beay/src/pages/admin/courseTabs/courseDetail/CreateLessonModal.tsx
-+++ b/beay/src/pages/admin/courseTabs/courseDetail/CreateLessonModal.tsx
-@@ -1,37 +1,38 @@
- import { useEffect, useMemo, useState } from 'react'
--import { adminCoursesApi, type LessonDetailAdmin, type LessonI18n } from '../../../../api/adminCourses.api'
-+import { adminCoursesApi, type CourseManagementApi, type LessonDetailAdmin, type LessonI18n } from '../../../../api/adminCourses.api'
- import { AlertJs } from '../../../../utils/alertJs'
- import { autoTranslateFromVietnamese } from '../../tabs/i18nForm'
-
- type Props = {
-   open: boolean
-   lang: 'vi' | 'en' | 'de'
-   courseId: number
-   editingLesson?: LessonDetailAdmin | null
-   onClose: () => void
-   onSaved: () => Promise<void> | void
-+  coursesApi?: CourseManagementApi
- }
-
- type AdminLang = 'vi' | 'en' | 'de'
- type MediaType = 'VIDEO' | 'IMAGE'
- type I18nText = Record<AdminLang, string>
-
- type MediaForm = {
-   id?: number
-   title: I18nText
-   description: I18nText
-   mediaType: MediaType
-   sourceUrl?: string
-   order: number
-   file: File | null
- }
-
- type ModuleForm = {
-   id?: number
-   title: I18nText
-   description: I18nText
-   order: number
-   medias: MediaForm[]
- }
-
- type FormState = {
-@@ -249,51 +250,51 @@ const buildFormFromLesson = (lesson: LessonDetailAdmin): FormState => ({
-       },
-       order: module.order ?? 0,
-       medias: module.videos.length
-         ? module.videos.map((media) => ({
-           id: media.id,
-           title: {
-             vi: normalizeTranslations(media.translations).vi || media.title || '',
-             en: normalizeTranslations(media.translations).en,
-             de: normalizeTranslations(media.translations).de,
-           },
-           description: {
-             vi: normalizeDescriptions(media.translations).vi || media.description || '',
-             en: normalizeDescriptions(media.translations).en,
-             de: normalizeDescriptions(media.translations).de,
-           },
-           mediaType: media.mediaType || 'VIDEO',
-           sourceUrl: media.sourceUrl || media.playbackUrl || media.hlsPlaylistKey || '',
-           order: media.order ?? 0,
-           file: null,
-         }))
-         : [createEmptyMedia()],
-     }))
-     : [createEmptyModule()],
- })
-
--export function CreateLessonModal({ open, lang, courseId, editingLesson, onClose, onSaved }: Props) {
-+export function CreateLessonModal({ open, lang, courseId, editingLesson, onClose, onSaved, coursesApi = adminCoursesApi }: Props) {
-   const t = textByLang[lang]
-   const [submitting, setSubmitting] = useState(false)
-   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null)
-   const [inputLang, setInputLang] = useState<AdminLang>('vi')
-   const [form, setForm] = useState<FormState>(initialForm)
-
-   useEffect(() => {
-     if (!open) return
-     setInputLang('vi')
-     setForm(editingLesson ? buildFormFromLesson(editingLesson) : initialForm)
-   }, [open, editingLesson])
-
-   const slug = useMemo(() => slugify(form.title.vi), [form.title.vi])
-   const isEditMode = Boolean(editingLesson)
-
-   if (!open) return null
-
-   const translateVietnameseToOthers = async (value: string, updater: (en: string, de: string) => void) => {
-     const [en, de] = await Promise.all([
-       autoTranslateFromVietnamese(value, 'en-US').catch(() => ''),
-       autoTranslateFromVietnamese(value, 'de').catch(() => ''),
-     ])
-     updater(en || '', de || '')
-   }
-
-@@ -494,68 +495,68 @@ export function CreateLessonModal({ open, lang, courseId, editingLesson, onClose
-         modules: form.modules.map((module, moduleIndex) => ({
-           title: module.title.vi.trim(),
-           description: module.description.vi.trim(),
-           order: module.order,
-           translations: {
-             vi: { title: module.title.vi.trim(), description: module.description.vi.trim() },
-             en: { title: module.title.en.trim(), description: module.description.en.trim() },
-             de: { title: module.title.de.trim(), description: module.description.de.trim() },
-           },
-           videos: module.medias.map((media, mediaIndex) => ({
-             title: media.title.vi.trim(),
-             description: media.description.vi.trim(),
-             mediaType: media.mediaType,
-             sourceUrl: media.sourceUrl || `pending-upload-${moduleIndex}-${mediaIndex}`,
-             order: media.order,
-             translations: {
-               vi: { title: media.title.vi.trim(), description: media.description.vi.trim() },
-               en: { title: media.title.en.trim(), description: media.description.en.trim() },
-               de: { title: media.title.de.trim(), description: media.description.de.trim() },
-             },
-           })),
-         })),
-       }
-
-       const persistedLesson = isEditMode && editingLesson
--        ? await adminCoursesApi.updateLesson(editingLesson.id, payload)
--        : await adminCoursesApi.createLesson(courseId, payload)
-+        ? await coursesApi.updateLesson(editingLesson.id, payload)
-+        : await coursesApi.createLesson(courseId, payload)
-
--      const detail = await adminCoursesApi.getLessonDetail(persistedLesson.id, lang)
-+      const detail = await coursesApi.getLessonDetail(persistedLesson.id, lang)
-       const totalMediaCount = form.modules.reduce((sum, module) => sum + module.medias.filter((media) => Boolean(media.file)).length, 0)
-       setUploadProgress(totalMediaCount > 0 ? { current: 0, total: totalMediaCount } : null)
-       let uploadedCount = 0
-
-       for (let moduleIndex = 0; moduleIndex < form.modules.length; moduleIndex += 1) {
-         const inputModule = form.modules[moduleIndex]
-         const createdModule = detail.modules[moduleIndex]
-         if (!createdModule) continue
-
-         for (let mediaIndex = 0; mediaIndex < inputModule.medias.length; mediaIndex += 1) {
-           const media = inputModule.medias[mediaIndex]
-           if (!media.file) continue
-           const uploadType = media.mediaType === 'IMAGE' ? 'image' : 'video'
--          await adminCoursesApi.uploadModuleMedia(detail.id, createdModule.id, media.file, uploadType, media.order)
-+          await coursesApi.uploadModuleMedia(detail.id, createdModule.id, media.file, uploadType, media.order)
-           uploadedCount += 1
-           setUploadProgress(totalMediaCount > 0 ? { current: uploadedCount, total: totalMediaCount } : null)
-         }
-       }
-
-       await AlertJs.success(isEditMode ? t.updateSuccess : t.createSuccess)
-       setForm(initialForm)
-       setInputLang('vi')
-       onClose()
-       await onSaved()
-     } finally {
-       setSubmitting(false)
-       setUploadProgress(null)
-     }
-   }
-
-   const uploadProgressText = uploadProgress
-     ? t.uploadingMedia
-       .replace('{current}', String(uploadProgress.current))
-       .replace('{total}', String(uploadProgress.total))
-     : t.creating
-
-   return (
-     <div className='admin-modal-backdrop' role='dialog' aria-modal='true'>
-       <div className='admin-modal create-course-modal'>
-diff --git a/beay/src/pages/components/InstructorHeader.tsx b/beay/src/pages/components/InstructorHeader.tsx
-index a5217156188805f3d37369c0331373e5fc0fc1ca..17d94feec1a91af07d9ddd152fb24264478b7985 100644
---- a/beay/src/pages/components/InstructorHeader.tsx
-+++ b/beay/src/pages/components/InstructorHeader.tsx
-@@ -1,44 +1,48 @@
- // src/pages/instructor/components/InstructorHeader.tsx
- type Props = {
-   onOpenStudent: () => void;
-   onOpenRbac: () => void;
-   onNotif: () => void;
-   onNewCourse: () => void;
-+  onLogout: () => void;
- };
-
- export function InstructorHeader(props: Props) {
-   return (
-     <header className="sticky top-0 z-20 bg-white/80 backdrop-blur border-b border-slate-200/70">
-       <div className="h-16 px-4 md:px-8 flex items-center justify-between gap-4">
-         <div className="flex items-center gap-3">
-           <a
-             href="/"
-             className="h-10 w-10 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25"
-             title="Home"
-           >
-             <span className="text-white font-extrabold">A</span>
-           </a>
-           <div>
-             <div className="text-xs text-slate-500 font-semibold -mb-1">AYANAVITA • Instructor</div>
-             <div className="text-lg font-extrabold">Bảng điều khiển giảng viên</div>
-           </div>
-         </div>
-
-         <div className="flex items-center gap-2">
-           <button className="btn hidden md:inline-flex items-center gap-2" onClick={props.onOpenStudent}>
-             <i className="fa-solid fa-user-graduate" /> Học viên
-           </button>
-           <button className="btn hidden md:inline-flex items-center gap-2" onClick={props.onOpenRbac}>
-             <i className="fa-solid fa-user-shield" /> RBAC
-           </button>
-           <button className="btn inline-flex items-center gap-2" onClick={props.onNotif}>
-             <i className="fa-regular fa-bell" /> Thông báo
-           </button>
-           <button className="btn btn-primary inline-flex items-center gap-2" onClick={props.onNewCourse}>
-             <i className="fa-solid fa-plus" /> Tạo khóa học
-           </button>
-+          <button className="btn inline-flex items-center gap-2" onClick={props.onLogout}>
-+            <i className="fa-solid fa-right-from-bracket" /> Đăng xuất
-+          </button>
-         </div>
-       </div>
-     </header>
-   );
- }
-\ No newline at end of file
-diff --git a/beay/src/pages/components/QuickActions.tsx b/beay/src/pages/components/QuickActions.tsx
-index 034fd297774a79cc3b8bf97d5af057492cf14edc..e798af9d62bf4f18fcbd0c8cee09fd4714a3d7e1 100644
---- a/beay/src/pages/components/QuickActions.tsx
-+++ b/beay/src/pages/components/QuickActions.tsx
-@@ -1,59 +1,52 @@
--// src/pages/instructor/components/QuickActions.tsx
- type Props = {
--  onPublish: () => void;
--  onPreview: () => void;
--  onCoupon: () => void;
--  onSyllabus: () => void;
--};
-+  onDetails: () => void
-+  onEdit: () => void
-+  onDelete: () => void
-+  onProgress: () => void
-+}
-
- export function QuickActions(props: Props) {
-   return (
--    <div className="rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-6">
--      <div className="text-xs font-extrabold text-slate-500">Tác vụ nhanh</div>
--      <div className="text-lg font-extrabold">Xuất bản & QA</div>
--      <div className="mt-2 text-sm text-slate-600">Bổ sung: checklist + preview + tạo coupon.</div>
-+    <div className='rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-6'>
-+      <div className='text-xs font-extrabold text-slate-500'>Chi tiết / chỉnh sửa</div>
-+      <div className='text-lg font-extrabold'>Theo dõi khóa học của tôi</div>
-+      <div className='mt-2 text-sm text-slate-600'>
-+        Mở chi tiết, chỉnh sửa nội dung và xóa khóa học do bạn tạo.
-+      </div>
-
--      <div className="mt-4 space-y-3">
--        <label className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
--          <input type="checkbox" defaultChecked className="h-4 w-4" />
--          <span className="text-sm font-extrabold">Mô tả + mục tiêu khoá</span>
--        </label>
--        <label className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
--          <input type="checkbox" defaultChecked className="h-4 w-4" />
--          <span className="text-sm font-extrabold">Giá + ưu đãi</span>
-+      <div className='mt-4 space-y-3'>
-+        <label className='flex items-center gap-3 p-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200'>
-+          <input type='checkbox' defaultChecked className='h-4 w-4' />
-+          <span className='text-sm font-extrabold'>Có thể tạo khóa học mới</span>
-         </label>
--        <label className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
--          <input type="checkbox" className="h-4 w-4" />
--          <span className="text-sm font-extrabold">Preview bài học</span>
-+        <label className='flex items-center gap-3 p-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200'>
-+          <input type='checkbox' defaultChecked className='h-4 w-4' />
-+          <span className='text-sm font-extrabold'>Có thể chỉnh sửa khóa học của tôi</span>
-         </label>
--        <label className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
--          <input type="checkbox" className="h-4 w-4" />
--          <span className="text-sm font-extrabold">Bật chứng chỉ</span>
-+        <label className='flex items-center gap-3 p-3 rounded-2xl bg-slate-50 ring-1 ring-slate-200'>
-+          <input type='checkbox' defaultChecked className='h-4 w-4' />
-+          <span className='text-sm font-extrabold'>Có thể xóa khóa học của tôi</span>
-         </label>
-       </div>
-
--      <div className="mt-4 grid grid-cols-2 gap-2">
--        <button className="btn btn-primary" onClick={props.onPublish}>
--          <i className="fa-solid fa-cloud-arrow-up mr-1" />
--          Publish
-+      <div className='mt-4 grid grid-cols-2 gap-2'>
-+        <button className='btn btn-primary' onClick={props.onDetails}>
-+          <i className='fa-solid fa-circle-info mr-1' />
-+          Chi tiết
-         </button>
--        <button className="btn btn-accent" onClick={props.onPreview}>
--          <i className="fa-solid fa-eye mr-1" />
--          Preview
-+        <button className='btn btn-accent' onClick={props.onEdit}>
-+          <i className='fa-solid fa-pen-to-square mr-1' />
-+          Chỉnh sửa
-         </button>
--        <button className="btn" onClick={props.onCoupon}>
--          <i className="fa-solid fa-ticket mr-1" />
--          Coupon
-+        <button className='btn' onClick={props.onDelete}>
-+          <i className='fa-solid fa-trash mr-1' />
-+          Xóa khóa học
-         </button>
--        <button className="btn" onClick={props.onSyllabus}>
--          <i className="fa-solid fa-list-check mr-1" />
--          Syllabus
-+        <button className='btn' onClick={props.onProgress}>
-+          <i className='fa-solid fa-chart-line mr-1' />
-+          Theo dõi
-         </button>
-       </div>
--
--      <div className="mt-4 p-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200 text-sm text-slate-600">
--        Khi tách React: quyền <b>lessons.write</b> / <b>lessons.publish</b> kiểm soát nút Publish.
--      </div>
-     </div>
--  );
--}
-\ No newline at end of file
-+  )
-+}

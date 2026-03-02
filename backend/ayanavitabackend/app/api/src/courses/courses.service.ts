@@ -117,7 +117,6 @@ export class CoursesService {
       ...(dto.ratingAvg !== undefined ? { ratingAvg: dto.ratingAvg } : {}),
       ...(dto.ratingCount !== undefined ? { ratingCount: dto.ratingCount } : {}),
       ...(dto.enrollmentCount !== undefined ? { enrollmentCount: dto.enrollmentCount } : {}),
-      ...(dto.creatorId !== undefined ? { creatorId: dto.creatorId } : {}),
     }
   }
 

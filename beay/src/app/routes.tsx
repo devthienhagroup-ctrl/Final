@@ -19,6 +19,8 @@ import { BlogAdminPage } from "../admin/pages/BlogAdminPage";
 import { ProductAdminListPage } from "../admin/pages/ProductAdminListPage";
 import { ProductAdminDetailPage } from "../admin/pages/ProductAdminDetailPage";
 
+
+
 function RequireAuth() {
     const { token } = useAuth();
     const location = useLocation();

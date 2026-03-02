@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -17,8 +18,10 @@ import { FilesInterceptor } from '@nestjs/platform-express'
 import { memoryStorage } from 'multer'
 import type { Request } from 'express'
 import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
+import { Permissions } from '../auth/decorators/permissions.decorator'
 import { Roles } from '../auth/decorators/roles.decorator'
 import { AccessTokenGuard } from '../auth/guards/access-token.guard'
+import { PermissionGuard } from '../auth/guards/permission.guard'
 import { RolesGuard } from '../auth/guards/roles.guard'
 import { CreateReviewDto } from './dto/create-review.dto'
 import { HelpfulHistoryQueryDto, MergeHelpfulDto } from './dto/review-helpful.dto'
@@ -62,8 +65,6 @@ export class ReviewsController {
   create(@Body() dto: CreateReviewDto, @Req() req: Request, @UploadedFiles() files?: any[]) {
     return this.reviewsService.createReview(dto, req, files || [])
   }
-
-
   @UseGuards(AccessTokenGuard)
   @Post(':id/helpful/toggle')
   toggleHelpful(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
@@ -96,29 +97,29 @@ export class ReviewsController {
     return this.reviewsService.adminHide(id)
   }
 
-    @UseGuards(AccessTokenGuard, PermissionGuard)
-    @Permissions('support.manage')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('support.manage')
   @Patch('admin/:id/show')
   adminShow(@Param('id', ParseIntPipe) id: number) {
     return this.reviewsService.adminShow(id)
   }
 
-    @UseGuards(AccessTokenGuard, PermissionGuard)
-    @Permissions('support.manage')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('support.manage')
   @Patch('admin/:id/spam')
   adminSpam(@Param('id', ParseIntPipe) id: number) {
     return this.reviewsService.adminSpam(id)
   }
 
-    @UseGuards(AccessTokenGuard, PermissionGuard)
-    @Permissions('support.manage')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('support.manage')
   @Patch('admin/:id/unspam')
   adminUnspam(@Param('id', ParseIntPipe) id: number) {
     return this.reviewsService.adminUnspam(id)
   }
 
-    @UseGuards(AccessTokenGuard, PermissionGuard)
-    @Permissions('support.manage')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('support.manage')
   @Patch('admin/bulk')
   adminBulk(
     @Body() body: { ids?: number[]; action?: 'show' | 'hide' | 'spam' | 'unspam' | 'delete' },

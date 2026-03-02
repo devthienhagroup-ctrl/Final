@@ -58,7 +58,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
   return text ? (JSON.parse(text) as T) : ({} as T);
 }
 
-async function request<T>(path: string, init: RequestInit = {}, allowRetry = true): Promise<T> {
+export async function request<T>(path: string, init: RequestInit = {}, allowRetry = true): Promise<T> {
   const headers = new Headers(init.headers);
   if (!headers.has("Content-Type") && init.body) headers.set("Content-Type", "application/json");
 

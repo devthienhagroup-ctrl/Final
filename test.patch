@@ -1,154 +1,86 @@
-diff --git a/backend/ayanavitabackend/app/api/src/reviews/reviews.controller.ts b/backend/ayanavitabackend/app/api/src/reviews/reviews.controller.ts
-index 5d4eef49737506502339eef8955bb1d5d3807514..30f8b04fa7c6e8494385923b2297ec7d020e9566 100644
---- a/backend/ayanavitabackend/app/api/src/reviews/reviews.controller.ts
-+++ b/backend/ayanavitabackend/app/api/src/reviews/reviews.controller.ts
-@@ -1,138 +1,139 @@
- import {
-+  BadRequestException,
-   Body,
-   Controller,
-   Delete,
-   Get,
-   Param,
-   ParseIntPipe,
-   Patch,
-   Post,
-   Query,
-   Req,
-   UploadedFiles,
-   UseGuards,
-   UseInterceptors,
- } from '@nestjs/common'
- import { FilesInterceptor } from '@nestjs/platform-express'
- import { memoryStorage } from 'multer'
- import type { Request } from 'express'
- import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
-+import { Permissions } from '../auth/decorators/permissions.decorator'
- import { Roles } from '../auth/decorators/roles.decorator'
- import { AccessTokenGuard } from '../auth/guards/access-token.guard'
-+import { PermissionGuard } from '../auth/guards/permission.guard'
- import { RolesGuard } from '../auth/guards/roles.guard'
- import { CreateReviewDto } from './dto/create-review.dto'
- import { HelpfulHistoryQueryDto, MergeHelpfulDto } from './dto/review-helpful.dto'
- import { AdminReviewsQueryDto, PublicReviewsQueryDto } from './dto/reviews-query.dto'
- import { ReviewsService } from './reviews.service'
+diff --git a/beay/src/app/routes.tsx b/beay/src/app/routes.tsx
+index 53929b669922c5cb2213a0091e52ed4a28cb3167..8d8f8e8793033f6b162bc847ca018e14db2e77ce 100644
+--- a/beay/src/app/routes.tsx
++++ b/beay/src/app/routes.tsx
+@@ -10,69 +10,79 @@ import { StudentLessonPlayerPage } from '../pages/admin/StudentLessonPlayerPage'
+ import AdminSpaPage from '../pages/admin/AdminSpaPage'
+ import AdminCoursesPage from '../pages/admin/AdminCoursesPage'
+ import { InstructorDashboardPage } from '../pages/admin/InstructorDashboardPage'
+ import { CmsEditPage } from "../admin/pages/CmsEditPage";
+ import { ToastProvider as AdminToastProvider } from "../admin/components/Toast";
+ import { CmsPagesPage } from "../admin/pages/CmsPagesPage";
+ import  OrderAdminPage  from "../admin/pages/OrderAdminPage";
+ import { ReviewsAdminPage } from "../admin/pages/ReviewsAdminPage";
+ import { BlogAdminPage } from "../admin/pages/BlogAdminPage";
+ import { ProductAdminListPage } from "../admin/pages/ProductAdminListPage";
+ import { ProductAdminDetailPage } from "../admin/pages/ProductAdminDetailPage";
 
- @Controller('reviews')
- export class ReviewsController {
-   constructor(private readonly reviewsService: ReviewsService) {}
 
-   @Get('branches')
-   branches() {
-     return this.reviewsService.listBranches()
-   }
 
-   @Get('services')
-   services(@Query('branchId') branchId?: string) {
-     const parsed = branchId ? Number(branchId) : undefined
-     return this.reviewsService.listServices(parsed)
-   }
+ function RequireAuth() {
+     const { token } = useAuth();
+     const location = useLocation();
 
-   @UseGuards(AccessTokenGuard)
-   @Get('my-product-reviewables')
-   myProductReviewables(@CurrentUser() user: JwtUser, @Query('branchId') branchId?: string) {
-     const parsed = branchId ? Number(branchId) : undefined
-     return this.reviewsService.listMyReviewableProducts(user.sub, parsed)
-   }
+     if (!token) {
+         return <Navigate to="/admin/login" replace state={{ from: location.pathname }} />;
+     }
 
-   @Get()
-   listPublic(@Query() query: PublicReviewsQueryDto) {
-     return this.reviewsService.listPublic(query)
-   }
-
-   @Post()
-   @UseInterceptors(
-     FilesInterceptor('images', 10, {
-       storage: memoryStorage(),
-       limits: { fileSize: 10 * 1024 * 1024 },
-     }),
-   )
-   create(@Body() dto: CreateReviewDto, @Req() req: Request, @UploadedFiles() files?: any[]) {
-     return this.reviewsService.createReview(dto, req, files || [])
-   }
--
--
-   @UseGuards(AccessTokenGuard)
-   @Post(':id/helpful/toggle')
-   toggleHelpful(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
-     return this.reviewsService.toggleHelpful(id, user.sub)
-   }
-
-   @UseGuards(AccessTokenGuard)
-   @Get('my-helpful-reviews')
-   myHelpfulReviews(@CurrentUser() user: JwtUser, @Query() query: HelpfulHistoryQueryDto) {
-     return this.reviewsService.listMyHelpfulReviews(user.sub, query)
-   }
-
-   @UseGuards(AccessTokenGuard)
-   @Post('helpful/merge-local')
-   mergeLocalHelpful(@CurrentUser() user: JwtUser, @Body() dto: MergeHelpfulDto) {
-     return this.reviewsService.mergeLocalHelpful(user.sub, dto.reviewIds || [])
-   }
-
-   @UseGuards(AccessTokenGuard, RolesGuard)
-   @Roles('ADMIN')
-   @Get('admin/list')
-   adminList(@Query() query: AdminReviewsQueryDto) {
-     return this.reviewsService.adminList(query)
-   }
-
-   @UseGuards(AccessTokenGuard, RolesGuard)
-   @Roles('ADMIN')
-   @Patch('admin/:id/hide')
-   adminHide(@Param('id', ParseIntPipe) id: number) {
-     return this.reviewsService.adminHide(id)
-   }
-
--    @UseGuards(AccessTokenGuard, PermissionGuard)
--    @Permissions('support.manage')
-+  @UseGuards(AccessTokenGuard, PermissionGuard)
-+  @Permissions('support.manage')
-   @Patch('admin/:id/show')
-   adminShow(@Param('id', ParseIntPipe) id: number) {
-     return this.reviewsService.adminShow(id)
-   }
-
--    @UseGuards(AccessTokenGuard, PermissionGuard)
--    @Permissions('support.manage')
-+  @UseGuards(AccessTokenGuard, PermissionGuard)
-+  @Permissions('support.manage')
-   @Patch('admin/:id/spam')
-   adminSpam(@Param('id', ParseIntPipe) id: number) {
-     return this.reviewsService.adminSpam(id)
-   }
-
--    @UseGuards(AccessTokenGuard, PermissionGuard)
--    @Permissions('support.manage')
-+  @UseGuards(AccessTokenGuard, PermissionGuard)
-+  @Permissions('support.manage')
-   @Patch('admin/:id/unspam')
-   adminUnspam(@Param('id', ParseIntPipe) id: number) {
-     return this.reviewsService.adminUnspam(id)
-   }
-
--    @UseGuards(AccessTokenGuard, PermissionGuard)
--    @Permissions('support.manage')
-+  @UseGuards(AccessTokenGuard, PermissionGuard)
-+  @Permissions('support.manage')
-   @Patch('admin/bulk')
-   adminBulk(
-     @Body() body: { ids?: number[]; action?: 'show' | 'hide' | 'spam' | 'unspam' | 'delete' },
-   ) {
-     const action = body?.action
-     const ids = (body?.ids || []).filter((x) => Number.isInteger(Number(x))).map((x) => Number(x))
-     if (!action || !ids.length) throw new BadRequestException('Thiếu action hoặc ids')
-     return this.reviewsService.adminBulk(ids, action)
-   }
-
-   @UseGuards(AccessTokenGuard, PermissionGuard)
-   @Permissions('support.manage')
-   @Delete('admin/:id')
-   adminDelete(@Param('id', ParseIntPipe) id: number) {
-     return this.reviewsService.adminDelete(id)
-   }
+     return <Outlet />;
  }
+
++function RequirePermission({ permission, children }: { permission: string; children: React.ReactNode }) {
++    const { can } = useAuth();
++
++    if (!can(permission)) {
++        return <Navigate to="/admin/dashboard" replace />;
++    }
++
++    return <>{children}</>;
++}
++
+ export function AppRoutes() {
+     return (
+         <Routes>
+             <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+
+       <Route element={<RequireAuth />}>
+         <Route path="/admin/orders" element={<RequirePermission permission="orders.read"><AdminOrdersPage /></RequirePermission>} />
+         <Route path="/admin/rbac" element={<RequirePermission permission="role.read"><AdminRbacPage /></RequirePermission>} />
+         <Route path="/admin/services" element={<RequirePermission permission="spa_services.read"><AdminSpaPage /></RequirePermission>} />
+         <Route path="/admin/courses" element={<RequirePermission permission="courses.read"><AdminCoursesPage /></RequirePermission>} />
+         <Route path="/student" element={<RequirePermission permission="my_courses.read"><StudentPortalPage /></RequirePermission>} />
+         <Route path="/instructor" element={<RequirePermission permission="courses.write"><InstructorDashboardPage /></RequirePermission>} />
+         <Route path="/student/courses/:id" element={<RequirePermission permission="my_courses.read"><StudentCourseDetailPage /></RequirePermission>} />
+         <Route path="/student/lessons/:id" element={<RequirePermission permission="my_courses.read"><StudentLessonPlayerPage /></RequirePermission>} />
+           <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+           <Route path="/admin/orders" element={<OrderAdminPage />} />
+           <Route path="/admin/rbac" element={<AdminRbacPage />} />
+           <Route path="/admin/reviews" element={<ReviewsAdminPage />} />
+           <Route path="/admin/blog" element={<BlogAdminPage />} />
+           <Route path="/admin/product" element={<ProductAdminListPage />} />
+           <Route path="/admin/product/:productId" element={<ProductAdminDetailPage />} />
+           <Route
+               path="/admin/cms"
+               element={(
+                   <AdminToastProvider>
+                       <CmsPagesPage />
+                   </AdminToastProvider>
+               )}
+           />
+           <Route
+               path="/admin/cms/pages/:slug"
+               element={(
+                   <AdminToastProvider>
+                       <CmsEditPage />
+                   </AdminToastProvider>
+               )}
+           />
+       </Route>
+
+             <Route path="*" element={<div className="p-6">404</div>} />
+         </Routes>
+     );
+
+-}
+\ No newline at end of file
++}

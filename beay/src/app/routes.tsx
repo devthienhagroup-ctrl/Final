@@ -32,12 +32,25 @@ function RequireAuth() {
     return <Outlet />;
 }
 
+function RequirePermission({ permission, children }: { permission: string; children: React.ReactNode }) {
+    const { can } = useAuth();
+
+    if (!can(permission)) {
+        return <Navigate to="/login" replace />;
+    }
+
+    return <>{children}</>;
+}
+
 export function AppRoutes() {
     return (
         <Routes>
             <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="/login" element={<LoginPage />} />
+
 
       <Route element={<RequireAuth />}>
+
         <Route path="/admin/orders" element={<RequirePermission permission="orders.read"><AdminOrdersPage /></RequirePermission>} />
         <Route path="/admin/rbac" element={<RequirePermission permission="role.read"><AdminRbacPage /></RequirePermission>} />
         <Route path="/admin/services" element={<RequirePermission permission="spa_services.read"><AdminSpaPage /></RequirePermission>} />

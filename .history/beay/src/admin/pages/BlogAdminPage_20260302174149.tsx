@@ -1,6 +1,5 @@
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   adminCleanupViewTrackers,
   adminCreateBlog,
@@ -514,8 +513,6 @@ width: 100%;
 `;
 
 export function BlogAdminPage() {
-  const navigate = useNavigate();
-
   const [items, setItems] = useState<BlogAdminItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -681,12 +678,6 @@ export function BlogAdminPage() {
     return `Hiển thị ${showingFrom}-${showingTo} / ${total} • Trang ${safePage}/${totalPages}`;
   }, [items.length, page, pageSize, total, totalPages]);
 
-  const handleBack = () => {
-    // Nếu user vào trực tiếp (không có history), fallback về dashboard
-    if (window.history.length > 1) navigate(-1);
-    else navigate("/admin/dashboard");
-  };
-
   return (
     <>
       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
@@ -704,11 +695,6 @@ export function BlogAdminPage() {
               </div>
 
               <div className="top-actions">
-                <div className="pill" title="Quay lại" onClick={handleBack}>
-                  <i className="fa-solid fa-arrow-left" style={{ opacity: 0.85 }} />
-                  <span style={{ fontSize: 13, fontWeight: 700 }}>Quay lại</span>
-                </div>
-
                 <div className={`loading ${loading ? "show" : ""}`}>
                   <div className="spinner" />
                   Đang tải dữ liệu...
@@ -739,20 +725,10 @@ export function BlogAdminPage() {
                 <h2>Quản lý bài viết</h2>
                 <p className="hint">Tìm kiếm theo tiêu đề/slug, lọc trạng thái, tạo/sửa bằng drawer bên phải.</p>
               </div>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                <div className="pill" title="Quay lại" onClick={handleBack}>
-                  <i className="fa-solid fa-arrow-left" style={{ opacity: 0.85 }} />
-                  <span style={{ fontSize: 13, fontWeight: 700 }}>Quay lại</span>
-                </div>
-
-                <div
-                  className="pill"
-                  title="Demo export"
-                  onClick={() => setMessage("Export demo: bạn có thể map sang CSV/Excel sau.")}
-                >
-                  <i className="fa-solid fa-file-arrow-down" style={{ opacity: 0.85 }} />
-                  <span style={{ fontSize: 13, fontWeight: 700 }}>Export</span>
-                </div>
+              <div className="pill" title="Demo export" onClick={() => setMessage("Export demo: bạn có thể map sang CSV/Excel sau.")}
+              >
+                <i className="fa-solid fa-file-arrow-down" style={{ opacity: 0.85 }} />
+                <span style={{ fontSize: 13, fontWeight: 700 }}>Export</span>
               </div>
             </div>
 

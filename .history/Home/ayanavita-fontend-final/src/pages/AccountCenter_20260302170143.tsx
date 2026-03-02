@@ -707,8 +707,6 @@ export default function AccountCenter() {
   const [payingOrderId, setPayingOrderId] = useState<number | null>(null);
   const [qrModalOrder, setQrModalOrder] = useState<MyOrder | null>(null);
   const [qrPayload, setQrPayload] = useState<PaymentQrPayload | null>(null);
-  // ⏳ QR countdown (tick mỗi giây để render lại thời gian còn lại)
-  const [qrTick, setQrTick] = useState<number>(() => Date.now());
   const [cancelRequestingOrderId, setCancelRequestingOrderId] = useState<number | null>(null);
 
   // ✅ CMS runtime (render UI bằng state này)
@@ -728,33 +726,6 @@ export default function AccountCenter() {
   const closeToast = (id: string) => setToasts((prev) => prev.filter((t) => t.id !== id));
 
   const activeMeta = useMemo(() => cms.sidebar.items.find((x) => x.key === active), [active, cms]);
-
-  // ⏳ Tick countdown khi đang mở modal QR
-  useEffect(() => {
-    if (!qrModalOrder || !qrPayload) return;
-    setQrTick(Date.now());
-    const t = window.setInterval(() => setQrTick(Date.now()), 1000);
-    return () => window.clearInterval(t);
-  }, [qrModalOrder, qrPayload]);
-
-  const qrExpiresAt = useMemo(() => {
-    return qrPayload?.expiresAt || qrModalOrder?.expiresAt || null;
-  }, [qrPayload?.expiresAt, qrModalOrder?.expiresAt]);
-
-  const qrCountdown = useMemo(() => {
-    if (!qrExpiresAt) return { expired: false, remainingSec: null as number | null, text: "—" };
-
-    const expiresMs = new Date(qrExpiresAt).getTime();
-    if (Number.isNaN(expiresMs)) return { expired: false, remainingSec: null as number | null, text: "—" };
-
-    const diffMs = expiresMs - qrTick;
-    const remainingSec = Math.max(0, Math.floor(diffMs / 1000));
-    const expired = remainingSec <= 0;
-
-    const mm = String(Math.floor(remainingSec / 60)).padStart(2, "0");
-    const ss = String(remainingSec % 60).padStart(2, "0");
-    return { expired, remainingSec, text: `${mm}:${ss}` };
-  }, [qrExpiresAt, qrTick]);
 
 
   const filteredOrders = useMemo(() => {
@@ -1891,19 +1862,6 @@ export default function AccountCenter() {
                       >
                         <div className="flex items-center justify-between">
                           <h3 className="text-lg font-bold text-slate-900">Quét mã QR để thanh toán</h3>
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={
-                                "rounded-full px-2 py-1 text-[11px] font-semibold " +
-                                (qrCountdown.expired
-                                  ? "bg-slate-100 text-slate-500"
-                                  : "bg-emerald-50 text-emerald-700")
-                              }
-                              title={qrExpiresAt ? `Hạn: ${formatDateTime(qrExpiresAt)}` : undefined}
-                            >
-                              <i className="fa-regular fa-clock mr-1" />
-                              {qrCountdown.text}
-                            </span>
                           <button
                             type="button"
                             onClick={() => {
@@ -1914,50 +1872,25 @@ export default function AccountCenter() {
                           >
                             Đóng
                           </button>
-                          </div>
                         </div>
 
                         <p className="mt-1 text-xs text-slate-500">Đơn hàng: {qrModalOrder.code}</p>
 
-                        <div className="relative mx-auto mt-4 h-64 w-64">
-                          <img
-                            src={qrPayload.qrUrl}
-                            alt="QR thanh toán"
-                            className={
-                              "h-64 w-64 rounded-xl border border-slate-200 transition " +
-                              (qrCountdown.expired ? "opacity-40 blur-[2px]" : "")
-                            }
-                          />
-
-                          {qrCountdown.expired && (
-                            <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/40">
-                              <div className="rounded-xl bg-white/90 px-4 py-3 text-center shadow">
-                                <p className="text-sm font-bold text-slate-900">Hết hạn thanh toán</p>
-                                <p className="mt-1 text-xs text-slate-600">
-                                  Đơn hàng của bạn đã chuyển sang trạng thái hết hạn
-                                </p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                        <img
+                          src={qrPayload.qrUrl}
+                          alt="QR thanh toán"
+                          className="mx-auto mt-4 h-64 w-64 rounded-xl border border-slate-200"
+                        />
 
                         <div className="mt-4 space-y-1 text-sm text-slate-700">
                           <p><span className="font-semibold">Số tiền:</span> {Number(qrPayload.amount || 0).toLocaleString("vi-VN")}₫</p>
                           <p><span className="font-semibold">Nội dung CK:</span> {qrPayload.transferContent || "-"}</p>
                         </div>
 
-                        {!qrCountdown.expired ? (
-                          <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                            Vui lòng hoàn tất thanh toán trong <span className="font-semibold">15 phút</span> kể từ lúc tạo đơn.<br></br>
-                            Còn lại: <span className="font-semibold">{qrCountdown.text}</span>. Hạn thanh toán:{" "}
-                            <span className="font-semibold">{formatDateTime(qrExpiresAt)}</span>.
-                          </div>
-                        ) : (
-                          <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                            <div className="font-semibold">{"{\"title\":\"Hết hạn thanh toán\"}"}</div>
-                            <div className="mt-1">{"{\"subtitle\":\"Đơn hàng của bạn đã chuyển sang trạng thái hết hạn\"}"}</div>
-                          </div>
-                        )}
+                        <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                          Vui lòng hoàn tất thanh toán trong <span className="font-semibold">15 phút</span> kể từ lúc tạo đơn.
+                          Hạn thanh toán: <span className="font-semibold">{formatDateTime(qrPayload.expiresAt || qrModalOrder.expiresAt)}</span>.
+                        </div>
 
                         <p className="mt-3 text-xs text-slate-500">
                           Sau khi thanh toán thành công, hệ thống sẽ tự động cập nhật trạng thái đơn hàng.

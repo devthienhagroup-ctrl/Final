@@ -971,7 +971,7 @@ export default function ProductDetailPage() {
                                     <img
                                       src={src}
                                       alt={`review-${r.id}-${idx + 1}`}
-                                      className="h-32 w-full object-cover transition-transform duration-200 hover:scale-105"
+                                      className="h-24 w-full object-cover transition-transform duration-200 hover:scale-105"
                                     />
                                   </a>
                                 ))}

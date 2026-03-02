@@ -1034,7 +1034,7 @@ setModalOpen(false);
                                     </div>
                                   )}
                                   <div className="text-sm text-slate-600 mt-1">
-                                     {r.branch ? `• ${r.branch}` : ""} • <Muted>{formatDateVi(r.createdAt)}</Muted>
+                                    <b>{displayName}</b> {r.branch ? `• ${r.branch}` : ""} • <Muted>{formatDateVi(r.createdAt)}</Muted>
                                   </div>
                                 </div>
 
@@ -1047,13 +1047,12 @@ setModalOpen(false);
                                   {savedOn ? cmsData.reviewCard.saved : cmsData.reviewCard.save}
                                 </Button> */}
                               </div>
-                                
-                              <div className="mt-3 ml-3">
-                                <b className="mb-3">{displayName}</b>
+                                  
+                              <div className="mt-3">
                                 <StarsRow value={r.rating} />
                               </div>
 
-                              <p className="mt-1 text-slate-700 leading-relaxed whitespace-pre-line card p-4 transform !translate-y-0">{r.text}</p>
+                              <p className="mt-3 text-slate-700 leading-relaxed whitespace-pre-line">{r.text}</p>
                             </div>
 
                             <div className="text-right mt-6">

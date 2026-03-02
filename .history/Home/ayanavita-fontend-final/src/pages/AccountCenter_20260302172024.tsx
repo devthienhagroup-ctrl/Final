@@ -1948,7 +1948,7 @@ export default function AccountCenter() {
 
                         {!qrCountdown.expired ? (
                           <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                            Vui lòng hoàn tất thanh toán trong <span className="font-semibold">15 phút</span> kể từ lúc tạo đơn.<br></br>
+                            Vui lòng hoàn tất thanh toán trong <span className="font-semibold">15 phút</span> kể từ lúc tạo đơn.
                             Còn lại: <span className="font-semibold">{qrCountdown.text}</span>. Hạn thanh toán:{" "}
                             <span className="font-semibold">{formatDateTime(qrExpiresAt)}</span>.
                           </div>

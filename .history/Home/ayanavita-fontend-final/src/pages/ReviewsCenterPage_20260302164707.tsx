@@ -1048,12 +1048,12 @@ setModalOpen(false);
                                 </Button> */}
                               </div>
                                 
-                              <div className="mt-3 ml-3">
+                              <div className="mt-3">
                                 <b className="mb-3">{displayName}</b>
                                 <StarsRow value={r.rating} />
                               </div>
 
-                              <p className="mt-1 text-slate-700 leading-relaxed whitespace-pre-line card p-4 transform !translate-y-0">{r.text}</p>
+                              <p className="mt-1 text-slate-700 leading-relaxed whitespace-pre-line card p-5">{r.text}</p>
                             </div>
 
                             <div className="text-right mt-6">

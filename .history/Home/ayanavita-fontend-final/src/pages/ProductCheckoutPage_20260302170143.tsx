@@ -141,14 +141,6 @@ export default function ProductCheckoutPage() {
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrPayload, setQrPayload] = useState<{ qrUrl?: string; transferContent?: string; amount?: number; expiresAt?: string } | null>(null);
 
-const [qrRemainingSec, setQrRemainingSec] = useState<number | null>(null);
-
-const qrExpired = useMemo(() => {
-  if (qrRemainingSec === null) return false;
-  return qrRemainingSec <= 0;
-}, [qrRemainingSec]);
-
-
   // toast
   const [toast, setToast] = useState<{ open: boolean; title: string; msg: string }>({
     open: false,
@@ -165,40 +157,6 @@ const qrExpired = useMemo(() => {
     if (Number.isNaN(parsed.getTime())) return null;
     return parsed.toLocaleString("vi-VN");
   }, [qrPayload?.expiresAt]);
-
-
-const countdownText = useMemo(() => {
-  if (qrRemainingSec === null) return null;
-  const safe = Math.max(0, qrRemainingSec);
-  const mm = String(Math.floor(safe / 60)).padStart(2, "0");
-  const ss = String(safe % 60).padStart(2, "0");
-  return `${mm}:${ss}`;
-}, [qrRemainingSec]);
-
-useEffect(() => {
-  if (!showQrModal) return;
-
-  const expiresAt = qrPayload?.expiresAt;
-  if (!expiresAt) {
-    setQrRemainingSec(null);
-    return;
-  }
-
-  const deadline = new Date(expiresAt).getTime();
-  if (Number.isNaN(deadline)) {
-    setQrRemainingSec(null);
-    return;
-  }
-
-  const tick = () => {
-    const diffSec = Math.ceil((deadline - Date.now()) / 1000);
-    setQrRemainingSec(diffSec);
-  };
-
-  tick();
-  const id = window.setInterval(tick, 1000);
-  return () => window.clearInterval(id);
-}, [showQrModal, qrPayload?.expiresAt]);
 
   // persist state
   useEffect(() => {
@@ -551,24 +509,7 @@ useEffect(() => {
                 </div>
 
                 {qrPayload?.qrUrl ? (
-                    <div className="relative mx-auto mt-4 h-64 w-64">
-  <img
-    src={qrPayload.qrUrl}
-    alt="QR thanh toán"
-    className={[
-      "h-64 w-64 rounded-xl border border-slate-200 transition",
-      qrExpired ? "opacity-50 blur-sm" : "",
-    ].join(" ")}
-  />
-  {qrExpired ? (
-    <div className="absolute inset-0 flex items-center justify-center rounded-xl">
-      <div className="rounded-xl bg-white/90 px-4 py-3 text-center shadow">
-        <div className="text-sm font-bold text-slate-900">Hết hạn thanh toán</div>
-        <div className="mt-1 text-xs text-slate-600">Đơn hàng của bạn đã chuyển sang trạng thái hết hạn</div>
-      </div>
-    </div>
-  ) : null}
-</div>
+                    <img src={qrPayload.qrUrl} alt="QR thanh toán" className="mx-auto mt-4 h-64 w-64 rounded-xl border border-slate-200" />
                 ) : (
                     <div className="mt-4 rounded-xl bg-slate-100 p-4 text-sm text-slate-600">Không có dữ liệu QR.</div>
                 )}
@@ -578,37 +519,10 @@ useEffect(() => {
                   <p><span className="font-semibold">Nội dung CK:</span> {qrPayload?.transferContent || "-"}</p>
                 </div>
 
-                <div
-  className={[
-    "mt-3 rounded-lg px-3 py-2 text-xs",
-    qrExpired ? "bg-slate-100 text-slate-700" : "bg-amber-50 text-amber-700",
-  ].join(" ")}
->
-  {qrExpired ? (
-    <div className="space-y-1">
-                      <div className="font-semibold">{"{\"title\":\"Hết hạn thanh toán\"}"}</div>
-                      <div className="text-slate-600">{"{\"subtitle\":\"Đơn hàng của bạn đã chuyển sang trạng thái hết hạn\"}"}</div>
-                    </div>
-  ) : (
-    <>
-      <div>
-        Vui lòng hoàn tất thanh toán trong <span className="font-semibold">15 phút</span> kể từ lúc tạo đơn.
-        {paymentDeadlineText ? (
-          <>
-            {" "}
-            Hạn thanh toán: <span className="font-semibold">{paymentDeadlineText}</span>.
-          </>
-        ) : null}
-      </div>
-
-      {countdownText ? (
-        <div className="mt-1">
-          Thời gian còn lại: <span className="font-semibold">{countdownText}</span>
-        </div>
-      ) : null}
-    </>
-  )}
-</div>
+                <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                  Vui lòng hoàn tất thanh toán trong <span className="font-semibold">15 phút</span> kể từ lúc tạo đơn.
+                  {paymentDeadlineText ? <> Hạn thanh toán: <span className="font-semibold">{paymentDeadlineText}</span>.</> : null}
+                </div>
 
                 <p className="mt-3 text-xs text-slate-500">
                   Sau khi thanh toán thành công, hệ thống sẽ tự động cập nhật trạng thái đơn hàng.

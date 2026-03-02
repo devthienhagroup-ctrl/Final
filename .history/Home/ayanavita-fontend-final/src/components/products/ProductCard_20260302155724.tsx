@@ -78,7 +78,7 @@ export function ProductCard({
 }) {
   const { addItem } = useCart();
   const navigate = useNavigate();
-console.log("Rendering ProductCard for product:", p);
+
   const soldText = useMemo(
     () => new Intl.NumberFormat("vi-VN").format(p.sold ?? 0),
     [p.sold]

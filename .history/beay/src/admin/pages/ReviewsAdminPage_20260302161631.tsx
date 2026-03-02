@@ -1365,7 +1365,7 @@ export function ReviewsAdminPage() {
           gap: 4px;
           padding: 4px 8px;
           border-radius: 30px;
-          font-size: 8px;
+          font-size: 11px;
           font-weight: 500;
           background: var(--chip-bg);
           border: 1px solid var(--border);
@@ -1381,11 +1381,10 @@ export function ReviewsAdminPage() {
         .ar-sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
 
 .ar-table-actions {
-    display: flex;
+    display: grid;
     grid-template-columns: repeat(2, auto);
-    gap: 4px;
-    justify-content: center;
-    align-items: center;
+    gap: 8px;
+    justify-content: end;
 }
         .ar-icon-btn {
           width: 38px;
@@ -1907,6 +1906,7 @@ export function ReviewsAdminPage() {
                 <th>Đánh giá</th>
                 <th>Ảnh</th>
                 <th>Khách hàng</th>
+                <th>Trạng thái</th>
                 <th style={{ textAlign: 'right' }}>Thao tác</th>
               </tr>
             </thead>
@@ -1919,13 +1919,7 @@ export function ReviewsAdminPage() {
                     <td><input type="checkbox" checked={!!selectedIds[rv.id]} onChange={e => setSelectedIds(p => ({ ...p, [rv.id]: e.target.checked }))} /></td>
                     <td>
                       <div><i className="far fa-calendar-alt" /> {fmtDate(rv.createdAt)} <span className="ar-mono">{rv.createdTime}</span></div>
-                      <div className="ar-table-actions">
-                        {/* <div className="ar-sub"><i className="fas fa-hashtag" /> {rv.purchase.orderCode}</div> */}
-                        <span className={`ar-badge ${rv.flag === 'spam' ? 'spam' : rv.visibility}`}>
-                          <i className={`fas ${rv.flag === 'spam' ? 'fa-ban' : rv.visibility === 'visible' ? 'fa-eye' : 'fa-eye-slash'}`} />
-                          {rv.flag === 'spam' ? 'Spam' : rv.visibility === 'visible' ? 'Hiển thị' : 'Ẩn'}
-                        </span>
-                      </div>
+                      <div className="ar-sub"><i className="fas fa-hashtag" /> {rv.purchase.orderCode}</div>
                     </td>
                     <td>
                       <div className="ar-product-info">
@@ -1964,18 +1958,19 @@ export function ReviewsAdminPage() {
                         {!rv.isAnonymous && <span className="ar-customer-email">{rv.customer.email}</span>}
                       </div>
                     </td>
-                    {/* <td>
+                    <td>
                       <span className={`ar-badge ${rv.flag === 'spam' ? 'spam' : rv.visibility}`}>
                         <i className={`fas ${rv.flag === 'spam' ? 'fa-ban' : rv.visibility === 'visible' ? 'fa-eye' : 'fa-eye-slash'}`} />
                         {rv.flag === 'spam' ? 'Spam' : rv.visibility === 'visible' ? 'Hiển thị' : 'Ẩn'}
                       </span>
-                    </td> */}
+                    </td>
                     <td>
                       <div className="ar-table-actions">
                         <button className="ar-icon-btn" onClick={() => openDrawer(rv)} title="Xem chi tiết"><i className="fas fa-info-circle" /></button>
                         <button className="ar-icon-btn" onClick={() => toggleVisibility(rv.id)} title={rv.visibility === 'visible' ? 'Ẩn' : 'Hiện'}>
                           <i className={`fas ${rv.visibility === 'visible' ? 'fa-eye-slash' : 'fa-eye'}`} />
                         </button>
+                        <div></div>
                         <button className="ar-icon-btn" onClick={() => deleteReview(rv.id)} title="Xóa"><i className="fas fa-trash-alt" /></button>
                       </div>
                     </td>

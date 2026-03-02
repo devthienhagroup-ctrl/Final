@@ -1920,7 +1920,7 @@ export function ReviewsAdminPage() {
                     <td>
                       <div><i className="far fa-calendar-alt" /> {fmtDate(rv.createdAt)} <span className="ar-mono">{rv.createdTime}</span></div>
                       <div className="ar-table-actions">
-                        {/* <div className="ar-sub"><i className="fas fa-hashtag" /> {rv.purchase.orderCode}</div> */}
+                        <div className="ar-sub"><i className="fas fa-hashtag" /> {rv.purchase.orderCode}</div>
                         <span className={`ar-badge ${rv.flag === 'spam' ? 'spam' : rv.visibility}`}>
                           <i className={`fas ${rv.flag === 'spam' ? 'fa-ban' : rv.visibility === 'visible' ? 'fa-eye' : 'fa-eye-slash'}`} />
                           {rv.flag === 'spam' ? 'Spam' : rv.visibility === 'visible' ? 'Hiển thị' : 'Ẩn'}

@@ -1384,8 +1384,7 @@ export function ReviewsAdminPage() {
     display: flex;
     grid-template-columns: repeat(2, auto);
     gap: 4px;
-    justify-content: center;
-    align-items: center;
+    justify-content: end;
 }
         .ar-icon-btn {
           width: 38px;
@@ -1919,13 +1918,13 @@ export function ReviewsAdminPage() {
                     <td><input type="checkbox" checked={!!selectedIds[rv.id]} onChange={e => setSelectedIds(p => ({ ...p, [rv.id]: e.target.checked }))} /></td>
                     <td>
                       <div><i className="far fa-calendar-alt" /> {fmtDate(rv.createdAt)} <span className="ar-mono">{rv.createdTime}</span></div>
-                      <div className="ar-table-actions">
-                        {/* <div className="ar-sub"><i className="fas fa-hashtag" /> {rv.purchase.orderCode}</div> */}
-                        <span className={`ar-badge ${rv.flag === 'spam' ? 'spam' : rv.visibility}`}>
-                          <i className={`fas ${rv.flag === 'spam' ? 'fa-ban' : rv.visibility === 'visible' ? 'fa-eye' : 'fa-eye-slash'}`} />
-                          {rv.flag === 'spam' ? 'Spam' : rv.visibility === 'visible' ? 'Hiển thị' : 'Ẩn'}
-                        </span>
-                      </div>
+                      <div className="ar-mono">
+                      <div className="ar-sub"><i className="fas fa-hashtag" /> {rv.purchase.orderCode}</div>
+                      <span className={`ar-badge ${rv.flag === 'spam' ? 'spam' : rv.visibility}`}>
+                        <i className={`fas ${rv.flag === 'spam' ? 'fa-ban' : rv.visibility === 'visible' ? 'fa-eye' : 'fa-eye-slash'}`} />
+                        {rv.flag === 'spam' ? 'Spam' : rv.visibility === 'visible' ? 'Hiển thị' : 'Ẩn'}
+                      </span>
+
                     </td>
                     <td>
                       <div className="ar-product-info">

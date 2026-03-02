@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import type { CategoryProduct } from "../../data/productCategory.data";
 import { money } from "../../services/booking.utils";
 import { useCart } from "../../contexts/CartContext";
+import Swal from "sweetalert2";
 
 export type ProductCardCmsData = {
   soldLabel: string;
@@ -78,7 +79,7 @@ export function ProductCard({
 }) {
   const { addItem } = useCart();
   const navigate = useNavigate();
-console.log("Rendering ProductCard for product:", p);
+
   const soldText = useMemo(
     () => new Intl.NumberFormat("vi-VN").format(p.sold ?? 0),
     [p.sold]

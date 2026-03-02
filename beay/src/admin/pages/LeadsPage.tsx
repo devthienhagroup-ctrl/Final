@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { adminListLeads, type LeadRow, type LeadType } from "../api/leads.api";
-import { useAuth } from "../app/auth.store";
+import { useAuth } from "../../app/auth";
 import { useToast } from "../components/Toast";
 import { AppAlert } from "../components/AppAlert";
 

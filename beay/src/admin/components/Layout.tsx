@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useAuth } from "../app/auth.store";
+import { useAuth } from "../../app/auth";
 import { ToastProvider } from "./Toast";
 
 function NavItem({ to, label }: { to: string; label: string }) {

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { login } from "../api/auth.api";
-import { useAuth } from "../app/auth.store";
+import { useAuth } from "../../app/auth";
 
 export function LoginPage() {
   const { setToken } = useAuth();
@@ -380,4 +380,4 @@ code{
 }`}</style>
     </div>
   );
-}
+}

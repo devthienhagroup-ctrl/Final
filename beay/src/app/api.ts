@@ -1,21 +1,56 @@
 const API_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:8090").replace(/\/+$/, "");
 const TOKEN_KEY = "aya_admin_token";
 
+export type ApiError = {
+  status: number;
+  message: string;
+  raw?: string;
+};
+
 function joinUrl(path: string) {
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
   return `${API_BASE}${cleanPath}`;
 }
 
-export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem(TOKEN_KEY) || "";
+function resolveToken(overrideToken?: string) {
+  if (typeof overrideToken === "string") return overrideToken.trim();
+  return localStorage.getItem(TOKEN_KEY) || "";
+}
+
+async function readText(res: Response) {
+  try {
+    return await res.text();
+  } catch {
+    return "";
+  }
+}
+
+export async function request<T>(path: string, init: RequestInit = {}, tokenOverride?: string): Promise<T> {
+  const token = resolveToken(tokenOverride);
   const headers = new Headers(init.headers);
-  if (!headers.has("Content-Type") && init.body) headers.set("Content-Type", "application/json");
+  const hasJsonBody = init.body && !(init.body instanceof FormData);
+
+  if (!headers.has("Content-Type") && hasJsonBody) headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const response = await fetch(joinUrl(path), { ...init, headers, credentials: "include" });
-  const text = await response.text();
-  if (!response.ok) throw new Error(text || `HTTP ${response.status}`);
-  return text ? (JSON.parse(text) as T) : ({} as T);
+  const text = await readText(response);
+
+  if (!response.ok) {
+    throw {
+      status: response.status,
+      message: text || response.statusText,
+      raw: text,
+    } as ApiError;
+  }
+
+  if (response.status === 204 || !text) return {} as T;
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return text as T;
+  }
 }
 
 type LoginResponse = {

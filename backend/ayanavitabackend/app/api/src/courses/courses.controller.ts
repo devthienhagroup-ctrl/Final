@@ -86,8 +86,8 @@ export class CoursesController {
 
   @UseGuards(AccessTokenGuard)
   @Get(':id/lessons')
-  listLessons(@CurrentUser() user: any, @Param('id', ParseIntPipe) id: number) {
-    return this.courses.listLessons(user, id)
+  listLessons(@CurrentUser() user: any, @Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
+    return this.courses.listLessons(user, id, lang)
   }
 
   @UseGuards(AccessTokenGuard)

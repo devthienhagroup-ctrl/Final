@@ -357,13 +357,22 @@ export class CoursesService {
   }
 
 
-  async listLessons(user: { sub: number; role: string }, courseId: number) { /* kept */
+  async listLessons(user: { sub: number; role: string }, courseId: number, lang?: string) { /* kept */
+    const lessonLocale = this.resolveCourseLocale(lang)
     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } }); if (!course) throw new NotFoundException('Course not found'); await this.enrollments.assertEnrolledOrAdmin(user, courseId); if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
-    const lessons = await this.prisma.lesson.findMany({ where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) }, select: { id: true, courseId: true, title: true, slug: true, order: true, published: true, createdAt: true, updatedAt: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] })
-    if (user.role === 'ADMIN') return lessons.map((l) => ({ ...l, locked: false, lockReason: null, progress: null }))
+    const lessons = await this.prisma.lesson.findMany({ where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) }, select: { id: true, courseId: true, title: true, slug: true, description: true, order: true, published: true, createdAt: true, updatedAt: true, translations: { where: { locale: { in: [lessonLocale, 'vi'] } }, select: { locale: true, title: true, description: true } } }, orderBy: [{ order: 'asc' }, { id: 'asc' }] })
+    const localizedLessons = lessons.map((lesson: any) => {
+      const tr = lesson.translations?.find((item: any) => item.locale === lessonLocale) || lesson.translations?.find((item: any) => item.locale === 'vi')
+      return {
+        ...lesson,
+        localizedTitle: tr?.title || lesson.title,
+        localizedDescription: tr?.description || lesson.description || null,
+      }
+    })
+    if (user.role === 'ADMIN') return localizedLessons.map((l) => ({ ...l, locked: false, lockReason: null, progress: null }))
     const progressRows = await this.prisma.lessonProgress.findMany({ where: { userId: user.sub, lessonId: { in: lessons.map((l) => l.id) } }, select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true } })
     const progressMap = new Map(progressRows.map((p) => [p.lessonId, p])); let prevCompleted = true
-    return lessons.map((lesson, idx) => { const progress = progressMap.get(lesson.id) ?? null; const locked = idx === 0 ? false : prevCompleted === false; const lockReason = locked ? 'PREV_NOT_COMPLETED' : null; prevCompleted = progress?.status === ProgressStatus.COMPLETED; return { ...lesson, locked, lockReason, progress } })
+    return localizedLessons.map((lesson, idx) => { const progress = progressMap.get(lesson.id) ?? null; const locked = idx === 0 ? false : prevCompleted === false; const lockReason = locked ? 'PREV_NOT_COMPLETED' : null; prevCompleted = progress?.status === ProgressStatus.COMPLETED; return { ...lesson, locked, lockReason, progress } })
   }
 
   async getLessonDetail(user: { sub: number; role: string }, courseId: number, lessonId: number) { /* kept */

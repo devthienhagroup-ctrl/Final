@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useToast } from "../../ui/toast";
-import { studentApi, type ApiCourseDetail, type ApiCourseProgress, type ApiLesson, type ApiLessonDetail, type ApiLessonVideo } from "../student/student.api";
+import { studentApi, type ApiCourseDetail, type ApiCourseProgress, type ApiCourseReview, type ApiLesson, type ApiLessonDetail, type ApiLessonVideo } from "../student/student.api";
 
 type Lang = "vi" | "en" | "de";
 type RatingState = { stars: number; comment: string; createdAt: string };
 
 const clamp2: CSSProperties = {
   display: "-webkit-box",
-  WebkitLineClamp: 2,
+  WebkitLineClamp: 4,
   WebkitBoxOrient: "vertical",
   overflow: "hidden",
 };
@@ -44,6 +44,23 @@ const i18n: Record<Lang, Record<string, string>> = {
     descCourse: "Mô tả khoá học",
     descLesson: "Mô tả bài học",
     descModule: "Mô tả module",
+    defaultCourseSummary: "Player + giáo trình + quiz + bài tập.",
+    beginner: "Cơ bản",
+    lessonLabel: "Bài",
+    noLessonDescription: "Không có mô tả.",
+    noComment: "(Không có nhận xét)",
+    reviewPlaceholder: "Chia sẻ cảm nhận của bạn...",
+    toastNotice: "Thông báo",
+    toastNoLesson: "Chưa có bài học để bắt đầu.",
+    toastSuccess: "Thành công",
+    toastResetSuccess: "Đã reset tiến độ khoá học.",
+    toastError: "Lỗi",
+    toastResetFail: "Không thể reset tiến độ.",
+    toastReviewSuccess: "Đã gửi đánh giá khoá học.",
+    courseFallback: "Khoá học",
+    minute: "phút",
+    hourUnit: "giờ",
+    cannotLoadCourse: "Không thể tải chi tiết khoá học.",
   },
   en: {
     title: "COURSE DETAIL",
@@ -68,6 +85,23 @@ const i18n: Record<Lang, Record<string, string>> = {
     descCourse: "Course description",
     descLesson: "Lesson description",
     descModule: "Module description",
+    defaultCourseSummary: "Player + curriculum + quiz + assignment.",
+    beginner: "Beginner",
+    lessonLabel: "Lesson",
+    noLessonDescription: "No description.",
+    noComment: "(No comment)",
+    reviewPlaceholder: "Share your feedback...",
+    toastNotice: "Notice",
+    toastNoLesson: "No lesson available to start.",
+    toastSuccess: "Success",
+    toastResetSuccess: "Course progress has been reset.",
+    toastError: "Error",
+    toastResetFail: "Cannot reset course progress.",
+    toastReviewSuccess: "Course review submitted.",
+    courseFallback: "Course",
+    minute: "min",
+    hourUnit: "h",
+    cannotLoadCourse: "Cannot load course detail.",
   },
   de: {
     title: "KURSDETAIL",
@@ -92,6 +126,23 @@ const i18n: Record<Lang, Record<string, string>> = {
     descCourse: "Kursbeschreibung",
     descLesson: "Lektionsbeschreibung",
     descModule: "Modulbeschreibung",
+    defaultCourseSummary: "Player + Lehrplan + Quiz + Aufgaben.",
+    beginner: "Anfänger",
+    lessonLabel: "Lektion",
+    noLessonDescription: "Keine Beschreibung.",
+    noComment: "(Kein Kommentar)",
+    reviewPlaceholder: "Teilen Sie Ihr Feedback...",
+    toastNotice: "Hinweis",
+    toastNoLesson: "Keine Lektion zum Starten verfügbar.",
+    toastSuccess: "Erfolg",
+    toastResetSuccess: "Der Kursfortschritt wurde zurückgesetzt.",
+    toastError: "Fehler",
+    toastResetFail: "Kursfortschritt konnte nicht zurückgesetzt werden.",
+    toastReviewSuccess: "Kursbewertung gesendet.",
+    courseFallback: "Kurs",
+    minute: "Min",
+    hourUnit: "Std",
+    cannotLoadCourse: "Kursdetails können nicht geladen werden.",
   },
 };
 
@@ -119,6 +170,7 @@ export function StudentCourseDetailPage() {
   const [course, setCourse] = useState<ApiCourseDetail | null>(null);
   const [lessons, setLessons] = useState<ApiLesson[]>([]);
   const [progress, setProgress] = useState<ApiCourseProgress | null>(null);
+  const [reviews, setReviews] = useState<ApiCourseReview[]>([]);
   const [activeLesson, setActiveLesson] = useState<ApiLessonDetail | null>(null);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
@@ -139,10 +191,11 @@ export function StudentCourseDetailPage() {
     setLoading(true);
     setErr(null);
     try {
-      const [courseData, progressData, lessonRows] = await Promise.all([
+      const [courseData, progressData, lessonRows, reviewRows] = await Promise.all([
         studentApi.courseDetail(courseId, lang),
         studentApi.courseProgress(courseId),
-        studentApi.courseLessons(courseId),
+        studentApi.courseLessons(courseId, lang),
+        studentApi.courseReviews(courseId),
       ]);
       const sortedLessons = sortLessons(lessonRows);
       const fallbackLessonId = sortedLessons[Math.min(progressData.completedLessons ?? 0, Math.max(0, sortedLessons.length - 1))]?.id;
@@ -151,6 +204,7 @@ export function StudentCourseDetailPage() {
       setCourse(courseData);
       setProgress(progressData);
       setLessons(sortedLessons);
+      setReviews(reviewRows);
 
       if (selectedLessonId) {
         const lessonDetail = await studentApi.lessonDetail(selectedLessonId, lang);
@@ -161,7 +215,7 @@ export function StudentCourseDetailPage() {
         setOpenModules({});
       }
     } catch (e: any) {
-      setErr(e?.message || "Cannot load course detail.");
+      setErr(e?.message || t.cannotLoadCourse);
     } finally {
       setLoading(false);
     }
@@ -203,7 +257,7 @@ export function StudentCourseDetailPage() {
 
   async function startLearning() {
     if (!activeLesson?.id) {
-      toast("Thông báo", "Chưa có bài học để bắt đầu.");
+      toast(t.toastNotice, t.toastNoLesson);
       return;
     }
     nav(`/student/lessons/${activeLesson.id}?courseId=${courseId}&lang=${lang}`);
@@ -222,9 +276,9 @@ export function StudentCourseDetailPage() {
         }
       }
       await loadData(activeLesson?.id);
-      toast("Thành công", "Đã reset tiến độ khoá học.");
+      toast(t.toastSuccess, t.toastResetSuccess);
     } catch (e: any) {
-      toast("Lỗi", e?.message || "Không thể reset tiến độ.");
+      toast(t.toastError, e?.message || t.toastResetFail);
     } finally {
       setIsResetting(false);
     }
@@ -235,7 +289,7 @@ export function StudentCourseDetailPage() {
     const payload: RatingState = { stars: rating, comment: comment.trim(), createdAt: new Date().toISOString() };
     localStorage.setItem(reviewStorageKey(courseId), JSON.stringify(payload));
     setMyReview(payload);
-    toast("Thành công", "Đã gửi đánh giá khoá học.");
+    toast(t.toastSuccess, t.toastReviewSuccess);
   }
 
   const lessonProgressPercent = useMemo(() => {
@@ -244,26 +298,42 @@ export function StudentCourseDetailPage() {
     return Math.round((done / activeLesson.modules.length) * 100);
   }, [activeLesson]);
 
+  const ratingAvgFromReviews = useMemo(() => {
+    if (!reviews.length) return Number(course?.ratingAvg || 0);
+    const total = reviews.reduce((sum, item) => sum + (Number(item.stars) || 0), 0);
+    return Number((total / reviews.length).toFixed(1));
+  }, [reviews, course?.ratingAvg]);
+
+  const displayStudyTime = useMemo(() => {
+    const raw = String(course?.time || "").trim();
+    const parsed = Number(raw.replace(",", ".").replace(/[^0-9.]/g, ""));
+
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return `${parsed % 1 === 0 ? parsed.toFixed(0) : parsed.toFixed(1)} ${t.hourUnit}`;
+    }
+
+    return `0 ${t.hourUnit}`;
+  }, [course?.time, t.hourUnit]);
+
   return (
     <div className="min-h-screen text-slate-900" style={{ background: "radial-gradient(900px 420px at 10% 0%, rgba(79,70,229,0.14), transparent 60%), radial-gradient(700px 380px at 95% 10%, rgba(14,165,233,0.14), transparent 60%), linear-gradient(to bottom, #f8fafc, #eef2ff)" }}>
       <main className="mx-auto max-w-[1300px] px-4 py-6 md:px-8 space-y-5">
         <section className="rounded-[20px] border border-white/80 bg-white/95 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.10)]">
           <div className="grid gap-4 lg:grid-cols-[1.1fr_1.6fr]">
             <div className="relative overflow-hidden rounded-2xl">
-              <img className="h-[220px] w-full object-cover" src={course?.thumbnail || "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&auto=format&fit=crop"} alt={course?.title || "thumbnail"} />
+              <img className="h-[220px] w-full rounded-2xl object-cover" src={course?.thumbnail || "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&auto=format&fit=crop"} alt={course?.title || "thumbnail"} />
               <div className="absolute bottom-3 left-3 flex gap-2 text-xs font-bold">
-                <span className="rounded-xl bg-white/90 px-2 py-1">⭐ {course?.ratingAvg || 0}</span>
-                <span className="rounded-xl bg-white/90 px-2 py-1">👥 {course?.enrollmentCount || 0}</span>
-                <span className="rounded-xl bg-white/90 px-2 py-1">⏱ {course?.time || "0 phút"}</span>
+                <span className="rounded-xl bg-white/90 px-2 py-1">⭐ {ratingAvgFromReviews}</span>
+                <span className="rounded-xl bg-white/90 px-2 py-1">⏱ {displayStudyTime}</span>
               </div>
             </div>
             <div>
               <div className="text-xs font-extrabold text-slate-500">{t.title}</div>
-              <h1 className="text-4xl font-black leading-tight">{course?.title || `Course #${courseId}`}</h1>
-              <div className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-sm font-medium text-black ring-1 ring-slate-200">{course?.shortDescription || course?.description || "Player + curriculum + quiz + assignment."}</div>
+              <h1 className="text-4xl font-black leading-tight">{course?.title || `${t.courseFallback} #${courseId}`}</h1>
+              <div className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-sm font-medium text-black ring-1 ring-slate-200">{course?.shortDescription || course?.description || t.defaultCourseSummary}</div>
               <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
                 <span className="rounded-xl bg-amber-100 px-3 py-1 text-amber-700">💰 {course?.price?.toLocaleString("vi-VN") || 0}</span>
-                <span className="rounded-xl bg-blue-100 px-3 py-1 text-blue-700">📘 Beginner</span>
+                <span className="rounded-xl bg-blue-100 px-3 py-1 text-blue-700">📘 {t.beginner}</span>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 <button className="btn" onClick={() => nav("/student")}>← {t.back}</button>
@@ -355,9 +425,9 @@ export function StudentCourseDetailPage() {
                       <span className="absolute left-2 top-2 inline-flex h-3 w-3 rounded-full border-2 border-sky-200 bg-sky-400" />
                       <div className="ml-4 flex items-center justify-between">
                         <div>
-                          <div className="text-xs text-slate-500">Bài {idx + 1}</div>
+                          <div className="text-xs text-slate-500">{t.lessonLabel} {idx + 1}</div>
                           <div className="font-semibold">{lesson.localizedTitle || lesson.title}</div>
-                          <div className="mt-1 rounded-lg bg-white px-2 py-1 text-xs text-black ring-1 ring-slate-200" style={clamp2}>{lesson.localizedDescription || lesson.description || "Không có mô tả."}</div>
+                          <div className="mt-1 rounded-lg bg-white px-2 py-1 text-xs text-black ring-1 ring-slate-200" style={clamp2}>{lesson.localizedDescription || lesson.description || t.noLessonDescription}</div>
                         </div>
                         <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${isDone ? "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" : "bg-amber-100 text-amber-700 ring-1 ring-amber-200"}`}>
                           <i className={`fa-solid ${isDone ? "fa-check" : "fa-clock"}`} />
@@ -375,7 +445,7 @@ export function StudentCourseDetailPage() {
               {myReview ? (
                 <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800 ring-1 ring-emerald-200">
                   <div>{t.reviewDone}</div>
-                  <div className="mt-1">⭐ {myReview.stars}/5 • {myReview.comment || "(Không có nhận xét)"}</div>
+                  <div className="mt-1">⭐ {myReview.stars}/5 • {myReview.comment || t.noComment}</div>
                 </div>
               ) : (
                 <>
@@ -387,7 +457,7 @@ export function StudentCourseDetailPage() {
                       </button>
                     ))}
                   </div>
-                  <textarea className="mt-3 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-300" rows={3} placeholder="Chia sẻ cảm nhận của bạn..." value={comment} onChange={(e) => setComment(e.target.value)} />
+                  <textarea className="mt-3 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-300" rows={3} placeholder={t.reviewPlaceholder} value={comment} onChange={(e) => setComment(e.target.value)} />
                   <button className="btn btn-primary mt-3 w-full" onClick={submitReview}>{t.submit}</button>
                 </>
               )}

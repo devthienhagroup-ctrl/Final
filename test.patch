@@ -1,30 +1,166 @@
+diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
+index fa651481fc76cbfb73407f716cea9acc25902cc0..d3a676a881a9ed756f3dd16f4b6a51420a012eae 100644
+--- a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
+@@ -64,52 +64,52 @@ export class CoursesController {
+     @Query('lang') lang?: string,
+   ) {
+     return this.courses.lessonsOutline(user, id, lang)
+   }
+
+   @Get()
+   @UseGuards(OptionalAccessTokenGuard)
+   findAll(@CurrentUser() user: JwtUser | null, @Query() query: CourseQueryDto) {
+     return this.courses.findAll(query, user)
+   }
+
+   @Get('topics')
+   @UseGuards(OptionalAccessTokenGuard)
+   listTopics(@CurrentUser() user: JwtUser | null, @Query('lang') lang?: string) {
+     return this.courses.listTopics(lang, user)
+   }
+
+   @UseGuards(AccessTokenGuard)
+   @Get(':id')
+   findOne(@Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
+     return this.courses.findOne(id, lang)
+   }
+
+   @UseGuards(AccessTokenGuard)
+   @Get(':id/lessons')
+-  listLessons(@CurrentUser() user: any, @Param('id', ParseIntPipe) id: number) {
+-    return this.courses.listLessons(user, id)
++  listLessons(@CurrentUser() user: any, @Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
++    return this.courses.listLessons(user, id, lang)
+   }
+
+   @UseGuards(AccessTokenGuard)
+   @Get(':id/reviews')
+   listReviews(@Param('id', ParseIntPipe) id: number) {
+     return this.courses.listReviews(id)
+   }
+
+   @UseGuards(AccessTokenGuard)
+   @Post(':id/reviews')
+   upsertReview(
+     @CurrentUser() user: JwtUser,
+     @Param('id', ParseIntPipe) id: number,
+     @Body() dto: UpsertCourseReviewDto,
+   ) {
+     return this.courses.upsertReview(user, id, dto)
+   }
+
+   @UseGuards(AccessTokenGuard)
+   @Get(':id/lessons/:lessonId')
+   getLesson(
+     @CurrentUser() user: any,
+     @Param('id', ParseIntPipe) courseId: number,
+     @Param('lessonId', ParseIntPipe) lessonId: number,
+   ) {
+diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
+index f38d021f4c1bb42b6d2ea72bc9328369ba479d7b..bd08cd1961e23bbce16fbb805dce35aa08ccc72b 100644
+--- a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
++++ b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
+@@ -335,57 +335,66 @@ export class CoursesService {
+         skip: (page - 1) * pageSize, take: pageSize, orderBy: { id: 'desc' },
+       }),
+       this.prisma.course.count({ where }),
+     ])
+     const courseIds = rows.map((r) => r.id)
+     if (!courseIds.length) return { items: [], total, page, pageSize }
+     const videoRows = await this.prisma.$queryRaw<Array<{ courseId: number; videoCount: bigint | number }>>`SELECT l.courseId as courseId, COUNT(v.id) as videoCount FROM LessonVideo v INNER JOIN LessonModule m ON m.id = v.moduleId INNER JOIN Lesson l ON l.id = m.lessonId WHERE l.courseId IN (${Prisma.join(courseIds)}) GROUP BY l.courseId`
+     const videoCountMap = new Map(videoRows.map((r) => [Number(r.courseId), Number(r.videoCount)]))
+     const items = rows.map((row: any) => {
+       const tr = row.translations?.find((x: any) => x.locale === courseLocale) || row.translations?.find((x: any) => x.locale === 'vi')
+       const ct = row.translations?.find((x: any) => x.locale === courseLocale) || row.translations?.find((x: any) => x.locale === 'vi')
+       const legacyCt = row.contentTranslations?.find((x: any) => x.locale === courseLocale) || row.contentTranslations?.find((x: any) => x.locale === 'vi')
+       const tt = row.topic?.translations?.find((x: any) => x.locale === topicLocale) || row.topic?.translations?.find((x: any) => x.locale === 'vi')
+       return { ...row, title: tr?.title || row.title, shortDescription: tr?.shortDescription || row.shortDescription, description: tr?.description || row.description, objectives: ct?.objectives || legacyCt?.objectives || row.objectives, targetAudience: ct?.targetAudience || legacyCt?.targetAudience || row.targetAudience, benefits: ct?.benefits || legacyCt?.benefits || row.benefits, topic: row.topic ? { id: row.topic.id, name: tt?.name || row.topic.name } : null, videoCount: videoCountMap.get(row.id) || 0 }
+     })
+     return { items, total, page, pageSize }
+   }
+
+   async assertCreator(courseId: number, userId: number) {
+     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, creatorId: true } })
+     if (!course) throw new NotFoundException('Course not found')
+     if (course.creatorId !== userId) throw new ForbiddenException('You do not have permission for this course')
+   }
+
+
+-  async listLessons(user: { sub: number; role: string }, courseId: number) { /* kept */
++  async listLessons(user: { sub: number; role: string }, courseId: number, lang?: string) { /* kept */
++    const lessonLocale = this.resolveCourseLocale(lang)
+     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } }); if (!course) throw new NotFoundException('Course not found'); await this.enrollments.assertEnrolledOrAdmin(user, courseId); if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
+-    const lessons = await this.prisma.lesson.findMany({ where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) }, select: { id: true, courseId: true, title: true, slug: true, order: true, published: true, createdAt: true, updatedAt: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] })
+-    if (user.role === 'ADMIN') return lessons.map((l) => ({ ...l, locked: false, lockReason: null, progress: null }))
++    const lessons = await this.prisma.lesson.findMany({ where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) }, select: { id: true, courseId: true, title: true, slug: true, description: true, order: true, published: true, createdAt: true, updatedAt: true, translations: { where: { locale: { in: [lessonLocale, 'vi'] } }, select: { locale: true, title: true, description: true } } }, orderBy: [{ order: 'asc' }, { id: 'asc' }] })
++    const localizedLessons = lessons.map((lesson: any) => {
++      const tr = lesson.translations?.find((item: any) => item.locale === lessonLocale) || lesson.translations?.find((item: any) => item.locale === 'vi')
++      return {
++        ...lesson,
++        localizedTitle: tr?.title || lesson.title,
++        localizedDescription: tr?.description || lesson.description || null,
++      }
++    })
++    if (user.role === 'ADMIN') return localizedLessons.map((l) => ({ ...l, locked: false, lockReason: null, progress: null }))
+     const progressRows = await this.prisma.lessonProgress.findMany({ where: { userId: user.sub, lessonId: { in: lessons.map((l) => l.id) } }, select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true } })
+     const progressMap = new Map(progressRows.map((p) => [p.lessonId, p])); let prevCompleted = true
+-    return lessons.map((lesson, idx) => { const progress = progressMap.get(lesson.id) ?? null; const locked = idx === 0 ? false : prevCompleted === false; const lockReason = locked ? 'PREV_NOT_COMPLETED' : null; prevCompleted = progress?.status === ProgressStatus.COMPLETED; return { ...lesson, locked, lockReason, progress } })
++    return localizedLessons.map((lesson, idx) => { const progress = progressMap.get(lesson.id) ?? null; const locked = idx === 0 ? false : prevCompleted === false; const lockReason = locked ? 'PREV_NOT_COMPLETED' : null; prevCompleted = progress?.status === ProgressStatus.COMPLETED; return { ...lesson, locked, lockReason, progress } })
+   }
+
+   async getLessonDetail(user: { sub: number; role: string }, courseId: number, lessonId: number) { /* kept */
+     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } }); if (!course) throw new NotFoundException('Course not found'); await this.enrollments.assertEnrolledOrAdmin(user, courseId); if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
+     const lesson = await this.prisma.lesson.findFirst({ where: { id: lessonId, courseId }, select: { id: true, courseId: true, title: true, slug: true, content: true, videoUrl: true, order: true, published: true, createdAt: true, updatedAt: true } }); if (!lesson) throw new NotFoundException('Lesson not found')
+     if (user.role !== 'ADMIN' && !lesson.published) throw new NotFoundException('Lesson not found')
+     if (user.role !== 'ADMIN') { const orderedLessons = await this.prisma.lesson.findMany({ where: { courseId, published: true }, select: { id: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] }); const idx = orderedLessons.findIndex((l) => l.id === lessonId); if (idx < 0) throw new NotFoundException('Lesson not found'); if (idx > 0) { const prevLessonId = orderedLessons[idx - 1].id; const prevProgress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId: prevLessonId } }, select: { status: true } }); if (prevProgress?.status !== ProgressStatus.COMPLETED) throw new ForbiddenException('Lesson locked') } }
+     const progress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId } }, select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true } })
+     return { ...lesson, progress: progress ?? null }
+   }
+
+   async listReviews(courseId: number) {
+     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } })
+     if (!course) throw new NotFoundException('Course not found')
+
+     const rows = await this.prisma.courseReview.findMany({
+       where: { courseId },
+       orderBy: { createdAt: 'desc' },
+       take: 50,
+       select: {
+         id: true,
+         stars: true,
+         comment: true,
+         customerName: true,
+         createdAt: true,
 diff --git a/beay/src/pages/admin/StudentCourseDetailPage.tsx b/beay/src/pages/admin/StudentCourseDetailPage.tsx
-index 51072c2f77b28f47ebaf0a0d90668ae16ec363ac..c6377b3ec758d66d7d4847aa6b465d674bf4f57e 100644
+index c6377b3ec758d66d7d4847aa6b465d674bf4f57e..f77ddca9b870f5251742dded4a9ac180a1e79cb1 100644
 --- a/beay/src/pages/admin/StudentCourseDetailPage.tsx
 +++ b/beay/src/pages/admin/StudentCourseDetailPage.tsx
-@@ -1,40 +1,47 @@
+@@ -1,291 +1,360 @@
  import { useEffect, useMemo, useState, type CSSProperties } from "react";
  import { useNavigate, useParams, useSearchParams } from "react-router-dom";
  import { useToast } from "../../ui/toast";
- import { studentApi, type ApiCourseDetail, type ApiCourseProgress, type ApiLesson, type ApiLessonDetail, type ApiLessonVideo } from "../student/student.api";
+-import { studentApi, type ApiCourseDetail, type ApiCourseProgress, type ApiLesson, type ApiLessonDetail, type ApiLessonVideo } from "../student/student.api";
++import { studentApi, type ApiCourseDetail, type ApiCourseProgress, type ApiCourseReview, type ApiLesson, type ApiLessonDetail, type ApiLessonVideo } from "../student/student.api";
 
  type Lang = "vi" | "en" | "de";
  type RatingState = { stars: number; comment: string; createdAt: string };
 
  const clamp2: CSSProperties = {
    display: "-webkit-box",
-   WebkitLineClamp: 2,
+-  WebkitLineClamp: 2,
++  WebkitLineClamp: 4,
    WebkitBoxOrient: "vertical",
    overflow: "hidden",
  };
 
-+const availableLangs: Lang[] = ["vi", "en", "de"];
-+
-+function normalizeLang(value: string | null): Lang {
-+  if (value === "en" || value === "de" || value === "vi") return value;
-+  return "vi";
-+}
-+
+ const availableLangs: Lang[] = ["vi", "en", "de"];
+
+ function normalizeLang(value: string | null): Lang {
+   if (value === "en" || value === "de" || value === "vi") return value;
+   return "vi";
+ }
+
  const i18n: Record<Lang, Record<string, string>> = {
    vi: {
      title: "COURSE DETAIL",
@@ -49,8 +185,81 @@ index 51072c2f77b28f47ebaf0a0d90668ae16ec363ac..c6377b3ec758d66d7d4847aa6b465d67
      descCourse: "Mô tả khoá học",
      descLesson: "Mô tả bài học",
      descModule: "Mô tả module",
++    defaultCourseSummary: "Player + giáo trình + quiz + bài tập.",
++    beginner: "Cơ bản",
++    lessonLabel: "Bài",
++    noLessonDescription: "Không có mô tả.",
++    noComment: "(Không có nhận xét)",
++    reviewPlaceholder: "Chia sẻ cảm nhận của bạn...",
++    toastNotice: "Thông báo",
++    toastNoLesson: "Chưa có bài học để bắt đầu.",
++    toastSuccess: "Thành công",
++    toastResetSuccess: "Đã reset tiến độ khoá học.",
++    toastError: "Lỗi",
++    toastResetFail: "Không thể reset tiến độ.",
++    toastReviewSuccess: "Đã gửi đánh giá khoá học.",
++    courseFallback: "Khoá học",
++    minute: "phút",
++    hourUnit: "giờ",
++    cannotLoadCourse: "Không thể tải chi tiết khoá học.",
    },
-@@ -81,203 +88,261 @@ const i18n: Record<Lang, Record<string, string>> = {
+   en: {
+     title: "COURSE DETAIL",
+     back: "Back",
+     continue: "Start learning",
+     reset: "Reset progress",
+     loading: "Loading data...",
+     lessonList: "Curriculum",
+     progress: "Progress",
+     objective: "Objectives",
+     audience: "Target audience",
+     benefits: "Benefits",
+     noLesson: "No lessons yet.",
+     reviewTitle: "Course review",
+     reviewDone: "You already reviewed this course.",
+     reviewOnce: "Each student can review only once per course.",
+     submit: "Submit review",
+     continueLesson: "Player",
+     noModule: "No modules/videos yet.",
+     completeModule: "Mark done",
+     watched: "Watched",
+     descCourse: "Course description",
+     descLesson: "Lesson description",
+     descModule: "Module description",
++    defaultCourseSummary: "Player + curriculum + quiz + assignment.",
++    beginner: "Beginner",
++    lessonLabel: "Lesson",
++    noLessonDescription: "No description.",
++    noComment: "(No comment)",
++    reviewPlaceholder: "Share your feedback...",
++    toastNotice: "Notice",
++    toastNoLesson: "No lesson available to start.",
++    toastSuccess: "Success",
++    toastResetSuccess: "Course progress has been reset.",
++    toastError: "Error",
++    toastResetFail: "Cannot reset course progress.",
++    toastReviewSuccess: "Course review submitted.",
++    courseFallback: "Course",
++    minute: "min",
++    hourUnit: "h",
++    cannotLoadCourse: "Cannot load course detail.",
+   },
+   de: {
+     title: "KURSDETAIL",
+     back: "Zurück",
+     continue: "Start learning",
+     reset: "Fortschritt zurücksetzen",
+     loading: "Lade Daten...",
+     lessonList: "Kursinhalt",
+     progress: "Fortschritt",
+     objective: "Lernziele",
+     audience: "Zielgruppe",
+     benefits: "Vorteile",
+     noLesson: "Noch keine Lektionen.",
+     reviewTitle: "Kursbewertung",
+     reviewDone: "Sie haben bereits bewertet.",
+     reviewOnce: "Eine Bewertung pro Kurs.",
+     submit: "Bewerten",
      continueLesson: "Player",
      noModule: "Noch keine Module/Videos.",
      completeModule: "Als erledigt markieren",
@@ -58,6 +267,23 @@ index 51072c2f77b28f47ebaf0a0d90668ae16ec363ac..c6377b3ec758d66d7d4847aa6b465d67
      descCourse: "Kursbeschreibung",
      descLesson: "Lektionsbeschreibung",
      descModule: "Modulbeschreibung",
++    defaultCourseSummary: "Player + Lehrplan + Quiz + Aufgaben.",
++    beginner: "Anfänger",
++    lessonLabel: "Lektion",
++    noLessonDescription: "Keine Beschreibung.",
++    noComment: "(Kein Kommentar)",
++    reviewPlaceholder: "Teilen Sie Ihr Feedback...",
++    toastNotice: "Hinweis",
++    toastNoLesson: "Keine Lektion zum Starten verfügbar.",
++    toastSuccess: "Erfolg",
++    toastResetSuccess: "Der Kursfortschritt wurde zurückgesetzt.",
++    toastError: "Fehler",
++    toastResetFail: "Kursfortschritt konnte nicht zurückgesetzt werden.",
++    toastReviewSuccess: "Kursbewertung gesendet.",
++    courseFallback: "Kurs",
++    minute: "Min",
++    hourUnit: "Std",
++    cannotLoadCourse: "Kursdetails können nicht geladen werden.",
    },
  };
 
@@ -76,8 +302,7 @@ index 51072c2f77b28f47ebaf0a0d90668ae16ec363ac..c6377b3ec758d66d7d4847aa6b465d67
    const { toast } = useToast();
 
    const courseId = Number(id || 0);
--  const lang = ((sp.get("lang") as Lang) || "vi");
-+  const lang = normalizeLang(sp.get("lang"));
+   const lang = normalizeLang(sp.get("lang"));
    const lessonIdFromQuery = Number(sp.get("lessonId") || 0);
    const t = i18n[lang];
 
@@ -86,18 +311,19 @@ index 51072c2f77b28f47ebaf0a0d90668ae16ec363ac..c6377b3ec758d66d7d4847aa6b465d67
    const [course, setCourse] = useState<ApiCourseDetail | null>(null);
    const [lessons, setLessons] = useState<ApiLesson[]>([]);
    const [progress, setProgress] = useState<ApiCourseProgress | null>(null);
++  const [reviews, setReviews] = useState<ApiCourseReview[]>([]);
    const [activeLesson, setActiveLesson] = useState<ApiLessonDetail | null>(null);
    const [rating, setRating] = useState(5);
    const [comment, setComment] = useState("");
    const [myReview, setMyReview] = useState<RatingState | null>(null);
    const [openModules, setOpenModules] = useState<Record<number, boolean>>({});
-+  const [isResetting, setIsResetting] = useState(false);
-+
-+  function buildDefaultOpenModules(lesson: ApiLessonDetail | null) {
-+    if (!lesson?.modules?.length) return {};
-+    const [firstModule] = lesson.modules;
-+    return firstModule ? { [firstModule.id]: true } : {};
-+  }
+   const [isResetting, setIsResetting] = useState(false);
+
+   function buildDefaultOpenModules(lesson: ApiLessonDetail | null) {
+     if (!lesson?.modules?.length) return {};
+     const [firstModule] = lesson.modules;
+     return firstModule ? { [firstModule.id]: true } : {};
+   }
 
    const completedLessonIds = useMemo(() => new Set((progress?.items || []).filter((x) => x.status === "COMPLETED").map((x) => x.lessonId)), [progress]);
 
@@ -106,10 +332,13 @@ index 51072c2f77b28f47ebaf0a0d90668ae16ec363ac..c6377b3ec758d66d7d4847aa6b465d67
      setLoading(true);
      setErr(null);
      try {
-       const [courseData, progressData, lessonRows] = await Promise.all([
+-      const [courseData, progressData, lessonRows] = await Promise.all([
++      const [courseData, progressData, lessonRows, reviewRows] = await Promise.all([
          studentApi.courseDetail(courseId, lang),
          studentApi.courseProgress(courseId),
-         studentApi.courseLessons(courseId),
+-        studentApi.courseLessons(courseId),
++        studentApi.courseLessons(courseId, lang),
++        studentApi.courseReviews(courseId),
        ]);
        const sortedLessons = sortLessons(lessonRows);
        const fallbackLessonId = sortedLessons[Math.min(progressData.completedLessons ?? 0, Math.max(0, sortedLessons.length - 1))]?.id;
@@ -118,17 +347,19 @@ index 51072c2f77b28f47ebaf0a0d90668ae16ec363ac..c6377b3ec758d66d7d4847aa6b465d67
        setCourse(courseData);
        setProgress(progressData);
        setLessons(sortedLessons);
++      setReviews(reviewRows);
 
        if (selectedLessonId) {
          const lessonDetail = await studentApi.lessonDetail(selectedLessonId, lang);
          setActiveLesson(lessonDetail);
-+        setOpenModules(buildDefaultOpenModules(lessonDetail));
+         setOpenModules(buildDefaultOpenModules(lessonDetail));
        } else {
          setActiveLesson(null);
-+        setOpenModules({});
+         setOpenModules({});
        }
      } catch (e: any) {
-       setErr(e?.message || "Cannot load course detail.");
+-      setErr(e?.message || "Cannot load course detail.");
++      setErr(e?.message || t.cannotLoadCourse);
      } finally {
        setLoading(false);
      }
@@ -147,13 +378,13 @@ index 51072c2f77b28f47ebaf0a0d90668ae16ec363ac..c6377b3ec758d66d7d4847aa6b465d67
      setSp(next);
      const lessonDetail = await studentApi.lessonDetail(lessonId, lang);
      setActiveLesson(lessonDetail);
-+    setOpenModules(buildDefaultOpenModules(lessonDetail));
-+  }
-+
-+  function changeLang(nextLang: Lang) {
-+    const next = new URLSearchParams(sp);
-+    next.set("lang", nextLang);
-+    setSp(next);
+     setOpenModules(buildDefaultOpenModules(lessonDetail));
+   }
+
+   function changeLang(nextLang: Lang) {
+     const next = new URLSearchParams(sp);
+     next.set("lang", nextLang);
+     setSp(next);
    }
 
    async function markVideoDone(video: ApiLessonVideo) {
@@ -168,41 +399,45 @@ index 51072c2f77b28f47ebaf0a0d90668ae16ec363ac..c6377b3ec758d66d7d4847aa6b465d67
      await loadData(activeLesson.id);
    }
 
-+  async function startLearning() {
-+    if (!activeLesson?.id) {
-+      toast("Thông báo", "Chưa có bài học để bắt đầu.");
-+      return;
-+    }
-+    nav(`/student/lessons/${activeLesson.id}?courseId=${courseId}&lang=${lang}`);
-+  }
-+
-+  async function resetProgress() {
-+    if (!lessons.length) return;
-+    setIsResetting(true);
-+    try {
-+      for (const lesson of lessons) {
-+        const lessonDetail = await studentApi.lessonDetail(lesson.id, lang);
-+        for (const module of lessonDetail.modules || []) {
-+          for (const video of module.videos || []) {
-+            await studentApi.updateVideoProgress(lesson.id, video.id, 0, false);
-+          }
-+        }
-+      }
-+      await loadData(activeLesson?.id);
-+      toast("Thành công", "Đã reset tiến độ khoá học.");
-+    } catch (e: any) {
-+      toast("Lỗi", e?.message || "Không thể reset tiến độ.");
-+    } finally {
-+      setIsResetting(false);
-+    }
-+  }
-+
+   async function startLearning() {
+     if (!activeLesson?.id) {
+-      toast("Thông báo", "Chưa có bài học để bắt đầu.");
++      toast(t.toastNotice, t.toastNoLesson);
+       return;
+     }
+     nav(`/student/lessons/${activeLesson.id}?courseId=${courseId}&lang=${lang}`);
+   }
+
+   async function resetProgress() {
+     if (!lessons.length) return;
+     setIsResetting(true);
+     try {
+       for (const lesson of lessons) {
+         const lessonDetail = await studentApi.lessonDetail(lesson.id, lang);
+         for (const module of lessonDetail.modules || []) {
+           for (const video of module.videos || []) {
+             await studentApi.updateVideoProgress(lesson.id, video.id, 0, false);
+           }
+         }
+       }
+       await loadData(activeLesson?.id);
+-      toast("Thành công", "Đã reset tiến độ khoá học.");
++      toast(t.toastSuccess, t.toastResetSuccess);
+     } catch (e: any) {
+-      toast("Lỗi", e?.message || "Không thể reset tiến độ.");
++      toast(t.toastError, e?.message || t.toastResetFail);
+     } finally {
+       setIsResetting(false);
+     }
+   }
+
    function submitReview() {
      if (myReview) return;
      const payload: RatingState = { stars: rating, comment: comment.trim(), createdAt: new Date().toISOString() };
      localStorage.setItem(reviewStorageKey(courseId), JSON.stringify(payload));
      setMyReview(payload);
-     toast("Thành công", "Đã gửi đánh giá khoá học.");
+-    toast("Thành công", "Đã gửi đánh giá khoá học.");
++    toast(t.toastSuccess, t.toastReviewSuccess);
    }
 
    const lessonProgressPercent = useMemo(() => {
@@ -211,45 +446,65 @@ index 51072c2f77b28f47ebaf0a0d90668ae16ec363ac..c6377b3ec758d66d7d4847aa6b465d67
      return Math.round((done / activeLesson.modules.length) * 100);
    }, [activeLesson]);
 
++  const ratingAvgFromReviews = useMemo(() => {
++    if (!reviews.length) return Number(course?.ratingAvg || 0);
++    const total = reviews.reduce((sum, item) => sum + (Number(item.stars) || 0), 0);
++    return Number((total / reviews.length).toFixed(1));
++  }, [reviews, course?.ratingAvg]);
++
++  const displayStudyTime = useMemo(() => {
++    const raw = String(course?.time || "").trim();
++    const parsed = Number(raw.replace(',', '.').replace(/[^0-9.]/g, ''));
++    if (Number.isFinite(parsed) && parsed > 0) {
++      const hours = parsed > 24 ? parsed / 60 : parsed;
++      return `${hours % 1 === 0 ? hours.toFixed(0) : hours.toFixed(1)} ${t.hourUnit}`;
++    }
++    return `0 ${t.hourUnit}`;
++  }, [course?.time, t.hourUnit]);
++
    return (
      <div className="min-h-screen text-slate-900" style={{ background: "radial-gradient(900px 420px at 10% 0%, rgba(79,70,229,0.14), transparent 60%), radial-gradient(700px 380px at 95% 10%, rgba(14,165,233,0.14), transparent 60%), linear-gradient(to bottom, #f8fafc, #eef2ff)" }}>
        <main className="mx-auto max-w-[1300px] px-4 py-6 md:px-8 space-y-5">
          <section className="rounded-[20px] border border-white/80 bg-white/95 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.10)]">
            <div className="grid gap-4 lg:grid-cols-[1.1fr_1.6fr]">
              <div className="relative overflow-hidden rounded-2xl">
-               <img className="h-[220px] w-full object-cover" src={course?.thumbnail || "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&auto=format&fit=crop"} alt={course?.title || "thumbnail"} />
+-              <img className="h-[220px] w-full object-cover" src={course?.thumbnail || "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&auto=format&fit=crop"} alt={course?.title || "thumbnail"} />
++              <img className="h-[220px] w-full rounded-2xl object-cover" src={course?.thumbnail || "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&auto=format&fit=crop"} alt={course?.title || "thumbnail"} />
                <div className="absolute bottom-3 left-3 flex gap-2 text-xs font-bold">
-                 <span className="rounded-xl bg-white/90 px-2 py-1">⭐ {course?.ratingAvg || 0}</span>
-                 <span className="rounded-xl bg-white/90 px-2 py-1">👥 {course?.enrollmentCount || 0}</span>
-                 <span className="rounded-xl bg-white/90 px-2 py-1">⏱ {course?.time || "0 phút"}</span>
+-                <span className="rounded-xl bg-white/90 px-2 py-1">⭐ {course?.ratingAvg || 0}</span>
+-                <span className="rounded-xl bg-white/90 px-2 py-1">👥 {course?.enrollmentCount || 0}</span>
+-                <span className="rounded-xl bg-white/90 px-2 py-1">⏱ {course?.time || "0 phút"}</span>
++                <span className="rounded-xl bg-white/90 px-2 py-1">⭐ {ratingAvgFromReviews}</span>
++                <span className="rounded-xl bg-white/90 px-2 py-1">⏱ {displayStudyTime}</span>
                </div>
              </div>
              <div>
                <div className="text-xs font-extrabold text-slate-500">{t.title}</div>
-               <h1 className="text-4xl font-black leading-tight">{course?.title || `Course #${courseId}`}</h1>
-               <div className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-sm font-medium text-black ring-1 ring-slate-200">{course?.shortDescription || course?.description || "Player + curriculum + quiz + assignment."}</div>
+-              <h1 className="text-4xl font-black leading-tight">{course?.title || `Course #${courseId}`}</h1>
+-              <div className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-sm font-medium text-black ring-1 ring-slate-200">{course?.shortDescription || course?.description || "Player + curriculum + quiz + assignment."}</div>
++              <h1 className="text-4xl font-black leading-tight">{course?.title || `${t.courseFallback} #${courseId}`}</h1>
++              <div className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-sm font-medium text-black ring-1 ring-slate-200">{course?.shortDescription || course?.description || t.defaultCourseSummary}</div>
                <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
                  <span className="rounded-xl bg-amber-100 px-3 py-1 text-amber-700">💰 {course?.price?.toLocaleString("vi-VN") || 0}</span>
-                 <span className="rounded-xl bg-blue-100 px-3 py-1 text-blue-700">📘 Beginner</span>
+-                <span className="rounded-xl bg-blue-100 px-3 py-1 text-blue-700">📘 Beginner</span>
++                <span className="rounded-xl bg-blue-100 px-3 py-1 text-blue-700">📘 {t.beginner}</span>
                </div>
                <div className="mt-4 flex flex-wrap gap-2">
                  <button className="btn" onClick={() => nav("/student")}>← {t.back}</button>
--                <button className="btn" onClick={() => void loadData(activeLesson?.id)}><i className="fa-solid fa-rotate-right mr-1" />{t.reset}</button>
--                <button className="btn btn-primary" onClick={() => activeLesson?.id && openLesson(activeLesson.id)}><i className="fa-solid fa-play mr-1" />{t.continue}</button>
-+                <button className="btn" onClick={() => void resetProgress()} disabled={isResetting}><i className="fa-solid fa-rotate-right mr-1" />{isResetting ? `${t.reset}...` : t.reset}</button>
-+                <button className="btn btn-primary" onClick={() => void startLearning()}><i className="fa-solid fa-play mr-1" />{t.continue}</button>
-+              </div>
-+              <div className="mt-3 flex flex-wrap gap-2">
-+                {availableLangs.map((langOption) => (
-+                  <button
-+                    key={langOption}
-+                    className={`btn ${lang === langOption ? "btn-primary" : ""}`}
-+                    onClick={() => changeLang(langOption)}
-+                    type="button"
-+                  >
-+                    {langOption.toUpperCase()}
-+                  </button>
-+                ))}
+                 <button className="btn" onClick={() => void resetProgress()} disabled={isResetting}><i className="fa-solid fa-rotate-right mr-1" />{isResetting ? `${t.reset}...` : t.reset}</button>
+                 <button className="btn btn-primary" onClick={() => void startLearning()}><i className="fa-solid fa-play mr-1" />{t.continue}</button>
+               </div>
+               <div className="mt-3 flex flex-wrap gap-2">
+                 {availableLangs.map((langOption) => (
+                   <button
+                     key={langOption}
+                     className={`btn ${lang === langOption ? "btn-primary" : ""}`}
+                     onClick={() => changeLang(langOption)}
+                     type="button"
+                   >
+                     {langOption.toUpperCase()}
+                   </button>
+                 ))}
                </div>
              </div>
            </div>
@@ -258,58 +513,7 @@ index 51072c2f77b28f47ebaf0a0d90668ae16ec363ac..c6377b3ec758d66d7d4847aa6b465d67
          {loading && <div className="rounded-xl bg-white px-4 py-3 text-sm text-slate-600 ring-1 ring-slate-200">{t.loading}</div>}
          {err && <div className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">{err}</div>}
 
-         <section className="grid gap-4 xl:grid-cols-[1.75fr_1fr]">
-           <div className="space-y-4">
-             <div className="rounded-[20px] border border-white/80 bg-white/95 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
-               <div className="mb-3 flex items-center justify-between">
-                 <h2 className="text-xl font-black">{t.continueLesson}: {activeLesson?.localizedTitle || activeLesson?.title || "-"}</h2>
-                 <span className="chip">{lessonProgressPercent}%</span>
-               </div>
-               <div className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-black ring-1 ring-slate-200"><b>{t.descLesson}:</b> {activeLesson?.localizedDescription || activeLesson?.description || "-"}</div>
-               {activeLesson?.modules?.map((m) => {
--                const isOpen = openModules[m.id] ?? true;
-+                const isOpen = openModules[m.id] ?? false;
-                 return (
-                   <div key={m.id} className="relative mb-3 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-                     <span className="absolute left-3 top-3 inline-flex h-3 w-3 rounded-full border-2 border-violet-200 bg-violet-400" />
--                    <div className="ml-5 flex items-start justify-between gap-2">
--                      <div>
-+                    <div className="ml-5 space-y-2">
-+                      <div className="flex items-start justify-between gap-2">
-                         <div className="font-bold">{m.localizedTitle || m.title}</div>
--                        <div className="mt-1 rounded-lg bg-white px-2 py-1 text-sm text-black ring-1 ring-slate-200"><b>{t.descModule}:</b> {m.localizedDescription || m.description || "-"}</div>
--                      </div>
--                      <div className="flex items-center gap-2">
--                        <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" onClick={() => void completeModule(m.id)} title={t.completeModule}><i className="fa-solid fa-check" /></button>
--                        <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600 ring-1 ring-slate-200" onClick={() => setOpenModules((prev) => ({ ...prev, [m.id]: !isOpen }))}>
--                          <i className={`fa-solid ${isOpen ? "fa-chevron-up" : "fa-chevron-down"}`} />
--                        </button>
-+                        <div className="flex items-center gap-2">
-+                          <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" onClick={() => void completeModule(m.id)} title={t.completeModule}><i className="fa-solid fa-check" /></button>
-+                          <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600 ring-1 ring-slate-200" onClick={() => setOpenModules((prev) => ({ ...prev, [m.id]: !isOpen }))}>
-+                            <i className={`fa-solid ${isOpen ? "fa-chevron-up" : "fa-chevron-down"}`} />
-+                          </button>
-+                        </div>
-                       </div>
-+                      <div className="rounded-lg bg-white px-2 py-2 text-sm text-black ring-1 ring-slate-200"><b>{t.descModule}:</b> {m.localizedDescription || m.description || "-"}</div>
-                     </div>
-
-                     {isOpen && (
--                      <div className="mt-3 space-y-2">
-+                      <div className="mt-3 ml-5 space-y-2">
-                         {m.videos?.map((v) => (
-                           <div key={v.id} className="rounded-xl bg-white p-2 ring-1 ring-slate-200">
-                             <div className="text-sm font-semibold">{v.localizedTitle || v.title}</div>
-+                            <div className="mt-1 text-sm text-slate-700">{v.localizedDescription || v.description || "-"}</div>
-                             {v.playbackUrl ? <video className="mt-2 w-full rounded-lg border border-slate-200" controls src={v.playbackUrl} onEnded={() => void markVideoDone(v)} /> : null}
-                             <div className="mt-2 text-right">
-                               <button className="btn" onClick={() => void markVideoDone(v)}>{t.watched} {v.progress?.completed ? "✓" : ""}</button>
-                             </div>
-                           </div>
-                         ))}
-                       </div>
-                     )}
-                   </div>
+@@ -333,68 +402,68 @@ export function StudentCourseDetailPage() {
                  );
                })}
                {!activeLesson?.modules?.length && <div className="text-sm text-slate-500">{t.noModule}</div>}
@@ -326,3 +530,149 @@ index 51072c2f77b28f47ebaf0a0d90668ae16ec363ac..c6377b3ec758d66d7d4847aa6b465d67
              <div className="rounded-[20px] border border-white/80 bg-white/95 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
                <h3 className="text-lg font-black">{t.lessonList}</h3>
                <div className="mt-2 flex items-center justify-between text-sm text-slate-600"><span>{t.progress}</span><b>{progress?.percent || 0}%</b></div>
+               <div className="mt-2 h-[8px] overflow-hidden rounded-full bg-indigo-100"><div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500" style={{ width: `${progress?.percent || 0}%` }} /></div>
+               <div className="mt-3 space-y-2">
+                 {lessons.map((lesson, idx) => {
+                   const isDone = completedLessonIds.has(lesson.id) || (lesson.progress?.percent || 0) >= 100;
+                   return (
+                     <button key={lesson.id} className={`relative w-full rounded-xl px-3 py-2 text-left ring-1 ${activeLesson?.id === lesson.id ? "bg-indigo-50 ring-indigo-200" : "bg-slate-50 ring-slate-200"}`} onClick={() => void openLesson(lesson.id)}>
+                       <span className="absolute left-2 top-2 inline-flex h-3 w-3 rounded-full border-2 border-sky-200 bg-sky-400" />
+                       <div className="ml-4 flex items-center justify-between">
+                         <div>
+-                          <div className="text-xs text-slate-500">Bài {idx + 1}</div>
++                          <div className="text-xs text-slate-500">{t.lessonLabel} {idx + 1}</div>
+                           <div className="font-semibold">{lesson.localizedTitle || lesson.title}</div>
+-                          <div className="mt-1 rounded-lg bg-white px-2 py-1 text-xs text-black ring-1 ring-slate-200" style={clamp2}>{lesson.localizedDescription || lesson.description || "Không có mô tả."}</div>
++                          <div className="mt-1 rounded-lg bg-white px-2 py-1 text-xs text-black ring-1 ring-slate-200" style={clamp2}>{lesson.localizedDescription || lesson.description || t.noLessonDescription}</div>
+                         </div>
+                         <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${isDone ? "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" : "bg-amber-100 text-amber-700 ring-1 ring-amber-200"}`}>
+                           <i className={`fa-solid ${isDone ? "fa-check" : "fa-clock"}`} />
+                         </span>
+                       </div>
+                     </button>
+                   );
+                 })}
+                 {!lessons.length && <div className="text-sm text-slate-500">{t.noLesson}</div>}
+               </div>
+             </div>
+
+             <div className="rounded-[20px] border border-white/80 bg-white/95 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
+               <h3 className="text-lg font-black">{t.reviewTitle}</h3>
+               {myReview ? (
+                 <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800 ring-1 ring-emerald-200">
+                   <div>{t.reviewDone}</div>
+-                  <div className="mt-1">⭐ {myReview.stars}/5 • {myReview.comment || "(Không có nhận xét)"}</div>
++                  <div className="mt-1">⭐ {myReview.stars}/5 • {myReview.comment || t.noComment}</div>
+                 </div>
+               ) : (
+                 <>
+                   <div className="mt-2 text-xs text-slate-500">{t.reviewOnce}</div>
+                   <div className="mt-3 flex gap-2">
+                     {[1, 2, 3, 4, 5].map((star) => (
+                       <button key={star} className={`h-9 w-9 rounded-lg ring-1 ${rating >= star ? "bg-amber-100 text-amber-700 ring-amber-200" : "bg-slate-100 text-slate-500 ring-slate-200"}`} onClick={() => setRating(star)}>
+                         <i className="fa-solid fa-star" />
+                       </button>
+                     ))}
+                   </div>
+-                  <textarea className="mt-3 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-300" rows={3} placeholder="Chia sẻ cảm nhận của bạn..." value={comment} onChange={(e) => setComment(e.target.value)} />
++                  <textarea className="mt-3 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-300" rows={3} placeholder={t.reviewPlaceholder} value={comment} onChange={(e) => setComment(e.target.value)} />
+                   <button className="btn btn-primary mt-3 w-full" onClick={submitReview}>{t.submit}</button>
+                 </>
+               )}
+             </div>
+           </div>
+         </section>
+       </main>
+     </div>
+   );
+ }
+diff --git a/beay/src/pages/student/student.api.ts b/beay/src/pages/student/student.api.ts
+index 7edd946bd63e8695e62a20582e33346c8f65339a..177c37adea09fdb8edad6b42c1fa1a247a9ab9e4 100644
+--- a/beay/src/pages/student/student.api.ts
++++ b/beay/src/pages/student/student.api.ts
+@@ -70,74 +70,84 @@ export type ApiCourseDetail = {
+
+ export type ApiMyCourse = {
+   id: number;
+   courseId: number;
+   status: EnrollmentStatus;
+   course: {
+     id: number;
+     title: string;
+     price: number;
+     _count?: {
+       lessons?: number;
+     };
+   };
+   progress?: ApiCourseProgress;
+ };
+
+ export type ApiLearningStats = {
+   activeCourses: number;
+   pendingCourses: number;
+   canceledCourses: number;
+   totalLessons: number;
+   completedLessons: number;
+   averageProgress: number;
+ };
+
++export type ApiCourseReview = {
++  id: number;
++  stars: number;
++  comment?: string | null;
++  customerName?: string;
++  createdAt?: string;
++  updatedAt?: string;
++};
++
+ export type ApiLessonVideo = {
+   id: number;
+   title: string;
+   localizedTitle?: string;
+   description?: string | null;
+   localizedDescription?: string | null;
+   playbackUrl?: string;
+   durationSec?: number;
+   progress?: { watchedSec: number; durationSec: number; completed: boolean };
+ };
+
+ export type ApiLessonModule = {
+   id: number;
+   title: string;
+   localizedTitle?: string;
+   description?: string | null;
+   localizedDescription?: string | null;
+   videos: ApiLessonVideo[];
+   progress?: { watchedSec: number; durationSec: number; percent: number; completed: boolean };
+ };
+
+ export type ApiLessonDetail = {
+   id: number;
+   courseId: number;
+   title: string;
+   localizedTitle?: string;
+   description?: string | null;
+   localizedDescription?: string | null;
+   modules?: ApiLessonModule[];
+ };
+
+ export const studentApi = {
+   myCourses: (lang = "vi") => request<ApiMyCourse[]>(`/me/courses?lang=${encodeURIComponent(lang)}`),
+   courseDetail: (courseId: number, lang = "vi") => request<ApiCourseDetail>(`/courses/${courseId}?lang=${encodeURIComponent(lang)}`),
+-  courseLessons: (courseId: number) => request<ApiLesson[]>(`/courses/${courseId}/lessons`),
++  courseLessons: (courseId: number, lang = "vi") => request<ApiLesson[]>(`/courses/${courseId}/lessons?lang=${encodeURIComponent(lang)}`),
+   courseLessonsOutline: (courseId: number, lang = "vi") => request<ApiLesson[]>(`/courses/${courseId}/lessons-outline?lang=${encodeURIComponent(lang)}`),
+   courseProgress: (courseId: number) => request<ApiCourseProgress>(`/me/courses/${courseId}/progress`),
+   lessonDetail: (lessonId: number, lang = "vi") => request<ApiLessonDetail>(`/lessons/${lessonId}?lang=${encodeURIComponent(lang)}`),
+   updateVideoProgress: (lessonId: number, videoId: number, watchedSec: number, completed = false) =>
+     request(`/lessons/${lessonId}/videos/${videoId}/progress`, {
+       method: "POST",
+       body: JSON.stringify({ watchedSec, completed }),
+     }),
+   completeModule: (lessonId: number, moduleId: number) =>
+     request(`/lessons/${lessonId}/modules/${moduleId}/complete`, { method: "POST" }),
+   cancelCourse: (courseId: number) => request<{ id: number; status: EnrollmentStatus }>(`/courses/${courseId}/cancel`, { method: "POST" }),
+   myProgress: () => request<Array<{ lessonId: number; lesson?: { courseId?: number; title?: string } }>>(`/me/progress`),
+   learningStats: () => request<ApiLearningStats>(`/me/courses/statistics`),
++  courseReviews: (courseId: number) => request<ApiCourseReview[]>(`/courses/${courseId}/reviews`),
+ };

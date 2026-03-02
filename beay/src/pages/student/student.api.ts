@@ -92,6 +92,15 @@ export type ApiLearningStats = {
   averageProgress: number;
 };
 
+export type ApiCourseReview = {
+  id: number;
+  stars: number;
+  comment?: string | null;
+  customerName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type ApiLessonVideo = {
   id: number;
   title: string;
@@ -126,7 +135,7 @@ export type ApiLessonDetail = {
 export const studentApi = {
   myCourses: (lang = "vi") => request<ApiMyCourse[]>(`/me/courses?lang=${encodeURIComponent(lang)}`),
   courseDetail: (courseId: number, lang = "vi") => request<ApiCourseDetail>(`/courses/${courseId}?lang=${encodeURIComponent(lang)}`),
-  courseLessons: (courseId: number) => request<ApiLesson[]>(`/courses/${courseId}/lessons`),
+  courseLessons: (courseId: number, lang = "vi") => request<ApiLesson[]>(`/courses/${courseId}/lessons?lang=${encodeURIComponent(lang)}`),
   courseLessonsOutline: (courseId: number, lang = "vi") => request<ApiLesson[]>(`/courses/${courseId}/lessons-outline?lang=${encodeURIComponent(lang)}`),
   courseProgress: (courseId: number) => request<ApiCourseProgress>(`/me/courses/${courseId}/progress`),
   lessonDetail: (lessonId: number, lang = "vi") => request<ApiLessonDetail>(`/lessons/${lessonId}?lang=${encodeURIComponent(lang)}`),
@@ -140,4 +149,5 @@ export const studentApi = {
   cancelCourse: (courseId: number) => request<{ id: number; status: EnrollmentStatus }>(`/courses/${courseId}/cancel`, { method: "POST" }),
   myProgress: () => request<Array<{ lessonId: number; lesson?: { courseId?: number; title?: string } }>>(`/me/progress`),
   learningStats: () => request<ApiLearningStats>(`/me/courses/statistics`),
+  courseReviews: (courseId: number) => request<ApiCourseReview[]>(`/courses/${courseId}/reviews`),
 };

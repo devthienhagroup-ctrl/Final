@@ -22,7 +22,7 @@ import BlogPage from "./pages/BlogPage";
 import LessonDetailPage from "./pages/LessonDetailPage";
 import ReviewsCenterPage from "./pages/ReviewsCenterPage";
 import AccountCenter from "./pages/AccountCenter";
-
+import LoginPage from "./pages/LoginPage";
 // ví dụ
 
 

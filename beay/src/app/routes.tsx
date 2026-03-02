@@ -61,7 +61,6 @@ export function AppRoutes() {
         <Route path="/student/lessons/:id" element={<RequirePermission permission="my_courses.read"><StudentLessonPlayerPage /></RequirePermission>} />
           <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
           <Route path="/admin/orders" element={<OrderAdminPage />} />
-          <Route path="/admin/rbac" element={<AdminRbacPage />} />
           <Route path="/admin/reviews" element={<ReviewsAdminPage />} />
           <Route path="/admin/blog" element={<BlogAdminPage />} />
           <Route path="/admin/product" element={<ProductAdminListPage />} />

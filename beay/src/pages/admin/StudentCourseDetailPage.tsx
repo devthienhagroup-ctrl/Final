@@ -189,8 +189,6 @@ export function StudentCourseDetailPage() {
     return firstModule ? { [firstModule.id]: true } : {};
   }
 
-  const completedLessonIds = useMemo(() => new Set((progress?.items || []).filter((x) => x.status === "COMPLETED").map((x) => x.lessonId)), [progress]);
-
   async function loadData(targetLessonId?: number) {
     if (!courseId) return;
     setLoading(true);
@@ -256,12 +254,6 @@ export function StudentCourseDetailPage() {
   async function markVideoDone(video: ApiLessonVideo) {
     if (!activeLesson) return;
     await studentApi.updateVideoProgress(activeLesson.id, video.id, video.durationSec || 0, true);
-    await loadData(activeLesson.id);
-  }
-
-  async function completeModule(moduleId: number) {
-    if (!activeLesson) return;
-    await studentApi.completeModule(activeLesson.id, moduleId);
     await loadData(activeLesson.id);
   }
 
@@ -390,15 +382,18 @@ export function StudentCourseDetailPage() {
               <div className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-black ring-1 ring-slate-200"><b>{t.descLesson}:</b> {activeLesson?.localizedDescription || activeLesson?.description || "-"}</div>
               {activeLesson?.modules?.map((m) => {
                 const isOpen = openModules[m.id] ?? false;
+                const isModuleDone = Boolean(m.progress?.completed) || Boolean(m.videos?.length && m.videos.every((video) => video.progress?.completed));
                 return (
                   <div key={m.id} className="relative mb-3 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
                     <span className="absolute left-3 top-3 inline-flex h-3 w-3 rounded-full border-2 border-violet-200 bg-violet-400" />
+                    <span className={`absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full ring-1 ${isModuleDone ? "bg-emerald-100 text-emerald-700 ring-emerald-200" : "bg-amber-100 text-amber-700 ring-amber-200"}`}>
+                      <i className={`fa-solid ${isModuleDone ? "fa-check" : "fa-clock"}`} />
+                    </span>
                     <div className="ml-5 space-y-2">
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start justify-between gap-2 pr-10">
                         <div className="font-bold">{m.localizedTitle || m.title}</div>
                         <div className="flex items-center gap-2">
-                          <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" onClick={() => void completeModule(m.id)} title={t.completeModule}><i className="fa-solid fa-check" /></button>
-                          <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600 ring-1 ring-slate-200" onClick={() => setOpenModules((prev) => ({ ...prev, [m.id]: !isOpen }))}>
+                          <button className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 ring-1 ring-slate-200" onClick={() => setOpenModules((prev) => ({ ...prev, [m.id]: !isOpen }))}>
                             <i className={`fa-solid ${isOpen ? "fa-chevron-up" : "fa-chevron-down"}`} />
                           </button>
                         </div>
@@ -440,19 +435,19 @@ export function StudentCourseDetailPage() {
               <div className="mt-2 h-[8px] overflow-hidden rounded-full bg-indigo-100"><div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500" style={{ width: `${progress?.percent || 0}%` }} /></div>
               <div className="mt-3 space-y-2">
                 {lessons.map((lesson, idx) => {
-                  const isDone = completedLessonIds.has(lesson.id) || (lesson.progress?.percent || 0) >= 100;
+                  const isDone = (lesson.progress?.percent || 0) >= 100;
                   return (
                     <button key={lesson.id} className={`relative w-full rounded-xl px-3 py-2 text-left ring-1 ${activeLesson?.id === lesson.id ? "bg-indigo-50 ring-indigo-200" : "bg-slate-50 ring-slate-200"}`} onClick={() => void openLesson(lesson.id)}>
                       <span className="absolute left-2 top-2 inline-flex h-3 w-3 rounded-full border-2 border-sky-200 bg-sky-400" />
-                      <div className="ml-4 flex items-center justify-between">
+                      <span className={`absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full ring-1 ${isDone ? "bg-emerald-100 text-emerald-700 ring-emerald-200" : "bg-amber-100 text-amber-700 ring-amber-200"}`}>
+                        <i className={`fa-solid ${isDone ? "fa-check" : "fa-clock"}`} />
+                      </span>
+                      <div className="ml-4 pr-9">
                         <div>
                           <div className="text-xs text-slate-500">{t.lessonLabel} {idx + 1}</div>
                           <div className="font-semibold">{lesson.localizedTitle || lesson.title}</div>
                           <div className="mt-1 rounded-lg bg-white px-2 py-1 text-xs text-black ring-1 ring-slate-200" style={clamp2}>{lesson.localizedDescription || lesson.description || t.noLessonDescription}</div>
                         </div>
-                        <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${isDone ? "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" : "bg-amber-100 text-amber-700 ring-1 ring-amber-200"}`}>
-                          <i className={`fa-solid ${isDone ? "fa-check" : "fa-clock"}`} />
-                        </span>
                       </div>
                     </button>
                   );

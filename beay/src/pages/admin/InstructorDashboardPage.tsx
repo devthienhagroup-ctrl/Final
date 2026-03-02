@@ -210,6 +210,8 @@ export function InstructorDashboardPage() {
             onEdit={() => selectedCourseId && void refreshSelectedCourse(selectedCourseId)}
             onDelete={() => toast('Xóa khóa học', 'Nút xóa đã có trong danh sách khóa học.')}
             onProgress={() => toast('Theo dõi', 'Theo dõi tiến độ theo từng khóa học của bạn.')}
+            selectedCourse={selectedCourse}
+            loadingDetail={loadingDetail}
           />
         </section>
 

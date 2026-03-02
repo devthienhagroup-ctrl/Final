@@ -1,8 +1,9 @@
 // AdminOrdersDemo.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/http";
+import { useNavigate } from "react-router-dom";
 
-type StatusKey = "all" | "pending" | "pending_payment" | "paid" | "shipping" | "success" | "cancelled" | "expired";
+type StatusKey = "all" | "pending" | "cancel_requested" | "pending_payment" | "paid" | "shipping" | "success" | "cancelled" | "expired";
 
 type StatusDef = { key: StatusKey; label: string };
 
@@ -35,6 +36,7 @@ type Order = {
     customer: { name: string; email: string };
     branch: string;
     confirmedBy: string | null;
+    confirmedById?: number | null;
     payment: { method: string; paidAt: string | null; ref: string | null };
     items: OrderItem[];
     pricing: { subtotal: number; shipping: number; discount: number; total: number };
@@ -67,6 +69,7 @@ type ApiOrder = {
     shippingFee: number | string;
     discount: number | string;
     total: number | string;
+    processedBy?: { id: number; name?: string | null; email?: string | null } | null;
     details: Array<{
         productName: string;
         productSku: string;
@@ -87,6 +90,8 @@ function toUiStatus(status: string): Exclude<StatusKey, "all"> {
             return "pending";
         case "PENDING_PAYMENT":
             return "pending_payment";
+        case "CANCEL_REQUESTED":
+            return "cancel_requested";
         case "PAID":
             return "paid";
         case "SHIPPING":
@@ -110,7 +115,8 @@ function mapOrder(row: ApiOrder): Order {
         createdAt: String(row.createdAt || "").slice(0, 10),
         customer: { name: row.receiverName || "-", email: row.receiverEmail || "-" },
         branch: "Online",
-        confirmedBy: null,
+        confirmedBy: row.processedBy?.name || row.processedBy?.email || null,
+        confirmedById: row.processedBy?.id || null,
         payment: {
             method: row.paymentMethod === "SEPAY" ? "Chuyển khoản" : row.paymentMethod || "COD",
             paidAt: row.paidAt ? String(row.paidAt).slice(0, 10) : null,
@@ -148,6 +154,7 @@ const STATUS: Record<StatusKey, StatusDef> = {
     all: { key: "all", label: "Tất cả" },
     pending: { key: "pending", label: "Chờ xác nhận" },
     pending_payment: { key: "pending_payment", label: "Chờ thanh toán" },
+    cancel_requested: { key: "cancel_requested", label: "Yêu cầu hủy" },
     paid: { key: "paid", label: "Đã thanh toán" },
     shipping: { key: "shipping", label: "Đang giao" },
     success: { key: "success", label: "Thành công" },
@@ -514,6 +521,7 @@ tbody tr:hover { background: rgba(124, 58, 237, 0.05); }
 .status .s-dot { width: 9px; height: 9px; border-radius: 999px; background: rgba(15, 23, 42, 0.25); }
 .status.pending .s-dot { background: var(--warn); }
 .status.pending_payment .s-dot { background: #f97316; }
+.status.cancel_requested .s-dot { background: #dc2626; }
 .status.paid .s-dot { background: var(--paid); }
 .status.shipping .s-dot { background: #0ea5e9; }
 .status.success .s-dot { background: var(--ok); }
@@ -914,6 +922,7 @@ function renderStatus(status: Order["status"]) {
     const map: Record<Order["status"], { cls: string; label: string }> = {
         pending: { cls: "pending", label: STATUS.pending.label },
         pending_payment: { cls: "pending_payment", label: STATUS.pending_payment.label },
+        cancel_requested: { cls: "cancel_requested", label: STATUS.cancel_requested.label },
         paid: { cls: "paid", label: STATUS.paid.label },
         shipping: { cls: "shipping", label: STATUS.shipping.label },
         success: { cls: "success", label: STATUS.success.label },
@@ -930,6 +939,7 @@ function renderStatus(status: Order["status"]) {
 }
 
 export default function AdminOrdersDemo() {
+    const navigate = useNavigate();
     const [orders, setOrders] = useState<Order[]>(() => [...initialOrders]);
 
     // Filters
@@ -974,7 +984,7 @@ export default function AdminOrdersDemo() {
                 acc[o.status] = (acc[o.status] || 0) + 1;
                 return acc;
             },
-            { pending: 0, pending_payment: 0, paid: 0, shipping: 0, success: 0, cancelled: 0, expired: 0 },
+            { pending: 0, cancel_requested: 0, pending_payment: 0, paid: 0, shipping: 0, success: 0, cancelled: 0, expired: 0 },
         );
     }, [orders]);
 
@@ -1129,6 +1139,21 @@ export default function AdminOrdersDemo() {
         }
     }
 
+    async function approveCancelRequest() {
+        if (!activeOrder) return;
+        try {
+            await api(`/api/product-orders/admin/${activeOrder.id}/status`, {
+                method: "PATCH",
+                body: JSON.stringify({ status: "CANCELLED" }),
+            });
+            await fetchOrders(false);
+            toast("Đã chấp nhận yêu cầu hủy.");
+            closeDrawer();
+        } catch {
+            toast("Không thể chấp nhận yêu cầu hủy.");
+        }
+    }
+
     // Pager text (same format)
     const pagerText = useMemo(() => {
         const total = filtered.length;
@@ -1155,6 +1180,7 @@ export default function AdminOrdersDemo() {
         () => [
             { key: "all" as const, label: STATUS.all.label, count: orders.length },
             { key: "pending" as const, label: STATUS.pending.label, count: counts.pending || 0 },
+            { key: "cancel_requested" as const, label: STATUS.cancel_requested.label, count: counts.cancel_requested || 0 },
             { key: "pending_payment" as const, label: STATUS.pending_payment.label, count: counts.pending_payment || 0 },
             { key: "paid" as const, label: STATUS.paid.label, count: counts.paid || 0 },
             { key: "shipping" as const, label: STATUS.shipping.label, count: counts.shipping || 0 },
@@ -1194,6 +1220,9 @@ export default function AdminOrdersDemo() {
                             </div>
                         </div>
                         <div className="top-actions">
+                            <button className="btn" onClick={() => navigate(-1)}>
+                                <i className="fa-solid fa-arrow-left"></i> Quay lại
+                            </button>
                             <div className={`loading ${loading ? "show" : ""}`} id="loading">
                                 <div className="spinner"></div>
                                 Đang tải dữ liệu...
@@ -1342,7 +1371,7 @@ export default function AdminOrdersDemo() {
                         </div>
 
                         <div className="actions">
-                            <button className="btn ghost" id="btnReset" onClick={resetFilters}>
+                            <button className="btn" id="btnReset" onClick={resetFilters}>
                                 <i className="fa-solid fa-eraser" style={{ opacity: 0.85 }}></i>
                                 Reset
                             </button>
@@ -1598,7 +1627,10 @@ export default function AdminOrdersDemo() {
                                         </div>
                                         <div className="item">
                                             <div className="k">Dự kiến giao</div>
-                                            <div className="v">{fmtDate(activeOrder.shippingInfo.expectedDelivery)}</div>
+                                            <div className="v">
+                                                {/* {fmtDate(activeOrder.shippingInfo.expectedDelivery)} */}
+                                                -
+                                                </div>
                                         </div>
                                         <div className="item" style={{ gridColumn: "1 / -1" }}>
                                             <div className="k">Ghi chú giao hàng</div>
@@ -1661,6 +1693,12 @@ export default function AdminOrdersDemo() {
                                         <button className="btn ghost" id="btnConfirmShipping" onClick={confirmOrderShipping}>
                                             <i className="fa-solid fa-truck" style={{ opacity: 0.85 }}></i>
                                             Xác nhận đơn → Đang giao
+                                        </button>
+                                    )}
+                                    {activeOrder.status === "cancel_requested" && (
+                                        <button className="btn ghost" onClick={approveCancelRequest}>
+                                            <i className="fa-solid fa-ban" style={{ opacity: 0.85 }}></i>
+                                            Chấp nhận yêu cầu hủy
                                         </button>
                                     )}
                                     {activeOrder.status === "shipping" && (

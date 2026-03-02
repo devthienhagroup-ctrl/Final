@@ -1,13 +1,13 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   adminCleanupViewTrackers,
   adminCreateBlog,
   adminDeleteBlog,
   adminListBlogs,
   adminUpdateBlog,
-  BlogAdminItem,
-  BlogStatus,
 } from "../api/blogAdmin.api";
+import type { BlogAdminItem, BlogStatus } from "../api/blogAdmin.api";
 
 const initialForm = {
   title: "",

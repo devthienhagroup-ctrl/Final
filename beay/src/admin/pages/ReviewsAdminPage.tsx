@@ -390,7 +390,15 @@ export function ReviewsAdminPage() {
   // filters
   const [q, setQ] = useState("");
   const [fromDate, setFromDate] = useState("2026-02-01");
-  const [toDate, setToDate] = useState("2026-02-28");
+  const [toDate, setToDate] = useState(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const firstDay = `${year}-${month}-01`;
+    const lastDayStr = `${year}-${month}-${String(lastDay).padStart(2, "0")}`;
+    return lastDayStr;
+  });
   const [ratingMin, setRatingMin] = useState<number | "">("");
   const [ratingMax, setRatingMax] = useState<number | "">("");
   const [visibility, setVisibility] = useState<ReviewVisibility | "all">("all");
@@ -1830,7 +1838,7 @@ export function ReviewsAdminPage() {
             <div className="ar-field" />
           </div>
           <div className="ar-actions">
-            <button className="ar-btn ghost" onClick={resetFilters}><i className="fas fa-undo-alt" /> Reset</button>
+            <button className="ar-btn" onClick={resetFilters}><i className="fas fa-undo-alt" /> Reset</button>
             <button className="ar-btn primary" onClick={() => toast("Đã áp dụng bộ lọc (demo).")}><i className="fas fa-check" /> Áp dụng</button>
           </div>
         </div>
@@ -1988,7 +1996,7 @@ export function ReviewsAdminPage() {
           </div>
           <p className="ar-confirm-desc">{confirmDesc}</p>
           <div className="ar-confirm-actions">
-            <button className="ar-btn ghost" onClick={() => setConfirmOpen(false)}><i className="fas fa-times" /> Hủy</button>
+            <button className="ar-btn" onClick={() => setConfirmOpen(false)}><i className="fas fa-times" /> Hủy</button>
             <button className="ar-btn danger" onClick={() => { const fn = confirmActionRef.current; setConfirmOpen(false); fn?.(); }}><i className="fas fa-check" /> Xác nhận</button>
           </div>
         </div>

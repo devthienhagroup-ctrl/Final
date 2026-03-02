@@ -135,19 +135,6 @@ export function ProductAdminDetailPage() {
 
   const originalRef = useRef<ProductAdminItem | null>(null);
 
-  // Inject FontAwesome CDN once (if not already on the page)
-  useEffect(() => {
-    const id = "fa-cdn-6";
-    if (document.getElementById(id)) return;
-
-    const link = document.createElement("link");
-    link.id = id;
-    link.rel = "stylesheet";
-    link.href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css";
-    link.crossOrigin = "anonymous";
-    document.head.appendChild(link);
-  }, []);
-
   const MySwal = useMemo(() => withReactContent(Swal), []);
 
   const swal = useMemo(
@@ -510,7 +497,7 @@ export function ProductAdminDetailPage() {
 
       if (productId === "new") {
         showNotice("Đã tạo sản phẩm mới", "Bạn có thể tiếp tục cập nhật thông tin SEO (slug) sau khi tạo.");
-        navigate(`/catalog/products/${savedProductId}`);
+        navigate(`/admin/product/${savedProductId}`);
         return;
       }
 
@@ -542,7 +529,7 @@ export function ProductAdminDetailPage() {
       try {
         await deleteAdminProduct(product.id);
         void toast.fire({ icon: "success", title: "Đã xóa sản phẩm" });
-        navigate("/catalog/products");
+        navigate("/admin/product");
       } catch (error) {
         const message = error instanceof Error ? error.message : "Không thể xóa sản phẩm";
         void swal.fire({
@@ -1220,7 +1207,7 @@ export function ProductAdminDetailPage() {
             </div>
             <div className="x-help">Hãy kiểm tra lại đường dẫn hoặc quyền truy cập.</div>
             <div style={{ marginTop: 12 }}>
-              <button className="x-btn x-btn-ghost" onClick={() => navigate("/catalog/products")}>
+              <button className="x-btn x-btn-ghost" onClick={() => navigate("/admin/product")}>
                 <i className="fa-solid fa-arrow-left" /> <span>Về danh sách</span>
               </button>
             </div>
@@ -1268,7 +1255,7 @@ export function ProductAdminDetailPage() {
           </div>
 
           <div className="x-topbar-actions">
-            <button className="x-icon-btn" title="Về danh sách" onClick={() => navigate("/catalog/products")}>
+            <button className="x-icon-btn" title="Về danh sách" onClick={() => navigate("/admin/product")}>
               <i className="fa-solid fa-arrow-left" />
             </button>
 
@@ -1342,7 +1329,7 @@ export function ProductAdminDetailPage() {
 
         {/* Footer */}
         <div className="x-footer">
-          <Link to="/catalog/products" className="x-btn x-btn-ghost">
+          <Link to="/admin/product" className="x-btn x-btn-ghost">
             <i className="fa-solid fa-arrow-left" /> <span>Về danh sách</span>
           </Link>
         </div>
@@ -1389,7 +1376,9 @@ const styles = `
   padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 12px;  
+  max-width: 1200px;
+  margin: 10px auto;
 }
 
 .x-topbar{
@@ -1898,4 +1887,4 @@ const styles = `
 .x-skeleton-header{ height: 74px; }
 .x-skeleton-card{ height: 160px; }
 @keyframes xsheen{ 0%{ background-position: 0% 0%; } 100%{ background-position: 200% 0%; } }
-`;
+`;

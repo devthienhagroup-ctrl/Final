@@ -54,11 +54,11 @@ export function TopCoursesCard(props: {
         ))}
       </div>
 
-      <div className="mt-5 p-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
+      {/* <div className="mt-5 p-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
         <div className="text-xs font-extrabold text-slate-500">Gợi ý tối ưu</div>
         <div className="mt-1 text-sm text-slate-600">Thêm upsell, bundle, voucher theo cohort.</div>
         <button className="mt-3 w-full btn btn-accent" onClick={props.onIdea}>Tạo chiến dịch</button>
-      </div>
+      </div> */}
     </div>
   );
 }

@@ -36,7 +36,7 @@ export function AdminSidebar({ open, onClose, onConnectPay }: Props) {
           <div className="flex items-center gap-3">
             <img
               className="h-11 w-11 rounded-2xl object-cover ring-1 ring-slate-200"
-              src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80"
+              src="/imgs/Logo-Ayanavita.png"
               alt="Admin"
             />
             <div>
@@ -69,11 +69,16 @@ export function AdminSidebar({ open, onClose, onConnectPay }: Props) {
             <i className="fa-solid fa-book-open text-amber-600" />
             <span className="font-semibold">Khóa học</span>
           </a>
+          {/* thêm link: sản phẩm /admin/product */}
+          <a href="/admin/product" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+            <i className="fa-solid fa-box text-emerald-700" />
+            <span className="font-semibold">Sản phẩm</span>
+          </a>
           <a href="#students" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-users text-cyan-700" />
             <span className="font-semibold">Học viên</span>
           </a>
-          <a href="#orders" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+          <a href="/admin/orders" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-bag-shopping text-emerald-700" />
             <span className="font-semibold">Đơn hàng</span>
           </a>
@@ -81,6 +86,11 @@ export function AdminSidebar({ open, onClose, onConnectPay }: Props) {
           <a href="/admin/cms" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-file-lines text-slate-700" />
             <span className="font-semibold">CMS</span>
+          </a>
+          {/* Thêm link: Đánh giá /admin/reviews */}
+          <a href="/admin/reviews" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+            <i className="fa-solid fa-star text-yellow-700" />
+            <span className="font-semibold">Đánh giá</span>
           </a>
           <a href="#analytics" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-chart-line text-violet-700" />

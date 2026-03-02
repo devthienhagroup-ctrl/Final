@@ -231,7 +231,7 @@ export function AdminDashboardPage() {
         />
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
+      <section className="grid gap-4 lg:grid-cols-2">
         <div className="card p-6">
           <div className="text-xs font-semibold text-slate-500">Phân tích</div>
           <div className="text-lg font-extrabold">Doanh thu sản phẩm theo phương thức thanh toán</div>
@@ -250,12 +250,12 @@ export function AdminDashboardPage() {
           </div>
         </div>
 
-        <ChecklistCard
+        {/* <ChecklistCard
           items={checklistItems}
           value={checks}
           onChange={setChecks}
           onSave={() => toast("Đã lưu cấu hình", "Checklist đã được lưu trong trình duyệt.")}
-        />
+        /> */}
       </section>
 
       <footer className="py-6 text-center text-sm text-slate-500">© 2025 AYANAVITA Admin Dashboard • Integrated with NestJS APIs.</footer>

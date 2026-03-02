@@ -1,12 +1,16 @@
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./auth";
 import { AdminDashboardPage } from "../pages/admin/AdminDashboardPage";
-import { AdminOrdersPage } from "../pages/admin/AdminOrdersPage";
 import { LoginPage } from "../pages/admin/LoginPage";
 import { AdminRbacPage } from "../pages/admin/AdminRbacPage";
 import { CmsEditPage } from "../admin/pages/CmsEditPage";
 import { ToastProvider as AdminToastProvider } from "../admin/components/Toast";
 import { CmsPagesPage } from "../admin/pages/CmsPagesPage";
+import  OrderAdminPage  from "../admin/pages/OrderAdminPage";
+import { ReviewsAdminPage } from "../admin/pages/ReviewsAdminPage";
+import { BlogAdminPage } from "../admin/pages/BlogAdminPage";
+import { ProductAdminListPage } from "../admin/pages/ProductAdminListPage";
+import { ProductAdminDetailPage } from "../admin/pages/ProductAdminDetailPage";
 
 function RequireAuth() {
     const { token } = useAuth();
@@ -33,8 +37,12 @@ export function AppRoutes() {
             {/* /student */}
             <Route element={<RequireAuth />}>
                 <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-                <Route path="/admin/orders" element={<AdminOrdersPage />} />
+                <Route path="/admin/orders" element={<OrderAdminPage />} />
                 <Route path="/admin/rbac" element={<AdminRbacPage />} />
+                <Route path="/admin/reviews" element={<ReviewsAdminPage />} />
+                <Route path="/admin/blog" element={<BlogAdminPage />} />
+                <Route path="/admin/product" element={<ProductAdminListPage />} />
+                <Route path="/admin/product/:productId" element={<ProductAdminDetailPage />} />
                 <Route
                     path="/admin/cms"
                     element={(
@@ -51,15 +59,7 @@ export function AppRoutes() {
                         </AdminToastProvider>
                     )}
                 />
-
-                <Route
-                    path="/admin/product-orders"
-                    element={(
-                        <AdminToastProvider>
-                        <div className="p-6">Chưa có gì ở đây, quay lại sau nhé!</div>
-                        </AdminToastProvider>
-                    )}
-                />
+\\
             </Route>
 
             <Route path="*" element={<div className="p-6">404</div>} />

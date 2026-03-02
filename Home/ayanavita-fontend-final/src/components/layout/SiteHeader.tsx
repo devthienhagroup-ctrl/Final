@@ -16,9 +16,12 @@ type CourseHeaderData = {
   thumbnail?: string | null;
   price?: number;
   ratingAvg?: number;
+  ratingCount?: number;
   enrollmentCount?: number;
   time?: string | null;
   level?: string | null;
+  topic?: { id: number; name: string } | null;
+  lessons?: Array<{ id: number; modules?: Array<{ id: number }> }>;
 };
 
 const COURSE_CART_KEY = "aya_courses_cart_v1";
@@ -51,6 +54,7 @@ export function SiteHeader({ active }: Props) {
 
   const [course, setCourse] = useState<CourseHeaderData | null>(null);
   const [loadingCourse, setLoadingCourse] = useState(false);
+  const [lang, setLang] = useState(() => localStorage.getItem("preferred-language") || "vi");
 
   const isCourseDetailRoute = Boolean(slug) && location.pathname.startsWith("/courses/") && location.pathname !== "/courses/player";
 
@@ -90,14 +94,21 @@ export function SiteHeader({ active }: Props) {
   }, [location.pathname]);
 
   useEffect(() => {
+    const onLangChange = (event: Event) => {
+      const customEvent = event as CustomEvent<{ language?: string }>;
+      if (customEvent.detail?.language) setLang(customEvent.detail.language);
+    };
+    window.addEventListener("languageChange", onLangChange as EventListener);
+    return () => window.removeEventListener("languageChange", onLangChange as EventListener);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
 
     if (!isCourseDetailRoute || !slug) {
       setCourse(null);
       return;
     }
-
-    const lang = localStorage.getItem("preferred-language") || "vi";
 
     (async () => {
       setLoadingCourse(true);
@@ -116,11 +127,16 @@ export function SiteHeader({ active }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [isCourseDetailRoute, slug]);
+  }, [isCourseDetailRoute, slug, lang]);
+
+  const totalModules = useMemo(
+    () => (course?.lessons || []).reduce((sum, lesson) => sum + (lesson.modules?.length || 0), 0),
+    [course?.lessons],
+  );
 
   if (isCourseDetailRoute) {
     return (
-      <header className="px-4 py-3">
+      <header className="py-3 max-w-6xl mx-auto">
         <div className="mx-auto max-w-7xl overflow-hidden rounded-3xl border border-slate-200 bg-white">
           <div className="grid lg:grid-cols-5">
             <div className="lg:col-span-2">
@@ -135,7 +151,7 @@ export function SiteHeader({ active }: Props) {
                 <div className="absolute bottom-4 left-4 right-4 flex flex-wrap gap-2">
                   <span className="chip">
                     <i className="fa-solid fa-star text-amber-500" />
-                    {Number(course?.ratingAvg || 0).toFixed(1)}
+                    {Number(course?.ratingAvg || 0).toFixed(1)} ({Number(course?.ratingCount || 0)})
                   </span>
                   <span className="chip">
                     <i className="fa-solid fa-users text-indigo-600" />
@@ -156,6 +172,9 @@ export function SiteHeader({ active }: Props) {
                   <h1 className="mt-1 text-2xl font-extrabold sm:text-3xl">
                     {loadingCourse ? "Đang tải..." : course?.title || "Khóa học"}
                   </h1>
+                  {course?.topic?.name ? (
+                    <div className="mt-2 text-xs font-semibold uppercase tracking-wide text-indigo-600">{course.topic.name}</div>
+                  ) : null}
                   <p className="mt-2 text-sm text-slate-600">
                     {course?.shortDescription || course?.description || "Thông tin khóa học đang được cập nhật."}
                   </p>
@@ -174,10 +193,10 @@ export function SiteHeader({ active }: Props) {
 
               <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm text-slate-600">
-                  Tip: nhấn <b>/</b> để tìm lesson • <b>Esc</b> đóng modal/drawer.
+                  {course?.lessons?.length || 0} bài học • {totalModules} module
                 </div>
                 <div className="text-base font-extrabold text-slate-800">
-                  <span className="text-slate-900">Order:</span> Chưa có đơn hàng
+                  <span className="text-slate-900">Đăng ký:</span> {new Intl.NumberFormat("vi-VN").format(Number(course?.enrollmentCount || 0))} học viên
                 </div>
               </div>
             </div>

@@ -23,7 +23,7 @@ type Props = {
 type CourseInnerTab = 'list' | 'detail'
 
 export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searchTerm, page, totalPages, totalItems, onChangeFilters, onChangePage, onCourseCreated, coursesApi = adminCoursesApi }: Props) {
-  const courseTableColumnWidths = ['4%', '18%', '14%', '12%', '8%', '7%', '6%', '6%', '6%', '9%', '9%', '6%', '7%']
+  const courseTableColumnWidths = ['4%', '16%', '12%', '10%', '7%', '6%', '5%', '5%', '5%', '9%', '9%', '8%', '8%']
   const [openCreateModal, setOpenCreateModal] = useState(false)
   const [activeTab, setActiveTab] = useState<CourseInnerTab>('list')
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
@@ -134,7 +134,7 @@ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searc
                     <td>{c.updatedAt ? new Date(c.updatedAt).toLocaleString('vi-VN') : '--'}</td>
                     <td><span className={`status-pill ${c.published ? 'is-published' : 'is-draft'}`}>{c.published ? text.publishedStatus : text.draftStatus}</span></td>
                     <td>
-                      <div className='admin-row' style={{ gap: 6 }}>
+                      <div className='admin-row admin-row-nowrap' style={{ gap: 6 }}>
                         <button
                           type='button'
                           className='admin-btn admin-btn-ghost'

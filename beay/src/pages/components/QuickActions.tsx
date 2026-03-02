@@ -56,22 +56,6 @@ export function QuickActions(props: Props) {
       )}
 
       <div className='mt-4 grid grid-cols-2 gap-2'>
-        <button className='btn btn-primary' onClick={props.onDetails}>
-          <i className='fa-solid fa-circle-info mr-1' />
-          Chi tiết
-        </button>
-        <button className='btn btn-accent' onClick={props.onEdit}>
-          <i className='fa-solid fa-pen-to-square mr-1' />
-          Chỉnh sửa
-        </button>
-        <button className='btn' onClick={props.onDelete}>
-          <i className='fa-solid fa-trash mr-1' />
-          Xóa khóa học
-        </button>
-        <button className='btn' onClick={props.onProgress}>
-          <i className='fa-solid fa-chart-line mr-1' />
-          Theo dõi
-        </button>
       </div>
     </div>
   )

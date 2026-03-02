@@ -7,6 +7,7 @@ import { extname, join } from 'path'
 import * as tls from 'tls'
 import { PrismaService } from '../prisma/prisma.service'
 import type { JwtUser } from '../auth/decorators/current-user.decorator'
+import { hasPermission, isGlobalScope } from '../auth/permission-utils'
 import { CreateAppointmentDto } from './dto/create-appointment.dto'
 import { AppointmentStatsQueryDto } from './dto/booking-query.dto'
 import {
@@ -585,9 +586,9 @@ export class BookingService {
   }
 
   private async resolveAppointmentScope(user: JwtUser): Promise<Prisma.AppointmentWhereInput> {
-    if (user.role === 'ADMIN') return {}
+    if (isGlobalScope(user) && hasPermission(user, 'appointments.read')) return {}
 
-    if (user.role === 'STAFF') {
+    if (user.scopeType === 'BRANCH' || hasPermission(user, 'appointments.write')) {
       const specialist = await this.prisma.specialist.findFirst({
         where: { userId: user.sub, isActive: true },
         select: { id: true },
@@ -846,7 +847,7 @@ export class BookingService {
 
     const payload: Prisma.AppointmentUpdateInput = {}
 
-    if (user.role === 'STAFF') {
+    if (user.scopeType === 'BRANCH' && !isGlobalScope(user)) {
       const specialist = await this.prisma.specialist.findFirst({ where: { userId: user.sub, isActive: true }, select: { id: true } })
       if (!specialist || appointment.specialistId !== specialist.id) {
         throw new ForbiddenException('Bạn chỉ có thể cập nhật lịch hẹn được phân công')
@@ -859,7 +860,7 @@ export class BookingService {
       return this.prisma.appointment.update({ where: { id }, data: payload })
     }
 
-    if (user.role !== 'ADMIN') {
+    if (!hasPermission(user, 'appointments.manage') && !isGlobalScope(user)) {
       throw new ForbiddenException('Bạn không có quyền cập nhật lịch hẹn')
     }
 

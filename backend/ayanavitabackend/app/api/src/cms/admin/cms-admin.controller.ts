@@ -1,32 +1,34 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
 import { SaveDraftDto } from "./dto/save-draft.dto";
 import { RestoreDto } from "./dto/restore.dto";
-import { RolesGuard } from "../../auth/roles.guard";
-import { Roles } from "../../auth/roles.decorator";
+import { PermissionGuard } from "../../auth/guards/permission.guard";
+import { Permissions } from "../../auth/decorators/permissions.decorator";
 import { CmsAdminService } from "./cms-admin.service";
 import { AccessTokenGuard } from "../../auth/guards/access-token.guard";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ImageUploadService } from "../../services/ImageUploadService";
 
 @Controller("admin/cms")
-@UseGuards(AccessTokenGuard, RolesGuard)
-@Roles("ADMIN")
+@UseGuards(AccessTokenGuard, PermissionGuard)
 export class CmsAdminController {
   constructor(
     private readonly svc: CmsAdminService,
     private readonly imageUploadService: ImageUploadService,
   ) {}
 
+  @Permissions("cms.read")
   @Get("pages")
   listPages() {
     return this.svc.listPages();
   }
 
+  @Permissions("cms.read")
   @Get("pages/:slug")
   page(@Param("slug") slug: string) {
     return this.svc.getPageBySlug(slug);
   }
 
+  @Permissions("cms.write")
   @Put("sections/:id/draft")
   saveDraft(
     @Param("id") id: string,
@@ -38,32 +40,38 @@ export class CmsAdminController {
   }
 
 
+  @Permissions("cms.write")
   @Post("images/upload")
   @UseInterceptors(FileInterceptor("file"))
   uploadImage(@UploadedFile() file: Express.Multer.File) {
     return this.imageUploadService.uploadImage(file);
   }
 
+  @Permissions("cms.write")
   @Delete("images")
   deleteImage(@Body("url") url?: string, @Body("fileName") fileName?: string) {
     return this.imageUploadService.deleteImage({ url, fileName });
   }
 
+  @Permissions("cms.publish")
   @Post("sections/:id/publish")
   publish(@Param("id") id: string, @Query("locale") locale: string) {
     return this.svc.publish(Number(id), locale, undefined);
   }
 
+  @Permissions("cms.publish")
   @Post("sections/:id/unpublish")
   unpublish(@Param("id") id: string, @Query("locale") locale: string) {
     return this.svc.unpublish(Number(id), locale);
   }
 
+  @Permissions("cms.read")
   @Get("sections/:id/versions")
   versions(@Param("id") id: string, @Query("locale") locale: string) {
     return this.svc.listVersions(Number(id), locale);
   }
 
+  @Permissions("cms.write")
   @Post("sections/:id/restore")
   restore(@Param("id") id: string, @Query("locale") locale: string, @Body() dto: RestoreDto) {
     return this.svc.restoreDraft(Number(id), locale, dto.versionId, undefined);

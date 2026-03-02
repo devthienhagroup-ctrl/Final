@@ -1,30 +1,6 @@
-import type { EnrollmentStatus } from "./student.types";
+import { request } from '../../api/http'
+import type { EnrollmentStatus } from './student.types'
 
-const API_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:8090").replace(/\/+$/, "");
-const ACCESS_TOKEN_KEY = "aya_admin_token";
-
-function joinUrl(path: string) {
-  const cleanPath = path.startsWith("/") ? path : `/${path}`;
-  return `${API_BASE}${cleanPath}`;
-}
-
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const headers = new Headers(init.headers);
-  const token = localStorage.getItem(ACCESS_TOKEN_KEY);
-
-  if (!headers.has("Content-Type") && init.body) headers.set("Content-Type", "application/json");
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-
-  const response = await fetch(joinUrl(path), {
-    ...init,
-    headers,
-    credentials: "include",
-  });
-
-  const text = await response.text();
-  if (!response.ok) throw new Error(text || `HTTP ${response.status}`);
-  return text ? (JSON.parse(text) as T) : ({} as T);
-}
 
 export type ApiLesson = {
   id: number;
@@ -142,7 +118,7 @@ export const studentApi = {
   updateVideoProgress: (lessonId: number, videoId: number, watchedSec: number, completed = false) =>
     request(`/lessons/${lessonId}/videos/${videoId}/progress`, {
       method: "POST",
-      body: JSON.stringify({ watchedSec, completed }),
+      body: { watchedSec, completed },
     }),
   completeModule: (lessonId: number, moduleId: number) =>
     request(`/lessons/${lessonId}/modules/${moduleId}/complete`, { method: "POST" }),

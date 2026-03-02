@@ -1,8 +1,8 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { CourseAccessStatus, Prisma } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
-
-type JwtUser = { sub: number; role: string }
+import { JwtUser } from '../auth/decorators/current-user.decorator'
+import { hasAnyPermission } from '../auth/permission-utils'
 
 @Injectable()
 export class EnrollmentsService {
@@ -98,7 +98,7 @@ export class EnrollmentsService {
 
   async myCoursesWithProgress(user: JwtUser, lang?: string) {
     const userId = user.sub
-    const isAdmin = user.role === 'ADMIN'
+    const isAdmin = hasAnyPermission(user, ['courses.manage', 'courses.write', 'courses.publish'])
     const locale = this.resolveLocale(lang)
     const accesses = await this.myCourses(userId, locale)
 
@@ -173,7 +173,7 @@ export class EnrollmentsService {
   }
 
   async assertEnrolledOrAdmin(user: JwtUser, courseId: number) {
-    if (user.role === 'ADMIN') return
+    if (hasAnyPermission(user, ['courses.manage', 'courses.write', 'courses.publish'])) return
 
     const e = await this.prisma.courseAccess.findUnique({
       where: { userId_courseId: { userId: user.sub, courseId } },

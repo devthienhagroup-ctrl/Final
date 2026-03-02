@@ -2,9 +2,9 @@ import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query,
 import { FileInterceptor } from '@nestjs/platform-express'
 import { memoryStorage } from 'multer'
 import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
-import { Roles } from '../auth/decorators/roles.decorator'
+import { Permissions } from '../auth/decorators/permissions.decorator'
 import { AccessTokenGuard } from '../auth/guards/access-token.guard'
-import { RolesGuard } from '../auth/guards/roles.guard'
+import { PermissionGuard } from '../auth/guards/permission.guard'
 import { CourseQueryDto } from '../courses/dto/course-query.dto'
 import { CreateCourseDto } from '../courses/dto/create-course.dto'
 import { UpdateCourseDto } from '../courses/dto/update-course.dto'
@@ -30,8 +30,8 @@ const parseMultipartData = (input: MultipartBody) => {
   return data
 }
 
-@UseGuards(AccessTokenGuard, RolesGuard)
-@Roles('MANAGER', 'STAFF', 'ADMIN')
+@UseGuards(AccessTokenGuard, PermissionGuard)
+@Permissions('courses.write')
 @Controller('instructor')
 export class InstructorController {
   constructor(
@@ -60,7 +60,7 @@ export class InstructorController {
   @Get('courses/:id/lessons-outline')
   async lessonsOutline(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
     await this.courses.assertCreator(id, user.sub)
-    return this.courses.lessonsOutline({ sub: user.sub, role: 'ADMIN' }, id, lang)
+    return this.courses.lessonsOutline(user, id, lang)
   }
 
   @Post('courses')
@@ -85,9 +85,9 @@ export class InstructorController {
   @Get('lessons/:id')
   async lessonDetail(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
     const lesson = await this.prisma.lesson.findUnique({ where: { id }, select: { id: true, courseId: true } })
-    if (!lesson) return this.lessons.findOne({ ...user, role: 'ADMIN' }, id, lang)
+    if (!lesson) return this.lessons.findOne(user, id, lang)
     await this.courses.assertCreator(lesson.courseId, user.sub)
-    return this.lessons.findOne({ ...user, role: 'ADMIN' }, id, lang)
+    return this.lessons.findOne(user, id, lang)
   }
 
   @Post('courses/:courseId/lessons')

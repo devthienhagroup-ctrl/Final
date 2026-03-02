@@ -9,6 +9,7 @@ import {
 import { BlogPostStatus } from '@prisma/client'
 import type { Request } from 'express'
 import { JwtUser } from '../auth/decorators/current-user.decorator'
+import { hasAnyPermission } from '../auth/permission-utils'
 import { PrismaService } from '../prisma/prisma.service'
 import { ImageUploadService } from '../services/ImageUploadService'
 import { BlogQueryDto, BlogSortMode } from './dto/blog-query.dto'
@@ -310,7 +311,7 @@ export class BlogService implements OnModuleInit, OnModuleDestroy {
   }
 
   async triggerCleanup(user: JwtUser) {
-    if (user.role !== 'ADMIN') throw new ForbiddenException('Không có quyền')
+    if (!hasAnyPermission(user, ['cms.manage'])) throw new ForbiddenException('Không có quyền')
     await this.clearExpiredViewTrackers()
     return { ok: true }
   }

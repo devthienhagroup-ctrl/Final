@@ -17,9 +17,9 @@ import { FilesInterceptor } from '@nestjs/platform-express'
 import { memoryStorage } from 'multer'
 import type { Request } from 'express'
 import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
-import { Roles } from '../auth/decorators/roles.decorator'
+import { Permissions } from '../auth/decorators/permissions.decorator'
 import { AccessTokenGuard } from '../auth/guards/access-token.guard'
-import { RolesGuard } from '../auth/guards/roles.guard'
+import { PermissionGuard } from '../auth/guards/permission.guard'
 import { CreateReviewDto } from './dto/create-review.dto'
 import { HelpfulHistoryQueryDto, MergeHelpfulDto } from './dto/review-helpful.dto'
 import { AdminReviewsQueryDto, PublicReviewsQueryDto } from './dto/reviews-query.dto'
@@ -82,22 +82,22 @@ export class ReviewsController {
     return this.reviewsService.mergeLocalHelpful(user.sub, dto.reviewIds || [])
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('support.read')
   @Get('admin/list')
   adminList(@Query() query: AdminReviewsQueryDto) {
     return this.reviewsService.adminList(query)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('support.manage')
   @Patch('admin/:id/hide')
   adminHide(@Param('id', ParseIntPipe) id: number) {
     return this.reviewsService.adminHide(id)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('support.manage')
   @Delete('admin/:id')
   adminDelete(@Param('id', ParseIntPipe) id: number) {
     return this.reviewsService.adminDelete(id)

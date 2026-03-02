@@ -1,7 +1,6 @@
-const API_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:8090").replace(/\/+$/, "");
-const ACCESS_TOKEN_KEY = "aya_admin_token";
-const REFRESH_TOKEN_KEY = "aya_admin_refresh_token";
+import { clearTokenPair, readAccessToken, readRefreshToken, writeTokenPair } from './session';
 
+const API_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:8090").replace(/\/+$/, "");
 function joinUrl(path: string) {
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
   return `${API_BASE}${cleanPath}`;
@@ -13,24 +12,6 @@ type LoginResponse = {
 };
 
 let pendingRefresh: Promise<string | null> | null = null;
-
-function readAccessToken() {
-  return localStorage.getItem(ACCESS_TOKEN_KEY) || "";
-}
-
-function readRefreshToken() {
-  return localStorage.getItem(REFRESH_TOKEN_KEY) || "";
-}
-
-function writeTokens(accessToken: string, refreshToken: string) {
-  localStorage.setItem(ACCESS_TOKEN_KEY, accessToken.trim());
-  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken.trim());
-}
-
-function clearTokens() {
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
-}
 
 async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = readRefreshToken();
@@ -45,18 +26,18 @@ async function refreshAccessToken(): Promise<string | null> {
       });
 
       if (!response.ok) {
-        clearTokens();
+        clearTokenPair();
         return null;
       }
 
       const text = await response.text();
       const payload = text ? (JSON.parse(text) as LoginResponse) : null;
       if (!payload?.accessToken || !payload?.refreshToken) {
-        clearTokens();
+        clearTokenPair();
         return null;
       }
 
-      writeTokens(payload.accessToken, payload.refreshToken);
+      writeTokenPair(payload.accessToken, payload.refreshToken);
       return payload.accessToken;
     })().finally(() => {
       pendingRefresh = null;

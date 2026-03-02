@@ -7,13 +7,18 @@ import { Prisma, ProgressStatus } from '@prisma/client'
 import { CourseQueryDto } from './dto/course-query.dto'
 import { CoursesMediaService } from './courses-media.service'
 import { UpsertCourseReviewDto } from './dto/upsert-course-review.dto'
+import { JwtUser } from '../auth/decorators/current-user.decorator'
+import { hasAnyPermission } from '../auth/permission-utils'
 
-type JwtUser = { sub: number; role: string }
 type Locale = 'vi' | 'en' | 'de'
 type MultiLingualStringList = Record<Locale, string[]>
 
 @Injectable()
 export class CoursesService {
+  private canManageCourseContent(user: JwtUser | null | undefined) {
+    return hasAnyPermission(user, ['courses.write', 'courses.manage', 'courses.publish'])
+  }
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly enrollments: EnrollmentsService,
@@ -124,9 +129,9 @@ export class CoursesService {
     const lessonLocale = this.resolveCourseLocale(lang)
     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } })
     if (!course) throw new NotFoundException('Course not found')
-    if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
+    if (!this.canManageCourseContent(user) && !course.published) throw new NotFoundException('Course not found')
     const lessons = await this.prisma.lesson.findMany({
-      where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) },
+      where: { courseId, ...(this.canManageCourseContent(user) ? {} : { published: true }) },
       select: {
         id: true,
         courseId: true,
@@ -159,7 +164,7 @@ export class CoursesService {
     const courseLocale = this.resolveCourseLocale(query.lang)
     const topicLocale = courseLocale
     const where: Prisma.CourseWhereInput = {
-      ...(user?.role === 'ADMIN' ? {} : { published: true }),
+      ...(this.canManageCourseContent(user) ? {} : { published: true }),
       ...(query.topicId ? { topicId: query.topicId } : {}),
       ...(query.search?.trim() ? { OR: [{ title: { contains: query.search.trim() } }, { slug: { contains: query.search.trim() } }] } : {}),
     }
@@ -195,7 +200,7 @@ export class CoursesService {
     const locale = this.resolveCourseLocale(lang)
     const topics = await this.prisma.courseTopic.findMany({
       where: {
-        ...(user?.role === 'ADMIN'
+        ...(this.canManageCourseContent(user)
           ? {}
           : {
               courses: {
@@ -359,8 +364,8 @@ export class CoursesService {
 
   async listLessons(user: { sub: number; role: string }, courseId: number, lang?: string) { /* kept */
     const lessonLocale = this.resolveCourseLocale(lang)
-    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } }); if (!course) throw new NotFoundException('Course not found'); await this.enrollments.assertEnrolledOrAdmin(user, courseId); if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
-    const lessons = await this.prisma.lesson.findMany({ where: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) }, select: { id: true, courseId: true, title: true, slug: true, description: true, order: true, published: true, createdAt: true, updatedAt: true, translations: { where: { locale: { in: [lessonLocale, 'vi'] } }, select: { locale: true, title: true, description: true } } }, orderBy: [{ order: 'asc' }, { id: 'asc' }] })
+    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } }); if (!course) throw new NotFoundException('Course not found'); await this.enrollments.assertEnrolledOrAdmin(user, courseId); if (!this.canManageCourseContent(user) && !course.published) throw new NotFoundException('Course not found')
+    const lessons = await this.prisma.lesson.findMany({ where: { courseId, ...(this.canManageCourseContent(user) ? {} : { published: true }) }, select: { id: true, courseId: true, title: true, slug: true, description: true, order: true, published: true, createdAt: true, updatedAt: true, translations: { where: { locale: { in: [lessonLocale, 'vi'] } }, select: { locale: true, title: true, description: true } } }, orderBy: [{ order: 'asc' }, { id: 'asc' }] })
     const localizedLessons = lessons.map((lesson: any) => {
       const tr = lesson.translations?.find((item: any) => item.locale === lessonLocale) || lesson.translations?.find((item: any) => item.locale === 'vi')
       return {
@@ -369,17 +374,17 @@ export class CoursesService {
         localizedDescription: tr?.description || lesson.description || null,
       }
     })
-    if (user.role === 'ADMIN') return localizedLessons.map((l) => ({ ...l, locked: false, lockReason: null, progress: null }))
+    if (this.canManageCourseContent(user)) return localizedLessons.map((l) => ({ ...l, locked: false, lockReason: null, progress: null }))
     const progressRows = await this.prisma.lessonProgress.findMany({ where: { userId: user.sub, lessonId: { in: lessons.map((l) => l.id) } }, select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true } })
     const progressMap = new Map(progressRows.map((p) => [p.lessonId, p])); let prevCompleted = true
     return localizedLessons.map((lesson, idx) => { const progress = progressMap.get(lesson.id) ?? null; const locked = idx === 0 ? false : prevCompleted === false; const lockReason = locked ? 'PREV_NOT_COMPLETED' : null; prevCompleted = progress?.status === ProgressStatus.COMPLETED; return { ...lesson, locked, lockReason, progress } })
   }
 
   async getLessonDetail(user: { sub: number; role: string }, courseId: number, lessonId: number) { /* kept */
-    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } }); if (!course) throw new NotFoundException('Course not found'); await this.enrollments.assertEnrolledOrAdmin(user, courseId); if (user.role !== 'ADMIN' && !course.published) throw new NotFoundException('Course not found')
+    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } }); if (!course) throw new NotFoundException('Course not found'); await this.enrollments.assertEnrolledOrAdmin(user, courseId); if (!this.canManageCourseContent(user) && !course.published) throw new NotFoundException('Course not found')
     const lesson = await this.prisma.lesson.findFirst({ where: { id: lessonId, courseId }, select: { id: true, courseId: true, title: true, slug: true, content: true, videoUrl: true, order: true, published: true, createdAt: true, updatedAt: true } }); if (!lesson) throw new NotFoundException('Lesson not found')
-    if (user.role !== 'ADMIN' && !lesson.published) throw new NotFoundException('Lesson not found')
-    if (user.role !== 'ADMIN') { const orderedLessons = await this.prisma.lesson.findMany({ where: { courseId, published: true }, select: { id: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] }); const idx = orderedLessons.findIndex((l) => l.id === lessonId); if (idx < 0) throw new NotFoundException('Lesson not found'); if (idx > 0) { const prevLessonId = orderedLessons[idx - 1].id; const prevProgress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId: prevLessonId } }, select: { status: true } }); if (prevProgress?.status !== ProgressStatus.COMPLETED) throw new ForbiddenException('Lesson locked') } }
+    if (!this.canManageCourseContent(user) && !lesson.published) throw new NotFoundException('Lesson not found')
+    if (!this.canManageCourseContent(user)) { const orderedLessons = await this.prisma.lesson.findMany({ where: { courseId, published: true }, select: { id: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }] }); const idx = orderedLessons.findIndex((l) => l.id === lessonId); if (idx < 0) throw new NotFoundException('Lesson not found'); if (idx > 0) { const prevLessonId = orderedLessons[idx - 1].id; const prevProgress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId: prevLessonId } }, select: { status: true } }); if (prevProgress?.status !== ProgressStatus.COMPLETED) throw new ForbiddenException('Lesson locked') } }
     const progress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId } }, select: { lessonId: true, status: true, percent: true, lastPositionSec: true, lastOpenedAt: true, completedAt: true, updatedAt: true } })
     return { ...lesson, progress: progress ?? null }
   }

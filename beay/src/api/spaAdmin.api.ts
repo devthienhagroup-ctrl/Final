@@ -102,9 +102,9 @@ export const spaAdminApi = {
     return get<AppointmentStatsResponse>(`/booking/appointments/stats${queryString ? `?${queryString}` : ''}`)
   },
 
-  createBranch: (data: Partial<Branch>) => post('/booking/branches', data, { auth: false }),
-  updateBranch: (id: number, data: Partial<Branch>) => patch(`/booking/branches/${id}`, data, { auth: false }),
-  deleteBranch: (id: number) => del(`/booking/branches/${id}`, { auth: false }),
+  createBranch: (data: Partial<Branch>) => post('/booking/branches', data),
+  updateBranch: (id: number, data: Partial<Branch>) => patch(`/booking/branches/${id}`, data),
+  deleteBranch: (id: number) => del(`/booking/branches/${id}`),
 
   createService: (data: Record<string, any>, file?: File | null) => {
     const form = new FormData()
@@ -112,7 +112,7 @@ export const spaAdminApi = {
       form.append(key, typeof value === 'string' ? value : JSON.stringify(value))
     })
     if (file) form.append('file', file)
-    return request('/booking/services', { method: 'POST', body: form, auth: false })
+    return request('/booking/services', { method: 'POST', body: form })
   },
   updateService: (id: number, data: Record<string, any>, file?: File | null) => {
     const form = new FormData()
@@ -120,20 +120,20 @@ export const spaAdminApi = {
       form.append(key, typeof value === 'string' ? value : JSON.stringify(value))
     })
     if (file) form.append('file', file)
-    return request(`/booking/services/${id}`, { method: 'PATCH', body: form, auth: false })
+    return request(`/booking/services/${id}`, { method: 'PATCH', body: form })
   },
-  deleteService: (id: number) => del(`/booking/services/${id}`, { auth: false }),
+  deleteService: (id: number) => del(`/booking/services/${id}`),
 
-  createServiceCategory: (data: Partial<ServiceCategory>) => post('/booking/service-categories', data, { auth: false }),
-  updateServiceCategory: (id: number, data: Partial<ServiceCategory>) => patch(`/booking/service-categories/${id}`, data, { auth: false }),
-  deleteServiceCategory: (id: number) => del(`/booking/service-categories/${id}`, { auth: false }),
+  createServiceCategory: (data: Partial<ServiceCategory>) => post('/booking/service-categories', data),
+  updateServiceCategory: (id: number, data: Partial<ServiceCategory>) => patch(`/booking/service-categories/${id}`, data),
+  deleteServiceCategory: (id: number) => del(`/booking/service-categories/${id}`),
 
-  createSpecialist: (data: any) => post('/booking/specialists', data, { auth: false }),
-  updateSpecialist: (id: number, data: any) => patch(`/booking/specialists/${id}`, data, { auth: false }),
-  deleteSpecialist: (id: number) => del(`/booking/specialists/${id}`, { auth: false }),
+  createSpecialist: (data: any) => post('/booking/specialists', data),
+  updateSpecialist: (id: number, data: any) => patch(`/booking/specialists/${id}`, data),
+  deleteSpecialist: (id: number) => del(`/booking/specialists/${id}`),
 
   createReview: (data: any) => post('/booking/service-reviews', data, { auth: false }),
-  deleteReview: (id: number) => del(`/booking/service-reviews/${id}`, { auth: false }),
+  deleteReview: (id: number) => del(`/booking/service-reviews/${id}`),
 
   updateAppointment: (id: number, data: any) => patch(`/booking/appointments/${id}`, data),
   deleteAppointment: (id: number) => del(`/booking/appointments/${id}`),

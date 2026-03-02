@@ -1,13 +1,13 @@
 import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common'
 import { AccessTokenGuard } from '../auth/guards/access-token.guard'
-import { RolesGuard } from '../auth/guards/roles.guard'
-import { Roles } from '../auth/decorators/roles.decorator'
+import { PermissionGuard } from '../auth/guards/permission.guard'
+import { Permissions } from '../auth/decorators/permissions.decorator'
 import { CourseTopicsService } from './course-topics.service'
 import { CreateCourseTopicDto } from './dto/create-course-topic.dto'
 import { UpdateCourseTopicDto } from './dto/update-course-topic.dto'
 
-@UseGuards(AccessTokenGuard, RolesGuard)
-@Roles('ADMIN')
+@UseGuards(AccessTokenGuard, PermissionGuard)
+@Permissions('courses.manage')
 @Controller('admin/course-topics')
 export class CourseTopicsController {
   constructor(private readonly service: CourseTopicsService) {}

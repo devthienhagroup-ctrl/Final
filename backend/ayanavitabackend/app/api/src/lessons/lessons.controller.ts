@@ -17,8 +17,8 @@ import { CreateLessonDto } from './dto/create-lesson.dto'
 import { UpdateLessonDto } from './dto/update-lesson.dto'
 import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
 import { AccessTokenGuard } from '../auth/guards/access-token.guard'
-import { RolesGuard } from '../auth/guards/roles.guard'
-import { Roles } from '../auth/decorators/roles.decorator'
+import { PermissionGuard } from '../auth/guards/permission.guard'
+import { Permissions } from '../auth/decorators/permissions.decorator'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { memoryStorage } from 'multer'
 
@@ -39,8 +39,8 @@ export class LessonsController {
   }
 
   // ADMIN: tạo lesson trong course
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(PermissionGuard)
+  @Permissions('courses.write')
   @Post('courses/:courseId/lessons')
   create(
     @Param('courseId', ParseIntPipe) courseId: number,
@@ -50,8 +50,8 @@ export class LessonsController {
   }
 
 
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(PermissionGuard)
+  @Permissions('courses.write')
   @Post('lessons/:id/modules/:moduleId/media/upload')
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   uploadModuleMedia(
@@ -73,8 +73,8 @@ export class LessonsController {
   }
 
   // ADMIN: update lesson
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(PermissionGuard)
+  @Permissions('courses.write')
   @Patch('lessons/:id')
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -84,8 +84,8 @@ export class LessonsController {
   }
 
   // ADMIN: delete lesson
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(PermissionGuard)
+  @Permissions('courses.manage')
   @Delete('lessons/:id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.lessons.remove(id)

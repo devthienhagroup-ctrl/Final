@@ -1,46 +1,52 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState } from 'react'
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, clearTokenPair, decodeJwtClaims, hasPermission, readAccessToken, readRefreshToken, type ScopeType } from './session'
 
 type AuthState = {
-  token: string;
-  refreshToken: string;
-  setTokenPair: (accessToken: string, refreshToken: string) => void;
-  logout: () => void;
-};
+  token: string
+  refreshToken: string
+  claims: ReturnType<typeof decodeJwtClaims>
+  setTokenPair: (accessToken: string, refreshToken: string) => void
+  logout: () => void
+  can: (permission: string) => boolean
+  hasScope: (scope: ScopeType | string) => boolean
+}
 
-const AuthContext = createContext<AuthState | null>(null);
-const TOKEN_KEY = "aya_admin_token";
-const REFRESH_TOKEN_KEY = "aya_admin_refresh_token";
+const AuthContext = createContext<AuthState | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setTokenState] = useState<string>(() => localStorage.getItem(TOKEN_KEY) || "");
-  const [refreshToken, setRefreshTokenState] = useState<string>(() => localStorage.getItem(REFRESH_TOKEN_KEY) || "");
+  const [token, setTokenState] = useState<string>(() => readAccessToken())
+  const [refreshToken, setRefreshTokenState] = useState<string>(() => readRefreshToken())
+
+  const claims = useMemo(() => decodeJwtClaims(token), [token])
 
   const setTokenPair = (nextToken: string, nextRefreshToken: string) => {
-    const cleanToken = nextToken.trim();
-    const cleanRefresh = nextRefreshToken.trim();
+    const cleanToken = nextToken.trim()
+    const cleanRefresh = nextRefreshToken.trim()
 
-    setTokenState(cleanToken);
-    setRefreshTokenState(cleanRefresh);
+    setTokenState(cleanToken)
+    setRefreshTokenState(cleanRefresh)
 
-    localStorage.setItem(TOKEN_KEY, cleanToken);
-    localStorage.setItem(REFRESH_TOKEN_KEY, cleanRefresh);
-  };
+    localStorage.setItem(ACCESS_TOKEN_KEY, cleanToken)
+    localStorage.setItem(REFRESH_TOKEN_KEY, cleanRefresh)
+  }
 
   const logout = () => {
-    setTokenState("");
-    setRefreshTokenState("");
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-  };
+    setTokenState('')
+    setRefreshTokenState('')
+    clearTokenPair()
+  }
 
-  const value = useMemo(() => ({ token, refreshToken, setTokenPair, logout }), [token, refreshToken]);
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  const can = (permission: string) => hasPermission(claims, permission)
+  const hasScope = (scope: ScopeType | string) => claims?.role === 'ADMIN' || claims?.scopeType === scope
+
+  const value = useMemo(() => ({ token, refreshToken, claims, setTokenPair, logout, can, hasScope }), [token, refreshToken, claims])
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
+  const context = useContext(AuthContext)
   if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
+    throw new Error('useAuth must be used within AuthProvider')
   }
-  return context;
+  return context
 }

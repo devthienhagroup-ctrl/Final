@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../ui/toast";
+import { useAuth } from "../../app/auth";
 import type { StudentCourse } from "../student/student.types";
 import { MOCK_STUDENT_COURSES } from "../student/student.mock";
 import { studentApi } from "../student/student.api";
@@ -20,6 +21,7 @@ function sortLessons<T extends { id: number; order?: number }>(lessons: T[]): T[
 
 export function StudentPortalPage() {
   const { toast } = useToast();
+  const { logout } = useAuth();
   const nav = useNavigate();
 
   const [courses, setCourses] = useState<StudentCourse[]>(MOCK_STUDENT_COURSES);
@@ -236,7 +238,7 @@ export function StudentPortalPage() {
           "radial-gradient(900px 450px at 15% 0%, rgba(79,70,229,0.14), transparent 60%), radial-gradient(700px 380px at 90% 10%, rgba(245,158,11,0.10), transparent 60%), linear-gradient(to bottom, #f8fafc, #f8fafc)",
       }}
     >
-      <StudentHeader onBell={actions.bell} onContinue={actions.continue} />
+      <StudentHeader onBell={actions.bell} onContinue={actions.continue} onLogout={logout} />
 
       <main className="px-4 md:px-8 py-6 space-y-6">
         <StudentHero

@@ -2,6 +2,7 @@
 type Props = {
   onBell: () => void;
   onContinue: () => void;
+  onLogout: () => void;
 };
 
 export function StudentHeader(props: Props) {
@@ -24,6 +25,9 @@ export function StudentHeader(props: Props) {
         <div className="flex items-center gap-2">
           <button className="btn btn-primary inline-flex items-center gap-2" onClick={props.onContinue}>
             <i className="fa-solid fa-play" /> Tiếp tục học
+          </button>
+          <button className="btn inline-flex items-center gap-2" onClick={props.onLogout}>
+            <i className="fa-solid fa-right-from-bracket" /> Đăng xuất
           </button>
         </div>
       </div>

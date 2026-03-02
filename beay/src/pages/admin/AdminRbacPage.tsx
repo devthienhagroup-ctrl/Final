@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useToast } from "../../ui/toast";
+import { useAuth } from "../../app/auth";
 import {
   assignPermissionsToRole,
   assignRoleToUser,
@@ -34,6 +35,7 @@ const PAGE_SIZE = 10;
 
 export function AdminRbacPage() {
   const { toast } = useToast();
+  const { logout } = useAuth();
   const [loading, setLoading] = useState(true);
   const [roles, setRoles] = useState<Role[]>([]);
   const [roleIdMap, setRoleIdMap] = useState<Record<string, number>>({});
@@ -274,6 +276,7 @@ export function AdminRbacPage() {
         }}
         onExport={exportJson}
         onSave={saveAll}
+        onLogout={logout}
       />
       <main className="px-4 md:px-8 py-6 space-y-6">
         <section className="grid gap-4 lg:grid-cols-3">

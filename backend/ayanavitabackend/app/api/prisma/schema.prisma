@@ -17,7 +17,7 @@ model User {
   birthDate          DateTime?
   gender             Gender?
   address            String?  @db.VarChar(500)
-  role               UserRole @default(USER)
+  role               String   @default("USER") @db.VarChar(32)
   roleId             Int?
   roleRef            RbacRole? @relation("UserRbacRole", fields: [roleId], references: [id], onDelete: SetNull)
   isActive           Boolean  @default(true)
@@ -718,14 +718,6 @@ model RoleAuditLog {
   @@index([targetUserId])
   @@index([roleId])
 }
-
-enum UserRole {
-  ADMIN
-  MANAGER
-  STAFF
-  USER
-}
-
 
 enum EnrollmentStatus {
   ACTIVE

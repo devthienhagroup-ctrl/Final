@@ -136,6 +136,29 @@ export type CourseListResponse = {
 
 export type CourseDetailAdmin = CourseAdmin
 
+export type CourseReviewAdmin = {
+  id: number
+  stars: number
+  comment?: string | null
+  customerName?: string | null
+  userName?: string | null
+  email?: string | null
+  phone?: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+export type CourseStudentAdmin = {
+  id: number
+  userId?: number | null
+  name?: string | null
+  email?: string | null
+  phone?: string | null
+  progressPercent?: number | null
+  progress?: number | null
+  enrolledAt?: string | null
+}
+
 
 export type CourseManagementApi = {
   listTopics: () => Promise<CourseTopic[]>
@@ -149,6 +172,9 @@ export type CourseManagementApi = {
   createLesson: (courseId: number, body: LessonPayload) => Promise<LessonAdmin>
   updateLesson: (lessonId: number, body: Partial<LessonPayload>) => Promise<LessonAdmin>
   deleteLesson: (lessonId: number) => Promise<{ id: number }>
+  listCourseReviews: (courseId: number) => Promise<CourseReviewAdmin[]>
+  deleteCourseReview?: (courseId: number, reviewId: number) => Promise<{ id: number }>
+  listCourseStudents: (courseId: number) => Promise<CourseStudentAdmin[]>
   uploadModuleMedia: (lessonId: number, moduleId: string | number, file: File, type: 'video' | 'image', order?: number) => Promise<{ moduleId?: string; lessonId?: number; hlsPlaylistKey?: string; segmentCount?: number; imageKey?: string; sourceUrl?: string; storage: string; videoId?: number }>
 }
 
@@ -192,6 +218,9 @@ export const adminCoursesApi = {
   createLesson: (courseId: number, body: LessonPayload) => post<LessonAdmin>(`/courses/${courseId}/lessons`, body, { auth: true }),
   updateLesson: (lessonId: number, body: Partial<LessonPayload>) => patch<LessonAdmin>(`/lessons/${lessonId}`, body, { auth: true }),
   deleteLesson: (lessonId: number) => del<{ id: number }>(`/lessons/${lessonId}`, { auth: true }),
+  listCourseReviews: (courseId: number) => get<CourseReviewAdmin[]>(`/courses/${courseId}/reviews`, { auth: true }),
+  deleteCourseReview: (_courseId: number, reviewId: number) => del<{ id: number }>(`/admin/courses/reviews/${reviewId}`, { auth: true }),
+  listCourseStudents: (courseId: number) => get<CourseStudentAdmin[]>(`/courses/${courseId}/students`, { auth: true }),
 
   uploadModuleMedia: (lessonId: number, moduleId: string | number, file: File, type: 'video' | 'image', order?: number) => {
     const body = new FormData()

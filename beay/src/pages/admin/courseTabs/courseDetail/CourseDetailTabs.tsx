@@ -3,6 +3,8 @@ import {
   adminCoursesApi,
   type CourseDetailAdmin,
   type CourseManagementApi,
+  type CourseReviewAdmin,
+  type CourseStudentAdmin,
   type LessonDetailAdmin,
   type CourseTopic,
   type LessonOutlineAdmin,
@@ -22,59 +24,101 @@ type Props = {
   coursesApi?: CourseManagementApi
 }
 
-type DetailTabKey = 'info' | 'lessons'
+type DetailTabKey = 'info' | 'lessons' | 'reviews' | 'students'
 
 const labels = {
   vi: {
     info: 'Thông tin khóa học',
     lessons: 'Danh sách bài học',
+    reviews: 'Đánh giá',
+    students: 'Học viên',
     add: 'Thêm bài học mới',
     edit: 'Sửa bài học',
     deleteLesson: 'Xóa bài học',
-    deleteCourse: 'Xóa khóa học',
-    noData: 'Chưa có bài học nào.',
+    deleteReview: 'Xóa đánh giá',
+    noData: 'Chưa có dữ liệu.',
     loading: 'Đang tải...',
     lessonOrder: 'Thứ tự bài',
     moduleOrder: 'Thứ tự module',
     mediaOrder: 'Thứ tự media',
     confirmDeleteLesson: 'Bạn có chắc muốn xóa bài học này?',
-    confirmDeleteCourse: 'Bạn có chắc muốn xóa khóa học này?',
+    confirmDeleteReview: 'Bạn có chắc muốn xóa đánh giá này?',
     lessonDeleted: 'Đã xóa bài học.',
-    courseDeleted: 'Đã xóa khóa học.',
+    reviewDeleted: 'Đã xóa đánh giá.',
+    ratingFilter: 'Lọc theo số sao',
+    allStars: 'Tất cả sao',
+    stars: 'Số sao',
+    content: 'Nội dung',
+    reviewer: 'Người đánh giá',
+    email: 'Email',
+    phone: 'Số điện thoại',
+    progress: 'Tiến độ',
+    studentName: 'Tên học viên',
+    prev: 'Trước',
+    next: 'Sau',
+    page: 'Trang',
   },
   en: {
     info: 'Course Information',
     lessons: 'Lesson list',
+    reviews: 'Reviews',
+    students: 'Students',
     add: 'Add new lesson',
     edit: 'Edit lesson',
     deleteLesson: 'Delete lesson',
-    deleteCourse: 'Delete course',
-    noData: 'No lessons yet.',
+    deleteReview: 'Delete review',
+    noData: 'No data yet.',
     loading: 'Loading...',
     lessonOrder: 'Lesson order',
     moduleOrder: 'Module order',
     mediaOrder: 'Media order',
     confirmDeleteLesson: 'Are you sure you want to delete this lesson?',
-    confirmDeleteCourse: 'Are you sure you want to delete this course?',
+    confirmDeleteReview: 'Are you sure you want to delete this review?',
     lessonDeleted: 'Lesson deleted.',
-    courseDeleted: 'Course deleted.',
+    reviewDeleted: 'Review deleted.',
+    ratingFilter: 'Filter by stars',
+    allStars: 'All stars',
+    stars: 'Stars',
+    content: 'Content',
+    reviewer: 'Reviewer',
+    email: 'Email',
+    phone: 'Phone',
+    progress: 'Progress',
+    studentName: 'Student name',
+    prev: 'Prev',
+    next: 'Next',
+    page: 'Page',
   },
   de: {
     info: 'Kursinformationen',
     lessons: 'Lektionsliste',
+    reviews: 'Bewertungen',
+    students: 'Lernende',
     add: 'Neue Lektion',
     edit: 'Lektion bearbeiten',
     deleteLesson: 'Lektion löschen',
-    deleteCourse: 'Kurs löschen',
-    noData: 'Noch keine Lektionen.',
+    deleteReview: 'Bewertung löschen',
+    noData: 'Noch keine Daten.',
     loading: 'Wird geladen...',
     lessonOrder: 'Reihenfolge Lektion',
     moduleOrder: 'Reihenfolge Modul',
     mediaOrder: 'Reihenfolge Medien',
     confirmDeleteLesson: 'Möchten Sie diese Lektion wirklich löschen?',
-    confirmDeleteCourse: 'Möchten Sie diesen Kurs wirklich löschen?',
+    confirmDeleteReview: 'Möchten Sie diese Bewertung wirklich löschen?',
     lessonDeleted: 'Lektion gelöscht.',
-    courseDeleted: 'Kurs gelöscht.',
+    reviewDeleted: 'Bewertung gelöscht.',
+    ratingFilter: 'Nach Sternen filtern',
+    allStars: 'Alle Sterne',
+    stars: 'Sterne',
+    content: 'Inhalt',
+    reviewer: 'Bewerter',
+    email: 'E-Mail',
+    phone: 'Telefon',
+    progress: 'Fortschritt',
+    studentName: 'Name Lernender',
+    prev: 'Zurück',
+    next: 'Weiter',
+    page: 'Seite',
   },
 } as const
 
@@ -97,6 +141,15 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated, 
   const [openLessonModal, setOpenLessonModal] = useState(false)
   const [editingLesson, setEditingLesson] = useState<LessonDetailAdmin | null>(null)
 
+  const [reviews, setReviews] = useState<CourseReviewAdmin[]>([])
+  const [students, setStudents] = useState<CourseStudentAdmin[]>([])
+  const [loadingReviews, setLoadingReviews] = useState(false)
+  const [loadingStudents, setLoadingStudents] = useState(false)
+  const [starFilter, setStarFilter] = useState<'all' | number>('all')
+  const [reviewPage, setReviewPage] = useState(1)
+  const [studentPage, setStudentPage] = useState(1)
+
+  const pageSize = 5
   const t = labels[lang]
 
   const loadLessons = async () => {
@@ -104,6 +157,30 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated, 
     setLessons(data)
     setLessonDetails({})
     setLoadingDetailIds({})
+  }
+
+  const loadReviews = async () => {
+    setLoadingReviews(true)
+    try {
+      const data = await coursesApi.listCourseReviews(course.id)
+      setReviews(Array.isArray(data) ? data : [])
+    } catch {
+      setReviews([])
+    } finally {
+      setLoadingReviews(false)
+    }
+  }
+
+  const loadStudents = async () => {
+    setLoadingStudents(true)
+    try {
+      const data = await coursesApi.listCourseStudents(course.id)
+      setStudents(Array.isArray(data) ? data : [])
+    } catch {
+      setStudents([])
+    } finally {
+      setLoadingStudents(false)
+    }
   }
 
   const getLocalizedText = <T extends { title?: string; description?: string; translations?: LessonI18n; localizedTitle?: string; localizedDescription?: string }>(item: T) => {
@@ -134,12 +211,28 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated, 
   }
 
   useEffect(() => {
-    if (activeTab === 'lessons') {
-      void loadLessons()
-    }
+    if (activeTab === 'lessons') void loadLessons()
+    if (activeTab === 'reviews') void loadReviews()
+    if (activeTab === 'students') void loadStudents()
   }, [activeTab, lang, course.id])
 
   const sortedLessons = useMemo(() => [...lessons].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id - b.id), [lessons])
+  const filteredReviews = useMemo(
+    () => reviews.filter((item) => (starFilter === 'all' ? true : Number(item.stars) === Number(starFilter))),
+    [reviews, starFilter],
+  )
+
+  const reviewTotalPages = Math.max(1, Math.ceil(filteredReviews.length / pageSize))
+  const studentTotalPages = Math.max(1, Math.ceil(students.length / pageSize))
+
+  const reviewRows = useMemo(
+    () => filteredReviews.slice((reviewPage - 1) * pageSize, reviewPage * pageSize),
+    [filteredReviews, reviewPage],
+  )
+  const studentRows = useMemo(
+    () => students.slice((studentPage - 1) * pageSize, studentPage * pageSize),
+    [students, studentPage],
+  )
 
   return (
     <section>
@@ -150,14 +243,20 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated, 
         <button className={`admin-tab ${activeTab === 'lessons' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('lessons')}>
           <i className='fa-solid fa-list-check' /> {t.lessons}
         </button>
+        <button className={`admin-tab ${activeTab === 'reviews' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('reviews')}>
+          <i className='fa-solid fa-star' /> {t.reviews}
+        </button>
+        <button className={`admin-tab ${activeTab === 'students' ? 'active' : ''}`} type='button' onClick={() => setActiveTab('students')}>
+          <i className='fa-solid fa-users' /> {t.students}
+        </button>
       </div>
 
-      {activeTab === 'info' && <CourseDetailInfoTab course={course} text={text} lang={lang} topics={topics} onUpdated={onCourseUpdated} onDeleted={onCourseDeleted} />}
+      {activeTab === 'info' && <CourseDetailInfoTab course={course} text={text} lang={lang} topics={topics} onUpdated={onCourseUpdated} onDeleted={onCourseDeleted} coursesApi={coursesApi} />}
 
       {activeTab === 'lessons' && (
-        <div className='admin-card'>
-          <div className='admin-row' style={{ justifyContent: 'space-between', marginBottom: 12 }}>
-            <h4 style={{ margin: 0 }}><i className='fa-solid fa-list' /> {t.lessons}</h4>
+        <div className='admin-card' style={{ border: '1px dashed rgba(148, 163, 184, 0.5)' }}>
+          <div className='admin-row' style={{ justifyContent: 'space-between', marginBottom: 10 }}>
+            <h4 className='admin-card-title' style={{ marginBottom: 0 }}><i className='fa-solid fa-list-check' /> {t.lessons}</h4>
             <div className='admin-row' style={{ gap: 8 }}>
               <button className='admin-btn admin-btn-save' type='button' onClick={() => {
                 setEditingLesson(null)
@@ -174,10 +273,7 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated, 
               {sortedLessons.map((lesson) => (
                 <li key={lesson.id} className='lesson-outline-item'>
                   <details className='lesson-outline-card' onToggle={(e) => {
-                    const target = e.currentTarget
-                    if (target.open) {
-                      void loadLessonDetail(lesson.id)
-                    }
+                    if (e.currentTarget.open) void loadLessonDetail(lesson.id)
                   }}>
                     <summary className='lesson-outline-summary'>
                       <div>
@@ -235,14 +331,8 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated, 
                                     <div className='admin-helper'>{t.mediaOrder}: {media.order ?? 0}</div>
                                     <div className='admin-helper' style={{ marginBottom: 6 }}>{mediaText.description}</div>
                                     {mediaUrl ? (
-                                      isImage ? (
-                                        <img src={mediaUrl} alt={mediaText.title} style={{ width: '100%', maxWidth: 360, borderRadius: 8, marginTop: 6 }} />
-                                      ) : (
-                                        <video src={mediaUrl} controls style={{ width: '100%', maxWidth: 360, marginTop: 6 }} />
-                                      )
-                                    ) : (
-                                      <div className='admin-helper'>--</div>
-                                    )}
+                                      isImage ? <img src={mediaUrl} alt={mediaText.title} style={{ width: '100%', maxWidth: 360, borderRadius: 8, marginTop: 6 }} /> : <video src={mediaUrl} controls style={{ width: '100%', maxWidth: 360, marginTop: 6 }} />
+                                    ) : <div className='admin-helper'>--</div>}
                                   </div>
                                 )
                               })}
@@ -256,6 +346,103 @@ export function CourseDetailTabs({ course, lang, text, topics, onCourseUpdated, 
               ))}
             </ul>
           )}
+        </div>
+      )}
+
+      {activeTab === 'reviews' && (
+        <div>
+          <div className='admin-row' style={{ marginBottom: 12, justifyContent: 'space-between' }}>
+            <label className='admin-field' style={{ marginBottom: 0, minWidth: 220 }}>
+              <span className='admin-label'>{t.ratingFilter}</span>
+              <select className='admin-input' value={String(starFilter)} onChange={(e) => {
+                setStarFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))
+                setReviewPage(1)
+              }}>
+                <option value='all'>{t.allStars}</option>
+                {[5, 4, 3, 2, 1].map((star) => <option key={star} value={star}>{star} ★</option>)}
+              </select>
+            </label>
+          </div>
+          {loadingReviews && <p className='admin-helper'>{t.loading}</p>}
+          {!loadingReviews && (
+            <div className='admin-table-wrap'>
+              <table className='admin-table'>
+                <thead>
+                  <tr>
+                    <th>{t.stars}</th><th>{t.content}</th><th>{t.reviewer}</th><th>{t.email}</th><th>{t.phone}</th><th>{text.actions}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {!reviewRows.length && <tr><td colSpan={6}>{t.noData}</td></tr>}
+                  {reviewRows.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.stars} ★</td>
+                      <td>{item.comment || '--'}</td>
+                      <td>{item.customerName || item.userName || '--'}</td>
+                      <td>{item.email || '--'}</td>
+                      <td>{item.phone || '--'}</td>
+                      <td>
+                        {coursesApi.deleteCourseReview ? (
+                          <button type='button' className='admin-btn admin-btn-danger' onClick={async () => {
+                            const confirmed = await AlertJs.confirm(t.confirmDeleteReview)
+                            if (!confirmed) return
+                            await coursesApi.deleteCourseReview?.(course.id, item.id)
+                            await AlertJs.success(t.reviewDeleted)
+                            await loadReviews()
+                          }}>
+                            <i className='fa-solid fa-trash' /> {t.deleteReview}
+                          </button>
+                        ) : '--'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className='admin-row' style={{ justifyContent: 'space-between', marginTop: 12 }}>
+            <span>{t.page} {Math.min(reviewPage, reviewTotalPages)} / {reviewTotalPages}</span>
+            <div className='admin-row'>
+              <button className='admin-btn admin-btn-ghost' type='button' disabled={reviewPage <= 1} onClick={() => setReviewPage((prev) => Math.max(1, prev - 1))}>{t.prev}</button>
+              <button className='admin-btn admin-btn-ghost' type='button' disabled={reviewPage >= reviewTotalPages} onClick={() => setReviewPage((prev) => Math.min(reviewTotalPages, prev + 1))}>{t.next}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'students' && (
+        <div>
+          {loadingStudents && <p className='admin-helper'>{t.loading}</p>}
+          {!loadingStudents && (
+            <div className='admin-table-wrap'>
+              <table className='admin-table'>
+                <thead>
+                  <tr>
+                    <th>{t.studentName}</th><th>{t.email}</th><th>{t.phone}</th><th>{t.progress}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {!studentRows.length && <tr><td colSpan={4}>{t.noData}</td></tr>}
+                  {studentRows.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.name || '--'}</td>
+                      <td>{item.email || '--'}</td>
+                      <td>{item.phone || '--'}</td>
+                      <td>{Math.round(Number(item.progressPercent ?? item.progress ?? 0))}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className='admin-row' style={{ justifyContent: 'space-between', marginTop: 12 }}>
+            <span>{t.page} {Math.min(studentPage, studentTotalPages)} / {studentTotalPages}</span>
+            <div className='admin-row'>
+              <button className='admin-btn admin-btn-ghost' type='button' disabled={studentPage <= 1} onClick={() => setStudentPage((prev) => Math.max(1, prev - 1))}>{t.prev}</button>
+              <button className='admin-btn admin-btn-ghost' type='button' disabled={studentPage >= studentTotalPages} onClick={() => setStudentPage((prev) => Math.min(studentTotalPages, prev + 1))}>{t.next}</button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -23,7 +23,7 @@ type Props = {
 type CourseInnerTab = 'list' | 'detail'
 
 export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searchTerm, page, totalPages, totalItems, onChangeFilters, onChangePage, onCourseCreated, coursesApi = adminCoursesApi }: Props) {
-  const courseTableColumnWidths = ['4%', '15%', '12%', '10%', '7%', '6%', '6%', '5%', '5%', '10%', '10%', '6%', '8%']
+  const courseTableColumnWidths = ['4%', '18%', '14%', '12%', '8%', '7%', '6%', '6%', '6%', '9%', '9%', '6%', '7%']
   const [openCreateModal, setOpenCreateModal] = useState(false)
   const [activeTab, setActiveTab] = useState<CourseInnerTab>('list')
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
@@ -144,7 +144,7 @@ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searc
                           }}
                           title={lang === 'vi' ? 'Chi tiết / chỉnh sửa' : lang === 'en' ? 'Details / edit' : 'Details / bearbeiten'}
                         >
-                          <i className='fa-solid fa-pen-to-square' />
+                          <i className='fa-solid fa-eye' />
                         </button>
                         <button
                           type='button'

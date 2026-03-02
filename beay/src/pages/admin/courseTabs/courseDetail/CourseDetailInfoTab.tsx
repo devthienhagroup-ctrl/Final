@@ -580,6 +580,7 @@ export function CourseDetailInfoTab({ course, lang, text, topics, onUpdated, onD
 
       {[
         ['ID', course.id || '--', 'fa-hashtag'],
+        [text.creatorCol || 'Người tạo', course.creator?.name || course.creator?.email || '--', 'fa-user-pen'],
         ['Topic', topic ? displayTopicName(topic) : text.unassigned, 'fa-folder-tree'],
         ['Slug', course.slug || '--', 'fa-link'],
         [t.time, course.time ? `${course.time} tiếng` : '--', 'fa-clock'],

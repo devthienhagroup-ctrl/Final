@@ -31,7 +31,7 @@ const parseMultipartData = (input: MultipartBody) => {
 }
 
 @UseGuards(AccessTokenGuard, RolesGuard)
-@Roles('MANAGER')
+@Roles('MANAGER', 'STAFF', 'ADMIN')
 @Controller('instructor')
 export class InstructorController {
   constructor(

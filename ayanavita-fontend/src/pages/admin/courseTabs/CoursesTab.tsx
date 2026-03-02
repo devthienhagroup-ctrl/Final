@@ -104,7 +104,7 @@ export function CoursesTab({ courses, topics, text, lang, selectedTopicId, searc
 
 
 
-          <div className='admin-table-wrap' style={{ paddingRight: 12, boxSizing: 'border-box' }}>
+          <div className='admin-table-wrap' style={{ boxSizing: 'border-box' }}>
             <table className='admin-table admin-table-courses-full no-scroll-table'>
               <colgroup>
                 {courseTableColumnWidths.map((width, index) => (

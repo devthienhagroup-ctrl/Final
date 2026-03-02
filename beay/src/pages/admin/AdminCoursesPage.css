@@ -290,7 +290,7 @@
 }
 
 .admin-course-management-card {
-  width: 98%;
+  width: 100%;
 }
 
 .admin-table-wrap-full {
@@ -466,7 +466,7 @@
 }
 
 .admin-course-management-card {
-  width: 98%;
+  width: 100%;
 }
 
 .admin-table-wrap-full {
@@ -616,7 +616,7 @@
 }
 
 .admin-course-management-card {
-  width: 98%;
+  width: 100%;
 }
 
 .admin-table-wrap-full {
@@ -735,7 +735,7 @@
 }
 
 .admin-course-management-card {
-  width: 98%;
+  width: 100%;
 }
 
 .admin-table-wrap-full {
@@ -977,7 +977,7 @@
 .admin-table-courses-full.no-scroll-table th:nth-child(11),
 .admin-table-courses-full.no-scroll-table td:nth-child(11) { width: 9%; }
 .admin-table-courses-full.no-scroll-table th:nth-child(12),
-.admin-table-courses-full.no-scroll-table td:nth-child(12) { width: 8%; }
+.admin-table-courses-full.no-scroll-table td:nth-child(12) { width: 10%; }
 .admin-table-courses-full.no-scroll-table th:nth-child(13),
 .admin-table-courses-full.no-scroll-table td:nth-child(13) { width: 8%; }
 

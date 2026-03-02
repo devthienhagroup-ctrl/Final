@@ -22,12 +22,6 @@ export function StudentHeader(props: Props) {
         </div>
 
         <div className="flex items-center gap-2">
-          <a className="btn hidden md:inline-flex items-center gap-2" href="/instructor">
-            <i className="fa-solid fa-chalkboard-user" /> Giảng viên
-          </a>
-          <button className="btn inline-flex items-center gap-2" onClick={props.onBell}>
-            <i className="fa-regular fa-bell" /> Thông báo
-          </button>
           <button className="btn btn-primary inline-flex items-center gap-2" onClick={props.onContinue}>
             <i className="fa-solid fa-play" /> Tiếp tục học
           </button>

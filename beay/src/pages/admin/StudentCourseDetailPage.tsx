@@ -13,6 +13,13 @@ const clamp2: CSSProperties = {
   overflow: "hidden",
 };
 
+const availableLangs: Lang[] = ["vi", "en", "de"];
+
+function normalizeLang(value: string | null): Lang {
+  if (value === "en" || value === "de" || value === "vi") return value;
+  return "vi";
+}
+
 const i18n: Record<Lang, Record<string, string>> = {
   vi: {
     title: "COURSE DETAIL",
@@ -103,7 +110,7 @@ export function StudentCourseDetailPage() {
   const { toast } = useToast();
 
   const courseId = Number(id || 0);
-  const lang = ((sp.get("lang") as Lang) || "vi");
+  const lang = normalizeLang(sp.get("lang"));
   const lessonIdFromQuery = Number(sp.get("lessonId") || 0);
   const t = i18n[lang];
 
@@ -117,6 +124,13 @@ export function StudentCourseDetailPage() {
   const [comment, setComment] = useState("");
   const [myReview, setMyReview] = useState<RatingState | null>(null);
   const [openModules, setOpenModules] = useState<Record<number, boolean>>({});
+  const [isResetting, setIsResetting] = useState(false);
+
+  function buildDefaultOpenModules(lesson: ApiLessonDetail | null) {
+    if (!lesson?.modules?.length) return {};
+    const [firstModule] = lesson.modules;
+    return firstModule ? { [firstModule.id]: true } : {};
+  }
 
   const completedLessonIds = useMemo(() => new Set((progress?.items || []).filter((x) => x.status === "COMPLETED").map((x) => x.lessonId)), [progress]);
 
@@ -141,8 +155,10 @@ export function StudentCourseDetailPage() {
       if (selectedLessonId) {
         const lessonDetail = await studentApi.lessonDetail(selectedLessonId, lang);
         setActiveLesson(lessonDetail);
+        setOpenModules(buildDefaultOpenModules(lessonDetail));
       } else {
         setActiveLesson(null);
+        setOpenModules({});
       }
     } catch (e: any) {
       setErr(e?.message || "Cannot load course detail.");
@@ -164,6 +180,13 @@ export function StudentCourseDetailPage() {
     setSp(next);
     const lessonDetail = await studentApi.lessonDetail(lessonId, lang);
     setActiveLesson(lessonDetail);
+    setOpenModules(buildDefaultOpenModules(lessonDetail));
+  }
+
+  function changeLang(nextLang: Lang) {
+    const next = new URLSearchParams(sp);
+    next.set("lang", nextLang);
+    setSp(next);
   }
 
   async function markVideoDone(video: ApiLessonVideo) {
@@ -176,6 +199,35 @@ export function StudentCourseDetailPage() {
     if (!activeLesson) return;
     await studentApi.completeModule(activeLesson.id, moduleId);
     await loadData(activeLesson.id);
+  }
+
+  async function startLearning() {
+    if (!activeLesson?.id) {
+      toast("Thông báo", "Chưa có bài học để bắt đầu.");
+      return;
+    }
+    nav(`/student/lessons/${activeLesson.id}?courseId=${courseId}&lang=${lang}`);
+  }
+
+  async function resetProgress() {
+    if (!lessons.length) return;
+    setIsResetting(true);
+    try {
+      for (const lesson of lessons) {
+        const lessonDetail = await studentApi.lessonDetail(lesson.id, lang);
+        for (const module of lessonDetail.modules || []) {
+          for (const video of module.videos || []) {
+            await studentApi.updateVideoProgress(lesson.id, video.id, 0, false);
+          }
+        }
+      }
+      await loadData(activeLesson?.id);
+      toast("Thành công", "Đã reset tiến độ khoá học.");
+    } catch (e: any) {
+      toast("Lỗi", e?.message || "Không thể reset tiến độ.");
+    } finally {
+      setIsResetting(false);
+    }
   }
 
   function submitReview() {
@@ -215,8 +267,20 @@ export function StudentCourseDetailPage() {
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 <button className="btn" onClick={() => nav("/student")}>← {t.back}</button>
-                <button className="btn" onClick={() => void loadData(activeLesson?.id)}><i className="fa-solid fa-rotate-right mr-1" />{t.reset}</button>
-                <button className="btn btn-primary" onClick={() => activeLesson?.id && openLesson(activeLesson.id)}><i className="fa-solid fa-play mr-1" />{t.continue}</button>
+                <button className="btn" onClick={() => void resetProgress()} disabled={isResetting}><i className="fa-solid fa-rotate-right mr-1" />{isResetting ? `${t.reset}...` : t.reset}</button>
+                <button className="btn btn-primary" onClick={() => void startLearning()}><i className="fa-solid fa-play mr-1" />{t.continue}</button>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {availableLangs.map((langOption) => (
+                  <button
+                    key={langOption}
+                    className={`btn ${lang === langOption ? "btn-primary" : ""}`}
+                    onClick={() => changeLang(langOption)}
+                    type="button"
+                  >
+                    {langOption.toUpperCase()}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -234,28 +298,29 @@ export function StudentCourseDetailPage() {
               </div>
               <div className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-black ring-1 ring-slate-200"><b>{t.descLesson}:</b> {activeLesson?.localizedDescription || activeLesson?.description || "-"}</div>
               {activeLesson?.modules?.map((m) => {
-                const isOpen = openModules[m.id] ?? true;
+                const isOpen = openModules[m.id] ?? false;
                 return (
                   <div key={m.id} className="relative mb-3 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
                     <span className="absolute left-3 top-3 inline-flex h-3 w-3 rounded-full border-2 border-violet-200 bg-violet-400" />
-                    <div className="ml-5 flex items-start justify-between gap-2">
-                      <div>
+                    <div className="ml-5 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
                         <div className="font-bold">{m.localizedTitle || m.title}</div>
-                        <div className="mt-1 rounded-lg bg-white px-2 py-1 text-sm text-black ring-1 ring-slate-200"><b>{t.descModule}:</b> {m.localizedDescription || m.description || "-"}</div>
+                        <div className="flex items-center gap-2">
+                          <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" onClick={() => void completeModule(m.id)} title={t.completeModule}><i className="fa-solid fa-check" /></button>
+                          <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600 ring-1 ring-slate-200" onClick={() => setOpenModules((prev) => ({ ...prev, [m.id]: !isOpen }))}>
+                            <i className={`fa-solid ${isOpen ? "fa-chevron-up" : "fa-chevron-down"}`} />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" onClick={() => void completeModule(m.id)} title={t.completeModule}><i className="fa-solid fa-check" /></button>
-                        <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600 ring-1 ring-slate-200" onClick={() => setOpenModules((prev) => ({ ...prev, [m.id]: !isOpen }))}>
-                          <i className={`fa-solid ${isOpen ? "fa-chevron-up" : "fa-chevron-down"}`} />
-                        </button>
-                      </div>
+                      <div className="rounded-lg bg-white px-2 py-2 text-sm text-black ring-1 ring-slate-200"><b>{t.descModule}:</b> {m.localizedDescription || m.description || "-"}</div>
                     </div>
 
                     {isOpen && (
-                      <div className="mt-3 space-y-2">
+                      <div className="mt-3 ml-5 space-y-2">
                         {m.videos?.map((v) => (
                           <div key={v.id} className="rounded-xl bg-white p-2 ring-1 ring-slate-200">
                             <div className="text-sm font-semibold">{v.localizedTitle || v.title}</div>
+                            <div className="mt-1 text-sm text-slate-700">{v.localizedDescription || v.description || "-"}</div>
                             {v.playbackUrl ? <video className="mt-2 w-full rounded-lg border border-slate-200" controls src={v.playbackUrl} onEnded={() => void markVideoDone(v)} /> : null}
                             <div className="mt-2 text-right">
                               <button className="btn" onClick={() => void markVideoDone(v)}>{t.watched} {v.progress?.completed ? "✓" : ""}</button>

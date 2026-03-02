@@ -414,7 +414,10 @@ export class CoursesService {
   }
 
   async upsertReview(user: JwtUser, courseId: number, dto: UpsertCourseReviewDto) {
-    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } })
+    const course = await this.prisma.course.findUnique({
+      where: { id: courseId },
+      select: { id: true, ratingAvg: true, ratingCount: true },
+    })
     if (!course) throw new NotFoundException('Course not found')
     await this.enrollments.assertEnrolledOrAdmin(user, courseId)
 
@@ -431,33 +434,38 @@ export class CoursesService {
       select: { id: true },
     })
 
-    const review = existing
-      ? await this.prisma.courseReview.update({
-          where: { id: existing.id },
-          data: { stars: dto.stars, comment, customerName },
-          select: { id: true, stars: true, comment: true, customerName: true, createdAt: true, updatedAt: true },
-        })
-      : await this.prisma.courseReview.create({
-          data: { courseId, userId: user.sub, stars: dto.stars, comment, customerName },
-          select: { id: true, stars: true, comment: true, customerName: true, createdAt: true, updatedAt: true },
-        })
+    return this.prisma.$transaction(async (tx) => {
+      const review = existing
+        ? await tx.courseReview.update({
+            where: { id: existing.id },
+            data: { stars: dto.stars, comment, customerName },
+            select: { id: true, stars: true, comment: true, customerName: true, createdAt: true, updatedAt: true },
+          })
+        : await tx.courseReview.create({
+            data: { courseId, userId: user.sub, stars: dto.stars, comment, customerName },
+            select: { id: true, stars: true, comment: true, customerName: true, createdAt: true, updatedAt: true },
+          })
 
-    const aggregate = await this.prisma.courseReview.aggregate({
-      where: { courseId },
-      _avg: { stars: true },
-      _count: { id: true },
+      const aggregate = await tx.courseReview.aggregate({
+        where: { courseId },
+        _avg: { stars: true },
+        _count: { id: true },
+      })
+
+      const ratingAvg = Number((aggregate._avg.stars || 0).toFixed(1))
+      const ratingCount = aggregate._count.id
+
+      await tx.course.update({
+        where: { id: courseId },
+        data: {
+          ratingAvg,
+          ratingCount,
+        },
+        select: { id: true },
+      })
+
+      return { ...review, ratingAvg, ratingCount }
     })
-
-    const ratingAvg = Number((aggregate._avg.stars || 0).toFixed(1))
-    const ratingCount = aggregate._count.id
-
-    await this.prisma.course.update({
-      where: { id: courseId },
-      data: { ratingAvg, ratingCount },
-      select: { id: true },
-    })
-
-    return { ...review, ratingAvg, ratingCount }
   }
 
 

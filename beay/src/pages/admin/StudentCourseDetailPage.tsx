@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useAuth } from "../../app/auth";
 import { useToast } from "../../ui/toast";
 import { studentApi, type ApiCourseDetail, type ApiCourseProgress, type ApiCourseReview, type ApiLesson, type ApiLessonDetail, type ApiLessonVideo } from "../student/student.api";
 
@@ -61,6 +62,7 @@ const i18n: Record<Lang, Record<string, string>> = {
     minute: "phút",
     hourUnit: "giờ",
     cannotLoadCourse: "Không thể tải chi tiết khoá học.",
+    logout: "Đăng xuất",
   },
   en: {
     title: "COURSE DETAIL",
@@ -102,6 +104,7 @@ const i18n: Record<Lang, Record<string, string>> = {
     minute: "min",
     hourUnit: "h",
     cannotLoadCourse: "Cannot load course detail.",
+    logout: "Logout",
   },
   de: {
     title: "KURSDETAIL",
@@ -143,6 +146,7 @@ const i18n: Record<Lang, Record<string, string>> = {
     minute: "Min",
     hourUnit: "Std",
     cannotLoadCourse: "Kursdetails können nicht geladen werden.",
+    logout: "Abmelden",
   },
 };
 
@@ -156,6 +160,7 @@ function reviewStorageKey(courseId: number) {
 
 export function StudentCourseDetailPage() {
   const nav = useNavigate();
+  const { logout } = useAuth();
   const { id } = useParams();
   const [sp, setSp] = useSearchParams();
   const { toast } = useToast();
@@ -243,6 +248,11 @@ export function StudentCourseDetailPage() {
     setSp(next);
   }
 
+  function handleLogout() {
+    logout();
+    nav("/admin/login", { replace: true });
+  }
+
   async function markVideoDone(video: ApiLessonVideo) {
     if (!activeLesson) return;
     await studentApi.updateVideoProgress(activeLesson.id, video.id, video.durationSec || 0, true);
@@ -317,7 +327,19 @@ export function StudentCourseDetailPage() {
 
   return (
     <div className="min-h-screen text-slate-900" style={{ background: "radial-gradient(900px 420px at 10% 0%, rgba(79,70,229,0.14), transparent 60%), radial-gradient(700px 380px at 95% 10%, rgba(14,165,233,0.14), transparent 60%), linear-gradient(to bottom, #f8fafc, #eef2ff)" }}>
-      <main className="mx-auto max-w-[1300px] px-4 py-6 md:px-8 space-y-5">
+      <header className="fixed inset-x-0 top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex h-16 w-full max-w-[1300px] items-center justify-between px-4 md:px-8">
+          <div className="flex items-center gap-3">
+            <button className="btn" onClick={() => nav("/student")}>← {t.back}</button>
+            <div className="text-sm font-bold text-slate-700">{course?.title || `${t.courseFallback} #${courseId}`}</div>
+          </div>
+          <button className="btn" onClick={handleLogout}>
+            <i className="fa-solid fa-right-from-bracket mr-1" />{t.logout}
+          </button>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-[1300px] space-y-5 px-4 pb-6 pt-24 md:px-8">
         <section className="rounded-[20px] border border-white/80 bg-white/95 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.10)]">
           <div className="grid gap-4 lg:grid-cols-[1.1fr_1.6fr]">
             <div className="relative overflow-hidden rounded-2xl">
@@ -336,7 +358,6 @@ export function StudentCourseDetailPage() {
                 <span className="rounded-xl bg-blue-100 px-3 py-1 text-blue-700">📘 {t.beginner}</span>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
-                <button className="btn" onClick={() => nav("/student")}>← {t.back}</button>
                 <button className="btn" onClick={() => void resetProgress()} disabled={isResetting}><i className="fa-solid fa-rotate-right mr-1" />{isResetting ? `${t.reset}...` : t.reset}</button>
                 <button className="btn btn-primary" onClick={() => void startLearning()}><i className="fa-solid fa-play mr-1" />{t.continue}</button>
               </div>

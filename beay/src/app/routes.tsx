@@ -22,7 +22,7 @@ function RequireAuth() {
 function RequirePermission({ permission, children }: { permission: string; children: React.ReactElement }) {
   const { can } = useAuth()
   if (!can(permission)) {
-    return <div className="p-6 text-red-600 font-semibold">Bạn không có quyền truy cập chức năng này.</div>
+    return <div className="p-6 text-red-600 font-semibold">Bạn không có quyền truy cập trang này.</div>
   }
   return children
 }
@@ -39,10 +39,10 @@ export function AppRoutes() {
         <Route path="/admin/rbac" element={<RequirePermission permission="role.read"><AdminRbacPage /></RequirePermission>} />
         <Route path="/admin/services" element={<RequirePermission permission="spa_services.read"><AdminSpaPage /></RequirePermission>} />
         <Route path="/admin/courses" element={<RequirePermission permission="courses.read"><AdminCoursesPage /></RequirePermission>} />
-        <Route path="/student" element={<StudentPortalPage />} />
-        <Route path="/instructor" element={<InstructorDashboardPage permission="courses.write"/>} />
-        <Route path="/student/courses/:id" element={<StudentCourseDetailPage />} />
-        <Route path="/student/lessons/:id" element={<StudentLessonPlayerPage />} />
+        <Route path="/student" element={<RequirePermission permission="my_courses.read"><StudentPortalPage /></RequirePermission>} />
+        <Route path="/instructor" element={<RequirePermission permission="courses.write"><InstructorDashboardPage /></RequirePermission>} />
+        <Route path="/student/courses/:id" element={<RequirePermission permission="my_courses.read"><StudentCourseDetailPage /></RequirePermission>} />
+        <Route path="/student/lessons/:id" element={<RequirePermission permission="my_courses.read"><StudentLessonPlayerPage /></RequirePermission>} />
       </Route>
 
       <Route path="*" element={<div className="p-6">404</div>} />

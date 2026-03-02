@@ -67,7 +67,7 @@ export function LoginPage() {
     try {
       const cleanEmail = email.trim();
       const result = await login(cleanEmail, password);
-      setTokenPair(result.accessToken, result.refreshToken);
+      setTokenPair(result.accessToken, result.refreshToken, result.user?.permissions ?? result.permissions ?? []);
 
       if (remember) localStorage.setItem("aya_admin_email", cleanEmail);
       else localStorage.removeItem("aya_admin_email");

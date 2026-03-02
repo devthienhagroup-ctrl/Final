@@ -1,4 +1,4 @@
-import { clearTokenPair, readAccessToken, readRefreshToken, writeTokenPair } from '../app/session'
+import { clearTokenPair, readAccessToken, readRefreshToken, writePermissionKeys, writeTokenPair } from '../app/session'
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
@@ -56,7 +56,12 @@ function normalizeErrorMessage(data: any, fallback: string) {
   return fallback
 }
 
-type RefreshResponse = { accessToken: string; refreshToken: string }
+type RefreshResponse = {
+  user?: { permissions?: string[] }
+  permissions?: string[]
+  accessToken: string
+  refreshToken: string
+}
 let pendingRefresh: Promise<string | null> | null = null
 
 async function refreshAccessToken(baseUrl: string): Promise<string | null> {
@@ -83,6 +88,7 @@ async function refreshAccessToken(baseUrl: string): Promise<string | null> {
       }
 
       writeTokenPair(payload.accessToken, payload.refreshToken)
+      writePermissionKeys(payload.user?.permissions ?? payload.permissions ?? [])
       return payload.accessToken
     })().finally(() => {
       pendingRefresh = null

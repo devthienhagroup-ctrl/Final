@@ -51,9 +51,10 @@ const mapToInstructorCard = (course: CourseAdmin): Course => ({
 
 export function InstructorDashboardPage() {
   const { toast } = useToast()
-  const { logout } = useAuth()
+  const { logout, can } = useAuth()
 
   const [lang] = useState<AdminLang>('vi')
+  const canWriteCourse = can('courses.write')
   const [courses, setCourses] = useState<CourseAdmin[]>([])
   const [allCoursesCount, setAllCoursesCount] = useState(0)
   const [topics, setTopics] = useState<CourseTopic[]>([])
@@ -131,9 +132,14 @@ export function InstructorDashboardPage() {
         onOpenRbac={() => toast('RBAC', 'Quyền giảng viên được giới hạn trên khóa học của chính mình.')}
         onNotif={() => toast('Thông báo', 'Thông báo giảng viên.')}
         onNewCourse={() => {
+          if (!canWriteCourse) {
+            toast('Không có quyền', 'Bạn không có quyền tạo khóa học.')
+            return
+          }
           setOpenCreateModal(true)
         }}
         onLogout={logout}
+        canCreateCourse={canWriteCourse}
       />
 
       <main className='px-4 md:px-8 py-6 space-y-6'>
@@ -218,9 +224,11 @@ export function InstructorDashboardPage() {
         <section className='rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-6'>
           <div className='mb-3 flex items-center justify-between'>
             <h3 className='text-lg font-bold'>Chi tiết khóa học / bài học / module / video</h3>
-            <button type='button' className='rounded-lg bg-indigo-600 px-3 py-2 text-white' onClick={() => setOpenCreateModal(true)}>
-              Thêm khóa học mới
-            </button>
+            {canWriteCourse ? (
+              <button type='button' className='rounded-lg bg-indigo-600 px-3 py-2 text-white' onClick={() => setOpenCreateModal(true)}>
+                Thêm khóa học mới
+              </button>
+            ) : null}
           </div>
           {loadingDetail && <p className='text-sm text-slate-500'>Đang tải chi tiết...</p>}
           {!loadingDetail && selectedCourse && (
@@ -244,7 +252,7 @@ export function InstructorDashboardPage() {
           {!loadingDetail && !selectedCourse && <p className='text-sm text-slate-500'>Chọn khóa học ở cột trái để xem và quản lý chi tiết.</p>}
         </section>
 
-        <CreateCourseModal open={openCreateModal} lang={lang} topics={topics} onClose={() => setOpenCreateModal(false)} onCreated={loadCourses} coursesApi={instructorCoursesApi} />
+        <CreateCourseModal open={canWriteCourse && openCreateModal} lang={lang} topics={topics} onClose={() => setOpenCreateModal(false)} onCreated={loadCourses} coursesApi={instructorCoursesApi} />
 
         <footer className='py-6 text-center text-sm text-slate-500'>
           © 2025 AYANAVITA • Instructor Dashboard

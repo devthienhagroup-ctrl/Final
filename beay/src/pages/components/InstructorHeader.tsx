@@ -5,6 +5,7 @@ type Props = {
   onNotif: () => void;
   onNewCourse: () => void;
   onLogout: () => void;
+  canCreateCourse?: boolean;
 };
 
 export function InstructorHeader(props: Props) {
@@ -26,9 +27,11 @@ export function InstructorHeader(props: Props) {
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="btn btn-primary inline-flex items-center gap-2" onClick={props.onNewCourse}>
-            <i className="fa-solid fa-plus" /> Tạo khóa học
-          </button>
+          {props.canCreateCourse ? (
+            <button className="btn btn-primary inline-flex items-center gap-2" onClick={props.onNewCourse}>
+              <i className="fa-solid fa-plus" /> Tạo khóa học
+            </button>
+          ) : null}
           <button className="btn inline-flex items-center gap-2" onClick={props.onLogout}>
             <i className="fa-solid fa-right-from-bracket" /> Đăng xuất
           </button>

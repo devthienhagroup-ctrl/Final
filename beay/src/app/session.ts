@@ -12,6 +12,7 @@ export type SessionClaims = {
 
 export const ACCESS_TOKEN_KEY = 'aya_admin_token'
 export const REFRESH_TOKEN_KEY = 'aya_admin_refresh_token'
+export const PermissionsKeys = 'PermissionsKeys'
 export const ROLE_PERMS_KEY = 'aya_role_perms_v1'
 
 export function readAccessToken() {
@@ -27,9 +28,29 @@ export function writeTokenPair(accessToken: string, refreshToken: string) {
   localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken.trim())
 }
 
+export function readPermissionKeys() {
+  try {
+    const raw = localStorage.getItem(PermissionsKeys)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+export function writePermissionKeys(permissions: string[] | null | undefined) {
+  const safePermissions = Array.isArray(permissions)
+    ? permissions.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean)
+    : []
+
+  localStorage.setItem(PermissionsKeys, JSON.stringify([...new Set(safePermissions)]))
+}
+
 export function clearTokenPair() {
   localStorage.removeItem(ACCESS_TOKEN_KEY)
   localStorage.removeItem(REFRESH_TOKEN_KEY)
+  localStorage.removeItem(PermissionsKeys)
 }
 
 export function decodeJwtClaims(token: string): SessionClaims | null {
@@ -63,9 +84,10 @@ function readRolePermissionMap(): RolePermMap {
 }
 
 export function resolvePermissions(claims: SessionClaims | null | undefined): string[] {
-  if (!claims?.role) return claims?.permissions ?? []
+  const persistedPermissions = readPermissionKeys()
+  if (!claims?.role) return [...new Set([...(claims?.permissions ?? []), ...persistedPermissions])]
   const rolePerms = readRolePermissionMap()[claims.role] || []
-  const merged = new Set([...(claims.permissions || []), ...rolePerms])
+  const merged = new Set([...(claims.permissions || []), ...persistedPermissions, ...rolePerms])
   return [...merged]
 }
 

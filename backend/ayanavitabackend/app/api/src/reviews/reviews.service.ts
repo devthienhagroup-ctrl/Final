@@ -219,6 +219,7 @@ export class ReviewsService {
         visibility: ReviewVisibility.VISIBLE,
         ...(query.type ? { type: query.type } : {}),
         ...(query.branchId ? { branchId: query.branchId } : {}),
+        ...(query.productId ? { productId: BigInt(query.productId) } : {}),
       },
       include: {
         images: true,

@@ -9,6 +9,7 @@ type ActiveSection = "profile" | "changePassword" | "forgotPassword" | "myOrders
 type OrderStatus =
   | "PENDING"
   | "PENDING_PAYMENT"
+  | "CANCEL_REQUESTED"
   | "PAID"
   | "SHIPPING"
   | "SUCCESS"
@@ -417,6 +418,7 @@ const defaultCmsData: CmsData = {
       all: "Tất cả",
       PENDING: "Chờ xác nhận",
       PENDING_PAYMENT: "Chờ thanh toán",
+      CANCEL_REQUESTED: "Yêu cầu hủy",
       PAID: "Đã thanh toán",
       SHIPPING: "Đang giao hàng",
       SUCCESS: "Hoàn thành",
@@ -559,6 +561,7 @@ function Field({
 const ORDER_STATUS_STYLES: Record<OrderStatus, string> = {
   PENDING: "bg-amber-50 text-amber-700 border-amber-200",
   PENDING_PAYMENT: "bg-orange-50 text-orange-700 border-orange-200",
+  CANCEL_REQUESTED: "bg-red-50 text-red-700 border-red-200",
   PAID: "bg-emerald-50 text-emerald-700 border-emerald-200",
   SHIPPING: "bg-sky-50 text-sky-700 border-sky-200",
   SUCCESS: "bg-green-50 text-green-700 border-green-200",
@@ -581,6 +584,8 @@ function mapOrderStatus(status: string): OrderStatus {
       return "PENDING_PAYMENT";
     case "PAID":
       return "PAID";
+    case "CANCEL_REQUESTED":
+      return "CANCEL_REQUESTED";
     case "SHIPPING":
       return "SHIPPING";
     case "SUCCESS":
@@ -691,6 +696,7 @@ export default function AccountCenter() {
   const [payingOrderId, setPayingOrderId] = useState<number | null>(null);
   const [qrModalOrder, setQrModalOrder] = useState<MyOrder | null>(null);
   const [qrPayload, setQrPayload] = useState<PaymentQrPayload | null>(null);
+  const [cancelRequestingOrderId, setCancelRequestingOrderId] = useState<number | null>(null);
 
   // ✅ CMS runtime (render UI bằng state này)
   const [cms, setCms] = useState<CmsData>(defaultCmsData);
@@ -843,6 +849,26 @@ export default function AccountCenter() {
       setPayingOrderId(null);
     }
   }, [fetchMyOrders]);
+
+  const onRequestCancelOrder = useCallback(async (order: MyOrder) => {
+    if (order.status !== "PENDING") return;
+
+    try {
+      setCancelRequestingOrderId(order.id);
+      await http.post(`/api/product-orders/${order.id}/request-cancel`);
+      const nextOrders = await fetchMyOrders(false);
+      const updatedOrder = nextOrders.find((x) => x.id === order.id) ?? null;
+      if (updatedOrder) {
+        setSelectedOrder((cur) => (cur && cur.id === updatedOrder.id ? updatedOrder : cur));
+      }
+      pushToast("success", "Đơn hàng", "Đã gửi yêu cầu hủy đơn thành công.");
+    } catch (e: any) {
+      pushToast("error", "Đơn hàng", e?.response?.data?.message || "Không thể gửi yêu cầu hủy đơn.");
+    } finally {
+      setCancelRequestingOrderId(null);
+    }
+  }, [fetchMyOrders]);
+
 
   // ✅ Poll server để check trạng thái thanh toán -> tự đóng modal QR + cập nhật trạng thái đơn hàng
   useEffect(() => {
@@ -1488,6 +1514,7 @@ export default function AccountCenter() {
                         <option value="all">{cms.myOrders.filters.status.all}</option>
                         <option value="PENDING">{cms.myOrders.statuses.PENDING}</option>
                         <option value="PENDING_PAYMENT">{cms.myOrders.statuses.PENDING_PAYMENT}</option>
+                        <option value="CANCEL_REQUESTED">{cms.myOrders.statuses.CANCEL_REQUESTED}</option>
                         <option value="PAID">{cms.myOrders.statuses.PAID}</option>
                         <option value="SHIPPING">{cms.myOrders.statuses.SHIPPING}</option>
                         <option value="SUCCESS">{cms.myOrders.statuses.SUCCESS}</option>
@@ -1674,6 +1701,18 @@ export default function AccountCenter() {
                                 {formatDate(selectedOrder.payment.paidAt)}
                               </p>
                             </div>
+                            {selectedOrder.status === "PENDING" && (
+                              <div className="mt-3">
+                                <button
+                                  type="button"
+                                  onClick={() => onRequestCancelOrder(selectedOrder)}
+                                  disabled={cancelRequestingOrderId === selectedOrder.id}
+                                  className="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {cancelRequestingOrderId === selectedOrder.id ? "Đang gửi yêu cầu hủy..." : "Yêu cầu hủy đơn"}
+                                </button>
+                              </div>
+                            )}
                             {selectedOrder.status === "PENDING_PAYMENT" && (
                               <div className="mt-3">
                                 <button

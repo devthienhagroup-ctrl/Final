@@ -40,12 +40,20 @@ export class ProductOrdersService implements OnModuleInit, OnModuleDestroy {
   }
 
   private canTransitStatus(current: ProductOrderStatus, next: ProductOrderStatus) {
+    if (next === ProductOrderStatus.CANCEL_REQUESTED) {
+      return current === ProductOrderStatus.PENDING
+    }
+
     if (next === ProductOrderStatus.SHIPPING) {
       return current === ProductOrderStatus.PENDING || current === ProductOrderStatus.PAID
     }
 
     if (next === ProductOrderStatus.SUCCESS) {
       return current === ProductOrderStatus.SHIPPING
+    }
+
+    if (next === ProductOrderStatus.CANCELLED) {
+      return current === ProductOrderStatus.CANCEL_REQUESTED || current === ProductOrderStatus.PENDING_PAYMENT
     }
 
     return true
@@ -288,6 +296,7 @@ export class ProductOrdersService implements OnModuleInit, OnModuleDestroy {
       where: { id: BigInt(orderId), userId },
       include: {
         details: this.orderDetailsWithMainImage,
+        processedBy: { select: { id: true, name: true, email: true } },
         payments: {
           orderBy: { id: 'desc' },
           take: 1,
@@ -411,6 +420,7 @@ export class ProductOrdersService implements OnModuleInit, OnModuleDestroy {
       where,
       include: {
         user: { select: { id: true, name: true, email: true } },
+        processedBy: { select: { id: true, name: true, email: true } },
         details: this.orderDetailsWithMainImage,
       },
       orderBy: { id: 'desc' },
@@ -420,7 +430,7 @@ export class ProductOrdersService implements OnModuleInit, OnModuleDestroy {
     return normalizeBigInt(data.map((order) => this.mapOrderWithMainImage(order)))
   }
 
-  async adminUpdateStatus(orderId: number, status: ProductOrderStatus) {
+  async adminUpdateStatus(orderId: number, status: ProductOrderStatus, adminUserId?: number) {
     const order = await this.prisma.productOrder.findUnique({ where: { id: BigInt(orderId) } })
     if (!order) throw new NotFoundException('Order not found')
 
@@ -442,6 +452,10 @@ export class ProductOrdersService implements OnModuleInit, OnModuleDestroy {
           paymentStatus,
           paidAt: this.isPaidLikeStatus(status) ? new Date() : order.paidAt,
           cancelledAt: status === ProductOrderStatus.CANCELLED ? new Date() : order.cancelledAt,
+          processedByUserId:
+            status === ProductOrderStatus.SHIPPING || status === ProductOrderStatus.CANCELLED
+              ? adminUserId
+              : order.processedByUserId,
         },
         include: { details: true },
       })
@@ -457,6 +471,31 @@ export class ProductOrdersService implements OnModuleInit, OnModuleDestroy {
       }
 
       return next
+    })
+
+    return normalizeBigInt(updated)
+  }
+
+
+
+  async requestCancel(userId: number, orderId: number) {
+    const order = await this.prisma.productOrder.findFirst({
+      where: { id: BigInt(orderId), userId },
+      select: { id: true, status: true },
+    })
+
+    if (!order) throw new NotFoundException('Order not found')
+    if (order.status !== ProductOrderStatus.PENDING) {
+      throw new BadRequestException('Only pending orders can request cancellation')
+    }
+
+    const updated = await this.prisma.productOrder.update({
+      where: { id: BigInt(orderId) },
+      data: {
+        status: ProductOrderStatus.CANCEL_REQUESTED,
+        processedByUserId: null,
+      },
+      include: { details: true },
     })
 
     return normalizeBigInt(updated)

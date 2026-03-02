@@ -32,6 +32,7 @@ model User {
   lessonVideoProgress LessonVideoProgress[]
   orders         Order[] // <— opposite for Order.user
   productOrders  ProductOrder[]
+  processedProductOrders ProductOrder[] @relation("ProductOrderProcessedBy")
   carts          Cart[]
 
   courseReviews CourseReview[]
@@ -928,6 +929,7 @@ model CatalogProduct {
 
 enum ProductOrderStatus {
   PENDING
+  CANCEL_REQUESTED
   PENDING_PAYMENT
   PAID
   SHIPPING
@@ -953,6 +955,7 @@ model ProductOrder {
   id              BigInt               @id @default(autoincrement())
   code            String               @unique @db.VarChar(32)
   userId          Int
+  processedByUserId Int?
   status          ProductOrderStatus   @default(PENDING_PAYMENT)
   paymentMethod   ProductPaymentMethod @default(COD)
   paymentStatus   ProductPaymentStatus @default(NOT_REQUIRED)
@@ -983,11 +986,13 @@ model ProductOrder {
   updatedAt       DateTime             @updatedAt
 
   user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  processedBy     User?                @relation("ProductOrderProcessedBy", fields: [processedByUserId], references: [id], onDelete: SetNull)
   details         ProductOrderDetail[]
   payments        ProductOrderPayment[]
   reviews         Review[]
 
   @@index([userId, createdAt])
+  @@index([processedByUserId])
   @@index([status, createdAt])
 }
 

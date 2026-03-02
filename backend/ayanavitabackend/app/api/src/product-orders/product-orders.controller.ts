@@ -41,11 +41,16 @@ export class ProductOrdersController {
   @Roles('ADMIN')
   @Patch('admin/:id/status')
   adminUpdateStatus(
+    @CurrentUser() user: JwtUser,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AdminUpdateProductOrderStatusDto,
   ) {
-    console.log('adminUpdateStatus', { id, status: dto.status })  
-    return this.productOrders.adminUpdateStatus(id, dto.status as ProductOrderStatus)
+    return this.productOrders.adminUpdateStatus(id, dto.status as ProductOrderStatus, user.sub)
+  }
+
+  @Post(':id/request-cancel')
+  requestCancel(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.productOrders.requestCancel(user.sub, id)
   }
 
   @Get(':id')

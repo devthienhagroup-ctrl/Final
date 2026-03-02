@@ -1,0 +1,1380 @@
+diff --git a/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx b/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
+index 5462ea4b8c6647fcd5b6389c80e5ec02defe634d..dbacfc64a8153740638f80e9f6f4bec0fb563f1a 100644
+--- a/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
+@@ -1,36 +1,37 @@
+ // AccountCenter.tsx
+ import React, { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+ import { authApi } from "../api/auth.api";
+ import { http } from "../api/http";
+ 
+ type ToastKind = "success" | "error" | "info";
+ type ActiveSection = "profile" | "changePassword" | "forgotPassword" | "myOrders";
+ 
+ type OrderStatus =
+   | "PENDING"
+   | "PENDING_PAYMENT"
++  | "CANCEL_REQUESTED"
+   | "PAID"
+   | "SHIPPING"
+   | "SUCCESS"
+   | "CANCELLED"
+   | "EXPIRED";
+ 
+ type MyOrderItem = {
+   name: string;
+   sku: string;
+   qty: number;
+   price: number;
+   image: string;
+ };
+ 
+ type PaymentQrPayload = {
+   amount: number;
+   accountName: string;
+   accountNumber: string;
+   bankName: string;
+   bankCode: string;
+   transferContent: string;
+   qrUrl: string;
+ };
+ 
+ type MyOrder = {
+@@ -395,50 +396,51 @@ const defaultCmsData: CmsData = {
+     toasts: {
+       otpSent: { title: "Đã gửi OTP", message: "OTP đã được gửi tới email của bạn." },
+       otpSendFailed: { title: "Không gửi được", message: "Không gửi được OTP." },
+       otpVerified: { title: "OTP hợp lệ", message: "OTP hợp lệ. Vui lòng nhập mật khẩu mới." },
+       otpVerifyFailed: { title: "OTP không hợp lệ", message: "OTP không hợp lệ hoặc đã hết hạn." },
+       resetOk: { title: "Thành công", message: "Đặt lại mật khẩu thành công." },
+       resetFailed: { title: "Thất bại", message: "Không thể đặt lại mật khẩu." },
+     },
+   },
+ 
+   myOrders: {
+     cardTitle: "Đơn hàng của tôi",
+     cardDesc: "Xem lịch sử đặt hàng và kiểm tra thông tin thanh toán, giao hàng.",
+     filters: {
+       keyword: { label: "Tìm đơn", placeholder: "Mã đơn, mã giao vận, ghi chú...", iconClass: "fa-solid fa-magnifying-glass" },
+       status: { label: "Trạng thái", iconClass: "fa-solid fa-filter", all: "Tất cả" },
+     },
+     list: {
+       title: "Danh sách đơn hàng",
+       seeDetail: "Xem chi tiết đơn hàng",
+     },
+     statuses: {
+       all: "Tất cả",
+       PENDING: "Chờ xác nhận",
+       PENDING_PAYMENT: "Chờ thanh toán",
++      CANCEL_REQUESTED: "Yêu cầu hủy",
+       PAID: "Đã thanh toán",
+       SHIPPING: "Đang giao hàng",
+       SUCCESS: "Hoàn thành",
+       CANCELLED: "Đã hủy",
+       EXPIRED: "Hết hạn",
+     },
+     emptyText: "Không có đơn hàng phù hợp bộ lọc.",
+     detailTitle: "Chi tiết đơn hàng",
+     productsTitle: "Sản phẩm đã đặt",
+     fields: {
+       createdAt: "Ngày tạo",
+       branch: "Chi nhánh",
+       paymentMethod: "Phương thức thanh toán",
+       paymentRef: "Mã giao dịch",
+       paidAt: "Ngày thanh toán",
+       receiver: "Người nhận",
+       phone: "SĐT nhận hàng",
+       address: "Địa chỉ giao hàng",
+       carrier: "Đơn vị vận chuyển",
+       trackingCode: "Mã vận đơn",
+       expectedDelivery: "Dự kiến giao",
+       orderNote: "Ghi chú đơn hàng",
+       shippingNote: "Ghi chú giao vận",
+       subtotal: "Tạm tính",
+       shipping: "Phí vận chuyển",
+@@ -537,72 +539,75 @@ function Field({
+   iconClass,
+   children,
+   helper,
+ }: {
+   label: string;
+   iconClass: string;
+   children: React.ReactNode;
+   helper?: string;
+ }) {
+   return (
+     <label className="block">
+       <span className="mb-1 flex items-center gap-2 text-sm font-semibold text-slate-700">
+         <i className={classNames(iconClass, "text-slate-400")} />
+         {label}
+       </span>
+       {children}
+       {helper ? <p className="mt-1 text-xs text-slate-500">{helper}</p> : null}
+     </label>
+   );
+ }
+ 
+ 
+ const ORDER_STATUS_STYLES: Record<OrderStatus, string> = {
+   PENDING: "bg-amber-50 text-amber-700 border-amber-200",
+   PENDING_PAYMENT: "bg-orange-50 text-orange-700 border-orange-200",
++  CANCEL_REQUESTED: "bg-red-50 text-red-700 border-red-200",
+   PAID: "bg-emerald-50 text-emerald-700 border-emerald-200",
+   SHIPPING: "bg-sky-50 text-sky-700 border-sky-200",
+   SUCCESS: "bg-green-50 text-green-700 border-green-200",
+   CANCELLED: "bg-rose-50 text-rose-700 border-rose-200",
+   EXPIRED: "bg-slate-100 text-slate-700 border-slate-200",
+ };
+ 
+ function toNum(v: number | string | null | undefined) {
+   const n = Number(v ?? 0);
+   return Number.isFinite(n) ? n : 0;
+ }
+ 
+ function mapOrderStatus(status: string): OrderStatus {
+   const s = String(status || "").toUpperCase();
+ 
+   switch (s) {
+     case "PENDING":
+       return "PENDING";
+     case "PENDING_PAYMENT":
+       return "PENDING_PAYMENT";
+     case "PAID":
+       return "PAID";
++    case "CANCEL_REQUESTED":
++      return "CANCEL_REQUESTED";
+     case "SHIPPING":
+       return "SHIPPING";
+     case "SUCCESS":
+       return "SUCCESS";
+     case "CANCELLED":
+       return "CANCELLED";
+     case "EXPIRED":
+       return "EXPIRED";
+     default:
+       // fallback an toàn nếu backend gửi status lạ
+       return "PENDING";
+   }
+ }
+ 
+ function mapPaymentMethod(method: string): string {
+   const m = String(method || "").toUpperCase();
+   if (m === "SEPAY") return "Chuyển khoản";
+   if (m === "COD") return "COD";
+   return m || "-";
+ }
+ 
+ function toMyOrder(apiOrder: ApiProductOrder): MyOrder {
+   return {
+     id: apiOrder.id,
+     code: apiOrder.code,
+@@ -669,50 +674,51 @@ export default function AccountCenter() {
+   const [passwordForm, setPasswordForm] = useState({
+     currentPassword: "",
+     newPassword: "",
+     confirmPassword: "",
+   });
+   const [passwordStep, setPasswordStep] = useState<"verifyCurrent" | "setNew">("verifyCurrent");
+ 
+   const [forgotForm, setForgotForm] = useState({
+     email: "",
+     otp: "",
+     newPassword: "",
+     confirmPassword: "",
+   });
+   const [accountEmail, setAccountEmail] = useState("");
+   const [forgotStep, setForgotStep] = useState<"email" | "otp" | "newPassword">("email");
+ 
+   const [loading, setLoading] = useState<boolean>(false);
+   const [orderStatusFilter, setOrderStatusFilter] = useState<"all" | OrderStatus>("all");
+   const [orderKeyword, setOrderKeyword] = useState("");
+   const [selectedOrder, setSelectedOrder] = useState<MyOrder | null>(null);
+   const [myOrders, setMyOrders] = useState<MyOrder[]>([]);
+   const [ordersLoading, setOrdersLoading] = useState(false);
+   const [payingOrderId, setPayingOrderId] = useState<number | null>(null);
+   const [qrModalOrder, setQrModalOrder] = useState<MyOrder | null>(null);
+   const [qrPayload, setQrPayload] = useState<PaymentQrPayload | null>(null);
++  const [cancelRequestingOrderId, setCancelRequestingOrderId] = useState<number | null>(null);
+ 
+   // ✅ CMS runtime (render UI bằng state này)
+   const [cms, setCms] = useState<CmsData>(defaultCmsData);
+ 
+   // ✅ Toast system
+   const [toasts, setToasts] = useState<Array<{ id: string; kind: ToastKind; title: string; message: string }>>([]);
+ 
+   const pushToast = (kind: ToastKind, title: string, message: string) => {
+     const id = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+     setToasts((prev) => [...prev, { id, kind, title, message }]);
+     window.setTimeout(() => {
+       setToasts((prev) => prev.filter((t) => t.id !== id));
+     }, 3500);
+   };
+ 
+   const closeToast = (id: string) => setToasts((prev) => prev.filter((t) => t.id !== id));
+ 
+   const activeMeta = useMemo(() => cms.sidebar.items.find((x) => x.key === active), [active, cms]);
+ 
+ 
+   const filteredOrders = useMemo(() => {
+     const kw = orderKeyword.trim().toLowerCase();
+     return myOrders.filter((order) => {
+       if (orderStatusFilter !== "all" && order.status !== orderStatusFilter) return false;
+       if (!kw) return true;
+@@ -822,50 +828,70 @@ export default function AccountCenter() {
+       setOrdersLoading(false);
+     }
+   }, []);
+ 
+   useEffect(() => {
+     if (!localStorage.getItem("aya_access_token")) return;
+     void fetchMyOrders();
+   }, [fetchMyOrders]);
+ 
+   const onPayPendingOrder = useCallback(async (order: MyOrder) => {
+     if (order.status !== "PENDING_PAYMENT") return;
+ 
+     try {
+       setPayingOrderId(order.id);
+       const res = await http.post<PaymentQrPayload>(`/api/product-orders/${order.id}/payment-qr`);
+       setQrPayload(res.data);
+       setQrModalOrder(order);
+       await fetchMyOrders(false);
+     } catch (e: any) {
+       pushToast("error", "Thanh toán", e?.response?.data?.message || "Không lấy được mã QR thanh toán.");
+     } finally {
+       setPayingOrderId(null);
+     }
+   }, [fetchMyOrders]);
+ 
++  const onRequestCancelOrder = useCallback(async (order: MyOrder) => {
++    if (order.status !== "PENDING") return;
++
++    try {
++      setCancelRequestingOrderId(order.id);
++      await http.post(`/api/product-orders/${order.id}/request-cancel`);
++      const nextOrders = await fetchMyOrders(false);
++      const updatedOrder = nextOrders.find((x) => x.id === order.id) ?? null;
++      if (updatedOrder) {
++        setSelectedOrder((cur) => (cur && cur.id === updatedOrder.id ? updatedOrder : cur));
++      }
++      pushToast("success", "Đơn hàng", "Đã gửi yêu cầu hủy đơn thành công.");
++    } catch (e: any) {
++      pushToast("error", "Đơn hàng", e?.response?.data?.message || "Không thể gửi yêu cầu hủy đơn.");
++    } finally {
++      setCancelRequestingOrderId(null);
++    }
++  }, [fetchMyOrders]);
++
++
+   // ✅ Poll server để check trạng thái thanh toán -> tự đóng modal QR + cập nhật trạng thái đơn hàng
+   useEffect(() => {
+     if (!qrModalOrder?.id) return;
+ 
+     const orderId = qrModalOrder.id;
+     const timer = window.setInterval(async () => {
+       try {
+         const res = await http.get<ApiProductOrder>(`/api/product-orders/${orderId}`);
+         const next = res?.data ? toMyOrder(res.data) : null;
+         if (!next) return;
+ 
+         // Cập nhật list + order đang xem (nếu trùng)
+         setMyOrders((prev) => prev.map((o) => (o.id === next.id ? next : o)));
+         setSelectedOrder((cur) => (cur && cur.id === next.id ? next : cur));
+         setQrModalOrder((cur) => (cur && cur.id === next.id ? next : cur));
+ 
+         if (next.status === "PAID") {
+           pushToast("success", "Thanh toán", "Đã thanh toán thành công. Đơn hàng đã được cập nhật.");
+           setQrModalOrder(null);
+           setQrPayload(null);
+         }
+ 
+         if (next.status === "EXPIRED" || next.status === "CANCELLED") {
+           pushToast("info", "Thanh toán", "Phiên thanh toán đã hết hạn hoặc bị huỷ. Vui lòng tạo lại mã QR nếu cần.");
+           setQrModalOrder(null);
+@@ -1466,50 +1492,51 @@ export default function AccountCenter() {
+ 
+               {/* MY ORDERS (cập nhật giao diện) */}
+               {active === "myOrders" && (
+                 <div className="space-y-4">
+                   {/* Bộ lọc */}
+                   <div className="grid gap-3 md:grid-cols-[1fr_220px]">
+                     <Field label={cms.myOrders.filters.keyword.label} iconClass={cms.myOrders.filters.keyword.iconClass}>
+                       <input
+                         className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                         type="text"
+                         placeholder={cms.myOrders.filters.keyword.placeholder}
+                         value={orderKeyword}
+                         onChange={(e) => setOrderKeyword(e.target.value)}
+                       />
+                     </Field>
+ 
+                     <Field label={cms.myOrders.filters.status.label} iconClass={cms.myOrders.filters.status.iconClass}>
+                       <select
+                         className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                         value={orderStatusFilter}
+                         onChange={(e) => setOrderStatusFilter(e.target.value as "all" | OrderStatus)}
+                       >
+                         <option value="all">{cms.myOrders.filters.status.all}</option>
+                         <option value="PENDING">{cms.myOrders.statuses.PENDING}</option>
+                         <option value="PENDING_PAYMENT">{cms.myOrders.statuses.PENDING_PAYMENT}</option>
++                        <option value="CANCEL_REQUESTED">{cms.myOrders.statuses.CANCEL_REQUESTED}</option>
+                         <option value="PAID">{cms.myOrders.statuses.PAID}</option>
+                         <option value="SHIPPING">{cms.myOrders.statuses.SHIPPING}</option>
+                         <option value="SUCCESS">{cms.myOrders.statuses.SUCCESS}</option>
+                         <option value="CANCELLED">{cms.myOrders.statuses.CANCELLED}</option>
+                         <option value="EXPIRED">{cms.myOrders.statuses.EXPIRED}</option>
+                       </select>
+                     </Field>
+                   </div>
+ 
+                   {/* Tiêu đề danh sách */}
+                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                     <p className="text-sm font-bold text-slate-700">{cms.myOrders.list.title}</p>
+                   </div>
+ 
+                   {/* Trạng thái tải / rỗng */}
+                   {ordersLoading ? (
+                     <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+                       {cms.common.loadingText}
+                     </div>
+                   ) : filteredOrders.length === 0 ? (
+                     <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+                       {cms.myOrders.emptyText}
+                     </div>
+                   ) : (
+                     /* Danh sách đơn hàng */
+@@ -1652,50 +1679,62 @@ export default function AccountCenter() {
+                                 </span>
+                               </p>
+                             </div>
+                           </div>
+ 
+                           {/* Khối thanh toán */}
+                           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                             <h4 className="mb-3 text-sm font-extrabold text-slate-900">
+                               <i className="fa-regular fa-credit-card mr-2 text-slate-500" />
+                               Thanh toán
+                             </h4>
+                             <div className="grid gap-2 text-sm text-slate-700 md:grid-cols-2">
+                               <p>
+                                 <span className="font-semibold">{cms.myOrders.fields.paymentMethod}:</span>{' '}
+                                 {selectedOrder.payment.method}
+                               </p>
+                               <p>
+                                 <span className="font-semibold">{cms.myOrders.fields.paymentRef}:</span>{' '}
+                                 {selectedOrder.payment.ref || '—'}
+                               </p>
+                               <p>
+                                 <span className="font-semibold">{cms.myOrders.fields.paidAt}:</span>{' '}
+                                 {formatDate(selectedOrder.payment.paidAt)}
+                               </p>
+                             </div>
++                            {selectedOrder.status === "PENDING" && (
++                              <div className="mt-3">
++                                <button
++                                  type="button"
++                                  onClick={() => onRequestCancelOrder(selectedOrder)}
++                                  disabled={cancelRequestingOrderId === selectedOrder.id}
++                                  className="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
++                                >
++                                  {cancelRequestingOrderId === selectedOrder.id ? "Đang gửi yêu cầu hủy..." : "Yêu cầu hủy đơn"}
++                                </button>
++                              </div>
++                            )}
+                             {selectedOrder.status === "PENDING_PAYMENT" && (
+                               <div className="mt-3">
+                                 <button
+                                   type="button"
+                                   onClick={() => void onPayPendingOrder(selectedOrder)}
+                                   disabled={payingOrderId === selectedOrder.id}
+                                   className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-extrabold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                 >
+                                   <i className="fa-solid fa-qrcode" />
+                                   {payingOrderId === selectedOrder.id ? "Đang tạo QR..." : "Thanh toán đơn hàng này"}
+                                 </button>
+                               </div>
+                             )}
+                           </div>
+ 
+                           {/* Khối giao hàng */}
+                           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                             <h4 className="mb-3 text-sm font-extrabold text-slate-900">
+                               <i className="fa-solid fa-truck mr-2 text-slate-500" />
+                               Giao hàng
+                             </h4>
+                             <div className="grid gap-2 text-sm text-slate-700 md:grid-cols-2">
+                               <p>
+                                 <span className="font-semibold">{cms.myOrders.fields.receiver}:</span>{' '}
+                                 {selectedOrder.shippingInfo.receiverName}
+diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202603320001_add_cancel_request_and_processed_by_product_order/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202603320001_add_cancel_request_and_processed_by_product_order/migration.sql
+new file mode 100644
+index 0000000000000000000000000000000000000000..e9f877a3f866425a5c89aafa3f6f9999e3d058a3
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/prisma/migrations/202603320001_add_cancel_request_and_processed_by_product_order/migration.sql
+@@ -0,0 +1,12 @@
++ALTER TABLE `ProductOrder`
++  ADD COLUMN `processedByUserId` INT NULL;
++
++ALTER TABLE `ProductOrder`
++  MODIFY `status` ENUM('PENDING','CANCEL_REQUESTED','PENDING_PAYMENT','PAID','SHIPPING','SUCCESS','CANCELLED','EXPIRED') NOT NULL DEFAULT 'PENDING_PAYMENT';
++
++CREATE INDEX `ProductOrder_processedByUserId_idx` ON `ProductOrder`(`processedByUserId`);
++
++ALTER TABLE `ProductOrder`
++  ADD CONSTRAINT `ProductOrder_processedByUserId_fkey`
++  FOREIGN KEY (`processedByUserId`) REFERENCES `User`(`id`)
++  ON DELETE SET NULL ON UPDATE CASCADE;
+diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+index 02cbfd5a990a6c904cd8a296b87390948ed7a63c..32102104bde18f7cc985899e1d62210da7825d6e 100644
+--- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
++++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+@@ -10,50 +10,51 @@ datasource db {
+ 
+ model User {
+   id                 Int      @id @default(autoincrement())
+   email              String   @unique
+   password           String
+   name               String?
+   phone              String?
+   birthDate          DateTime?
+   gender             Gender?
+   address            String?  @db.VarChar(500)
+   role               UserRole @default(USER)
+   roleId             Int?
+   roleRef            RbacRole? @relation("UserRbacRole", fields: [roleId], references: [id], onDelete: SetNull)
+   isActive           Boolean  @default(true)
+   hashedRefreshToken String?  @db.Text
+   createdAt          DateTime @default(now())
+   updatedAt          DateTime @updatedAt
+ 
+   // ✅ ADD
+   enrollments    Enrollment[]
+   courseAccesses CourseAccess[]
+   lessonProgress LessonProgress[]
+   lessonVideoProgress LessonVideoProgress[]
+   orders         Order[] // <— opposite for Order.user
+   productOrders  ProductOrder[]
++  processedProductOrders ProductOrder[] @relation("ProductOrderProcessedBy")
+   carts          Cart[]
+ 
+   courseReviews CourseReview[]
+   // ✅ CMS (optional relations)
+   cmsSectionVersions CmsSectionVersion[]
+   mediaAssets        MediaAsset[]
+   serviceReviews     ServiceReview[]
+   reviews            Review[]
+   specialistProfile  Specialist?
+   reviewHelpfulVotes ReviewHelpful[]
+   blogPosts          BlogPost[]
+   blogSaves          BlogSavedPost[]
+ 
+   @@index([roleId])
+ }
+ 
+ model Branch {
+   id          Int                @id @default(autoincrement())
+   code        String             @unique @db.VarChar(32)
+   name        String             @db.VarChar(255)
+   address     String             @db.VarChar(255)
+   phone       String?            @db.VarChar(30)
+   isActive    Boolean            @default(true)
+   createdAt   DateTime           @default(now())
+   updatedAt   DateTime           @updatedAt
+@@ -906,110 +907,114 @@ model CategoryTranslation {
+ }
+ 
+ model CatalogProduct {
+   id         BigInt   @id @default(autoincrement())
+   sku        String   @unique @db.VarChar(64)
+   categoryId BigInt?  @map("category_id")
+   price      Decimal  @default(0) @db.Decimal(18, 2)
+   status     String   @default("active") @db.VarChar(20)
+   createdAt  DateTime @default(now()) @map("created_at")
+   updatedAt  DateTime @updatedAt @map("updated_at")
+ 
+   category     Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+   translations ProductTranslation[]
+   attributes   ProductAttribute[]
+   ingredients  ProductIngredient[]
+   images       ProductImage[]
+   cartItems    CartDetail[]
+   orderDetails ProductOrderDetail[]
+   reviews      Review[]
+ 
+   @@map("products")
+ }
+ 
+ enum ProductOrderStatus {
+   PENDING
++  CANCEL_REQUESTED
+   PENDING_PAYMENT
+   PAID
+   SHIPPING
+   SUCCESS
+   CANCELLED
+   EXPIRED
+ }
+ 
+ enum ProductPaymentMethod {
+   COD
+   SEPAY
+ }
+ 
+ enum ProductPaymentStatus {
+   PENDING
+   PAID
+   FAILED
+   NOT_REQUIRED
+   EXPIRED
+ }
+ 
+ model ProductOrder {
+   id              BigInt               @id @default(autoincrement())
+   code            String               @unique @db.VarChar(32)
+   userId          Int
++  processedByUserId Int?
+   status          ProductOrderStatus   @default(PENDING_PAYMENT)
+   paymentMethod   ProductPaymentMethod @default(COD)
+   paymentStatus   ProductPaymentStatus @default(NOT_REQUIRED)
+   paymentCode     String?              @unique @db.VarChar(64)
+ 
+   receiverName    String               @db.VarChar(255)
+   receiverPhone   String               @db.VarChar(30)
+   receiverEmail   String?              @db.VarChar(255)
+   shippingAddress String               @db.VarChar(500)
+   district        String               @db.VarChar(255)
+   city            String               @db.VarChar(255)
+   note            String?              @db.Text
+ 
+   shippingUnit    String               @default("-") @db.VarChar(120)
+   trackingCode    String               @default("-") @db.VarChar(120)
+   expectedDelivery String              @default("-") @db.VarChar(120)
+ 
+   subtotal        Decimal              @default(0) @db.Decimal(18, 2)
+   shippingFee     Decimal              @default(0) @db.Decimal(18, 2)
+   discount        Decimal              @default(0) @db.Decimal(18, 2)
+   total           Decimal              @default(0) @db.Decimal(18, 2)
+   currency        String               @default("VND") @db.VarChar(3)
+ 
+   paidAt          DateTime?
+   cancelledAt     DateTime?
+   expiresAt       DateTime?
+   createdAt       DateTime             @default(now())
+   updatedAt       DateTime             @updatedAt
+ 
+   user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
++  processedBy     User?                @relation("ProductOrderProcessedBy", fields: [processedByUserId], references: [id], onDelete: SetNull)
+   details         ProductOrderDetail[]
+   payments        ProductOrderPayment[]
+   reviews         Review[]
+ 
+   @@index([userId, createdAt])
++  @@index([processedByUserId])
+   @@index([status, createdAt])
+ }
+ 
+ model ProductOrderDetail {
+   id              BigInt         @id @default(autoincrement())
+   orderId         BigInt
+   productId       BigInt
+   productName     String         @db.VarChar(255)
+   productSku      String         @db.VarChar(64)
+   unitPrice       Decimal        @default(0) @db.Decimal(18, 2)
+   quantity        Int            @default(1)
+   lineTotal       Decimal        @default(0) @db.Decimal(18, 2)
+   createdAt       DateTime       @default(now())
+   updatedAt       DateTime       @updatedAt
+ 
+   order           ProductOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+   product         CatalogProduct @relation(fields: [productId], references: [id], onDelete: Restrict)
+   reviews         Review[]
+ 
+   @@unique([orderId, productId])
+   @@index([productId])
+ }
+ 
+ enum ReviewType {
+   SERVICE
+diff --git a/backend/ayanavitabackend/app/api/src/product-orders/product-orders.controller.ts b/backend/ayanavitabackend/app/api/src/product-orders/product-orders.controller.ts
+index 630be1ce4ee7fdf44b4257709ff5cc5211793a93..76375f40e28f5de3742ba979abdde40f27268a26 100644
+--- a/backend/ayanavitabackend/app/api/src/product-orders/product-orders.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/product-orders/product-orders.controller.ts
+@@ -19,42 +19,47 @@ export class ProductOrdersController {
+   }
+ 
+   @Get('me')
+   myOrders(@CurrentUser() user: JwtUser) {
+     return this.productOrders.myOrders(user.sub)
+   }
+ 
+   @UseGuards(RolesGuard)
+   @Roles('ADMIN')
+   @Get('admin/list')
+   adminList(@Query('status') status?: string, @Query('q') q?: string) {
+     return this.productOrders.adminList({ status, q })
+   }
+ 
+   @UseGuards(RolesGuard)
+   @Roles('ADMIN')
+   @Post('admin/:id/mark-paid')
+   adminMarkPaid(@Param('id', ParseIntPipe) id: number) {
+     return this.productOrders.markPaid(id)
+   }
+ 
+   @UseGuards(RolesGuard)
+   @Roles('ADMIN')
+   @Patch('admin/:id/status')
+   adminUpdateStatus(
++    @CurrentUser() user: JwtUser,
+     @Param('id', ParseIntPipe) id: number,
+     @Body() dto: AdminUpdateProductOrderStatusDto,
+   ) {
+-    console.log('adminUpdateStatus', { id, status: dto.status })  
+-    return this.productOrders.adminUpdateStatus(id, dto.status as ProductOrderStatus)
++    return this.productOrders.adminUpdateStatus(id, dto.status as ProductOrderStatus, user.sub)
++  }
++
++  @Post(':id/request-cancel')
++  requestCancel(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
++    return this.productOrders.requestCancel(user.sub, id)
+   }
+ 
+   @Get(':id')
+   myOrderDetail(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+     return this.productOrders.myOrderDetail(user.sub, id)
+   }
+ 
+   @Post(':id/payment-qr')
+   myOrderPaymentQr(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+     return this.productOrders.myOrderPaymentQr(user.sub, id)
+   }
+ }
+diff --git a/backend/ayanavitabackend/app/api/src/product-orders/product-orders.service.ts b/backend/ayanavitabackend/app/api/src/product-orders/product-orders.service.ts
+index 36e401d4c7e3b2286bd970b868961741043f3118..5bd71d9f4eb1717a1129b08b58763e7b2aaa3c20 100644
+--- a/backend/ayanavitabackend/app/api/src/product-orders/product-orders.service.ts
++++ b/backend/ayanavitabackend/app/api/src/product-orders/product-orders.service.ts
+@@ -18,58 +18,66 @@ import { CheckoutPaymentMethod, CreateProductOrderDto } from './dto/create-produ
+ 
+ @Injectable()
+ export class ProductOrdersService implements OnModuleInit, OnModuleDestroy {
+   constructor(private readonly prisma: PrismaService) {}
+   private readonly logger = new Logger(ProductOrdersService.name)
+   private expirePendingOrdersTimer?: NodeJS.Timeout
+ 
+   onModuleInit() {
+     this.expirePendingOrdersTimer = setInterval(() => {
+       void this.expireOverduePendingPaymentOrders()
+     }, 60 * 60 * 1000)
+     void this.expireOverduePendingPaymentOrders()
+   }
+ 
+   onModuleDestroy() {
+     if (this.expirePendingOrdersTimer) {
+       clearInterval(this.expirePendingOrdersTimer)
+     }
+   }
+ 
+   private isPaidLikeStatus(status: ProductOrderStatus) {
+     return status === ProductOrderStatus.PAID || status === ProductOrderStatus.SUCCESS
+   }
+ 
+   private canTransitStatus(current: ProductOrderStatus, next: ProductOrderStatus) {
++    if (next === ProductOrderStatus.CANCEL_REQUESTED) {
++      return current === ProductOrderStatus.PENDING
++    }
++
+     if (next === ProductOrderStatus.SHIPPING) {
+       return current === ProductOrderStatus.PENDING || current === ProductOrderStatus.PAID
+     }
+ 
+     if (next === ProductOrderStatus.SUCCESS) {
+       return current === ProductOrderStatus.SHIPPING
+     }
+ 
++    if (next === ProductOrderStatus.CANCELLED) {
++      return current === ProductOrderStatus.CANCEL_REQUESTED || current === ProductOrderStatus.PENDING_PAYMENT
++    }
++
+     return true
+   }
+ 
+ 
+   private readonly bankInfo = {
+     gateway: 'BIDV',
+     accountNumber: '8810091561',
+     accountName: 'LE MINH HIEU',
+   }
+ 
+   private readonly orderDetailsWithMainImage = {
+     include: {
+       product: {
+         select: {
+           images: {
+             where: { isPrimary: true },
+             select: { imageUrl: true },
+             take: 1,
+           },
+         },
+       },
+     },
+   } as const
+ 
+   private mapOrderWithMainImage<T extends { details?: Array<any> }>(order: T) {
+@@ -266,50 +274,51 @@ export class ProductOrdersService implements OnModuleInit, OnModuleDestroy {
+     return normalizeBigInt({
+       order: {
+         ...order,
+         paymentCode: finalTransferContent,
+       },
+       sepay: sepayInfo,
+       pollUrl: `/api/product-orders/${order.id}`,
+       socketEvent: 'order_paid',
+     })
+   }
+ 
+   async myOrders(userId: number) {
+     const orders = await this.prisma.productOrder.findMany({
+       where: { userId },
+       include: { details: this.orderDetailsWithMainImage },
+       orderBy: { id: 'desc' },
+     })
+     return normalizeBigInt(orders.map((order) => this.mapOrderWithMainImage(order)))
+   }
+ 
+   async myOrderDetail(userId: number, orderId: number) {
+     const order = await this.prisma.productOrder.findFirst({
+       where: { id: BigInt(orderId), userId },
+       include: {
+         details: this.orderDetailsWithMainImage,
++        processedBy: { select: { id: true, name: true, email: true } },
+         payments: {
+           orderBy: { id: 'desc' },
+           take: 1,
+         },
+       },
+     })
+     if (!order) throw new NotFoundException('Order not found')
+     return normalizeBigInt(this.mapOrderWithMainImage(order))
+   }
+ 
+   async myOrderPaymentQr(userId: number, orderId: number) {
+     const order = await this.prisma.productOrder.findFirst({
+       where: { id: BigInt(orderId), userId },
+       select: {
+         id: true,
+         status: true,
+         paymentMethod: true,
+         paymentCode: true,
+         total: true,
+       },
+     })
+ 
+     if (!order) throw new NotFoundException('Order not found')
+     if (order.paymentMethod !== ProductPaymentMethod.SEPAY) {
+       throw new BadRequestException('Order does not support QR payment')
+@@ -389,80 +398,110 @@ export class ProductOrdersService implements OnModuleInit, OnModuleDestroy {
+     const qNum = Number(q)
+     const qIsNum = q.length > 0 && Number.isFinite(qNum)
+ 
+     const OR: Prisma.ProductOrderWhereInput[] = []
+     if (q) {
+       if (qIsNum) {
+         OR.push({ id: BigInt(qNum) })
+         OR.push({ userId: qNum })
+       }
+       OR.push({ code: { contains: q } })
+       OR.push({ receiverName: { contains: q } })
+       OR.push({ receiverPhone: { contains: q } })
+       OR.push({ paymentCode: { contains: q } })
+       OR.push({ details: { some: { productName: { contains: q } } } })
+     }
+ 
+     const where: Prisma.ProductOrderWhereInput = {
+       ...(status ? { status } : {}),
+       ...(OR.length ? { OR } : {}),
+     }
+ 
+     const data = await this.prisma.productOrder.findMany({
+       where,
+       include: {
+         user: { select: { id: true, name: true, email: true } },
++        processedBy: { select: { id: true, name: true, email: true } },
+         details: this.orderDetailsWithMainImage,
+       },
+       orderBy: { id: 'desc' },
+       take: 200,
+     })
+ 
+     return normalizeBigInt(data.map((order) => this.mapOrderWithMainImage(order)))
+   }
+ 
+-  async adminUpdateStatus(orderId: number, status: ProductOrderStatus) {
++  async adminUpdateStatus(orderId: number, status: ProductOrderStatus, adminUserId?: number) {
+     const order = await this.prisma.productOrder.findUnique({ where: { id: BigInt(orderId) } })
+     if (!order) throw new NotFoundException('Order not found')
+ 
+     if (!this.canTransitStatus(order.status, status)) {
+       throw new BadRequestException('Invalid status transition')
+     }
+ 
+     const paymentStatus = this.isPaidLikeStatus(status)
+       ? ProductPaymentStatus.PAID
+       : status === ProductOrderStatus.CANCELLED
+         ? ProductPaymentStatus.FAILED
+         : order.paymentStatus
+ 
+     const updated = await this.prisma.$transaction(async (tx) => {
+       const next = await tx.productOrder.update({
+         where: { id: BigInt(orderId) },
+         data: {
+           status,
+           paymentStatus,
+           paidAt: this.isPaidLikeStatus(status) ? new Date() : order.paidAt,
+           cancelledAt: status === ProductOrderStatus.CANCELLED ? new Date() : order.cancelledAt,
++          processedByUserId:
++            status === ProductOrderStatus.SHIPPING || status === ProductOrderStatus.CANCELLED
++              ? adminUserId
++              : order.processedByUserId,
+         },
+         include: { details: true },
+       })
+ 
+       if (order.paymentMethod === ProductPaymentMethod.SEPAY) {
+         await tx.productOrderPayment.updateMany({
+           where: { orderId: BigInt(orderId), status: ProductPaymentStatus.PENDING },
+           data: {
+             status: paymentStatus,
+             paidAt: this.isPaidLikeStatus(status) ? new Date() : undefined,
+           },
+         })
+       }
+ 
+       return next
+     })
+ 
+     return normalizeBigInt(updated)
+   }
+ 
++
++
++  async requestCancel(userId: number, orderId: number) {
++    const order = await this.prisma.productOrder.findFirst({
++      where: { id: BigInt(orderId), userId },
++      select: { id: true, status: true },
++    })
++
++    if (!order) throw new NotFoundException('Order not found')
++    if (order.status !== ProductOrderStatus.PENDING) {
++      throw new BadRequestException('Only pending orders can request cancellation')
++    }
++
++    const updated = await this.prisma.productOrder.update({
++      where: { id: BigInt(orderId) },
++      data: {
++        status: ProductOrderStatus.CANCEL_REQUESTED,
++        processedByUserId: null,
++      },
++      include: { details: true },
++    })
++
++    return normalizeBigInt(updated)
++  }
++
+   async markPaid(orderId: number) {
+     return this.adminUpdateStatus(orderId, ProductOrderStatus.PAID)
+   }
+ }
+diff --git a/beay/src/admin/pages/OrderAdminPage.tsx b/beay/src/admin/pages/OrderAdminPage.tsx
+index bb4c5c8502f866ba6846b0ef6c240b8a25cb1555..04c10772f1c1baf914f630dd296ce2bde440c77c 100644
+--- a/beay/src/admin/pages/OrderAdminPage.tsx
++++ b/beay/src/admin/pages/OrderAdminPage.tsx
+@@ -1,175 +1,181 @@
+ // AdminOrdersDemo.tsx
+ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+ import { api } from "../lib/http";
+ 
+-type StatusKey = "all" | "pending" | "pending_payment" | "paid" | "shipping" | "success" | "cancelled" | "expired";
++type StatusKey = "all" | "pending" | "cancel_requested" | "pending_payment" | "paid" | "shipping" | "success" | "cancelled" | "expired";
+ 
+ type StatusDef = { key: StatusKey; label: string };
+ 
+ type OrderItem = {
+     name: string;
+     sku: string;
+     image: string;
+     qty: number;
+     price: number;
+ };
+ 
+ type ShippingInfo = {
+     receiverName: string;
+     phone: string;
+     addressLine: string; // số nhà/đường + phường/xã
+     district: string;
+     city: string;
+     method: "COD" | "Chuyển khoản" | "Ví điện tử";
+     carrier: string; // hãng vận chuyển (demo)
+     trackingCode: string | null;
+     note: string;
+     expectedDelivery: string; // yyyy-mm-dd (demo)
+ };
+ 
+ type Order = {
+     id: number;
+     code: string;
+     status: Exclude<StatusKey, "all">;
+     createdAt: string; // yyyy-mm-dd
+     customer: { name: string; email: string };
+     branch: string;
+     confirmedBy: string | null;
++    confirmedById?: number | null;
+     payment: { method: string; paidAt: string | null; ref: string | null };
+     items: OrderItem[];
+     pricing: { subtotal: number; shipping: number; discount: number; total: number };
+     note: string;
+ 
+     // ✅ Added shipping info
+     shippingInfo: ShippingInfo;
+ };
+ 
+ 
+ type ApiOrder = {
+     id: number;
+     code: string;
+     status: string;
+     createdAt: string;
+     receiverName: string;
+     receiverEmail?: string | null;
+     receiverPhone: string;
+     shippingAddress: string;
+     district: string;
+     city: string;
+     paymentMethod: string;
+     paymentCode: string | null;
+     paidAt: string | null;
+     shippingUnit: string | null;
+     trackingCode: string | null;
+     expectedDelivery: string | null;
+     note: string | null;
+     subtotal: number | string;
+     shippingFee: number | string;
+     discount: number | string;
+     total: number | string;
++    processedBy?: { id: number; name?: string | null; email?: string | null } | null;
+     details: Array<{
+         productName: string;
+         productSku: string;
+         quantity: number;
+         unitPrice: number | string;
+         productImage?: string | null;
+     }>;
+ };
+ 
+ function toNum(v: number | string | null | undefined) {
+     const n = Number(v ?? 0);
+     return Number.isFinite(n) ? n : 0;
+ }
+ 
+ function toUiStatus(status: string): Exclude<StatusKey, "all"> {
+     switch ((status || "").toUpperCase()) {
+         case "PENDING":
+             return "pending";
+         case "PENDING_PAYMENT":
+             return "pending_payment";
++        case "CANCEL_REQUESTED":
++            return "cancel_requested";
+         case "PAID":
+             return "paid";
+         case "SHIPPING":
+             return "shipping";
+         case "SUCCESS":
+             return "success";
+         case "CANCELLED":
+             return "cancelled";
+         case "EXPIRED":
+             return "expired";
+         default:
+             return "pending";
+     }
+ }
+ 
+ function mapOrder(row: ApiOrder): Order {
+     return {
+         id: row.id,
+         code: row.code,
+         status: toUiStatus(row.status),
+         createdAt: String(row.createdAt || "").slice(0, 10),
+         customer: { name: row.receiverName || "-", email: row.receiverEmail || "-" },
+         branch: "Online",
+-        confirmedBy: null,
++        confirmedBy: row.processedBy?.name || row.processedBy?.email || null,
++        confirmedById: row.processedBy?.id || null,
+         payment: {
+             method: row.paymentMethod === "SEPAY" ? "Chuyển khoản" : row.paymentMethod || "COD",
+             paidAt: row.paidAt ? String(row.paidAt).slice(0, 10) : null,
+             ref: row.paymentCode,
+         },
+         items: (row.details || []).map((it, idx) => ({
+             name: it.productName,
+             sku: it.productSku,
+             image: it.productImage || `https://picsum.photos/seed/admin-order-${row.id}-${idx}/96/96`,
+             qty: Number(it.quantity || 1),
+             price: toNum(it.unitPrice),
+         })),
+         pricing: {
+             subtotal: toNum(row.subtotal),
+             shipping: toNum(row.shippingFee),
+             discount: toNum(row.discount),
+             total: toNum(row.total),
+         },
+         note: row.note || "-",
+         shippingInfo: {
+             receiverName: row.receiverName || "-",
+             phone: row.receiverPhone || "-",
+             addressLine: row.shippingAddress || "-",
+             district: row.district || "-",
+             city: row.city || "-",
+             method: row.paymentMethod === "SEPAY" ? "Chuyển khoản" : "COD",
+             carrier: row.shippingUnit || "-",
+             trackingCode: row.trackingCode || null,
+             note: row.note || "-",
+             expectedDelivery: row.expectedDelivery ? String(row.expectedDelivery).slice(0, 10) : String(row.createdAt || "").slice(0, 10),
+         },
+     };
+ }
+ const STATUS: Record<StatusKey, StatusDef> = {
+     all: { key: "all", label: "Tất cả" },
+     pending: { key: "pending", label: "Chờ xác nhận" },
+     pending_payment: { key: "pending_payment", label: "Chờ thanh toán" },
++    cancel_requested: { key: "cancel_requested", label: "Yêu cầu hủy" },
+     paid: { key: "paid", label: "Đã thanh toán" },
+     shipping: { key: "shipping", label: "Đang giao" },
+     success: { key: "success", label: "Thành công" },
+     cancelled: { key: "cancelled", label: "Đã hủy" },
+     expired: { key: "expired", label: "Hết hạn" },
+ };
+ 
+ const CSS = `
+ :root {
+   --bg: #ffffff;
+   --text: #0f172a;1
+   --muted: #64748b;
+   --border: rgba(15, 23, 42, 0.08);
+   --shadow: 0 20px 45px rgba(2, 6, 23, 0.12);
+   --shadow-soft: 0 12px 28px rgba(2, 6, 23, 0.08);
+   --radius: 18px;
+   --radius-sm: 12px;
+ 
+   --grad: linear-gradient(135deg, #7c3aed, #06b6d4);
+   --grad-2: linear-gradient(135deg, #22c55e, #06b6d4);
+   --grad-warm: linear-gradient(135deg, #f97316, #ec4899);
+ 
+   --ok: #16a34a;
+   --warn: #f59e0b;
+   --danger: #ef4444;
+@@ -492,50 +498,51 @@ tbody tr:nth-child(odd) { background: rgba(2, 6, 23, 0.012); }
+ tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.9); }
+ tbody tr:hover { background: rgba(124, 58, 237, 0.05); }
+ 
+ .mono {
+   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+     monospace;
+   font-size: 12px;
+ }
+ 
+ .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+ 
+ .status {
+   display: inline-flex;
+   align-items: center;
+   gap: 8px;
+   border-radius: 999px;
+   padding: 8px 10px;
+   font-size: 12px;
+   border: 1px solid var(--border);
+   background: var(--chip-bg);
+   white-space: nowrap;
+ }
+ .status .s-dot { width: 9px; height: 9px; border-radius: 999px; background: rgba(15, 23, 42, 0.25); }
+ .status.pending .s-dot { background: var(--warn); }
+ .status.pending_payment .s-dot { background: #f97316; }
++.status.cancel_requested .s-dot { background: #dc2626; }
+ .status.paid .s-dot { background: var(--paid); }
+ .status.shipping .s-dot { background: #0ea5e9; }
+ .status.success .s-dot { background: var(--ok); }
+ .status.cancelled .s-dot { background: var(--danger); }
+ .status.expired .s-dot { background: #94a3b8; }
+ 
+ .money { font-weight: 800; letter-spacing: -0.01em; }
+ 
+ .table-actions { display: flex; justify-content: flex-end; gap: 8px; }
+ 
+ .icon-btn {
+   width: 38px;
+   height: 38px;
+   border-radius: 14px;
+   border: 1px solid var(--border);
+   background: rgba(255, 255, 255, 0.9);
+   cursor: pointer;
+   display: grid;
+   place-items: center;
+   transition: transform 0.15s ease, box-shadow 0.15s ease;
+ }
+ .icon-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 28px rgba(2, 6, 23, 0.08); }
+ .icon-btn:active { transform: translateY(0); }
+ 
+ /* Pagination */
+@@ -892,50 +899,51 @@ function mkOrder(
+             note:
+                 status === "pending"
+                     ? "Chưa bàn giao cho đơn vị vận chuyển."
+                     : status === "pending_payment"
+                         ? "Đang chờ thanh toán, chưa thể bàn giao vận chuyển."
+                     : status === "paid"
+                         ? "Chờ nhân viên xác nhận đơn để bắt đầu giao."
+                         : status === "shipping"
+                             ? "Đơn đang trên đường giao."
+                             : status === "success"
+                                 ? "Đơn đã giao thành công."
+                                 : status === "cancelled"
+                                     ? "Đơn đã hủy, không tạo vận đơn."
+                                     : "Đơn hết hạn, không giao hàng.",
+             expectedDelivery,
+         },
+     };
+ }
+ 
+ const initialOrders: Order[] = [];
+ 
+ function renderStatus(status: Order["status"]) {
+     const map: Record<Order["status"], { cls: string; label: string }> = {
+         pending: { cls: "pending", label: STATUS.pending.label },
+         pending_payment: { cls: "pending_payment", label: STATUS.pending_payment.label },
++        cancel_requested: { cls: "cancel_requested", label: STATUS.cancel_requested.label },
+         paid: { cls: "paid", label: STATUS.paid.label },
+         shipping: { cls: "shipping", label: STATUS.shipping.label },
+         success: { cls: "success", label: STATUS.success.label },
+         cancelled: { cls: "cancelled", label: STATUS.cancelled.label },
+         expired: { cls: "expired", label: STATUS.expired.label },
+     };
+     const x = map[status] ?? { cls: "", label: "—" };
+     return (
+         <span className={`status ${x.cls}`}>
+       <span className="s-dot" />
+       <span style={{ fontWeight: 800 }}>{x.label}</span>
+     </span>
+     );
+ }
+ 
+ export default function AdminOrdersDemo() {
+     const [orders, setOrders] = useState<Order[]>(() => [...initialOrders]);
+ 
+     // Filters
+     const [activeStatus, setActiveStatus] = useState<StatusKey>("all");
+     const [q, setQ] = useState("");
+     const getCurrentMonthDates = () => {
+         const now = new Date();
+         const year = now.getFullYear();
+         const month = String(now.getMonth() + 1).padStart(2, "0");
+@@ -952,51 +960,51 @@ export default function AdminOrdersDemo() {
+ 
+     // Pagination
+     const [page, setPage] = useState(1);
+     const [pageSize, setPageSize] = useState(10);
+ 
+     // Drawer
+     const [drawerOpen, setDrawerOpen] = useState(false);
+     const [activeOrderId, setActiveOrderId] = useState<number | null>(null);
+ 
+     // Toast + Loading
+     const [loading, setLoading] = useState(false);
+     const [toastMsg, setToastMsg] = useState<string | null>(null);
+     const toastTimer = useRef<number | null>(null);
+ 
+     const activeOrder = useMemo(
+         () => (activeOrderId ? orders.find((x) => x.id === activeOrderId) ?? null : null),
+         [activeOrderId, orders],
+     );
+ 
+     const counts = useMemo(() => {
+         return orders.reduce<Record<Order["status"], number>>(
+             (acc, o) => {
+                 acc[o.status] = (acc[o.status] || 0) + 1;
+                 return acc;
+             },
+-            { pending: 0, pending_payment: 0, paid: 0, shipping: 0, success: 0, cancelled: 0, expired: 0 },
++            { pending: 0, cancel_requested: 0, pending_payment: 0, paid: 0, shipping: 0, success: 0, cancelled: 0, expired: 0 },
+         );
+     }, [orders]);
+ 
+     const filtered = useMemo(() => {
+         const query = (q || "").trim().toLowerCase();
+         const fd = fromDate ? new Date(fromDate + "T00:00:00") : null;
+         const td = toDate ? new Date(toDate + "T23:59:59") : null;
+         const min = parseNumber(minTotal);
+         const max = parseNumber(maxTotal);
+ 
+         const rows = orders.filter((o) => {
+             if (activeStatus !== "all" && o.status !== activeStatus) return false;
+ 
+             if (query) {
+                 const hay = (o.code + " " + o.customer.name + " " + o.customer.email).toLowerCase();
+                 if (!hay.includes(query)) return false;
+             }
+ 
+             const created = new Date(o.createdAt + "T12:00:00");
+             if (fd && created < fd) return false;
+             if (td && created > td) return false;
+ 
+             if (Number.isFinite(min) && o.pricing.total < min) return false;
+             if (Number.isFinite(max) && o.pricing.total > max) return false;
+ 
+@@ -1107,76 +1115,92 @@ export default function AdminOrdersDemo() {
+                 body: JSON.stringify({ status: "SHIPPING" }),
+             });
+             await fetchOrders(false);
+             toast("Đơn hàng đã chuyển sang Đang giao.");
+             closeDrawer();
+         } catch {
+             toast("Không thể xác nhận đơn hàng.");
+         }
+     }
+ 
+     async function markOrderSuccess() {
+         if (!activeOrder) return;
+         try {
+             await api(`/api/product-orders/admin/${activeOrder.id}/status`, {
+                 method: "PATCH",
+                 body: JSON.stringify({ status: "SUCCESS" }),
+             });
+             await fetchOrders(false);
+             toast("Đã cập nhật đơn hàng thành công.");
+             closeDrawer();
+         } catch {
+             toast("Không thể cập nhật trạng thái thành công.");
+         }
+     }
+ 
++    async function approveCancelRequest() {
++        if (!activeOrder) return;
++        try {
++            await api(`/api/product-orders/admin/${activeOrder.id}/status`, {
++                method: "PATCH",
++                body: JSON.stringify({ status: "CANCELLED" }),
++            });
++            await fetchOrders(false);
++            toast("Đã chấp nhận yêu cầu hủy đơn.");
++            closeDrawer();
++        } catch {
++            toast("Không thể chấp nhận yêu cầu hủy.");
++        }
++    }
++
+     // Pager text (same format)
+     const pagerText = useMemo(() => {
+         const total = filtered.length;
+         const safePage = Math.min(Math.max(1, page), totalPages);
+         const start = (safePage - 1) * pageSize;
+         const end = start + pageSize;
+ 
+         const showingFrom = total === 0 ? 0 : start + 1;
+         const showingTo = Math.min(end, total);
+ 
+         return `Hiển thị ${showingFrom}-${showingTo} / ${total} • Trang ${safePage}/${totalPages}`;
+     }, [filtered.length, page, pageSize, totalPages]);
+ 
+     // Keyboard ESC to close drawer (kept)
+     useEffect(() => {
+         const onKeyDown = (e: KeyboardEvent) => {
+             if (e.key === "Escape") closeDrawer();
+         };
+         window.addEventListener("keydown", onKeyDown);
+         return () => window.removeEventListener("keydown", onKeyDown);
+     }, []);
+ 
+     const tabs = useMemo(
+         () => [
+             { key: "all" as const, label: STATUS.all.label, count: orders.length },
+             { key: "pending" as const, label: STATUS.pending.label, count: counts.pending || 0 },
++            { key: "cancel_requested" as const, label: STATUS.cancel_requested.label, count: counts.cancel_requested || 0 },
+             { key: "pending_payment" as const, label: STATUS.pending_payment.label, count: counts.pending_payment || 0 },
+             { key: "paid" as const, label: STATUS.paid.label, count: counts.paid || 0 },
+             { key: "shipping" as const, label: STATUS.shipping.label, count: counts.shipping || 0 },
+             { key: "success" as const, label: STATUS.success.label, count: counts.success || 0 },
+             { key: "cancelled" as const, label: STATUS.cancelled.label, count: counts.cancelled || 0 },
+             { key: "expired" as const, label: STATUS.expired.label, count: counts.expired || 0 },
+         ],
+         [orders.length, counts],
+     );
+ 
+     useEffect(() => {
+         if (drawerOpen) {
+             document.body.style.overflow = "hidden";
+         } else {
+             document.body.style.overflow = "";
+         }
+ 
+         return () => {
+             document.body.style.overflow = "";
+         };
+     }, [drawerOpen]);
+ 
+     return (
+         <>
+             {/* FontAwesome CDN */}
+@@ -1641,49 +1665,55 @@ export default function AdminOrdersDemo() {
+                                             <span className="muted">Tạm tính</span>
+                                             <strong>{money(activeOrder.pricing.subtotal)}</strong>
+                                         </div>
+                                         <div className="line">
+                                             <span className="muted">Phí ship</span>
+                                             <strong>{money(activeOrder.pricing.shipping)}</strong>
+                                         </div>
+                                         <div className="line">
+                                             <span className="muted">Giảm giá</span>
+                                             <strong>-{money(activeOrder.pricing.discount)}</strong>
+                                         </div>
+                                         <div className="line final">
+                                             <span className="muted">Tổng thanh toán</span>
+                                             <strong>{money(activeOrder.pricing.total)}</strong>
+                                         </div>
+                                     </div>
+                                 </div>
+ 
+                                 <div style={{ display: "flex", gap: 10, paddingBottom: 8, flexWrap: "wrap" }}>
+                                     {(activeOrder.status === "pending" || activeOrder.status === "paid") && (
+                                         <button className="btn ghost" id="btnConfirmShipping" onClick={confirmOrderShipping}>
+                                             <i className="fa-solid fa-truck" style={{ opacity: 0.85 }}></i>
+                                             Xác nhận đơn → Đang giao
+                                         </button>
+                                     )}
++                                    {activeOrder.status === "cancel_requested" && (
++                                        <button className="btn ghost" onClick={approveCancelRequest}>
++                                            <i className="fa-solid fa-ban" style={{ opacity: 0.85 }}></i>
++                                            Chấp nhận yêu cầu hủy
++                                        </button>
++                                    )}
+                                     {activeOrder.status === "shipping" && (
+                                         <button className="btn primary" id="btnMarkSuccess" onClick={markOrderSuccess}>
+                                             <i className="fa-solid fa-circle-check" style={{ opacity: 0.95 }}></i>
+                                             Cập nhật → Thành công
+                                         </button>
+                                     )}
+                                 </div>
+                             </>
+                         )}
+                     </div>
+                 </aside>
+ 
+                 <div className={`toast ${toastMsg ? "show" : ""}`} id="toast">
+                     <div className="t-inner">
+                         <div className="t-icon">
+                             <i className="fa-solid fa-bolt"></i>
+                         </div>
+                         <div id="toastText">{toastMsg ?? "—"}</div>
+                     </div>
+                 </div>
+             </div>
+         </>
+     );
+ }

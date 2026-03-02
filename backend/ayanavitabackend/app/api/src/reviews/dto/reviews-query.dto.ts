@@ -44,4 +44,10 @@ export class PublicReviewsQueryDto {
   @IsOptional()
   @IsEnum(ReviewType)
   type?: ReviewType
+
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(1)
+  productId?: number
 }

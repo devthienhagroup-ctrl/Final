@@ -6,14 +6,11 @@ import { money } from "../services/booking.utils";
 import { useCart } from "../contexts/CartContext";
 
 import { MiniCartModal } from "../components/shop/MiniCartModal";
-import { ReviewModal } from "../components/shop/ReviewModal";
 import { Stars } from "../components/shop/Stars";
 
 // (removed) buildCatalogMetas / PRODUCT_DETAIL_SEEDS / label helpers
-import { addReview, calcReviewStats, listReviewsBySku } from "../services/productReviews.utils";
 
 import {http} from "../api/http";
-import { c } from "node_modules/vite/dist/node/moduleRunnerTransport.d-DJ_mE5sf";
 
 // ==================== CMS DATA (MẶC ĐỊNH) ====================
 // Tất cả nội dung giao diện tĩnh (có thể chỉnh sửa qua CMS) được đặt ở đây
@@ -214,6 +211,16 @@ function copyToClipboard(text: string) {
   document.body.removeChild(ta);
 }
 
+
+type PublicReviewItem = {
+  id: string | number;
+  stars: number;
+  comment: string;
+  customerName?: string | null;
+  isAnonymous?: boolean;
+  createdAt?: string;
+};
+
 // ==================== COMPONENT ====================
 export default function ProductDetailPage() {
   const { slug: slugParam } = useParams<{ slug: string }>();
@@ -371,13 +378,49 @@ export default function ProductDetailPage() {
 
   const [cartOpen, setCartOpen] = useState(false);
   const { addItem, totalItems: cartCount } = useCart();
-  const [reviewOpen, setReviewOpen] = useState(false);
-
   const [rvSort, setRvSort] = useState<"new" | "high" | "low">("new");
   const [rvFilterStar, setRvFilterStar] = useState<"all" | "1" | "2" | "3" | "4" | "5">("all");
   const [rvSearch, setRvSearch] = useState("");
+  const [publicReviews, setPublicReviews] = useState<PublicReviewItem[]>([]);
 
-  const stats = useMemo(() => calcReviewStats(listReviewsBySku(productKey as any)), [productKey, reviewOpen]);
+  useEffect(() => {
+    const productId = Number(apiProduct?.id);
+    if (!Number.isFinite(productId)) {
+      setPublicReviews([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await http.get('/reviews', {
+          params: {
+            type: 'PRODUCT',
+            productId,
+          },
+        });
+        if (cancelled) return;
+        setPublicReviews(Array.isArray(res.data) ? res.data : []);
+      } catch (error) {
+        console.error('GET /reviews failed:', error);
+        if (!cancelled) setPublicReviews([]);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiProduct?.id]);
+
+  const stats = useMemo(() => {
+    const count = publicReviews.length;
+    const sum = publicReviews.reduce((acc, item) => acc + Number(item.stars || 0), 0);
+    return {
+      count,
+      avg: count ? sum / count : 0,
+    };
+  }, [publicReviews]);
 
   const displayName = apiProduct?.name || "";
   const displayPrice = Number(apiProduct?.price ?? 0);
@@ -386,16 +429,23 @@ export default function ProductDetailPage() {
   const effectiveCount = stats.count ? stats.count : 0;
 
   const filteredReviews = useMemo(() => {
-    let rs = listReviewsBySku(productKey as any).slice();
+    let rs = publicReviews.slice();
 
     if (rvFilterStar !== "all") rs = rs.filter((r) => String(r.stars) === rvFilterStar);
     const q = rvSearch.trim().toLowerCase();
-    if (q) rs = rs.filter((r) => (r.name + " " + r.text).toLowerCase().includes(q));
-    if (rvSort === "new") rs.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-    if (rvSort === "high") rs.sort((a, b) => b.stars - a.stars);
-    if (rvSort === "low") rs.sort((a, b) => a.stars - b.stars);
+    if (q) {
+      rs = rs.filter((r) => {
+        const name = (r.customerName || "").toLowerCase();
+        const text = (r.comment || "").toLowerCase();
+        return `${name} ${text}`.includes(q);
+      });
+    }
+
+    if (rvSort === "new") rs.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    if (rvSort === "high") rs.sort((a, b) => Number(b.stars || 0) - Number(a.stars || 0));
+    if (rvSort === "low") rs.sort((a, b) => Number(a.stars || 0) - Number(b.stars || 0));
     return rs;
-  }, [productKey, rvFilterStar, rvSearch, rvSort, reviewOpen]);
+  }, [publicReviews, rvFilterStar, rvSearch, rvSort]);
 
   const guideIntro = apiProduct?.guideContent?.intro || "";
   const guideSteps = useMemo(() => {
@@ -489,11 +539,6 @@ export default function ProductDetailPage() {
   function buyNow() {
     addToCart(qty);
     setCartOpen(true);
-  }
-
-  function submitReview(x: { name: string; stars: number; text: string }) {
-    addReview(productKey as any, x);
-    setReviewOpen(false);
   }
 
   return (
@@ -876,9 +921,9 @@ export default function ProductDetailPage() {
                         <option key={opt.value} value={opt.value}>{opt.text}</option>
                     ))}
                   </select>
-                  <button className="btn btn-primary" type="button" onClick={() => setReviewOpen(true)}>
+                  <Link className="btn btn-primary inline-flex items-center justify-center" to="/reviews">
                     <i className={`${cmsData.reviews.writeReviewButton.icon} mr-2`} />{cmsData.reviews.writeReviewButton.text}
-                  </button>
+                  </Link>
                 </div>
               </div>
             </div>
@@ -902,13 +947,13 @@ export default function ProductDetailPage() {
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <div className="font-extrabold">
-                                {r.name} <span className="text-slate-500">• {r.createdAt}</span>
+                                {r.isAnonymous ? "Ẩn danh" : (r.customerName || "Khách hàng")} <span className="text-slate-500">• {r.createdAt ? new Date(r.createdAt).toLocaleDateString("vi-VN") : ""}</span>
                               </div>
                               <div className="mt-1 text-sm text-slate-500">{displayName}</div>
                             </div>
                             <div className="text-lg"><Stars value={r.stars} /></div>
                           </div>
-                          <div className="mt-3 text-sm text-slate-700 leading-relaxed">{r.text}</div>
+                          <div className="mt-3 text-sm text-slate-700 leading-relaxed">{r.comment}</div>
                         </div>
                     ))
                 ) : (
@@ -940,13 +985,6 @@ export default function ProductDetailPage() {
 
         {/* Modals */}
         <MiniCartModal cmsData={detailData?.sections?.[0]?.data} open={cartOpen} onClose={() => setCartOpen(false)} />
-        <ReviewModal
-            cmsData={detailData?.sections?.[1]?.data}
-            open={reviewOpen}
-            onClose={() => setReviewOpen(false)}
-            productName={displayName}
-            onSubmit={submitReview}
-        />
       </div>
   );
 }

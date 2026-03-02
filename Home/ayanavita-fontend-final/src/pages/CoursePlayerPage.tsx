@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { DEMO_COURSE, flattenLessons } from "../data/coursePlayer.demo";
 import type { CourseLesson } from "../data/coursePlayer.demo";
-import { getProgress, resetProgress, clearResume, clearNote, clearLessonQuiz, clearSubmission, isDone, markDone } from "../services/coursePlayer.storage";
+import { getProgress, isDone, markDone } from "../services/coursePlayer.storage";
 import { useEscapeKey, useHotkey } from "../hooks/useUiGuards";
 
 import { CurriculumPanel } from "../components/course-player/CurriculumPanel";
@@ -69,29 +69,6 @@ export default function CoursePlayerPage() {
     const pct = total ? Math.round((doneCount / total) * 100) : 0;
     return { doneCount, total, pct };
   }, [course.id, flat, lessonId]); // re-render on lesson changes
-
-  const startLearning = () => {
-    const firstId = flat[0]?.lesson.id;
-    if (firstId) setLessonId(firstId);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const doReset = () => {
-    if (!confirm("Reset progress Done/Resume/Notes/Quiz/Assignment cho khóa này?")) return;
-
-    resetProgress(course.id);
-
-    // clear per lesson data
-    for (const x of flat) {
-      clearResume(course.id, x.lesson.id);
-      clearNote(course.id, x.lesson.id);
-      clearLessonQuiz(course.id, x.lesson.id);
-      clearSubmission(course.id, x.lesson.id);
-    }
-
-    alert("Đã reset.");
-    setLessonId(flat[0]?.lesson.id || "");
-  };
 
   const onSelectLesson = (id: string) => {
     setLessonId(id);
@@ -199,47 +176,12 @@ export default function CoursePlayerPage() {
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-3 md:grid-cols-2">
-                <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
-                  <div className="text-xs font-extrabold text-slate-500">Bạn sẽ học được</div>
-                  <ul className="mt-2 text-sm text-slate-700 grid gap-2">
-                    <li className="flex items-start gap-2"><span className="text-amber-600 font-extrabold">•</span> Curriculum + Player UX giống Udemy</li>
-                    <li className="flex items-start gap-2"><span className="text-amber-600 font-extrabold">•</span> Quiz builder + chấm điểm</li>
-                    <li className="flex items-start gap-2"><span className="text-amber-600 font-extrabold">•</span> Assignment submission (link/file)</li>
-                    <li className="flex items-start gap-2"><span className="text-amber-600 font-extrabold">•</span> Resume + auto-complete + lock lesson</li>
-                  </ul>
-                </div>
-
-                <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
-                  <div className="text-xs font-extrabold text-slate-500">Giảng viên</div>
-                  <div className="mt-2 flex items-center gap-3">
-                    <img className="h-12 w-12 rounded-2xl object-cover" src="https://images.unsplash.com/photo-1603415526960-f7e0328c63b1?auto=format&fit=crop&w=240&q=80" alt="Instructor" />
-                    <div>
-                      <div className="font-extrabold">Ayanavita Team</div>
-                      <div className="text-sm text-slate-600">Build LMS UI Systems • React/Tailwind</div>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <span className="chip"><i className="fa-solid fa-certificate text-amber-500" /> Certificate</span>
-                    <span className="chip"><i className="fa-solid fa-mobile-screen text-indigo-600" /> Mobile friendly</span>
-                    <span className="chip"><i className="fa-solid fa-cloud-arrow-down text-emerald-600" /> Resources</span>
-                  </div>
-                </div>
-              </div>
-
               <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm text-slate-600">
                   Tip: nhấn <b>/</b> để focus search lesson • <b>Esc</b> để đóng modal/drawer.
                 </div>
-                <div className="flex gap-2">
-                  <button className="btn" onClick={doReset} type="button">
-                    <i className="fa-solid fa-rotate-left mr-2" />
-                    Reset progress
-                  </button>
-                  <button className="btn btn-primary" onClick={startLearning} type="button">
-                    <i className="fa-solid fa-play mr-2" />
-                    Start learning
-                  </button>
+                <div className="text-base font-extrabold text-slate-800">
+                  <span className="text-slate-900">Order:</span> Chưa có đơn hàng
                 </div>
               </div>
 

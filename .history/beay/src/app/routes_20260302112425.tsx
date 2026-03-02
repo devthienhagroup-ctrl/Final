@@ -1,5 +1,5 @@
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
-import { useAuth } from "./auth";
+import { useAuth } from "./app/";
 import { AdminDashboardPage } from "../pages/admin/AdminDashboardPage";
 import { AdminOrdersPage } from "../pages/admin/AdminOrdersPage";
 import { LoginPage } from "../pages/admin/LoginPage";

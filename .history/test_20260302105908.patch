@@ -1069,6 +1069,9 @@ index 0000000000000000000000000000000000000000..39b78330ea6ccfc26d8be482a9951d37
 +    </div>
 +  );
 +}
+diff --git a/beay/src/admin/components/CmsSectionEditor.tsx b/beay/src/admin/components/CmsSectionEditor.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/beay/src/admin/components/JsonEditor.tsx b/beay/src/admin/components/JsonEditor.tsx
 new file mode 100644
 index 0000000000000000000000000000000000000000..ff2ffc01a5b619dff10814b9715f74a285a33545
@@ -3609,6 +3612,9 @@ index 0000000000000000000000000000000000000000..3fb3839324e91ce75ba5fc55d9f85832
 +      </div>
 +  );
 +}
+diff --git a/beay/src/admin/pages/CmsEditorPage.tsx b/beay/src/admin/pages/CmsEditorPage.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/beay/src/admin/pages/CmsPagesPage.tsx b/beay/src/admin/pages/CmsPagesPage.tsx
 new file mode 100644
 index 0000000000000000000000000000000000000000..811d683aaefada3dc00dbe1ae1cecdf7004169c5
@@ -11577,6 +11583,9 @@ index 0000000000000000000000000000000000000000..107eeed1b1e5451433df207c2718529b
 +    </div>
 +  );
 +}
+diff --git a/beay/src/admin/styles/admin.css b/beay/src/admin/styles/admin.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/beay/src/admin/types/productAdmin.ts b/beay/src/admin/types/productAdmin.ts
 new file mode 100644
 index 0000000000000000000000000000000000000000..7863c5120ddd0161206464adb47d7f68ed4d558a

@@ -11577,6 +11577,9 @@ index 0000000000000000000000000000000000000000..107eeed1b1e5451433df207c2718529b
 +    </div>
 +  );
 +}
+diff --git a/beay/src/admin/styles/admin.css b/beay/src/admin/styles/admin.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/beay/src/admin/types/productAdmin.ts b/beay/src/admin/types/productAdmin.ts
 new file mode 100644
 index 0000000000000000000000000000000000000000..7863c5120ddd0161206464adb47d7f68ed4d558a

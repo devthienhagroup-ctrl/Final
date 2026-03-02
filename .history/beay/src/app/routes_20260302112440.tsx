@@ -33,7 +33,7 @@ export function AppRoutes() {
                 <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
                 <Route path="/admin/orders" element={<AdminOrdersPage />} />
                 <Route path="/admin/rbac" element={<AdminRbacPage />} />
-                <Route path="/admin/cms" element={<CmsEditPage />} />
+                <Route path="/admin/cms" element={<CmsEditPage
             </Route>
 
             <Route path="*" element={<div className="p-6">404</div>} />

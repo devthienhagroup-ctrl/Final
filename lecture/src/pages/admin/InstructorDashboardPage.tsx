@@ -146,13 +146,6 @@ export function InstructorDashboardPage() {
       />
 
       <main className='px-4 md:px-8 py-6 space-y-6'>
-        {canAccessDashboard ? (
-          <div>
-            <button type='button' className='btn inline-flex items-center gap-2' onClick={() => nav('/admin/dashboard')}>
-              <i className='fa-solid fa-gauge' /> Về dashboard
-            </button>
-          </div>
-        ) : null}
         <KpiGrid kpis={kpis} />
 
         <section className='grid gap-4 xl:grid-cols-[1.15fr_1.25fr]'>

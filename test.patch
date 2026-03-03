@@ -1,194 +1,238 @@
-diff --git a/Home/ayanavita-fontend-final/src/App.tsx b/Home/ayanavita-fontend-final/src/App.tsx
-index 3013c6e60399adb09868228cc596ba647fd28928..63e71f1ffac1bdbf2d3c5072dd5a7b08264535cd 100644
---- a/Home/ayanavita-fontend-final/src/App.tsx
-+++ b/Home/ayanavita-fontend-final/src/App.tsx
-@@ -1,76 +1,79 @@
- // src/App.tsx
- import {Routes, Route} from "react-router-dom";
-
- import HomePage from "./pages/HomePage";
- import ServicesPage from "./pages/ServicesPage";
- import BookingPage from "./pages/BookingPage";
- import ServiceDetailPage from "./pages/ServiceDetailPage";
- import Layout from "./components/layout/Layout";
-
- import CoursesPage from "./pages/CoursesPage";
- import CartPage from "./pages/CartPage";
- import ProductCheckoutPage from "./pages/ProductCheckoutPage";
- import ContactPage from "./pages/ContactPage";
- import ProductsPage from "./pages/ProductsPage";
- import ComparePage from "./pages/ComparePage";
- import TrackOrderPage from "./pages/TrackOrderPage";
- import ProductCategoryPage from "./pages/ProductCategoryPage";
- import ProductDetailPage from "./pages/ProductDetailPage";
- import CourseDetailPage from "./pages/CourseDetailPage";
- import CoursePlayerPage from "./pages/CoursePlayerPage";
- import BlogPage from "./pages/BlogPage";
- import LessonDetailPage from "./pages/LessonDetailPage";
- import ReviewsCenterPage from "./pages/ReviewsCenterPage";
- import AccountCenter from "./pages/AccountCenter";
- import LoginPage from "./pages/LoginPage";
--// ví dụ
-+import ProtectedRoute from "./components/auth/ProtectedRoute";
-+import NotFoundPage from "./pages/NotFoundPage";
-+import ForbiddenPage from "./pages/ForbiddenPage";
+diff --git a/beay/src/app/routes.tsx b/beay/src/app/routes.tsx
+index bea188fcf6e50b22a04d81797a43c1b872eab2f0..f7284c2c53b7b41449cd6c6166ff23578d86ccd4 100644
+--- a/beay/src/app/routes.tsx
++++ b/beay/src/app/routes.tsx
+@@ -1,88 +1,111 @@
+ import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
+ import { useAuth } from './auth'
+ import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage'
+ import { LoginPage } from '../pages/admin/LoginPage'
+ import { AdminRbacPage } from '../pages/admin/AdminRbacPage'
+ import { StudentPortalPage } from '../pages/admin/StudentPortalPage'
+ import { StudentCourseDetailPage } from '../pages/admin/StudentCourseDetailPage'
+ import { StudentLessonPlayerPage } from '../pages/admin/StudentLessonPlayerPage'
+ import AdminSpaPage from '../pages/admin/AdminSpaPage'
+ import AdminCoursesPage from '../pages/admin/AdminCoursesPage'
+ import { InstructorDashboardPage } from '../pages/admin/InstructorDashboardPage'
+ import { CmsEditPage } from "../admin/pages/CmsEditPage";
+ import { ToastProvider as AdminToastProvider } from "../admin/components/Toast";
+ import { CmsPagesPage } from "../admin/pages/CmsPagesPage";
+ import  OrderAdminPage  from "../admin/pages/OrderAdminPage";
+ import { ReviewsAdminPage } from "../admin/pages/ReviewsAdminPage";
+ import { BlogAdminPage } from "../admin/pages/BlogAdminPage";
+ import { ProductAdminListPage } from "../admin/pages/ProductAdminListPage";
+ import { ProductAdminDetailPage } from "../admin/pages/ProductAdminDetailPage";
+ import { AdminUserManagementPage } from '../pages/admin/AdminUserManagementPage'
++import { ErrorStatusPage } from '../pages/ErrorStatusPage';
 
 
- export default function App() {
+
+ function RequireAuth() {
+     const { token } = useAuth();
+     const location = useLocation();
+
+     if (!token) {
+         return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+     }
+
+     return <Outlet />;
+ }
+
+ function RequirePermission({ permission, children }: { permission: string; children: React.ReactNode }) {
+     const { can } = useAuth();
+
+     if (!can(permission)) {
+-        return <Navigate to="/login" replace />;
++        return (
++            <ErrorStatusPage
++                code={403}
++                title="403 - Không có quyền truy cập"
++                message="Tài khoản của bạn đã đăng nhập nhưng chưa được cấp quyền để vào trang này."
++            />
++        );
+     }
+
+     return <>{children}</>;
+ }
+
++function FallbackRoute() {
++    const { token } = useAuth();
++
++    if (!token) {
++        return <Navigate to="/login" replace />;
++    }
++
++    return (
++        <ErrorStatusPage
++            code={404}
++            title="404 - Không tìm thấy trang"
++            message="Đường dẫn không tồn tại hoặc đã được thay đổi. Vui lòng kiểm tra lại đường dẫn."
++        />
++    );
++}
++
+ export function AppRoutes() {
      return (
          <Routes>
-             <Route path="/login" element={<LoginPage/>} />
-+            <Route path="/403" element={<ProtectedRoute><ForbiddenPage/></ProtectedRoute>} />
+             <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+             <Route path="/login" element={<LoginPage />} />
 
-             <Route element={<Layout/>}>
-
-                 <Route path="/" element={<HomePage/>}/>
-
-                 {/* Spa services */}
-                 <Route path="/services" element={<ServicesPage/>}/>
-                 <Route path="/services/:serviceId" element={<ServiceDetailPage/>}/>
-                 <Route path="/booking" element={<BookingPage/>}/>
-
-                 {/* Courses (prototype) */}
-                 <Route path="/courses" element={<CoursesPage/>}/>
-
-                 {/* Product cart (prototype) */}
-                 <Route path="/cart" element={<CartPage/>}/>
-                 <Route path="/product-checkout" element={<ProductCheckoutPage/>}/>
-                 {/* <Route path="/checkout" element={<CheckoutPage/>}/> */}
-                 <Route path="/products" element={<ProductsPage/>}/>
-                 <Route path="/compare" element={<ComparePage/>}/>
-                 <Route path="/track-order" element={<TrackOrderPage/>}/>
-                 <Route path="/products" element={<ProductCategoryPage/>}/>
-                 <Route path="/products/:slug" element={<ProductDetailPage/>}/>
-                 <Route path="/courses/:slug" element={<CourseDetailPage/>}/>
-                 <Route path="/courses/player" element={<CoursePlayerPage/>}/>
-                 <Route path="/courses/:courseId/lesson" element={<LessonDetailPage/>}/>
-                 <Route path="/reviews" element={<ReviewsCenterPage/>}/>
-
-                 <Route path="/blog" element={<BlogPage/>}/>
-
-
-                 {/* placeholder các page khác để không vỡ Link */}
-                 <Route path="/products" element={<div className="p-6">Products (todo)</div>}/>
-                 <Route path="/checkout" element={<div className="p-6">Checkout (todo)</div>}/>
-                 <Route path="/franchise" element={<div className="p-6">Franchise (todo)</div>}/>
--                <Route path="/account" element={<AccountCenter/>}/>
--                <Route path="/account-center" element={<AccountCenter/>}/>
-+                <Route path="/account" element={<ProtectedRoute><AccountCenter/></ProtectedRoute>}/>
-+                <Route path="/account-center" element={<ProtectedRoute><AccountCenter/></ProtectedRoute>}/>
-                 <Route path="/compare" element={<div className="p-6">Compare (todo)</div>}/>
-                 <Route path="/track-order" element={<div className="p-6">Track order (todo)</div>}/>
-                         <Route path="/contact" element={<ContactPage />} />
--                <Route path="*" element={<div className="p-6">Not found</div>}/>
-+                <Route path="*" element={<ProtectedRoute><NotFoundPage/></ProtectedRoute>}/>
+             <Route element={<RequireAuth />}>
+                 <Route path="/admin/orders" element={<RequirePermission permission="orders.read"><OrderAdminPage /></RequirePermission>} />
+                 <Route
+                     path="/admin/rbac"
+                     element={
+                         <RequirePermission permission="role.read">
+                             <Navigate to="/admin/rbac/rbac" replace />
+                         </RequirePermission>
+                     }
+                 />
+                 <Route path="/admin/rbac/:tab" element={<RequirePermission permission="role.read"><AdminRbacPage /></RequirePermission>} />
+                 <Route path="/admin/services" element={<RequirePermission permission="spa_services.read"><AdminSpaPage /></RequirePermission>} />
+                 <Route path="/admin/courses" element={<RequirePermission permission="courses.read"><AdminCoursesPage /></RequirePermission>} />
+                 <Route path="/admin/reviews" element={<RequirePermission permission="reviews.read"><ReviewsAdminPage /></RequirePermission>} />
+                 <Route path="/admin/blog" element={<RequirePermission permission="blogs.read"><BlogAdminPage /></RequirePermission>} />
+                 <Route path="/admin/product" element={<RequirePermission permission="products.read"><ProductAdminListPage /></RequirePermission>} />
+                 <Route path="/admin/product/:productId" element={<RequirePermission permission="products.read"><ProductAdminDetailPage /></RequirePermission>} />
+                 <Route path="/admin/users" element={<RequirePermission permission="role.read"><AdminUserManagementPage /></RequirePermission>} />
+                 <Route path="/student" element={<RequirePermission permission="my_courses.read"><StudentPortalPage /></RequirePermission>} />
+                 <Route path="/instructor" element={<RequirePermission permission="courses.write"><InstructorDashboardPage /></RequirePermission>} />
+                 <Route path="/student/courses:id" element={<RequirePermission permission="my_courses.read"><StudentCourseDetailPage /></RequirePermission>} />
+                 <Route path="/student/lessons/:id" element={<RequirePermission permission="my_courses.read"><StudentLessonPlayerPage /></RequirePermission>} />
+                 <Route path="/admin/dashboard" element={<RequirePermission permission="dashboard.admin"><AdminDashboardPage /></RequirePermission>} />
+                 <Route
+                     path="/admin/cms"
+                     element={<RequirePermission permission="cms.read"><AdminToastProvider><CmsPagesPage /></AdminToastProvider></RequirePermission>}
+                 />
+                 <Route
+                     path="/admin/cms/pages/:slug"
+                     element={<RequirePermission permission="cms.write"><AdminToastProvider><CmsEditPage /></AdminToastProvider></RequirePermission>}
+                 />
              </Route>
+
+-            <Route path="*" element={<div className="p-6">404</div>} />
++            <Route path="*" element={<FallbackRoute />} />
          </Routes>
      );
+
  }
-diff --git a/Home/ayanavita-fontend-final/src/components/auth/ProtectedRoute.tsx b/Home/ayanavita-fontend-final/src/components/auth/ProtectedRoute.tsx
-index a690bfdde4264b9e42d99c10af76b0a76e8313c6..8281aebb7166f8e677460838c5259093bd65f0ea 100644
---- a/Home/ayanavita-fontend-final/src/components/auth/ProtectedRoute.tsx
-+++ b/Home/ayanavita-fontend-final/src/components/auth/ProtectedRoute.tsx
-@@ -1,16 +1,23 @@
- import React from "react";
- import { Navigate, useLocation } from "react-router-dom";
+diff --git a/beay/src/index.css b/beay/src/index.css
+index 8707eb734d58dd664b399f0ffd1cc6e741091eb9..7aff85b216da6379c05059fe9f006cd2a2b698bf 100644
+--- a/beay/src/index.css
++++ b/beay/src/index.css
+@@ -415,25 +415,80 @@ body.theme-dark .kbd{ background: rgba(15,23,42,.7); }
+ }
+ .aya-alert .title{ font-weight:900; margin-bottom:2px; }
+ .aya-alert .msg{ font-size:13px; }
 
- type ProtectedRouteProps = {
-   children: React.ReactElement;
-+  canAccess?: boolean;
- };
+ .aya-form .btn-primary{
+   width:100%;
+   border:none;
+   border-radius:14px;
+   padding:12px 14px;
+   font-size:15px;
+   font-weight:800;
+   background:linear-gradient(135deg,#4f46e5,#7c3aed);
+   color:#fff;
+   cursor:pointer;
+ }
+ .aya-form .btn-primary:disabled{ opacity:.7; cursor:not-allowed; }
+ .foot{ color:#64748b; font-size:12px; }
 
--export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-+export default function ProtectedRoute({ children, canAccess = true }: ProtectedRouteProps) {
-   const location = useLocation();
-   const token = localStorage.getItem("aya_access_token");
-
--  if (token) return children;
-+  if (!token) {
-+    const next = encodeURIComponent(`${location.pathname}${location.search}`);
-+    return <Navigate to={`/login?next=${next}`} replace />;
-+  }
-
--  const next = encodeURIComponent(`${location.pathname}${location.search}`);
--  return <Navigate to={`/login?next=${next}`} replace />;
-+  if (!canAccess) {
-+    return <Navigate to="/403" replace />;
-+  }
+ @media (max-width: 560px){
+   .aya-login{ padding:16px; }
+   .aya-card{ padding:18px; border-radius:18px; }
+   .aya-head h1{ font-size:22px; }
+   .row{ align-items:flex-start; flex-direction:column; }
+   .hint{ text-align:left; }
+ }
 +
-+  return children;
- }
-diff --git a/Home/ayanavita-fontend-final/src/pages/ForbiddenPage.tsx b/Home/ayanavita-fontend-final/src/pages/ForbiddenPage.tsx
++.status-page {
++  min-height: 100vh;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  padding: 24px;
++  background:
++    radial-gradient(900px 500px at 0% 0%, rgba(79, 70, 229, 0.16), transparent 60%),
++    radial-gradient(700px 380px at 100% 100%, rgba(14, 165, 233, 0.14), transparent 60%),
++    #f8fafc;
++}
++
++.status-card {
++  width: min(100%, 640px);
++  padding: 36px;
++  border-radius: 24px;
++  background: rgba(255, 255, 255, 0.88);
++  border: 1px solid rgba(148, 163, 184, 0.35);
++  box-shadow: 0 20px 45px rgba(2, 6, 23, 0.12);
++  text-align: center;
++}
++
++.status-code {
++  margin: 0;
++  font-size: clamp(48px, 12vw, 96px);
++  font-weight: 900;
++  line-height: 1;
++  color: #4f46e5;
++}
++
++.status-card h1 {
++  margin: 8px 0 12px;
++  font-size: clamp(24px, 3vw, 34px);
++  font-weight: 800;
++  color: #0f172a;
++}
++
++.status-message {
++  margin: 0;
++  font-size: 16px;
++  color: #475569;
++}
++
++.status-actions {
++  margin-top: 24px;
++  display: flex;
++  justify-content: center;
++  gap: 12px;
++  flex-wrap: wrap;
++}
++
++.status-actions .btn {
++  text-decoration: none;
++}
+diff --git a/beay/src/pages/ErrorStatusPage.tsx b/beay/src/pages/ErrorStatusPage.tsx
 new file mode 100644
-index 0000000000000000000000000000000000000000..21e068fe81d853ccfff6136608d9c98a21b44b6b
+index 0000000000000000000000000000000000000000..7a99e58faf0433fe36243c36b2074f6dd5646310
 --- /dev/null
-+++ b/Home/ayanavita-fontend-final/src/pages/ForbiddenPage.tsx
-@@ -0,0 +1,31 @@
-+import { Link } from "react-router-dom";
++++ b/beay/src/pages/ErrorStatusPage.tsx
+@@ -0,0 +1,29 @@
++import { Link } from 'react-router-dom'
 +
-+export default function ForbiddenPage() {
++type ErrorStatusPageProps = {
++  code: 403 | 404
++  title: string
++  message: string
++}
++
++export function ErrorStatusPage({ code, title, message }: ErrorStatusPageProps) {
 +  return (
-+    <main className="min-h-[70vh] bg-gradient-to-b from-rose-50 to-white px-4 py-16">
-+      <div className="mx-auto max-w-3xl rounded-3xl border border-rose-100 bg-white/95 p-8 text-center shadow-xl md:p-12">
-+        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-rose-500">403</p>
-+        <h1 className="mt-3 text-3xl font-bold text-slate-900 md:text-5xl">Bạn chưa có quyền truy cập</h1>
-+        <p className="mt-4 text-base leading-relaxed text-slate-600 md:text-lg">
-+          Tài khoản hiện tại không có quyền mở trang này. Vui lòng liên hệ quản trị viên hoặc quay lại khu
-+          vực cho phép.
-+        </p>
++    <main className="status-page">
++      <div className="status-card">
++        <p className="status-code">{code}</p>
++        <h1>{title}</h1>
++        <p className="status-message">{message}</p>
 +
-+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-+          <Link
-+            to="/"
-+            className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
-+          >
-+            Về trang chủ
++        <div className="status-actions">
++          <Link to="/admin/dashboard" className="btn btn-primary">
++            Về trang chính
 +          </Link>
-+          <Link
-+            to="/account-center"
-+            className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-+          >
-+            Vào trung tâm tài khoản
++          <Link to="/login" className="btn">
++            Đăng nhập lại
 +          </Link>
 +        </div>
 +      </div>
 +    </main>
-+  );
++  )
 +}
-diff --git a/Home/ayanavita-fontend-final/src/pages/NotFoundPage.tsx b/Home/ayanavita-fontend-final/src/pages/NotFoundPage.tsx
-new file mode 100644
-index 0000000000000000000000000000000000000000..eaef1007d5b6e9a425e04be7b5a56eca74396d67
---- /dev/null
-+++ b/Home/ayanavita-fontend-final/src/pages/NotFoundPage.tsx
-@@ -0,0 +1,31 @@
-+import { Link } from "react-router-dom";
 +
-+export default function NotFoundPage() {
-+  return (
-+    <main className="min-h-[70vh] bg-gradient-to-b from-slate-50 to-white px-4 py-16">
-+      <div className="mx-auto max-w-3xl rounded-3xl border border-slate-200 bg-white/95 p-8 text-center shadow-xl md:p-12">
-+        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-indigo-500">404</p>
-+        <h1 className="mt-3 text-3xl font-bold text-slate-900 md:text-5xl">Trang bạn tìm không tồn tại</h1>
-+        <p className="mt-4 text-base leading-relaxed text-slate-600 md:text-lg">
-+          Đường dẫn này có thể đã bị thay đổi hoặc bị xoá. Bạn có thể quay về trang chủ để tiếp tục trải
-+          nghiệm.
-+        </p>
-+
-+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-+          <Link
-+            to="/"
-+            className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
-+          >
-+            Về trang chủ
-+          </Link>
-+          <Link
-+            to="/courses"
-+            className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-+          >
-+            Khám phá khóa học
-+          </Link>
-+        </div>
-+      </div>
-+    </main>
-+  );
-+}

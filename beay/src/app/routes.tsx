@@ -18,6 +18,7 @@ import { BlogAdminPage } from "../admin/pages/BlogAdminPage";
 import { ProductAdminListPage } from "../admin/pages/ProductAdminListPage";
 import { ProductAdminDetailPage } from "../admin/pages/ProductAdminDetailPage";
 import { AdminUserManagementPage } from '../pages/admin/AdminUserManagementPage'
+import { ErrorStatusPage } from '../pages/ErrorStatusPage';
 
 
 
@@ -36,10 +37,32 @@ function RequirePermission({ permission, children }: { permission: string; child
     const { can } = useAuth();
 
     if (!can(permission)) {
-        return <Navigate to="/login" replace />;
+        return (
+            <ErrorStatusPage
+                code={403}
+                title="403 - Không có quyền truy cập"
+                message="Tài khoản của bạn đã đăng nhập nhưng chưa được cấp quyền để vào trang này."
+            />
+        );
     }
 
     return <>{children}</>;
+}
+
+function FallbackRoute() {
+    const { token } = useAuth();
+
+    if (!token) {
+        return <Navigate to="/login" replace />;
+    }
+
+    return (
+        <ErrorStatusPage
+            code={404}
+            title="404 - Không tìm thấy trang"
+            message="Đường dẫn không tồn tại hoặc đã được thay đổi. Vui lòng kiểm tra lại đường dẫn."
+        />
+    );
 }
 
 export function AppRoutes() {
@@ -81,7 +104,7 @@ export function AppRoutes() {
                 />
             </Route>
 
-            <Route path="*" element={<div className="p-6">404</div>} />
+            <Route path="*" element={<FallbackRoute />} />
         </Routes>
     );
 

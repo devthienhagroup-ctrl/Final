@@ -3,12 +3,8 @@ import { useAuth } from './auth'
 import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage'
 import { LoginPage } from '../pages/admin/LoginPage'
 import { AdminRbacPage } from '../pages/admin/AdminRbacPage'
-import { StudentPortalPage } from '../pages/admin/StudentPortalPage'
-import { StudentCourseDetailPage } from '../pages/admin/StudentCourseDetailPage'
-import { StudentLessonPlayerPage } from '../pages/admin/StudentLessonPlayerPage'
 import AdminSpaPage from '../pages/admin/AdminSpaPage'
 import AdminCoursesPage from '../pages/admin/AdminCoursesPage'
-import { InstructorDashboardPage } from '../pages/admin/InstructorDashboardPage'
 import { CmsEditPage } from "../admin/pages/CmsEditPage";
 import { ToastProvider as AdminToastProvider } from "../admin/components/Toast";
 import { CmsPagesPage } from "../admin/pages/CmsPagesPage";

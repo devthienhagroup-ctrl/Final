@@ -149,12 +149,38 @@ services:
       - aya_net
 
   student:
-    build:
-      context: ./student
-      dockerfile: Dockerfile
+    image: node:20-alpine
     container_name: ayanavita-student
+    working_dir: /app
+    volumes:
+      - ./student:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5180"
+    environment:
+      NODE_ENV: development
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "1000"
     ports:
-      - "5080:5080"
+      - "5180:5180"
+    depends_on:
+      - backend
+    networks:
+      - aya_net
+
+  lecture:
+    image: node:20-alpine
+    container_name: ayanavita-lecture
+    working_dir: /app
+    volumes:
+      - ./lecture:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5181"
+    environment:
+      NODE_ENV: development
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "1000"
+    ports:
+      - "5181:5181"
     depends_on:
       - backend
     networks:

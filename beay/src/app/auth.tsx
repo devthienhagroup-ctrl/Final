@@ -1,6 +1,8 @@
 import { createContext, useContext, useMemo, useState } from 'react'
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, clearTokenPair, decodeJwtClaims, hasPermission, readAccessToken, readRefreshToken, writePermissionKeys, type ScopeType } from './session'
 
+export const FORCE_LOGIN_KEY = 'aya_admin_force_login'
+
 type AuthState = {
   token: string
   refreshToken: string
@@ -35,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTokenState('')
     setRefreshTokenState('')
     clearTokenPair()
+    sessionStorage.setItem(FORCE_LOGIN_KEY, '1')
     window.location.replace('/login')
   }
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { login } from "../../app/api";
-import { useAuth } from "../../app/auth";
+import { FORCE_LOGIN_KEY, useAuth } from "../../app/auth";
 
 type LocationState = { from?: string };
 
@@ -9,6 +9,21 @@ const DEFAULT_ACCESS_TOKEN =
   "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImVtYWlsIjoiYWRtaW5AYXlhbmF2aXRhLnZuIiwicm9sZSI6IkFETUlOIiwic2NvcGVUeXBlIjoiR0xPQkFMIiwicGVybWlzc2lvbnMiOlsiZGFzaGJvYXJkLmFkbWluIiwib3JkZXJzLnJlYWQiLCJyb2xlLnJlYWQiLCJzcGFfc2VydmljZXMucmVhZCIsImNvdXJzZXMucmVhZCIsImNvdXJzZXMud3JpdGUiLCJyZXZpZXdzLnJlYWQiLCJibG9ncy5yZWFkIiwicHJvZHVjdHMucmVhZCIsImNtcy5yZWFkIiwiY21zLndyaXRlIiwibXlfY291cnNlcy5yZWFkIl19.c2lnbmF0dXJl";
 const DEFAULT_REFRESH_TOKEN =
   "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsInR5cGUiOiJSRUZSRVNIIiwicm9sZSI6IkFETUlOIiwic2NvcGVUeXBlIjoiR0xPQkFMIn0.c2lnbmF0dXJl";
+
+const SCOPE_TYPE_KEY = "aya_admin_scope_type";
+
+type ScopeType = "OWN" | "BRANCH" | "COURSE" | "GLOBAL";
+
+function normalizeScopeType(scopeType: unknown): ScopeType | null {
+  if (scopeType === "OWN" || scopeType === "BRANCH" || scopeType === "COURSE" || scopeType === "GLOBAL") {
+    return scopeType;
+  }
+  return null;
+}
+
+function resolveCoursesRoute(scopeType: ScopeType | null) {
+  return scopeType === "COURSE" ? "http://localhost:5181/instructor" : "/admin/courses";
+}
 
 const DEFAULT_PERMISSIONS = [
   "dashboard.admin",
@@ -29,7 +44,7 @@ const PERMISSION_ROUTE_MAP: Array<{ permission: string; path: string }> = [
   { permission: "orders.read", path: "/admin/orders" },
   { permission: "role.read", path: "/admin/rbac" },
   { permission: "spa_services.read", path: "/admin/services" },
-  { permission: "courses.read", path: "/admin/courses" },
+  { permission: "courses.write", path: "/admin/courses" },
   { permission: "reviews.read", path: "/admin/reviews" },
   { permission: "blogs.read", path: "/admin/blog" },
   { permission: "products.read", path: "/admin/product" },
@@ -37,14 +52,20 @@ const PERMISSION_ROUTE_MAP: Array<{ permission: string; path: string }> = [
   { permission: "cms.write", path: "/admin/cms" },
 ];
 
-function resolveDefaultRoute(permissions: string[]) {
+function resolveDefaultRoute(permissions: string[], scopeType: ScopeType | null) {
   if (permissions.includes("dashboard.admin")) return "/admin/dashboard";
+  if (permissions.includes("courses.write")) return resolveCoursesRoute(scopeType);
   for (const route of PERMISSION_ROUTE_MAP) {
     if (permissions.includes(route.permission)) return route.path;
   }
-  if (permissions.includes("courses.write")) return "http://localhost:5181/instructor";
   if (permissions.includes("my_courses.read")) return "http://localhost:5180/student";
   return "/login";
+}
+
+function resolveLoginTarget(from: string, permissions: string[], scopeType: ScopeType | null) {
+  if (permissions.includes("dashboard.admin")) return "/admin/dashboard";
+  if (permissions.includes("courses.write")) return resolveCoursesRoute(scopeType);
+  return from || resolveDefaultRoute(permissions, scopeType);
 }
 
 export function LoginPage() {
@@ -70,8 +91,13 @@ export function LoginPage() {
   useEffect(() => {
     if (token) return;
 
+    const forceLogin = sessionStorage.getItem(FORCE_LOGIN_KEY) === "1";
+    if (forceLogin) return;
+
+    const defaultScopeType: ScopeType = "GLOBAL";
+    localStorage.setItem(SCOPE_TYPE_KEY, defaultScopeType);
     setTokenPair(DEFAULT_ACCESS_TOKEN, DEFAULT_REFRESH_TOKEN, DEFAULT_PERMISSIONS);
-    const targetPath = from || resolveDefaultRoute(DEFAULT_PERMISSIONS);
+    const targetPath = resolveLoginTarget(from, DEFAULT_PERMISSIONS, defaultScopeType);
 
     if (targetPath.startsWith("http")) {
       window.location.href = targetPath;
@@ -90,12 +116,16 @@ export function LoginPage() {
       const cleanEmail = email.trim();
       const result = await login(cleanEmail, password);
       const permissions = result.user?.permissions ?? result.permissions ?? [];
+      const scopeType = normalizeScopeType(result.user?.scopeType ?? result.scopeType);
+      if (scopeType) localStorage.setItem(SCOPE_TYPE_KEY, scopeType);
+      else localStorage.removeItem(SCOPE_TYPE_KEY);
       setTokenPair(result.accessToken, result.refreshToken, permissions);
+      sessionStorage.removeItem(FORCE_LOGIN_KEY);
 
       if (remember) localStorage.setItem("aya_admin_email", cleanEmail);
       else localStorage.removeItem("aya_admin_email");
 
-      const targetPath = from || resolveDefaultRoute(permissions);
+      const targetPath = resolveLoginTarget(from, permissions, scopeType);
       if (targetPath.startsWith("http")) {
         window.location.href = targetPath;
         return;

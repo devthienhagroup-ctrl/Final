@@ -1,252 +1,365 @@
-diff --git a/beay/src/admin/pages/NotFound.tsx b/beay/src/admin/pages/NotFound.tsx
-index 3c1db3d98b95a5e75a884d20b7959f4babe56928..b3a9d326d6ef0435fc2cb1ff2bacf09fc73e1200 100644
---- a/beay/src/admin/pages/NotFound.tsx
-+++ b/beay/src/admin/pages/NotFound.tsx
-@@ -1,15 +1,17 @@
- import React from "react";
--import { Link } from "react-router-dom";
-+import { useNavigate } from "react-router-dom";
+diff --git a/beay/src/app/api.ts b/beay/src/app/api.ts
+index b156f49284ba83762fabaffca238abdf7184072f..8d9f3a09997d80f122ac74272b45ede76bf8728a 100644
+--- a/beay/src/app/api.ts
++++ b/beay/src/app/api.ts
+@@ -1,38 +1,40 @@
+ import { clearTokenPair, readAccessToken, readRefreshToken, writePermissionKeys, writeTokenPair } from './session';
 
- export function NotFound() {
-+  const navigate = useNavigate();
+ const API_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:8090").replace(/\/+$/, "");
+ function joinUrl(path: string) {
+   const cleanPath = path.startsWith("/") ? path : `/${path}`;
+   return `${API_BASE}${cleanPath}`;
+ }
+
+ type LoginResponse = {
+   user?: {
+     permissions?: string[];
++    scopeType?: "OWN" | "BRANCH" | "COURSE" | "GLOBAL" | string | null;
+   };
+   permissions?: string[];
++  scopeType?: "OWN" | "BRANCH" | "COURSE" | "GLOBAL" | string | null;
+   accessToken: string;
+   refreshToken: string;
+ };
+
+ let pendingRefresh: Promise<string | null> | null = null;
+
+ async function refreshAccessToken(): Promise<string | null> {
+   const refreshToken = readRefreshToken();
+   if (!refreshToken) return null;
+
+   if (!pendingRefresh) {
+     pendingRefresh = (async () => {
+       const response = await fetch(joinUrl("/auth/refresh"), {
+         method: "POST",
+         headers: { Authorization: `Bearer ${refreshToken}` },
+         credentials: "include",
+       });
+
+       if (!response.ok) {
+         clearTokenPair();
+         return null;
+       }
+
+       const text = await response.text();
+       const payload = text ? (JSON.parse(text) as LoginResponse) : null;
+diff --git a/beay/src/app/auth.tsx b/beay/src/app/auth.tsx
+index 7df6435dbeefb3aac16e815d6c6b8e9564a9c914..382412441767705f93ae3b4b3c927fd116350add 100644
+--- a/beay/src/app/auth.tsx
++++ b/beay/src/app/auth.tsx
+@@ -1,54 +1,57 @@
+ import { createContext, useContext, useMemo, useState } from 'react'
+ import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, clearTokenPair, decodeJwtClaims, hasPermission, readAccessToken, readRefreshToken, writePermissionKeys, type ScopeType } from './session'
+
++export const FORCE_LOGIN_KEY = 'aya_admin_force_login'
 +
+ type AuthState = {
+   token: string
+   refreshToken: string
+   claims: ReturnType<typeof decodeJwtClaims>
+   setTokenPair: (accessToken: string, refreshToken: string, permissions?: string[]) => void
+   logout: () => void
+   can: (permission: string) => boolean
+   hasScope: (scope: ScopeType | string) => boolean
+ }
+
+ const AuthContext = createContext<AuthState | null>(null)
+
+ export function AuthProvider({ children }: { children: React.ReactNode }) {
+   const [token, setTokenState] = useState<string>(() => readAccessToken())
+   const [refreshToken, setRefreshTokenState] = useState<string>(() => readRefreshToken())
+
+   const claims = useMemo(() => decodeJwtClaims(token), [token])
+
+   const setTokenPair = (nextToken: string, nextRefreshToken: string, permissions?: string[]) => {
+     const cleanToken = nextToken.trim()
+     const cleanRefresh = nextRefreshToken.trim()
+
+     setTokenState(cleanToken)
+     setRefreshTokenState(cleanRefresh)
+
+     localStorage.setItem(ACCESS_TOKEN_KEY, cleanToken)
+     localStorage.setItem(REFRESH_TOKEN_KEY, cleanRefresh)
+     writePermissionKeys(permissions)
+   }
+
+   const logout = () => {
+     setTokenState('')
+     setRefreshTokenState('')
+     clearTokenPair()
++    sessionStorage.setItem(FORCE_LOGIN_KEY, '1')
+     window.location.replace('/login')
+   }
+
+   const can = (permission: string) => hasPermission(claims, permission)
+   const hasScope = (scope: ScopeType | string) => claims?.role === 'ADMIN' || claims?.scopeType === scope
+
+   const value = useMemo(() => ({ token, refreshToken, claims, setTokenPair, logout, can, hasScope }), [token, refreshToken, claims])
+   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+ }
+
+ export function useAuth() {
+   const context = useContext(AuthContext)
+   if (!context) {
+     throw new Error('useAuth must be used within AuthProvider')
+   }
+   return context
+ }
+diff --git a/beay/src/pages/admin/AdminRbacPage.tsx b/beay/src/pages/admin/AdminRbacPage.tsx
+index cbf39d84666edb967d8ebfc13913f8879f048905..03d894521c0eaf63f8f1257fd89b54df35c0ddf8 100644
+--- a/beay/src/pages/admin/AdminRbacPage.tsx
++++ b/beay/src/pages/admin/AdminRbacPage.tsx
+@@ -277,50 +277,51 @@ export function AdminRbacPage() {
+       email: params.email,
+       roleCode: params.role,
+       module: params.module,
+       action: params.action,
+       resource: params.resource,
+     });
+     pushAudit("TEST", `Test ${params.email} với ${result.permKey}: ${result.allowed ? "ALLOW" : "DENY"}`);
+     return result;
+   }
+
+   if (loading) return <div className="p-6">Đang tải RBAC...</div>;
+
    return (
-     <div className="container" style={{ paddingTop: 24 }}>
-       <div className="card">
-         <div className="h1">404</div>
-         <div className="muted" style={{ marginTop: 6 }}>Không có route này.</div>
-         <div className="sep" />
--        <Link to="/" className="btn btn-primary">Về trang chính</Link>
-+        <button type="button" className="btn btn-primary" onClick={() => navigate(-1)}>Quay lại</button>
+       <div className="soft text-slate-900 min-h-screen">
+         <RbacHeader
+             onTest={() => {
+               setTestKey((k) => k + 1);
+               navigate("/admin/rbac/test");
+             }}
+             onImport={async () => {
+               await importJsonFile();
+             }}
+             onExport={exportJson}
+             onSave={saveAll}
+             onLogout={logout}
++            onBackDashboard={() => navigate("/admin/dashboard")}
+         />
+         <main className="px-4 md:px-8 py-6 space-y-6">
+           <div className="flex flex-wrap items-center gap-2">
+             <button
+                 type="button"
+                 className={
+                     "px-3 py-1.5 rounded-lg text-sm font-medium border transition " +
+                     (activeTab === "rbac"
+                         ? "bg-white border-slate-300 shadow-sm"
+                         : "bg-transparent border-slate-200 hover:bg-white/60")
+                 }
+                 onClick={() => navigate("/admin/rbac")}
+             >
+               RBAC
+             </button>
+             <button
+                 type="button"
+                 className={
+                     "px-3 py-1.5 rounded-lg text-sm font-medium border transition " +
+                     (activeTab === "users"
+                         ? "bg-white border-slate-300 shadow-sm"
+                         : "bg-transparent border-slate-200 hover:bg-white/60")
+                 }
+                 onClick={() => navigate("/admin/rbac/users")}
+             >
+diff --git a/beay/src/pages/admin/LoginPage.tsx b/beay/src/pages/admin/LoginPage.tsx
+index 6f738bdecb1957aa54cb0de1b243d4e28c56c16e..a1dfd7f1c9618186257f2adef43e4cd54ab6fcf6 100644
+--- a/beay/src/pages/admin/LoginPage.tsx
++++ b/beay/src/pages/admin/LoginPage.tsx
+@@ -1,123 +1,153 @@
+ import { useEffect, useMemo, useState } from "react";
+ import { useLocation, useNavigate } from "react-router-dom";
+ import { login } from "../../app/api";
+-import { useAuth } from "../../app/auth";
++import { FORCE_LOGIN_KEY, useAuth } from "../../app/auth";
+
+ type LocationState = { from?: string };
+
+ const DEFAULT_ACCESS_TOKEN =
+   "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImVtYWlsIjoiYWRtaW5AYXlhbmF2aXRhLnZuIiwicm9sZSI6IkFETUlOIiwic2NvcGVUeXBlIjoiR0xPQkFMIiwicGVybWlzc2lvbnMiOlsiZGFzaGJvYXJkLmFkbWluIiwib3JkZXJzLnJlYWQiLCJyb2xlLnJlYWQiLCJzcGFfc2VydmljZXMucmVhZCIsImNvdXJzZXMucmVhZCIsImNvdXJzZXMud3JpdGUiLCJyZXZpZXdzLnJlYWQiLCJibG9ncy5yZWFkIiwicHJvZHVjdHMucmVhZCIsImNtcy5yZWFkIiwiY21zLndyaXRlIiwibXlfY291cnNlcy5yZWFkIl19.c2lnbmF0dXJl";
+ const DEFAULT_REFRESH_TOKEN =
+   "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsInR5cGUiOiJSRUZSRVNIIiwicm9sZSI6IkFETUlOIiwic2NvcGVUeXBlIjoiR0xPQkFMIn0.c2lnbmF0dXJl";
+
++const SCOPE_TYPE_KEY = "aya_admin_scope_type";
++
++type ScopeType = "OWN" | "BRANCH" | "COURSE" | "GLOBAL";
++
++function normalizeScopeType(scopeType: unknown): ScopeType | null {
++  if (scopeType === "OWN" || scopeType === "BRANCH" || scopeType === "COURSE" || scopeType === "GLOBAL") {
++    return scopeType;
++  }
++  return null;
++}
++
++function resolveCoursesRoute(scopeType: ScopeType | null) {
++  return scopeType === "OWN" ? "http://localhost:5181/instructor" : "/admin/courses";
++}
++
+ const DEFAULT_PERMISSIONS = [
+   "dashboard.admin",
+   "orders.read",
+   "role.read",
+   "spa_services.read",
+   "courses.read",
+   "courses.write",
+   "reviews.read",
+   "blogs.read",
+   "products.read",
+   "cms.read",
+   "cms.write",
+   "my_courses.read",
+ ];
+
+ const PERMISSION_ROUTE_MAP: Array<{ permission: string; path: string }> = [
+   { permission: "orders.read", path: "/admin/orders" },
+   { permission: "role.read", path: "/admin/rbac" },
+   { permission: "spa_services.read", path: "/admin/services" },
+-  { permission: "courses.read", path: "/admin/courses" },
++  { permission: "courses.write", path: "/admin/courses" },
+   { permission: "reviews.read", path: "/admin/reviews" },
+   { permission: "blogs.read", path: "/admin/blog" },
+   { permission: "products.read", path: "/admin/product" },
+   { permission: "cms.read", path: "/admin/cms" },
+   { permission: "cms.write", path: "/admin/cms" },
+ ];
+
+-function resolveDefaultRoute(permissions: string[]) {
++function resolveDefaultRoute(permissions: string[], scopeType: ScopeType | null) {
+   if (permissions.includes("dashboard.admin")) return "/admin/dashboard";
++  if (permissions.includes("courses.write")) return resolveCoursesRoute(scopeType);
+   for (const route of PERMISSION_ROUTE_MAP) {
+     if (permissions.includes(route.permission)) return route.path;
+   }
+-  if (permissions.includes("courses.write")) return "http://localhost:5181/instructor";
+   if (permissions.includes("my_courses.read")) return "http://localhost:5180/student";
+   return "/login";
+ }
+
++function resolveLoginTarget(from: string, permissions: string[], scopeType: ScopeType | null) {
++  if (permissions.includes("dashboard.admin")) return "/admin/dashboard";
++  if (permissions.includes("courses.write")) return resolveCoursesRoute(scopeType);
++  return from || resolveDefaultRoute(permissions, scopeType);
++}
++
+ export function LoginPage() {
+   const { setTokenPair, token } = useAuth();
+   const nav = useNavigate();
+   const loc = useLocation();
+   const state = (loc.state as LocationState | null) ?? null;
+
+   const [email, setEmail] = useState("admin@ayanavita.vn");
+   const [password, setPassword] = useState("123456");
+   const [remember, setRemember] = useState(true);
+   const [err, setErr] = useState<string | null>(null);
+   const [loading, setLoading] = useState(false);
+   const [dark, setDark] = useState(false);
+
+   const from = useMemo(() => state?.from || "", [state]);
+
+   useEffect(() => {
+     const savedEmail = localStorage.getItem("aya_admin_email");
+     if (savedEmail) setEmail(savedEmail);
+   }, []);
+
+   useEffect(() => {
+     if (token) return;
+
++    const forceLogin = sessionStorage.getItem(FORCE_LOGIN_KEY) === "1";
++    if (forceLogin) return;
++
++    const defaultScopeType: ScopeType = "GLOBAL";
++    localStorage.setItem(SCOPE_TYPE_KEY, defaultScopeType);
+     setTokenPair(DEFAULT_ACCESS_TOKEN, DEFAULT_REFRESH_TOKEN, DEFAULT_PERMISSIONS);
+-    const targetPath = from || resolveDefaultRoute(DEFAULT_PERMISSIONS);
++    const targetPath = resolveLoginTarget(from, DEFAULT_PERMISSIONS, defaultScopeType);
+
+     if (targetPath.startsWith("http")) {
+       window.location.href = targetPath;
+       return;
+     }
+
+     nav(targetPath, { replace: true });
+   }, [from, nav, setTokenPair, token]);
+
+   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+     event.preventDefault();
+     setErr(null);
+     setLoading(true);
+
+     try {
+       const cleanEmail = email.trim();
+       const result = await login(cleanEmail, password);
+       const permissions = result.user?.permissions ?? result.permissions ?? [];
++      const scopeType = normalizeScopeType(result.user?.scopeType ?? result.scopeType);
++      if (scopeType) localStorage.setItem(SCOPE_TYPE_KEY, scopeType);
++      else localStorage.removeItem(SCOPE_TYPE_KEY);
+       setTokenPair(result.accessToken, result.refreshToken, permissions);
++      sessionStorage.removeItem(FORCE_LOGIN_KEY);
+
+       if (remember) localStorage.setItem("aya_admin_email", cleanEmail);
+       else localStorage.removeItem("aya_admin_email");
+
+-      const targetPath = from || resolveDefaultRoute(permissions);
++      const targetPath = resolveLoginTarget(from, permissions, scopeType);
+       if (targetPath.startsWith("http")) {
+         window.location.href = targetPath;
+         return;
+       }
+
+       nav(targetPath, { replace: true });
+     } catch (error: unknown) {
+       if (error && typeof error === "object" && "message" in error) {
+         setErr(String((error as { message?: unknown }).message ?? "Đăng nhập thất bại"));
+       } else {
+         setErr("Đăng nhập thất bại");
+       }
+     } finally {
+       setLoading(false);
+     }
+   }
+
+   const bg = dark ? "#0b1220" : "#ECE9FF";
+   const cardBg = dark ? "rgba(15,23,42,.78)" : "rgba(255,255,255,1)";
+   const text = dark ? "rgba(255,255,255,.92)" : "#0f172a";
+   const subText = dark ? "rgba(226,232,240,.70)" : "rgba(100,116,139,1)";
+   const fieldBg = dark ? "rgba(2,6,23,.38)" : "rgba(241,245,249,1)";
+   const fieldBorder = dark ? "rgba(148,163,184,.18)" : "rgba(226,232,240,1)";
+
+   return (
+diff --git a/beay/src/pages/admin/rbac/ui/RbacHeader.tsx b/beay/src/pages/admin/rbac/ui/RbacHeader.tsx
+index 3ba14237c824d6ed65a960886776312881f60709..32c45701c703971ed1063e471128f1f2cd6c7c87 100644
+--- a/beay/src/pages/admin/rbac/ui/RbacHeader.tsx
++++ b/beay/src/pages/admin/rbac/ui/RbacHeader.tsx
+@@ -1,29 +1,33 @@
+ export function RbacHeader(props: {
+   onTest: () => void;
+   onImport: () => void;
+   onExport: () => void;
+   onSave: () => void;
+   onLogout: () => void;
++  onBackDashboard: () => void;
+ }) {
+   return (
+     <header className="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-slate-200/70">
+       <div className="h-16 px-4 md:px-8 flex items-center justify-between gap-4">
+         <div className="flex items-center gap-3">
+           <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+             <span className="text-white font-extrabold">A</span>
+           </div>
+           <div>
+             <div className="text-xs text-slate-500 font-semibold -mb-1">AYANAVITA • Admin</div>
+             <div className="text-lg font-extrabold">RBAC (Role • Permission • Expiry)</div>
+           </div>
+         </div>
+
+         <div className="flex items-center gap-2">
++          <button className="btn inline-flex items-center gap-2" onClick={props.onBackDashboard}>
++            <i className="fa-solid fa-gauge" /> Về dashboard
++          </button>
+           <button className="btn inline-flex items-center gap-2" onClick={props.onLogout}>
+             <i className="fa-solid fa-right-from-bracket" /> Đăng xuất
+           </button>
+         </div>
        </div>
-     </div>
+     </header>
    );
  }
-diff --git a/beay/src/pages/ErrorStatusPage.tsx b/beay/src/pages/ErrorStatusPage.tsx
-index 7a99e58faf0433fe36243c36b2074f6dd5646310..f7d3cd5b17a35dac1a1a9b58879ebab24f52e820 100644
---- a/beay/src/pages/ErrorStatusPage.tsx
-+++ b/beay/src/pages/ErrorStatusPage.tsx
-@@ -1,29 +1,35 @@
--import { Link } from 'react-router-dom'
-+import { Link, useNavigate } from 'react-router-dom'
-
- type ErrorStatusPageProps = {
-   code: 403 | 404
-   title: string
-   message: string
- }
-
- export function ErrorStatusPage({ code, title, message }: ErrorStatusPageProps) {
-+  const navigate = useNavigate()
-+
-   return (
-     <main className="status-page">
-       <div className="status-card">
-         <p className="status-code">{code}</p>
-         <h1>{title}</h1>
-         <p className="status-message">{message}</p>
-
-         <div className="status-actions">
--          <Link to="/admin/dashboard" className="btn btn-primary">
--            Về trang chính
--          </Link>
-+          <button
-+            type="button"
-+            className="btn btn-primary"
-+            onClick={() => navigate(-1)}
-+          >
-+            Quay lại
-+          </button>
-           <Link to="/login" className="btn">
-             Đăng nhập lại
-           </Link>
-         </div>
-       </div>
-     </main>
-   )
- }
-
-diff --git a/lecture/src/app/auth.tsx b/lecture/src/app/auth.tsx
-index 2c443e400998641e8653b46db34a7a9d87d9bf95..7df6435dbeefb3aac16e815d6c6b8e9564a9c914 100644
---- a/lecture/src/app/auth.tsx
-+++ b/lecture/src/app/auth.tsx
-@@ -13,42 +13,42 @@ type AuthState = {
-
- const AuthContext = createContext<AuthState | null>(null)
-
- export function AuthProvider({ children }: { children: React.ReactNode }) {
-   const [token, setTokenState] = useState<string>(() => readAccessToken())
-   const [refreshToken, setRefreshTokenState] = useState<string>(() => readRefreshToken())
-
-   const claims = useMemo(() => decodeJwtClaims(token), [token])
-
-   const setTokenPair = (nextToken: string, nextRefreshToken: string, permissions?: string[]) => {
-     const cleanToken = nextToken.trim()
-     const cleanRefresh = nextRefreshToken.trim()
-
-     setTokenState(cleanToken)
-     setRefreshTokenState(cleanRefresh)
-
-     localStorage.setItem(ACCESS_TOKEN_KEY, cleanToken)
-     localStorage.setItem(REFRESH_TOKEN_KEY, cleanRefresh)
-     writePermissionKeys(permissions)
-   }
-
-   const logout = () => {
-     setTokenState('')
-     setRefreshTokenState('')
-     clearTokenPair()
--    window.location.replace('/')
-+    window.location.replace('/login')
-   }
-
-   const can = (permission: string) => hasPermission(claims, permission)
-   const hasScope = (scope: ScopeType | string) => claims?.role === 'ADMIN' || claims?.scopeType === scope
-
-   const value = useMemo(() => ({ token, refreshToken, claims, setTokenPair, logout, can, hasScope }), [token, refreshToken, claims])
-   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
- }
-
- export function useAuth() {
-   const context = useContext(AuthContext)
-   if (!context) {
-     throw new Error('useAuth must be used within AuthProvider')
-   }
-   return context
- }
-diff --git a/lecture/src/pages/ErrorStatusPage.tsx b/lecture/src/pages/ErrorStatusPage.tsx
-index 7a99e58faf0433fe36243c36b2074f6dd5646310..f7d3cd5b17a35dac1a1a9b58879ebab24f52e820 100644
---- a/lecture/src/pages/ErrorStatusPage.tsx
-+++ b/lecture/src/pages/ErrorStatusPage.tsx
-@@ -1,29 +1,35 @@
--import { Link } from 'react-router-dom'
-+import { Link, useNavigate } from 'react-router-dom'
-
- type ErrorStatusPageProps = {
-   code: 403 | 404
-   title: string
-   message: string
- }
-
- export function ErrorStatusPage({ code, title, message }: ErrorStatusPageProps) {
-+  const navigate = useNavigate()
-+
-   return (
-     <main className="status-page">
-       <div className="status-card">
-         <p className="status-code">{code}</p>
-         <h1>{title}</h1>
-         <p className="status-message">{message}</p>
-
-         <div className="status-actions">
--          <Link to="/admin/dashboard" className="btn btn-primary">
--            Về trang chính
--          </Link>
-+          <button
-+            type="button"
-+            className="btn btn-primary"
-+            onClick={() => navigate(-1)}
-+          >
-+            Quay lại
-+          </button>
-           <Link to="/login" className="btn">
-             Đăng nhập lại
-           </Link>
-         </div>
-       </div>
-     </main>
-   )
- }
-
-diff --git a/student/src/app/auth.tsx b/student/src/app/auth.tsx
-index 2c443e400998641e8653b46db34a7a9d87d9bf95..7df6435dbeefb3aac16e815d6c6b8e9564a9c914 100644
---- a/student/src/app/auth.tsx
-+++ b/student/src/app/auth.tsx
-@@ -13,42 +13,42 @@ type AuthState = {
-
- const AuthContext = createContext<AuthState | null>(null)
-
- export function AuthProvider({ children }: { children: React.ReactNode }) {
-   const [token, setTokenState] = useState<string>(() => readAccessToken())
-   const [refreshToken, setRefreshTokenState] = useState<string>(() => readRefreshToken())
-
-   const claims = useMemo(() => decodeJwtClaims(token), [token])
-
-   const setTokenPair = (nextToken: string, nextRefreshToken: string, permissions?: string[]) => {
-     const cleanToken = nextToken.trim()
-     const cleanRefresh = nextRefreshToken.trim()
-
-     setTokenState(cleanToken)
-     setRefreshTokenState(cleanRefresh)
-
-     localStorage.setItem(ACCESS_TOKEN_KEY, cleanToken)
-     localStorage.setItem(REFRESH_TOKEN_KEY, cleanRefresh)
-     writePermissionKeys(permissions)
-   }
-
-   const logout = () => {
-     setTokenState('')
-     setRefreshTokenState('')
-     clearTokenPair()
--    window.location.replace('/')
-+    window.location.replace('/login')
-   }
-
-   const can = (permission: string) => hasPermission(claims, permission)
-   const hasScope = (scope: ScopeType | string) => claims?.role === 'ADMIN' || claims?.scopeType === scope
-
-   const value = useMemo(() => ({ token, refreshToken, claims, setTokenPair, logout, can, hasScope }), [token, refreshToken, claims])
-   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
- }
-
- export function useAuth() {
-   const context = useContext(AuthContext)
-   if (!context) {
-     throw new Error('useAuth must be used within AuthProvider')
-   }
-   return context
- }
-diff --git a/student/src/pages/ErrorStatusPage.tsx b/student/src/pages/ErrorStatusPage.tsx
-index 7a99e58faf0433fe36243c36b2074f6dd5646310..f7d3cd5b17a35dac1a1a9b58879ebab24f52e820 100644
---- a/student/src/pages/ErrorStatusPage.tsx
-+++ b/student/src/pages/ErrorStatusPage.tsx
-@@ -1,29 +1,35 @@
--import { Link } from 'react-router-dom'
-+import { Link, useNavigate } from 'react-router-dom'
-
- type ErrorStatusPageProps = {
-   code: 403 | 404
-   title: string
-   message: string
- }
-
- export function ErrorStatusPage({ code, title, message }: ErrorStatusPageProps) {
-+  const navigate = useNavigate()
-+
-   return (
-     <main className="status-page">
-       <div className="status-card">
-         <p className="status-code">{code}</p>
-         <h1>{title}</h1>
-         <p className="status-message">{message}</p>
-
-         <div className="status-actions">
--          <Link to="/admin/dashboard" className="btn btn-primary">
--            Về trang chính
--          </Link>
-+          <button
-+            type="button"
-+            className="btn btn-primary"
-+            onClick={() => navigate(-1)}
-+          >
-+            Quay lại
-+          </button>
-           <Link to="/login" className="btn">
-             Đăng nhập lại
-           </Link>
-         </div>
-       </div>
-     </main>
-   )
- }
-

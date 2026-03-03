@@ -376,10 +376,20 @@ export function AdminRbacPage() {
 
         </main>
 
-        <TestAccessDrawer key={testKey} open={testOpen} onClose={() => {
-          setTestOpen(false);
-          navigate("/admin/rbac", { replace: true });
-        }} roles={roles} modules={[...MODULES]} actions={[...ACTIONS]} onRun={(input) => runTestAccess(input)} />
+        {activeTab === "test" && (
+            <TestAccessDrawer
+                key={testKey}
+                open={testOpen}
+                onClose={() => {
+                  setTestOpen(false);
+                  navigate("/admin/rbac", { replace: true });
+                }}
+                roles={roles}
+                modules={[...MODULES]}
+                actions={[...ACTIONS]}
+                onRun={(input) => runTestAccess(input)}
+            />
+        )}
 
         {roleForm && (
             <div className="fixed inset-0 z-40 bg-slate-900/35 flex items-center justify-center p-4">

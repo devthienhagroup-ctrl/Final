@@ -1,326 +1,1252 @@
-diff --git a/Home/ayanavita-fontend-final/src/components/layout/Header.tsx b/Home/ayanavita-fontend-final/src/components/layout/Header.tsx
-index 1cf6ec7f58fc0dd9e3b5b74d4341a70467a1dec7..82b58bb5efc6ea5491d09430ea7a0f5fef937aa0 100644
---- a/Home/ayanavita-fontend-final/src/components/layout/Header.tsx
-+++ b/Home/ayanavita-fontend-final/src/components/layout/Header.tsx
-@@ -88,95 +88,119 @@ export function Header({
-   cmsAuth,
-   cmsSuccess,
- }: HeaderProps) {
-   const cms: HeaderCMSData = useMemo(() => ({ ...defaultCMSData, ...(cmsData ?? {}) }), [cmsData]);
-
-   const location = useLocation();
-   const [openDd, setOpenDd] = useState<DropdownKey>(null);
-   const [drawerOpen, setDrawerOpen] = useState(false);
-   const [authOpen, setAuthOpen] = useState(false);
-   const [authTab, setAuthTab] = useState<AuthTab>("login");
-   const [success, setSuccess] = useState<{ open: boolean; message: string }>({
-     open: false,
-     message: "",
-   });
-   const [userMenuOpen, setUserMenuOpen] = useState<UserMenuItem>(null);
-   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => Boolean(localStorage.getItem("aya_access_token")));
-   const [miniCartOpen, setMiniCartOpen] = useState(false);
-   const { totalItems } = useCart();
-
-   const [language, setLanguage] = useState<Language>(() => {
-     const savedLang = localStorage.getItem("preferred-language") as Language;
-     return savedLang || "vi";
-   });
-   const [langOpen, setLangOpen] = useState(false);
-   const rootRef = useRef<HTMLDivElement | null>(null);
-+  const miniCartCloseTimeoutRef = useRef<number | null>(null);
+diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202604010001_add_user_management_logs/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202604010001_add_user_management_logs/migration.sql
+new file mode 100644
+index 0000000000000000000000000000000000000000..510201b8ba8a8d9dbc87c82bbfe0b87beb803771
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/prisma/migrations/202604010001_add_user_management_logs/migration.sql
+@@ -0,0 +1,26 @@
++CREATE TABLE `UserManagementLog` (
++  `id` INT NOT NULL AUTO_INCREMENT,
++  `action` VARCHAR(64) NOT NULL,
++  `message` VARCHAR(500) NOT NULL,
++  `actorUserId` INT NULL,
++  `targetUserId` INT NOT NULL,
++  `oldEmail` VARCHAR(255) NULL,
++  `newEmail` VARCHAR(255) NULL,
++  `metadata` JSON NULL,
++  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 +
-+  const openMiniCart = () => {
-+    if (miniCartCloseTimeoutRef.current) {
-+      window.clearTimeout(miniCartCloseTimeoutRef.current);
-+      miniCartCloseTimeoutRef.current = null;
-+    }
-+    setMiniCartOpen(true);
-+  };
++  INDEX `UserManagementLog_targetUserId_idx`(`targetUserId`),
++  INDEX `UserManagementLog_actorUserId_idx`(`actorUserId`),
++  INDEX `UserManagementLog_createdAt_idx`(`createdAt`),
++  PRIMARY KEY (`id`)
++) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 +
-+  const closeMiniCartWithDelay = () => {
-+    if (miniCartCloseTimeoutRef.current) {
-+      window.clearTimeout(miniCartCloseTimeoutRef.current);
-+    }
-+    miniCartCloseTimeoutRef.current = window.setTimeout(() => {
-+      setMiniCartOpen(false);
-+      miniCartCloseTimeoutRef.current = null;
-+    }, 150);
-+  };
-
-   useEffect(() => {
-     localStorage.setItem("preferred-language", language);
-     window.dispatchEvent(new CustomEvent("languageChange", { detail: { language } }));
-   }, [language]);
-
-   const isActiveLink = (path: string) => {
-     if (path === "/") return location.pathname === "/";
-     return location.pathname.startsWith(path);
-   };
-
-   const isProductsActive = useMemo(() => {
-     return cms.productsDropdownItems.some(
-       (item) => !("separator" in item) && location.pathname.startsWith(item.to),
-     );
-   }, [location.pathname, cms.productsDropdownItems]);
-
-   const isPricingActive = useMemo(() => {
-     return cms.pricingDropdownItems.some(
-       (item) => !("separator" in item) && location.pathname.startsWith(item.to),
-     );
-   }, [location.pathname, cms.pricingDropdownItems]);
-
-   useEffect(() => {
-     const onDown = (e: MouseEvent) => {
-       const root = rootRef.current;
-       if (!root) return;
-       if (!root.contains(e.target as Node)) {
-         setOpenDd(null);
-         setDrawerOpen(false);
-         setLangOpen(false);
-         setUserMenuOpen(null);
-+        setMiniCartOpen(false);
-       }
-     };
-     const onKey = (e: KeyboardEvent) => {
-       if (e.key === "Escape") {
-         setOpenDd(null);
-         setDrawerOpen(false);
-         setLangOpen(false);
-         setUserMenuOpen(null);
-+        setMiniCartOpen(false);
-       }
-     };
-     document.addEventListener("mousedown", onDown);
-     document.addEventListener("keydown", onKey);
-     return () => {
-+      if (miniCartCloseTimeoutRef.current) {
-+        window.clearTimeout(miniCartCloseTimeoutRef.current);
-+      }
-       document.removeEventListener("mousedown", onDown);
-       document.removeEventListener("keydown", onKey);
-     };
-   }, []);
-
-   useEffect(() => {
-     if (!drawerOpen) return;
-     const prev = document.body.style.overflow;
-     document.body.style.overflow = "hidden";
-     return () => {
-       document.body.style.overflow = prev;
-     };
-   }, [drawerOpen]);
-
-   const toggleDd = (k: Exclude<DropdownKey, null>) => {
-     setOpenDd((cur) => (cur === k ? null : k));
-   };
-
-   const openAuth = (tab: AuthTab) => {
-     setAuthTab(tab);
-     setAuthOpen(true);
-   };
-
-   const openSuccess = (message: string) => {
-     setSuccess({ open: true, message });
-@@ -342,54 +366,70 @@ export function Header({
-               )}
-             </div>
-
-             {cms.navLinks.map((link) => (
-               <Link
-                 key={link.to}
-                 to={link.to}
-                 className={`relative rounded-xl px-3 py-2 text-[15px] font-extrabold transition-all duration-200 ${
-                   isActiveLink(link.to)
-                     ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700"
-                     : "border border-transparent text-slate-900 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md hover:scale-[1.02]"
-                 }`}
-               >
-                 <span className="relative">
-                   {link.label}
-                   {isActiveLink(link.to) && (
-                     <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" />
-                   )}
-                 </span>
-               </Link>
-             ))}
-           </nav>
-
-           {/* Actions */}
-           <div className="flex min-w-fit items-center gap-2 lg:min-w-[260px] lg:justify-end">
--                      <button type="button" onClick={() => setMiniCartOpen(true)} className="relative rounded-xl border px-3 py-2 text-sm font-semibold hover:bg-slate-50">
--            <i className="fa-solid fa-cart-shopping" />
--            {totalItems > 0 && <span className="absolute -top-2 -right-2 rounded-full bg-rose-500 px-2 py-0.5 text-[8px] text-white">{totalItems}</span>}
--          </button>
-+            <div
-+              className="relative"
-+              onMouseEnter={openMiniCart}
-+              onMouseLeave={closeMiniCartWithDelay}
-+            >
-+              <button
-+                type="button"
-+                onClick={() => setMiniCartOpen((prev) => !prev)}
-+                className="relative rounded-xl border px-3 py-2 text-sm font-semibold hover:bg-slate-50"
-+                aria-expanded={miniCartOpen}
-+                aria-label="Mở mini cart"
-+              >
-+                <i className="fa-solid fa-cart-shopping" />
-+                {totalItems > 0 && <span className="absolute -top-2 -right-2 rounded-full bg-rose-500 px-2 py-0.5 text-[8px] text-white">{totalItems}</span>}
-+              </button>
++ALTER TABLE `UserManagementLog`
++  ADD CONSTRAINT `UserManagementLog_actorUserId_fkey`
++  FOREIGN KEY (`actorUserId`) REFERENCES `User`(`id`)
++  ON DELETE SET NULL ON UPDATE CASCADE;
 +
-+              <div className="absolute right-0 top-[calc(100%+10px)] z-[80]">
-+                <MiniCartModal open={miniCartOpen} onClose={() => setMiniCartOpen(false)} />
-+              </div>
-+            </div>
-             {/* Language (Desktop) */}
-             <div className="relative hidden sm:block">
-               <button
-                 type="button"
-                 className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-lg transition-all duration-200 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md hover:scale-110"
-                 onClick={() => setLangOpen(!langOpen)}
-               >
-                 <span
-                   className={`fi ${
-                     languageOptions.find((opt) => opt.code === language)?.flag ?? "fi-vn"
-                   }`}
-                   style={{ width: 24, height: 18 }}
-                 />
-               </button>
++ALTER TABLE `UserManagementLog`
++  ADD CONSTRAINT `UserManagementLog_targetUserId_fkey`
++  FOREIGN KEY (`targetUserId`) REFERENCES `User`(`id`)
++  ON DELETE CASCADE ON UPDATE CASCADE;
+diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+index d7a0f21b9a6f823c7f70d6d386f46250096c7d7b..e00c5fce58a83448e76bdb2e512a2d4c71e4b862 100644
+--- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
++++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+@@ -26,50 +26,52 @@ model User {
+   updatedAt          DateTime @updatedAt
 
-               {langOpen && (
-                 <div className="absolute right-0 top-full z-[60] min-w-[160px] animate-in fade-in slide-in-from-top-2 duration-200 rounded-2xl border border-slate-200/70 bg-white p-2 shadow-[0_18px_40px_rgba(2,6,23,.10)]">
-                   {languageOptions.map((opt) => (
-                     <button
-                       key={opt.code}
-                       className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left font-extrabold transition-all duration-200 ${
-                         language === opt.code
-                           ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700"
-                           : "text-slate-900 hover:bg-indigo-50 hover:text-indigo-700"
-                       }`}
-@@ -631,29 +671,28 @@ export function Header({
-                 </div>
-               </div>
-             </div>
-           </div>
-         )}
-       </div>
+   // ✅ ADD
+   enrollments    Enrollment[]
+   courseAccesses CourseAccess[]
+   lessonProgress LessonProgress[]
+   lessonVideoProgress LessonVideoProgress[]
+   orders         Order[] // <— opposite for Order.user
+   productOrders  ProductOrder[]
+   processedProductOrders ProductOrder[] @relation("ProductOrderProcessedBy")
+   carts          Cart[]
 
-       {/* ✅ CHỈ TRUYỀN CMS XUỐNG */}
-       <AuthModal
-         open={authOpen}
-         tab={authTab}
-         onClose={() => setAuthOpen(false)}
-         onSwitchTab={setAuthTab}
-         onLoginSuccess={handleLoginSuccess}
-         onRegisterSuccess={handleRegisterSuccess}
-         cmsData={cmsAuth}
-       />
+   courseReviews CourseReview[]
+   createdCourses Course[] @relation("CourseCreator")
+   // ✅ CMS (optional relations)
+   cmsSectionVersions CmsSectionVersion[]
+   mediaAssets        MediaAsset[]
+   serviceReviews     ServiceReview[]
+   reviews            Review[]
+   specialistProfile  Specialist?
+   reviewHelpfulVotes ReviewHelpful[]
+   blogPosts          BlogPost[]
+   blogSaves          BlogSavedPost[]
+   roleAuditLogsAsActor  RoleAuditLog[] @relation("RoleAuditActor")
+   roleAuditLogsAsTarget RoleAuditLog[] @relation("RoleAuditTarget")
++  userManagementLogsAsActor  UserManagementLog[] @relation("UserManagementLogActor")
++  userManagementLogsAsTarget UserManagementLog[] @relation("UserManagementLogTarget")
 
-       <SuccessModal
-         open={success.open}
-         message={success.message}
-         onClose={() => setSuccess({ open: false, message: "" })}
-         cmsData={cmsSuccess}
-       />
-
--      <MiniCartModal open={miniCartOpen} onClose={() => setMiniCartOpen(false)} />
-     </>
-   );
+   @@index([roleId])
  }
-diff --git a/Home/ayanavita-fontend-final/src/components/shop/MiniCartModal.tsx b/Home/ayanavita-fontend-final/src/components/shop/MiniCartModal.tsx
-index dd06bca866b1f524116e16b77d9438ec9281484c..fc57c0a6ae8d017f8852fea8ef2faf897a299b7b 100644
---- a/Home/ayanavita-fontend-final/src/components/shop/MiniCartModal.tsx
-+++ b/Home/ayanavita-fontend-final/src/components/shop/MiniCartModal.tsx
-@@ -1,51 +1,57 @@
- import React from 'react'
- import { Link } from 'react-router-dom'
--import { Modal } from '../common/Modal'
- import { money } from '../../services/booking.utils'
- import { useCart } from '../../contexts/CartContext'
 
- export function MiniCartModal({ open, onClose }: { open: boolean; onClose: () => void; cmsData?: any }) {
-   const { items, subtotal, totalItems, isAuthenticated, updateQuantity, removeItem } = useCart()
+ model Branch {
+   id          Int                @id @default(autoincrement())
+   code        String             @unique @db.VarChar(32)
+   name        String             @db.VarChar(255)
+   address     String             @db.VarChar(255)
+   phone       String?            @db.VarChar(30)
+   isActive    Boolean            @default(true)
+   createdAt   DateTime           @default(now())
+   updatedAt   DateTime           @updatedAt
+   services    BranchService[]
+   specialists Specialist[]
+   appointments Appointment[]
+   translations BranchTranslation[]
+   reviews      Review[]
+ }
 
-+  if (!open) return null
+ model ServiceCategory {
+   id        Int      @id @default(autoincrement())
+   name      String   @unique @db.VarChar(255)
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
+@@ -242,50 +244,69 @@ model ServiceReview {
+   serviceId  Int
+   userId     Int?
+   stars      Int
+   comment    String?  @db.Text
+   customerName String? @db.VarChar(255)
+   createdAt  DateTime @default(now())
+   updatedAt  DateTime @updatedAt
+
+   service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+   user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+   @@index([serviceId])
+ }
+
+
+ model RegistrationOtp {
+   id        Int      @id @default(autoincrement())
+   email     String   @unique
+   code      String   @db.VarChar(6)
+   expiresAt DateTime
+   usedAt    DateTime?
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
+ }
+
++model UserManagementLog {
++  id          Int      @id @default(autoincrement())
++  action      String   @db.VarChar(64)
++  message     String   @db.VarChar(500)
++  actorUserId Int?
++  targetUserId Int
++  oldEmail    String?  @db.VarChar(255)
++  newEmail    String?  @db.VarChar(255)
++  metadata    Json?
++  createdAt   DateTime @default(now())
 +
-   return (
--    <Modal open={open} onClose={onClose} maxWidthClass="max-w-xl">
--      <div className="p-4">
--        <h3 className="text-lg font-bold">Giỏ hàng nhanh</h3>
--        <p className="text-sm text-slate-500">{isAuthenticated ? 'Đang đồng bộ tài khoản' : 'Giỏ tạm localStorage'}</p>
-+    <div className="w-[min(92vw,380px)] rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_20px_60px_rgba(2,6,23,.22)]">
-+      <div className="flex items-start justify-between gap-3">
-+        <div>
-+          <h3 className="text-base font-bold">Giỏ hàng nhanh</h3>
-+          <p className="text-xs text-slate-500">{isAuthenticated ? 'Đang đồng bộ tài khoản' : 'Giỏ tạm localStorage'}</p>
-+        </div>
-+        <button type="button" className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100" onClick={onClose} aria-label="Đóng mini cart">
-+          <i className="fa-solid fa-xmark" />
-+        </button>
-+      </div>
++  actorUser  User? @relation("UserManagementLogActor", fields: [actorUserId], references: [id], onDelete: SetNull)
++  targetUser User  @relation("UserManagementLogTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
++
++  @@index([targetUserId])
++  @@index([actorUserId])
++  @@index([createdAt])
++}
++
+ model Course {
+   id                  Int      @id @default(autoincrement())
+   topicId             Int?
+   title               String
+   time                String?  @db.VarChar(120)
+   shortDescription    String?  @db.VarChar(500)
+   slug                String   @unique
+   description         String?  @db.LongText
+   thumbnail           String?
+   price               Int      @default(0)
+   published           Boolean  @default(false)
+   objectives          Json?
+   targetAudience      Json?
+   benefits            Json?
+   ratingAvg           Float    @default(0)
+   ratingCount         Int      @default(0)
+   enrollmentCount     Int      @default(0)
+   creatorId           Int?
+   createdAt           DateTime @default(now())
+   updatedAt           DateTime @updatedAt
 
--        {items.length === 0 ? (
--          <div className="mt-6 text-sm text-slate-500">Giỏ hàng đang trống.</div>
--        ) : (
--          <div className="mt-4 space-y-3">
--            {items.map((item) => (
--              <div key={`${item.itemId ?? 'guest'}-${item.productId}`} className="flex items-center gap-3 rounded-xl border p-3">
--                {item.image ? <img src={item.image} alt={item.name} className="h-12 w-12 rounded-lg object-cover" /> : <div className="h-12 w-12 rounded-lg bg-slate-100" />}
--                <div className="min-w-0 flex-1">
--                  <p className="truncate text-sm font-semibold">{item.name}</p>
--                  <p className="text-xs text-slate-500">{money(item.price)}</p>
--                </div>
--                <div className="flex items-center gap-2">
--                  <button className="rounded border px-2" onClick={() => updateQuantity(item.itemId ?? item.productId, item.quantity - 1)}>-</button>
--                  <span className="w-6 text-center text-sm">{item.quantity}</span>
--                  <button className="rounded border px-2" onClick={() => updateQuantity(item.itemId ?? item.productId, item.quantity + 1)}>+</button>
--                  <button className="ml-2 text-xs text-rose-600" onClick={() => removeItem(item.itemId ?? item.productId)}>Xoá</button>
--                </div>
-+      {items.length === 0 ? (
-+        <div className="mt-4 rounded-xl bg-slate-50 px-3 py-4 text-sm text-slate-500">Giỏ hàng đang trống.</div>
-+      ) : (
-+        <div className="mt-3 max-h-[320px] space-y-3 overflow-auto pr-1">
-+          {items.map((item) => (
-+            <div key={`${item.itemId ?? 'guest'}-${item.productId}`} className="flex items-center gap-3 rounded-xl border p-3">
-+              {item.image ? <img src={item.image} alt={item.name} className="h-12 w-12 rounded-lg object-cover" /> : <div className="h-12 w-12 rounded-lg bg-slate-100" />}
-+              <div className="min-w-0 flex-1">
-+                <p className="truncate text-sm font-semibold">{item.name}</p>
-+                <p className="text-xs text-slate-500">{money(item.price)}</p>
-               </div>
--            ))}
--          </div>
--        )}
+   lessons     Lesson[]
+   enrollments Enrollment[]
+   accesses    CourseAccess[]
+   topic       CourseTopic? @relation(fields: [topicId], references: [id], onDelete: Restrict)
+diff --git a/backend/ayanavitabackend/app/api/src/users/dto/admin-create-user.dto.ts b/backend/ayanavitabackend/app/api/src/users/dto/admin-create-user.dto.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..c1e2eac3a6a2fea6fd2ff6c00cc2492d8b869c9c
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/users/dto/admin-create-user.dto.ts
+@@ -0,0 +1,34 @@
++import { IsBoolean, IsDateString, IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator'
++
++export class AdminCreateUserDto {
++  @IsEmail()
++  email!: string
++
++  @IsOptional()
++  @IsString()
++  @MinLength(2)
++  @MaxLength(191)
++  name?: string
++
++  @IsOptional()
++  @IsBoolean()
++  isActive?: boolean
++
++  @IsOptional()
++  @IsString()
++  @MaxLength(191)
++  phone?: string
++
++  @IsOptional()
++  @IsDateString()
++  birthDate?: string
++
++  @IsOptional()
++  @IsIn(['MALE', 'FEMALE', 'OTHER'])
++  gender?: 'MALE' | 'FEMALE' | 'OTHER'
++
++  @IsOptional()
++  @IsString()
++  @MaxLength(500)
++  address?: string
++}
+diff --git a/backend/ayanavitabackend/app/api/src/users/dto/admin-update-user.dto.ts b/backend/ayanavitabackend/app/api/src/users/dto/admin-update-user.dto.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..add48b8b217afddb5b85fd1210b0fb28cc1f40ad
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/users/dto/admin-update-user.dto.ts
+@@ -0,0 +1,35 @@
++import { IsBoolean, IsDateString, IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator'
++
++export class AdminUpdateUserDto {
++  @IsOptional()
++  @IsEmail()
++  email?: string
++
++  @IsOptional()
++  @IsString()
++  @MinLength(2)
++  @MaxLength(191)
++  name?: string
++
++  @IsOptional()
++  @IsBoolean()
++  isActive?: boolean
++
++  @IsOptional()
++  @IsString()
++  @MaxLength(191)
++  phone?: string
++
++  @IsOptional()
++  @IsDateString()
++  birthDate?: string
++
++  @IsOptional()
++  @IsIn(['MALE', 'FEMALE', 'OTHER'])
++  gender?: 'MALE' | 'FEMALE' | 'OTHER'
++
++  @IsOptional()
++  @IsString()
++  @MaxLength(500)
++  address?: string
++}
+diff --git a/backend/ayanavitabackend/app/api/src/users/dto/reset-password.dto.ts b/backend/ayanavitabackend/app/api/src/users/dto/reset-password.dto.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..bb4ba8b3351cdb308cab0291aa79f4fe8cb65867
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/users/dto/reset-password.dto.ts
+@@ -0,0 +1 @@
++export class ResetPasswordDto {}
+diff --git a/backend/ayanavitabackend/app/api/src/users/users.controller.ts b/backend/ayanavitabackend/app/api/src/users/users.controller.ts
+index 721f3ed4e23101ffcd19d8005700e4d6850a5ed1..28c07cd3da87849a74daaef257e03085b2be5f4a 100644
+--- a/backend/ayanavitabackend/app/api/src/users/users.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/users/users.controller.ts
+@@ -1,30 +1,81 @@
+-import { Body, Controller, Get, Param, ParseIntPipe, Put, UseGuards } from '@nestjs/common'
++import {
++  Body,
++  Controller,
++  Delete,
++  Get,
++  Param,
++  ParseIntPipe,
++  Post,
++  Put,
++  UseGuards,
++} from '@nestjs/common'
+ import { UsersService } from './users.service'
+ import { AccessTokenGuard } from '../auth/guards/access-token.guard'
+ import { PermissionGuard } from '../auth/guards/permission.guard'
+ import { Permissions } from '../auth/decorators/permissions.decorator'
+ import { AssignRoleDto } from './dto/assign-role.dto'
+ import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
++import { AdminCreateUserDto } from './dto/admin-create-user.dto'
++import { AdminUpdateUserDto } from './dto/admin-update-user.dto'
+
+ @Controller('users')
+ export class UsersController {
+   constructor(private readonly users: UsersService) {}
+
+   @UseGuards(AccessTokenGuard, PermissionGuard)
+   @Permissions('role.read')
+   @Get()
+   findAll() {
+     return this.users.findAll()
+   }
+
++  @UseGuards(AccessTokenGuard, PermissionGuard)
++  @Permissions('role.read')
++  @Get('change-logs')
++  getChangeLogs() {
++    return this.users.getChangeLogs()
++  }
++
++  @UseGuards(AccessTokenGuard, PermissionGuard)
++  @Permissions('role.manage')
++  @Post()
++  createUser(@Body() dto: AdminCreateUserDto, @CurrentUser() actor: JwtUser) {
++    return this.users.createUser(dto, actor?.sub)
++  }
++
++  @UseGuards(AccessTokenGuard, PermissionGuard)
++  @Permissions('role.manage')
++  @Put(':id')
++  updateUser(
++    @Param('id', ParseIntPipe) id: number,
++    @Body() dto: AdminUpdateUserDto,
++    @CurrentUser() actor: JwtUser,
++  ) {
++    return this.users.updateUser(id, dto, actor?.sub)
++  }
++
++  @UseGuards(AccessTokenGuard, PermissionGuard)
++  @Permissions('role.manage')
++  @Delete(':id')
++  deleteUser(@Param('id', ParseIntPipe) id: number, @CurrentUser() actor: JwtUser) {
++    return this.users.deleteUser(id, actor?.sub)
++  }
++
++  @UseGuards(AccessTokenGuard, PermissionGuard)
++  @Permissions('role.manage')
++  @Post(':id/reset-password')
++  resetPassword(@Param('id', ParseIntPipe) id: number, @CurrentUser() actor: JwtUser) {
++    return this.users.resetPassword(id, actor?.sub)
++  }
++
+   @UseGuards(AccessTokenGuard, PermissionGuard)
+   @Permissions('role.manage')
+   @Put(':id/role')
+   assignRole(
+     @Param('id', ParseIntPipe) id: number,
+     @Body() dto: AssignRoleDto,
+     @CurrentUser() actor: JwtUser,
+   ) {
+     return this.users.assignRole(id, dto.roleId, actor?.sub)
+   }
+ }
+diff --git a/backend/ayanavitabackend/app/api/src/users/users.service.ts b/backend/ayanavitabackend/app/api/src/users/users.service.ts
+index ca0b84a32e5c33660fc5eaf66d1cb75f4f363239..2fc4da73af09604bbdcafcf4fbb4cac437801e73 100644
+--- a/backend/ayanavitabackend/app/api/src/users/users.service.ts
++++ b/backend/ayanavitabackend/app/api/src/users/users.service.ts
+@@ -1,58 +1,476 @@
+-import { Injectable, NotFoundException } from '@nestjs/common'
++import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common'
++import * as bcrypt from 'bcrypt'
++import * as tls from 'tls'
+ import { PrismaService } from '../prisma/prisma.service'
++import { AdminCreateUserDto } from './dto/admin-create-user.dto'
++import { AdminUpdateUserDto } from './dto/admin-update-user.dto'
+
+ @Injectable()
+ export class UsersService {
++  private readonly logger = new Logger(UsersService.name)
++
+   constructor(private readonly prisma: PrismaService) {}
 -
--        <div className="mt-5 flex items-center justify-between border-t pt-4 text-sm">
--          <span>{totalItems} sản phẩm</span>
--          <span className="font-bold">{money(subtotal)}</span>
-+              <div className="flex items-center gap-2">
-+                <button className="rounded border px-2" onClick={() => updateQuantity(item.itemId ?? item.productId, Math.max(1, item.quantity - 1))}>-</button>
-+                <span className="w-6 text-center text-sm">{item.quantity}</span>
-+                <button className="rounded border px-2" onClick={() => updateQuantity(item.itemId ?? item.productId, item.quantity + 1)}>+</button>
-+                <button className="ml-2 text-xs text-rose-600" onClick={() => removeItem(item.itemId ?? item.productId)}>Xoá</button>
+
+-  findAll() {
+-    return this.prisma.user.findMany({
++  async findAll() {
++    const rows = await this.prisma.user.findMany({
+       select: {
+         id: true,
+         email: true,
+         name: true,
++        phone: true,
++        birthDate: true,
++        gender: true,
++        address: true,
++        isActive: true,
+         role: true,
+         roleId: true,
++        hashedRefreshToken: true,
+         roleRef: { select: { code: true, scopeType: true } },
+         createdAt: true,
+         updatedAt: true,
+       },
+       orderBy: { id: 'asc' },
+     })
++
++    return rows.map((row) => ({
++      ...row,
++      hasRefreshToken: Boolean(row.hashedRefreshToken),
++      hashedRefreshToken: undefined,
++    }))
++  }
++
++  async getChangeLogs(limit = 200) {
++    return this.prisma.userManagementLog.findMany({
++      take: limit,
++      orderBy: { createdAt: 'desc' },
++      include: {
++        actorUser: { select: { email: true } },
++        targetUser: { select: { email: true, name: true } },
++      },
++    })
++  }
++
++  async createUser(dto: AdminCreateUserDto, actorUserId?: number) {
++    const email = dto.email.trim().toLowerCase()
++    const exists = await this.prisma.user.findUnique({ where: { email }, select: { id: true } })
++    if (exists) throw new BadRequestException('Email đã tồn tại')
++
++    const plainPassword = this.generatePassword()
++    const password = await bcrypt.hash(plainPassword, 10)
++
++    const userRole = await this.prisma.rbacRole.findUnique({ where: { code: 'USER' }, select: { id: true } })
++
++    const created = await this.prisma.user.create({
++      data: {
++        email,
++        name: this.normalizeOptionalString(dto.name),
++        phone: this.normalizeOptionalString(dto.phone),
++        address: this.normalizeOptionalString(dto.address),
++        birthDate: dto.birthDate ? new Date(dto.birthDate) : undefined,
++        gender: dto.gender,
++        isActive: dto.isActive ?? true,
++        password,
++        role: 'USER',
++        roleId: userRole?.id,
++      },
++      select: {
++        id: true,
++        email: true,
++        name: true,
++        phone: true,
++        birthDate: true,
++        gender: true,
++        address: true,
++        isActive: true,
++        role: true,
++        roleId: true,
++        roleRef: { select: { code: true, scopeType: true } },
++        createdAt: true,
++        updatedAt: true,
++      },
++    })
++
++    await this.logAction({
++      action: 'USER_CREATED',
++      actorUserId,
++      targetUserId: created.id,
++      message: `Tạo user ${created.email}`,
++      metadata: {
++        name: created.name ?? null,
++        phone: created.phone ?? null,
++        isActive: created.isActive,
++        birthDate: created.birthDate,
++        gender: created.gender,
++        address: created.address,
++      },
++      newEmail: created.email,
++    })
++
++    void this.sendUserCreatedMail(created.email, plainPassword, created.name ?? '').catch((error) => {
++      this.logger.error(`Không gửi được email thông tin tài khoản tới ${created.email}`, error?.stack ?? String(error))
++    })
++
++    return created
++  }
++
++  async updateUser(userId: number, dto: AdminUpdateUserDto, actorUserId?: number) {
++    const user = await this.prisma.user.findUnique({
++      where: { id: userId },
++      select: {
++        id: true,
++        email: true,
++        name: true,
++        isActive: true,
++        phone: true,
++        birthDate: true,
++        gender: true,
++        address: true,
++        role: true,
++        roleId: true,
++      },
++    })
++    if (!user) throw new NotFoundException('User not found')
++
++    const data: {
++      email?: string
++      name?: string | null
++      isActive?: boolean
++      phone?: string | null
++      birthDate?: Date | null
++      gender?: 'MALE' | 'FEMALE' | 'OTHER' | null
++      address?: string | null
++    } = {}
++    const changes: string[] = []
++
++    if (dto.name !== undefined) {
++      const normalizedName = this.normalizeOptionalString(dto.name)
++      if (normalizedName !== user.name) {
++        data.name = normalizedName
++        changes.push('name')
++      }
++    }
++
++    if (dto.phone !== undefined) {
++      const normalizedPhone = this.normalizeOptionalString(dto.phone)
++      if (normalizedPhone !== user.phone) {
++        data.phone = normalizedPhone
++        changes.push('phone')
++      }
++    }
++
++    if (dto.address !== undefined) {
++      const normalizedAddress = this.normalizeOptionalString(dto.address)
++      if (normalizedAddress !== user.address) {
++        data.address = normalizedAddress
++        changes.push('address')
++      }
++    }
++
++    if (dto.birthDate !== undefined) {
++      const normalizedBirthDate = dto.birthDate ? new Date(dto.birthDate) : null
++      const prevBirthDate = user.birthDate ? user.birthDate.getTime() : null
++      const nextBirthDate = normalizedBirthDate ? normalizedBirthDate.getTime() : null
++      if (prevBirthDate !== nextBirthDate) {
++        data.birthDate = normalizedBirthDate
++        changes.push('birthDate')
++      }
++    }
++
++    if (dto.gender !== undefined && dto.gender !== user.gender) {
++      data.gender = dto.gender
++      changes.push('gender')
++    }
++
++    if (dto.isActive !== undefined && dto.isActive !== user.isActive) {
++      data.isActive = dto.isActive
++      changes.push('isActive')
++    }
++
++    if (dto.email !== undefined) {
++      const newEmail = dto.email.trim().toLowerCase()
++      if (newEmail !== user.email) {
++        const exists = await this.prisma.user.findUnique({ where: { email: newEmail }, select: { id: true } })
++        if (exists) throw new BadRequestException('Email đã tồn tại')
++        data.email = newEmail
++        changes.push('email')
++      }
++    }
++
++    if (Object.keys(data).length === 0) {
++      return {
++        id: user.id,
++        email: user.email,
++        name: user.name,
++        role: user.role,
++        roleId: user.roleId,
++        message: 'Không có thay đổi nào',
++      }
++    }
++
++    const updated = await this.prisma.user.update({
++      where: { id: userId },
++      data,
++      select: {
++        id: true,
++        email: true,
++        name: true,
++        phone: true,
++        birthDate: true,
++        gender: true,
++        address: true,
++        isActive: true,
++        role: true,
++        roleId: true,
++        roleRef: { select: { code: true, scopeType: true } },
++        updatedAt: true,
++      },
++    })
++
++    await this.logAction({
++      action: 'USER_UPDATED',
++      actorUserId,
++      targetUserId: userId,
++      message: `Cập nhật user ${updated.email}: ${changes.join(', ')}`,
++      metadata: {
++        changedFields: changes,
++        before: user,
++        after: {
++          email: updated.email,
++          name: updated.name,
++          phone: updated.phone,
++          birthDate: updated.birthDate,
++          gender: updated.gender,
++          address: updated.address,
++          isActive: updated.isActive,
++        },
++      },
++      oldEmail: user.email,
++      newEmail: updated.email,
++    })
++
++    if (data.email) {
++      void this.sendEmailChangedNotification(user.email, updated.email, updated.name ?? '').catch((error) => {
++        this.logger.error(`Không gửi được email thông báo đổi email tới ${user.email}`, error?.stack ?? String(error))
++      })
++    }
++
++    return updated
++  }
++
++  async deleteUser(userId: number, actorUserId?: number) {
++    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true } })
++    if (!user) throw new NotFoundException('User not found')
++
++    await this.prisma.user.delete({ where: { id: userId } })
++
++    await this.logAction({
++      action: 'USER_DELETED',
++      actorUserId,
++      targetUserId: userId,
++      message: `Xóa user ${user.email}`,
++      oldEmail: user.email,
++    })
++
++    return { success: true }
++  }
++
++  async resetPassword(userId: number, actorUserId?: number) {
++    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, name: true } })
++    if (!user) throw new NotFoundException('User not found')
++
++    const plainPassword = this.generatePassword()
++    const password = await bcrypt.hash(plainPassword, 10)
++
++    await this.prisma.user.update({
++      where: { id: userId },
++      data: { password },
++    })
++
++    await this.logAction({
++      action: 'USER_PASSWORD_RESET',
++      actorUserId,
++      targetUserId: userId,
++      message: `Reset mật khẩu cho ${user.email}`,
++    })
++
++    void this.sendResetPasswordMail(user.email, plainPassword, user.name ?? '').catch((error) => {
++      this.logger.error(`Không gửi được email reset password tới ${user.email}`, error?.stack ?? String(error))
++    })
++
++    return { success: true, message: 'Đã reset mật khẩu và gửi email cho user' }
+   }
+
+   async assignRole(userId: number, roleId: number, actorUserId?: number) {
+     const [user, role] = await Promise.all([
+       this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } }),
+       this.prisma.rbacRole.findUnique({ where: { id: roleId }, select: { id: true, code: true, scopeType: true } }),
+     ])
+
+     if (!user) throw new NotFoundException('User not found')
+     if (!role) throw new NotFoundException('Role not found')
+
+     const updated = await this.prisma.user.update({
+       where: { id: userId },
+       data: { roleId },
+       select: {
+         id: true,
+         email: true,
+         roleId: true,
+         roleRef: { select: { id: true, code: true, scopeType: true } },
+       },
+     })
+
+     await this.prisma.roleAuditLog.create({
+       data: {
+         action: 'USER_ROLE_ASSIGNED',
+         message: `Gán role ${role.code} cho ${updated.email}`,
+         actorUserId: actorUserId ?? null,
+         targetUserId: userId,
+         roleId,
+         metadata: { roleCode: role.code, scopeType: role.scopeType },
+       },
+     })
+
+     return updated
+   }
++
++  private async logAction(params: {
++    action: string
++    message: string
++    actorUserId?: number
++    targetUserId: number
++    metadata?: unknown
++    oldEmail?: string
++    newEmail?: string
++  }) {
++    await this.prisma.userManagementLog.create({
++      data: {
++        action: params.action,
++        message: params.message,
++        actorUserId: params.actorUserId ?? null,
++        targetUserId: params.targetUserId,
++        oldEmail: params.oldEmail ?? null,
++        newEmail: params.newEmail ?? null,
++        metadata: params.metadata ?? null,
++      },
++    })
++  }
++
++  private normalizeOptionalString(value?: string) {
++    if (value === undefined) return undefined
++    const trimmed = value.trim()
++    return trimmed.length > 0 ? trimmed : null
++  }
++
++  private generatePassword(length = 10) {
++    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#$%'
++    return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
++  }
++
++  private async sendUserCreatedMail(email: string, password: string, name: string) {
++    const subject = 'Tài khoản AYANAVITA của bạn đã được tạo'
++    const body = `Xin chào ${name || 'bạn'},\n\nTài khoản của bạn đã được tạo trên hệ thống AYANAVITA.\nEmail đăng nhập: ${email}\nMật khẩu tạm thời: ${password}\n\nVui lòng đăng nhập và đổi mật khẩu để đảm bảo an toàn.\n\nTrân trọng,\nĐội ngũ AYANAVITA`
++    await this.sendSmtpViaGmail(email, subject, body)
++  }
++
++  private async sendResetPasswordMail(email: string, password: string, name: string) {
++    const subject = 'Mật khẩu mới tài khoản AYANAVITA'
++    const body = `Xin chào ${name || 'bạn'},\n\nHệ thống vừa reset mật khẩu tài khoản của bạn.\nEmail đăng nhập: ${email}\nMật khẩu mới: ${password}\n\nVui lòng đăng nhập và đổi mật khẩu ngay sau khi vào hệ thống.\n\nTrân trọng,\nĐội ngũ AYANAVITA`
++    await this.sendSmtpViaGmail(email, subject, body)
++  }
++
++  private async sendEmailChangedNotification(oldEmail: string, newEmail: string, name: string) {
++    const subject = 'Thông báo thay đổi email tài khoản AYANAVITA'
++    const body = `Xin chào ${name || 'bạn'},\n\nEmail tài khoản AYANAVITA của bạn đã được đổi sang: ${newEmail}\n\nNếu bạn không thực hiện thay đổi này, vui lòng liên hệ quản trị viên ngay.\n\nTrân trọng,\nĐội ngũ AYANAVITA`
++    await this.sendSmtpViaGmail(oldEmail, subject, body)
++  }
++
++  private async sendSmtpViaGmail(to: string, subject: string, body: string) {
++    const user = process.env.MAIL_USER ?? 'manage.ayanavita@gmail.com'
++    const pass = process.env.MAIL_PASS ?? 'xetp fhph luse qydj'
++
++    const readSmtpResponse = (socket: tls.TLSSocket) =>
++      new Promise<string>((resolve, reject) => {
++        let buffer = ''
++
++        const cleanup = () => {
++          socket.off('data', onData)
++          socket.off('error', onError)
++          socket.off('close', onClose)
++        }
++
++        const onError = (err: Error) => {
++          cleanup()
++          reject(err)
++        }
++
++        const onClose = () => {
++          cleanup()
++          reject(new Error('SMTP connection closed unexpectedly'))
++        }
++
++        const onData = (chunk: Buffer) => {
++          buffer += chunk.toString('utf8')
++          const normalized = buffer.replace(/\r\n/g, '\n')
++          const lines = normalized.split('\n').filter(Boolean)
++          if (lines.length === 0) return
++
++          const lastLine = lines[lines.length - 1]
++          if (!/^\d{3} /.test(lastLine)) return
++
++          cleanup()
++          resolve(normalized.trim())
++        }
++
++        socket.on('data', onData)
++        socket.once('error', onError)
++        socket.once('close', onClose)
++      })
++
++    const sendCommand = async (socket: tls.TLSSocket, command: string, expectedCodes: number[]) => {
++      socket.write(`${command}\r\n`)
++      const response = await readSmtpResponse(socket)
++      const code = Number(response.slice(0, 3))
++      if (!expectedCodes.includes(code)) {
++        throw new Error(`SMTP command failed (${command}): ${response}`)
++      }
++      return response
++    }
++
++    const socket = await new Promise<tls.TLSSocket>((resolve, reject) => {
++      const client = tls.connect(465, 'smtp.gmail.com', { servername: 'smtp.gmail.com' }, () => resolve(client))
++      client.once('error', reject)
++    })
++
++    try {
++      const greeting = await readSmtpResponse(socket)
++      if (!greeting.startsWith('220')) throw new Error(`SMTP greeting failed: ${greeting}`)
++
++      await sendCommand(socket, 'EHLO ayanavita.local', [250])
++      await sendCommand(socket, 'AUTH LOGIN', [334])
++      await sendCommand(socket, Buffer.from(user).toString('base64'), [334])
++      await sendCommand(socket, Buffer.from(pass).toString('base64'), [235])
++      await sendCommand(socket, `MAIL FROM:<${user}>`, [250])
++      await sendCommand(socket, `RCPT TO:<${to}>`, [250, 251])
++      await sendCommand(socket, 'DATA', [354])
++
++      const message = [
++        `Subject: ${subject}`,
++        `From: AYANAVITA <${user}>`,
++        `To: ${to}`,
++        'MIME-Version: 1.0',
++        'Content-Type: text/plain; charset=UTF-8',
++        '',
++        body,
++      ].join('\r\n')
++
++      socket.write(`${message}\r\n.\r\n`)
++      const dataResponse = await readSmtpResponse(socket)
++      if (!dataResponse.startsWith('250')) throw new Error(`SMTP DATA failed: ${dataResponse}`)
++      await sendCommand(socket, 'QUIT', [221])
++    } finally {
++      socket.end()
++      socket.destroy()
++    }
++  }
+ }
+diff --git a/beay/src/app/routes.tsx b/beay/src/app/routes.tsx
+index 6b53346593660269870cacf34e8820c3aecb68b8..70df07c2c8226b9578aa8a454e4f834ecf776541 100644
+--- a/beay/src/app/routes.tsx
++++ b/beay/src/app/routes.tsx
+@@ -1,79 +1,81 @@
+ import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
+ import { useAuth } from './auth'
+ import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage'
+ import { LoginPage } from '../pages/admin/LoginPage'
+ import { AdminRbacPage } from '../pages/admin/AdminRbacPage'
+ import { StudentPortalPage } from '../pages/admin/StudentPortalPage'
+ import { StudentCourseDetailPage } from '../pages/admin/StudentCourseDetailPage'
+ import { StudentLessonPlayerPage } from '../pages/admin/StudentLessonPlayerPage'
+ import AdminSpaPage from '../pages/admin/AdminSpaPage'
+ import AdminCoursesPage from '../pages/admin/AdminCoursesPage'
+ import { InstructorDashboardPage } from '../pages/admin/InstructorDashboardPage'
+ import { CmsEditPage } from "../admin/pages/CmsEditPage";
+ import { ToastProvider as AdminToastProvider } from "../admin/components/Toast";
+ import { CmsPagesPage } from "../admin/pages/CmsPagesPage";
+ import  OrderAdminPage  from "../admin/pages/OrderAdminPage";
+ import { ReviewsAdminPage } from "../admin/pages/ReviewsAdminPage";
+ import { BlogAdminPage } from "../admin/pages/BlogAdminPage";
+ import { ProductAdminListPage } from "../admin/pages/ProductAdminListPage";
+ import { ProductAdminDetailPage } from "../admin/pages/ProductAdminDetailPage";
++import { AdminUserManagementPage } from '../pages/admin/AdminUserManagementPage'
+
+
+
+ function RequireAuth() {
+     const { token } = useAuth();
+     const location = useLocation();
+
+     if (!token) {
+         return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+     }
+
+     return <Outlet />;
+ }
+
+ function RequirePermission({ permission, children }: { permission: string; children: React.ReactNode }) {
+     const { can } = useAuth();
+
+     if (!can(permission)) {
+         return <Navigate to="/login" replace />;
+     }
+
+     return <>{children}</>;
+ }
+
+ export function AppRoutes() {
+     return (
+         <Routes>
+             <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+             <Route path="/login" element={<LoginPage />} />
+
+             <Route element={<RequireAuth />}>
+                 <Route path="/admin/orders" element={<RequirePermission permission="orders.read"><OrderAdminPage /></RequirePermission>} />
+                 <Route path="/admin/rbac" element={<Navigate to="/admin/rbac/rbac" replace />} />
+                 <Route path="/admin/rbac/:tab" element={<RequirePermission permission="role.read"><AdminRbacPage /></RequirePermission>} />
+                 <Route path="/admin/services" element={<RequirePermission permission="spa_services.read"><AdminSpaPage /></RequirePermission>} />
+                 <Route path="/admin/courses" element={<RequirePermission permission="courses.read"><AdminCoursesPage /></RequirePermission>} />
+                 <Route path="/admin/reviews" element={<RequirePermission permission="reviews.read"><ReviewsAdminPage /></RequirePermission>} />
+                 <Route path="/admin/blog" element={<RequirePermission permission="blogs.read"><BlogAdminPage /></RequirePermission>} />
+                 <Route path="/admin/product" element={<RequirePermission permission="products.read"><ProductAdminListPage /></RequirePermission>} />
+                 <Route path="/admin/product/:productId" element={<RequirePermission permission="products.read"><ProductAdminDetailPage /></RequirePermission>} />
++                <Route path="/admin/users" element={<RequirePermission permission="role.read"><AdminUserManagementPage /></RequirePermission>} />
+                 <Route path="/student" element={<RequirePermission permission="my_courses.read"><StudentPortalPage /></RequirePermission>} />
+                 <Route path="/instructor" element={<RequirePermission permission="courses.write"><InstructorDashboardPage /></RequirePermission>} />
+                 <Route path="/student/courses:id" element={<RequirePermission permission="my_courses.read"><StudentCourseDetailPage /></RequirePermission>} />
+                 <Route path="/student/lessons/:id" element={<RequirePermission permission="my_courses.read"><StudentLessonPlayerPage /></RequirePermission>} />
+                 <Route path="/admin/dashboard" element={<RequirePermission permission="dashboard.admin"><AdminDashboardPage /></RequirePermission>} />
+                 <Route
+                     path="/admin/cms"
+                     element={<RequirePermission permission="cms.read"><AdminToastProvider><CmsPagesPage /></AdminToastProvider></RequirePermission>}
+                 />
+                 <Route
+                     path="/admin/cms/pages/:slug"
+                     element={<RequirePermission permission="cms.write"><AdminToastProvider><CmsEditPage /></AdminToastProvider></RequirePermission>}
+                 />
+             </Route>
+
+             <Route path="*" element={<div className="p-6">404</div>} />
+         </Routes>
+     );
+
+ }
+diff --git a/beay/src/pages/admin/AdminUserManagementPage.tsx b/beay/src/pages/admin/AdminUserManagementPage.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..77337c6195e07ed255a85b85ce2a1889bea6d4e4
+--- /dev/null
++++ b/beay/src/pages/admin/AdminUserManagementPage.tsx
+@@ -0,0 +1,225 @@
++import { useEffect, useMemo, useState } from 'react'
++import { AdminShell } from '../components/AdminShell'
++import {
++  createAdminUser,
++  deleteAdminUser,
++  getAdminUsers,
++  getUserChangeLogs,
++  resetAdminUserPassword,
++  type AdminUser,
++  type UserChangeLog,
++  type UserGender,
++  updateAdminUser,
++} from './userManagement.api'
++
++type UserFormState = {
++  email: string
++  name: string
++  phone: string
++  birthDate: string
++  gender: '' | UserGender
++  address: string
++  isActive: boolean
++}
++
++function mapUserToForm(user: AdminUser): UserFormState {
++  return {
++    email: user.email,
++    name: user.name || '',
++    phone: user.phone || '',
++    birthDate: user.birthDate ? new Date(user.birthDate).toISOString().slice(0, 10) : '',
++    gender: user.gender || '',
++    address: user.address || '',
++    isActive: Boolean(user.isActive),
++  }
++}
++
++export function AdminUserManagementPage() {
++  const [theme, setTheme] = useState<'light' | 'dark'>('light')
++  const [users, setUsers] = useState<AdminUser[]>([])
++  const [logs, setLogs] = useState<UserChangeLog[]>([])
++  const [loading, setLoading] = useState(false)
++  const [search, setSearch] = useState('')
++
++  const [createForm, setCreateForm] = useState<UserFormState>({
++    email: '',
++    name: '',
++    phone: '',
++    birthDate: '',
++    gender: '',
++    address: '',
++    isActive: true,
++  })
++  const [editMap, setEditMap] = useState<Record<number, UserFormState>>({})
++
++  async function loadData() {
++    setLoading(true)
++    try {
++      const [usersRes, logsRes] = await Promise.all([getAdminUsers(), getUserChangeLogs()])
++      setUsers(usersRes)
++      setLogs(logsRes)
++      const next: Record<number, UserFormState> = {}
++      usersRes.forEach((u) => {
++        next[u.id] = mapUserToForm(u)
++      })
++      setEditMap(next)
++    } finally {
++      setLoading(false)
++    }
++  }
++
++  useEffect(() => {
++    void loadData()
++  }, [])
++
++  const filteredUsers = useMemo(() => {
++    const q = search.trim().toLowerCase()
++    if (!q) return users
++    return users.filter((u) => `${u.email} ${u.name || ''} ${u.phone || ''}`.toLowerCase().includes(q))
++  }, [users, search])
++
++  async function onCreateUser() {
++    if (!createForm.email.trim()) return
++    await createAdminUser({
++      email: createForm.email.trim(),
++      name: createForm.name.trim() || undefined,
++      phone: createForm.phone.trim() || undefined,
++      birthDate: createForm.birthDate || undefined,
++      gender: createForm.gender || undefined,
++      address: createForm.address.trim() || undefined,
++      isActive: createForm.isActive,
++    })
++
++    setCreateForm({
++      email: '',
++      name: '',
++      phone: '',
++      birthDate: '',
++      gender: '',
++      address: '',
++      isActive: true,
++    })
++    await loadData()
++  }
++
++  async function onUpdateUser(userId: number) {
++    const row = editMap[userId]
++    if (!row) return
++    await updateAdminUser(userId, {
++      email: row.email.trim(),
++      name: row.name.trim() || undefined,
++      phone: row.phone.trim() || undefined,
++      birthDate: row.birthDate || undefined,
++      gender: row.gender || undefined,
++      address: row.address.trim() || undefined,
++      isActive: row.isActive,
++    })
++    await loadData()
++  }
++
++  async function onDeleteUser(userId: number) {
++    if (!window.confirm('Xác nhận xóa user?')) return
++    await deleteAdminUser(userId)
++    await loadData()
++  }
++
++  async function onResetPassword(userId: number) {
++    await resetAdminUserPassword(userId)
++    alert('Đã reset mật khẩu và gửi email cho user')
++    await loadData()
++  }
++
++  return (
++    <AdminShell
++      theme={theme}
++      onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
++      rangeDays={30}
++      onRangeChange={() => undefined}
++      search={search}
++      onSearchChange={setSearch}
++      onHotkey={() => undefined}
++      onConnectPay={() => undefined}
++      onCreateCourse={() => undefined}
++      onExportMiniOrders={() => undefined}
++    >
++      <section className='card p-4'>
++        <h2 className='text-xl font-bold mb-3'>User Management</h2>
++        <div className='grid md:grid-cols-4 gap-2'>
++          <input className='input' placeholder='Email' value={createForm.email} onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))} />
++          <input className='input' placeholder='Tên' value={createForm.name} onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))} />
++          <input className='input' placeholder='Phone' value={createForm.phone} onChange={(e) => setCreateForm((p) => ({ ...p, phone: e.target.value }))} />
++          <input type='date' className='input' value={createForm.birthDate} onChange={(e) => setCreateForm((p) => ({ ...p, birthDate: e.target.value }))} />
++          <select className='input' value={createForm.gender} onChange={(e) => setCreateForm((p) => ({ ...p, gender: e.target.value as '' | UserGender }))}>
++            <option value=''>Gender</option>
++            <option value='MALE'>MALE</option>
++            <option value='FEMALE'>FEMALE</option>
++            <option value='OTHER'>OTHER</option>
++          </select>
++          <input className='input md:col-span-2' placeholder='Address' value={createForm.address} onChange={(e) => setCreateForm((p) => ({ ...p, address: e.target.value }))} />
++          <label className='flex items-center gap-2 text-sm'>
++            <input type='checkbox' checked={createForm.isActive} onChange={(e) => setCreateForm((p) => ({ ...p, isActive: e.target.checked }))} />
++            isActive
++          </label>
++          <button className='btn btn-accent' onClick={() => void onCreateUser()}>Tạo user (mật khẩu tự tạo + gửi mail)</button>
++        </div>
++      </section>
++
++      <section className='card p-4'>
++        <h3 className='text-lg font-semibold mb-3'>Danh sách user</h3>
++        {loading ? <p>Đang tải...</p> : null}
++        <div className='space-y-4'>
++          {filteredUsers.map((u) => {
++            const row = editMap[u.id]
++            if (!row) return null
++
++            return (
++              <div key={u.id} className='border rounded-xl p-3 grid md:grid-cols-4 gap-2 items-center'>
++                <div className='text-sm text-slate-600'>
++                  <div><b>ID:</b> #{u.id}</div>
++                  <div><b>Role:</b> {u.roleRef?.code || u.role} (roleId: {u.roleId ?? 'null'})</div>
++                  <div><b>RefreshToken:</b> {u.hasRefreshToken ? 'Có' : 'Không'}</div>
++                  <div><b>Created:</b> {u.createdAt ? new Date(u.createdAt).toLocaleString() : '-'}</div>
++                  <div><b>Updated:</b> {u.updatedAt ? new Date(u.updatedAt).toLocaleString() : '-'}</div>
++                </div>
++
++                <input className='input' value={row.email} onChange={(e) => setEditMap((p) => ({ ...p, [u.id]: { ...p[u.id], email: e.target.value } }))} />
++                <input className='input' value={row.name} placeholder='Tên' onChange={(e) => setEditMap((p) => ({ ...p, [u.id]: { ...p[u.id], name: e.target.value } }))} />
++                <input className='input' value={row.phone} placeholder='Phone' onChange={(e) => setEditMap((p) => ({ ...p, [u.id]: { ...p[u.id], phone: e.target.value } }))} />
++
++                <input type='date' className='input' value={row.birthDate} onChange={(e) => setEditMap((p) => ({ ...p, [u.id]: { ...p[u.id], birthDate: e.target.value } }))} />
++                <select className='input' value={row.gender} onChange={(e) => setEditMap((p) => ({ ...p, [u.id]: { ...p[u.id], gender: e.target.value as '' | UserGender } }))}>
++                  <option value=''>Gender</option>
++                  <option value='MALE'>MALE</option>
++                  <option value='FEMALE'>FEMALE</option>
++                  <option value='OTHER'>OTHER</option>
++                </select>
++                <input className='input md:col-span-2' value={row.address} placeholder='Address' onChange={(e) => setEditMap((p) => ({ ...p, [u.id]: { ...p[u.id], address: e.target.value } }))} />
++
++                <label className='flex items-center gap-2 text-sm'>
++                  <input type='checkbox' checked={row.isActive} onChange={(e) => setEditMap((p) => ({ ...p, [u.id]: { ...p[u.id], isActive: e.target.checked } }))} />
++                  isActive
++                </label>
++                <button className='btn' onClick={() => void onUpdateUser(u.id)}>Lưu</button>
++                <button className='btn' onClick={() => void onResetPassword(u.id)}>ResetPassword</button>
++                <button className='btn btn-danger' onClick={() => void onDeleteUser(u.id)}>Xóa</button>
 +              </div>
++            )
++          })}
++        </div>
++      </section>
++
++      <section className='card p-4'>
++        <h3 className='text-lg font-semibold mb-3'>Log thay đổi user</h3>
++        <div className='space-y-2 text-sm'>
++          {logs.map((l) => (
++            <div key={l.id} className='border rounded-lg p-2'>
++              <div className='font-medium'>{l.action} - {l.message}</div>
++              <div className='text-slate-500'>Actor: {l.actorUser?.email || 'system'} | Target: {l.targetUser?.email || '-'} | {new Date(l.createdAt).toLocaleString()}</div>
++              <div className='text-slate-500'>Email cũ: {l.oldEmail || '-'} | Email mới: {l.newEmail || '-'}</div>
 +            </div>
 +          ))}
-         </div>
-+      )}
-
--        <div className="mt-3 flex gap-2">
--          <Link to="/cart" onClick={onClose} className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-center text-sm font-semibold text-white">
--            Xem giỏ hàng
--          </Link>
--        </div>
-+      <div className="mt-4 flex items-center justify-between border-t pt-3 text-sm">
-+        <span>{totalItems} sản phẩm</span>
-+        <span className="font-bold">{money(subtotal)}</span>
-+      </div>
++        </div>
++      </section>
++    </AdminShell>
++  )
++}
+diff --git a/beay/src/pages/admin/userManagement.api.ts b/beay/src/pages/admin/userManagement.api.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..e19dd327bf5ed45b49de9787d05c370bce1b2315
+--- /dev/null
++++ b/beay/src/pages/admin/userManagement.api.ts
+@@ -0,0 +1,51 @@
++import { request } from '../../app/api'
 +
-+      <div className="mt-3 flex gap-2">
-+        <Link to="/cart" onClick={onClose} className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-center text-sm font-semibold text-white">
-+          Xem giỏ hàng
-+        </Link>
-       </div>
--    </Modal>
-+    </div>
-   )
- }
++export type UserGender = 'MALE' | 'FEMALE' | 'OTHER'
++
++export type AdminUser = {
++  id: number
++  email: string
++  name?: string | null
++  role: string
++  roleId: number | null
++  roleRef?: { code: string; scopeType: string } | null
++  createdAt?: string
++  updatedAt?: string
++  isActive: boolean
++  phone?: string | null
++  birthDate?: string | null
++  gender?: UserGender | null
++  address?: string | null
++  hasRefreshToken?: boolean
++}
++
++export type UserChangeLog = {
++  id: number
++  action: string
++  message: string
++  oldEmail?: string | null
++  newEmail?: string | null
++  createdAt: string
++  actorUser?: { email: string } | null
++  targetUser?: { email: string; name?: string | null } | null
++}
++
++export type AdminUserUpsertPayload = {
++  email: string
++  name?: string
++  isActive?: boolean
++  phone?: string
++  birthDate?: string
++  gender?: UserGender
++  address?: string
++}
++
++export const getAdminUsers = () => request<AdminUser[]>('/users')
++export const createAdminUser = (payload: AdminUserUpsertPayload) =>
++  request<AdminUser>('/users', { method: 'POST', body: JSON.stringify(payload) })
++export const updateAdminUser = (id: number, payload: Partial<AdminUserUpsertPayload>) =>
++  request<AdminUser>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
++export const deleteAdminUser = (id: number) => request<{ success: boolean }>(`/users/${id}`, { method: 'DELETE' })
++export const resetAdminUserPassword = (id: number) =>
++  request<{ success: boolean; message: string }>(`/users/${id}/reset-password`, { method: 'POST' })
++export const getUserChangeLogs = () => request<UserChangeLog[]>('/users/change-logs')
+diff --git a/beay/src/pages/components/AdminSidebar.tsx b/beay/src/pages/components/AdminSidebar.tsx
+index db2af5e575611778c83557aeafc265a342621111..41509aa69b688a240b04b36c991118519f1a4109 100644
+--- a/beay/src/pages/components/AdminSidebar.tsx
++++ b/beay/src/pages/components/AdminSidebar.tsx
+@@ -54,50 +54,54 @@ export function AdminSidebar({ open, onClose }: Props) {
+           <a href="#overview" className="flex items-center gap-3 px-4 py-3 rounded-2xl nav-active">
+             <i className="fa-solid fa-gauge-high text-indigo-600" />
+             <span className="font-semibold">Tổng quan</span>
+           </a>
+           <a href="/admin/courses" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+             <i className="fa-solid fa-book-open text-amber-600" />
+             <span className="font-semibold">Khóa học</span>
+           </a>
+           {/* thêm link: sản phẩm /admin/product */}
+           <a href="/admin/product" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+             <i className="fa-solid fa-box text-emerald-700" />
+             <span className="font-semibold">Sản phẩm</span>
+           </a>
+           <a href="/admin/services" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+             <i className="fa-solid fa-spa text-violet-700" />
+             <span className="font-semibold">Dịch vụ</span>
+           </a>
+           <a href="/student" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+             <i className="fa-solid fa-users text-cyan-700" />
+             <span className="font-semibold">Học viên</span>
+           </a>
+           <a href="/admin/orders" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+             <i className="fa-solid fa-bag-shopping text-emerald-700" />
+             <span className="font-semibold">Đơn hàng</span>
+           </a>
++          <a href="/admin/users" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
++            <i className="fa-solid fa-users-gear text-indigo-700" />
++            <span className="font-semibold">User Management</span>
++          </a>
+           {/* Thêm link: CMS /admin/cms */}
+           <a href="/admin/cms" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+             <i className="fa-solid fa-file-lines text-slate-700" />
+             <span className="font-semibold">CMS</span>
+           </a>
+           {/* Thêm link: Đánh giá /admin/reviews */}
+           <a href="/admin/reviews" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+             <i className="fa-solid fa-star text-yellow-700" />
+             <span className="font-semibold">Đánh giá</span>
+           </a>
+
+           <a href="/admin/blog" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+             <i className="fa-solid fa-newspaper text-yellow-700" />
+             <span className="font-semibold">Quản lý blog</span>
+           </a>
+
+           {/*<a href="#settings" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">*/}
+           {/*  <i className="fa-solid fa-gear text-slate-700" />*/}
+           {/*  <span className="font-semibold">Cài đặt</span>*/}
+           {/*</a>*/}
+         </nav>
+
+         {/* <div className="mt-6 card p-4">
+           <div className="flex items-start justify-between gap-4">
+             <div>

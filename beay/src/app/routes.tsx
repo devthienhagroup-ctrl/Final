@@ -17,6 +17,7 @@ import { ReviewsAdminPage } from "../admin/pages/ReviewsAdminPage";
 import { BlogAdminPage } from "../admin/pages/BlogAdminPage";
 import { ProductAdminListPage } from "../admin/pages/ProductAdminListPage";
 import { ProductAdminDetailPage } from "../admin/pages/ProductAdminDetailPage";
+import { AdminUserManagementPage } from '../pages/admin/AdminUserManagementPage'
 
 
 
@@ -57,6 +58,7 @@ export function AppRoutes() {
                 <Route path="/admin/blog" element={<RequirePermission permission="blogs.read"><BlogAdminPage /></RequirePermission>} />
                 <Route path="/admin/product" element={<RequirePermission permission="products.read"><ProductAdminListPage /></RequirePermission>} />
                 <Route path="/admin/product/:productId" element={<RequirePermission permission="products.read"><ProductAdminDetailPage /></RequirePermission>} />
+                <Route path="/admin/users" element={<RequirePermission permission="role.read"><AdminUserManagementPage /></RequirePermission>} />
                 <Route path="/student" element={<RequirePermission permission="my_courses.read"><StudentPortalPage /></RequirePermission>} />
                 <Route path="/instructor" element={<RequirePermission permission="courses.write"><InstructorDashboardPage /></RequirePermission>} />
                 <Route path="/student/courses:id" element={<RequirePermission permission="my_courses.read"><StudentCourseDetailPage /></RequirePermission>} />

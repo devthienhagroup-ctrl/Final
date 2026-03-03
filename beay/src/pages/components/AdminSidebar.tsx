@@ -76,6 +76,10 @@ export function AdminSidebar({ open, onClose }: Props) {
             <i className="fa-solid fa-bag-shopping text-emerald-700" />
             <span className="font-semibold">Đơn hàng</span>
           </a>
+          <a href="/admin/users" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+            <i className="fa-solid fa-users-gear text-indigo-700" />
+            <span className="font-semibold">User Management</span>
+          </a>
           {/* Thêm link: CMS /admin/cms */}
           <a href="/admin/cms" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-file-lines text-slate-700" />

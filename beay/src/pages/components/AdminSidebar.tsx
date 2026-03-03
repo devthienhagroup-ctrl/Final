@@ -6,7 +6,12 @@ type Props = {
 };
 
 export function AdminSidebar({ open, onClose }: Props) {
-  const { can } = useAuth();
+  const { can, logout } = useAuth();
+
+  function handleLogout() {
+    onClose();
+    logout();
+  }
 
   return (
     <aside
@@ -35,7 +40,9 @@ export function AdminSidebar({ open, onClose }: Props) {
             <span className="chip"><i className="fa-solid fa-circle text-emerald-500 mr-1" /> Online</span>
           </div>
         </div>
-        <button className="w-full text-center btn "><i className="fa-solid fa-arrow-right-from-bracket fa-rotate-180"></i> Đăng xuất</button>
+        <button type="button" className="w-full text-center btn" onClick={handleLogout}>
+          <i className="fa-solid fa-arrow-right-from-bracket fa-rotate-180"></i> Đăng xuất
+        </button>
 
       </div>
 

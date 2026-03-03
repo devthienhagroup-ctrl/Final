@@ -16,7 +16,7 @@ import { FileInterceptor } from '@nestjs/platform-express'
 import { memoryStorage } from 'multer'
 import { CreateCourseDto } from './dto/create-course.dto'
 import { UpdateCourseDto } from './dto/update-course.dto'
-import { CurrentUser } from '../auth/decorators/current-user.decorator'
+import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
 import { AccessTokenGuard } from '../auth/guards/access-token.guard'
 import { OptionalAccessTokenGuard } from '../auth/guards/optional-access-token.guard'
 import { PermissionGuard } from '../auth/guards/permission.guard'
@@ -24,9 +24,6 @@ import { Permissions } from '../auth/decorators/permissions.decorator'
 import { CoursesService } from './courses.service'
 import { CourseQueryDto } from './dto/course-query.dto'
 import { UpsertCourseReviewDto } from './dto/upsert-course-review.dto'
-
-type JwtUser = { sub: number; role: string }
-
 
 const parseMultipartData = (input: Record<string, any>) => {
   const data = { ...input }
@@ -94,6 +91,23 @@ export class CoursesController {
   @Get(':id/reviews')
   listReviews(@Param('id', ParseIntPipe) id: number) {
     return this.courses.listReviews(id)
+  }
+
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('courses.write')
+  @Delete(':id/reviews/:reviewId')
+  async deleteReview(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('reviewId', ParseIntPipe) reviewId: number,
+  ) {
+    return this.courses.deleteReview(id, reviewId)
+  }
+
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('courses.write')
+  @Get(':id/students')
+  listStudents(@Param('id', ParseIntPipe) id: number) {
+    return this.courses.listStudents(id)
   }
 
   @UseGuards(AccessTokenGuard)

@@ -38,6 +38,7 @@ export const instructorCoursesApi: CourseManagementApi = {
   updateLesson: (lessonId: number, body: Partial<LessonPayload>) => patch<LessonAdmin>(`/instructor/lessons/${lessonId}`, body, { auth: true }),
   deleteLesson: (lessonId: number) => del<{ id: number }>(`/instructor/lessons/${lessonId}`, { auth: true }),
   listCourseReviews: (courseId: number) => get(`/instructor/courses/${courseId}/reviews`, { auth: true }),
+  deleteCourseReview: (courseId: number, reviewId: number) => del<{ id: number }>(`/instructor/courses/${courseId}/reviews/${reviewId}`, { auth: true }),
   listCourseStudents: (courseId: number) => get(`/instructor/courses/${courseId}/students`, { auth: true }),
   uploadModuleMedia: (lessonId, moduleId, file, type, order) => {
     const body = new FormData()

@@ -1,352 +1,554 @@
-diff --git a/student/src/pages/admin/StudentCourseDetailPage.tsx b/student/src/pages/admin/StudentCourseDetailPage.tsx
-index 468bbe5209cdab47b5bb4def8a4a8e9fabef03a5..760c82621aa341176a44995b787d01f3603e0f51 100644
---- a/student/src/pages/admin/StudentCourseDetailPage.tsx
-+++ b/student/src/pages/admin/StudentCourseDetailPage.tsx
-@@ -132,125 +132,136 @@ const i18n: Record<Lang, Record<string, string>> = {
-     defaultCourseSummary: "Player + Lehrplan + Quiz + Aufgaben.",
-     beginner: "Anfänger",
-     lessonLabel: "Lektion",
-     noLessonDescription: "Keine Beschreibung.",
-     noComment: "(Kein Kommentar)",
-     reviewPlaceholder: "Teilen Sie Ihr Feedback...",
-     toastNotice: "Hinweis",
-     toastNoLesson: "Keine Lektion zum Starten verfügbar.",
-     toastSuccess: "Erfolg",
-     toastResetSuccess: "Der Kursfortschritt wurde zurückgesetzt.",
-     toastError: "Fehler",
-     toastResetFail: "Kursfortschritt konnte nicht zurückgesetzt werden.",
-     toastReviewSuccess: "Kursbewertung gesendet.",
-     courseFallback: "Kurs",
-     minute: "Min",
-     hourUnit: "Std",
-     cannotLoadCourse: "Kursdetails können nicht geladen werden.",
-     logout: "Abmelden",
-   },
- };
+diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
+index 1f668d3505850147d3c95ba59e28b3ebfa6c7081..fc1b60aba2d74847e89931626610fbe0daba6340 100644
+--- a/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/courses/courses.controller.ts
+@@ -1,55 +1,52 @@
+ import {
+   Body,
+   Controller,
+   Delete,
+   Get,
+   Param,
+   ParseIntPipe,
+   Patch,
+   Post,
+   Query,
+   UploadedFile,
+   UseGuards,
+   UseInterceptors,
+ } from '@nestjs/common'
+ import { FileInterceptor } from '@nestjs/platform-express'
+ import { memoryStorage } from 'multer'
+ import { CreateCourseDto } from './dto/create-course.dto'
+ import { UpdateCourseDto } from './dto/update-course.dto'
+-import { CurrentUser } from '../auth/decorators/current-user.decorator'
++import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
+ import { AccessTokenGuard } from '../auth/guards/access-token.guard'
+ import { OptionalAccessTokenGuard } from '../auth/guards/optional-access-token.guard'
+ import { PermissionGuard } from '../auth/guards/permission.guard'
+ import { Permissions } from '../auth/decorators/permissions.decorator'
+ import { CoursesService } from './courses.service'
+ import { CourseQueryDto } from './dto/course-query.dto'
+ import { UpsertCourseReviewDto } from './dto/upsert-course-review.dto'
 
- function sortLessons(ls: ApiLesson[]) {
-   return [...ls].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id - b.id);
- }
-
--function reviewStorageKey(courseId: number) {
--  return `student_course_review_${courseId}`;
--}
+-type JwtUser = { sub: number; role: string }
 -
- export function StudentCourseDetailPage() {
-   const nav = useNavigate();
--  const { logout, can } = useAuth();
-+  const { logout, can, claims } = useAuth();
-   const canAccessDashboard = can("dashboard.admin");
-   const { id } = useParams();
-   const [sp, setSp] = useSearchParams();
-   const { toast } = useToast();
-
-   const courseId = Number(id || 0);
-   const lang = normalizeLang(sp.get("lang"));
-   const lessonIdFromQuery = Number(sp.get("lessonId") || 0);
-   const t = i18n[lang];
-
-   const [loading, setLoading] = useState(true);
-   const [err, setErr] = useState<string | null>(null);
-   const [course, setCourse] = useState<ApiCourseDetail | null>(null);
-   const [lessons, setLessons] = useState<ApiLesson[]>([]);
-   const [progress, setProgress] = useState<ApiCourseProgress | null>(null);
-   const [reviews, setReviews] = useState<ApiCourseReview[]>([]);
-   const [activeLesson, setActiveLesson] = useState<ApiLessonDetail | null>(null);
-   const [rating, setRating] = useState(5);
-   const [comment, setComment] = useState("");
-   const [myReview, setMyReview] = useState<RatingState | null>(null);
-   const [openModules, setOpenModules] = useState<Record<number, boolean>>({});
-   const [isResetting, setIsResetting] = useState(false);
-+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-+
-+  function detectMyReview(rows: ApiCourseReview[]) {
-+    const email = (claims?.email || "").trim().toLowerCase();
-+    if (!email) return null;
-+    return rows.find((item) => (item.customerName || "").trim().toLowerCase() === email) || null;
-+  }
-
-   function buildDefaultOpenModules(lesson: ApiLessonDetail | null) {
-     if (!lesson?.modules?.length) return {};
-     const [firstModule] = lesson.modules;
-     return firstModule ? { [firstModule.id]: true } : {};
-   }
-
-   async function loadData(targetLessonId?: number) {
-     if (!courseId) return;
-     setLoading(true);
-     setErr(null);
-     try {
-       const [courseData, progressData, lessonRows, reviewRows] = await Promise.all([
-         studentApi.courseDetail(courseId, lang),
-         studentApi.courseProgress(courseId),
-         studentApi.courseLessons(courseId, lang),
-         studentApi.courseReviews(courseId),
-       ]);
-       const sortedLessons = sortLessons(lessonRows);
-       const fallbackLessonId = sortedLessons[Math.min(progressData.completedLessons ?? 0, Math.max(0, sortedLessons.length - 1))]?.id;
-       const selectedLessonId = targetLessonId || lessonIdFromQuery || fallbackLessonId || sortedLessons[0]?.id;
-
-       setCourse(courseData);
-       setProgress(progressData);
-       setLessons(sortedLessons);
-       setReviews(reviewRows);
-+      const foundMyReview = detectMyReview(reviewRows);
-+      if (foundMyReview) {
-+        setMyReview({
-+          stars: Number(foundMyReview.stars) || 5,
-+          comment: foundMyReview.comment || "",
-+          createdAt: foundMyReview.createdAt || new Date().toISOString(),
-+        });
-+      } else {
-+        setMyReview(null);
-+      }
-
-       if (selectedLessonId) {
-         const lessonDetail = await studentApi.lessonDetail(selectedLessonId, lang);
-         setActiveLesson(lessonDetail);
-         setOpenModules(buildDefaultOpenModules(lessonDetail));
-       } else {
-         setActiveLesson(null);
-         setOpenModules({});
+-
+ const parseMultipartData = (input: Record<string, any>) => {
+   const data = { ...input }
+   for (const [key, value] of Object.entries(data)) {
+     if (typeof value !== 'string') continue
+     const trimmed = value.trim()
+     if (trimmed === 'true' || trimmed === 'false') {
+       data[key] = trimmed === 'true'
+       continue
+     }
+     if (/^-?\d+(\.\d+)?$/.test(trimmed) && key !== 'slug') {
+       data[key] = Number(trimmed)
+       continue
+     }
+     if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+       try {
+         data[key] = JSON.parse(trimmed)
+       } catch {
+         data[key] = value
        }
-     } catch (e: any) {
-       setErr(e?.message || t.cannotLoadCourse);
-     } finally {
-       setLoading(false);
      }
    }
-
-   useEffect(() => {
-     void loadData(lessonIdFromQuery || undefined);
--    const raw = localStorage.getItem(reviewStorageKey(courseId));
--    setMyReview(raw ? (JSON.parse(raw) as RatingState) : null);
-     // eslint-disable-next-line react-hooks/exhaustive-deps
-   }, [courseId, lang, lessonIdFromQuery]);
-
-   async function openLesson(lessonId: number) {
-     const next = new URLSearchParams(sp);
-     next.set("lessonId", String(lessonId));
-     setSp(next);
-     const lessonDetail = await studentApi.lessonDetail(lessonId, lang);
-     setActiveLesson(lessonDetail);
-     setOpenModules(buildDefaultOpenModules(lessonDetail));
-   }
-
-   function changeLang(nextLang: Lang) {
-     const next = new URLSearchParams(sp);
-     next.set("lang", nextLang);
-     setSp(next);
-   }
-
-   function handleLogout() {
-     logout();
-     nav("/login", { replace: true });
-   }
-
-   async function markVideoDone(video: ApiLessonVideo) {
-     if (!activeLesson) return;
-@@ -265,56 +276,74 @@ export function StudentCourseDetailPage() {
-     }
-     nav(`/student/lessons/${activeLesson.id}?courseId=${courseId}&lang=${lang}`);
-   }
-
-   async function resetProgress() {
-     if (!lessons.length) return;
-     setIsResetting(true);
-     try {
-       for (const lesson of lessons) {
-         const lessonDetail = await studentApi.lessonDetail(lesson.id, lang);
-         for (const module of lessonDetail.modules || []) {
-           for (const video of module.videos || []) {
-             await studentApi.updateVideoProgress(lesson.id, video.id, 0, false);
-           }
-         }
-       }
-       await loadData(activeLesson?.id);
-       toast(t.toastSuccess, t.toastResetSuccess);
-     } catch (e: any) {
-       toast(t.toastError, e?.message || t.toastResetFail);
-     } finally {
-       setIsResetting(false);
-     }
-   }
-
--  function submitReview() {
--    if (myReview) return;
--    const payload: RatingState = { stars: rating, comment: comment.trim(), createdAt: new Date().toISOString() };
--    localStorage.setItem(reviewStorageKey(courseId), JSON.stringify(payload));
--    setMyReview(payload);
--    toast(t.toastSuccess, t.toastReviewSuccess);
-+  async function submitReview() {
-+    if (myReview || isSubmittingReview) return;
-+    setIsSubmittingReview(true);
-+    try {
-+      const saved = await studentApi.submitCourseReview(courseId, {
-+        stars: rating,
-+        comment: comment.trim(),
-+      });
-+
-+      const payload: RatingState = {
-+        stars: Number(saved.stars) || rating,
-+        comment: saved.comment || comment.trim(),
-+        createdAt: saved.createdAt || new Date().toISOString(),
-+      };
-+      setMyReview(payload);
-+      setReviews((prev) => [saved, ...prev.filter((item) => item.id !== saved.id)]);
-+      setCourse((prev) => (prev ? { ...prev, ratingAvg: saved.ratingAvg ?? prev.ratingAvg, ratingCount: saved.ratingCount ?? prev.ratingCount } : prev));
-+      setComment("");
-+      toast(t.toastSuccess, t.toastReviewSuccess);
-+    } catch (e: any) {
-+      toast(t.toastError, e?.message || t.toastError);
-+    } finally {
-+      setIsSubmittingReview(false);
-+    }
-   }
-
-   const lessonProgressPercent = useMemo(() => {
-     if (!activeLesson?.modules?.length) return 0;
-     const done = activeLesson.modules.filter((m) => m.progress?.completed).length;
-     return Math.round((done / activeLesson.modules.length) * 100);
-   }, [activeLesson]);
-
-   const ratingAvgFromReviews = useMemo(() => {
-     if (!reviews.length) return Number(course?.ratingAvg || 0);
-     const total = reviews.reduce((sum, item) => sum + (Number(item.stars) || 0), 0);
-     return Number((total / reviews.length).toFixed(1));
-   }, [reviews, course?.ratingAvg]);
-
-   const displayStudyTime = useMemo(() => {
-     const raw = String(course?.time || "").trim();
-     const parsed = Number(raw.replace(",", ".").replace(/[^0-9.]/g, ""));
-
-     if (Number.isFinite(parsed) && parsed > 0) {
-       return `${parsed % 1 === 0 ? parsed.toFixed(0) : parsed.toFixed(1)} ${t.hourUnit}`;
-     }
-
-     return `0 ${t.hourUnit}`;
-   }, [course?.time, t.hourUnit]);
-
-@@ -454,35 +483,35 @@ export function StudentCourseDetailPage() {
-                     </button>
-                   );
-                 })}
-                 {!lessons.length && <div className="text-sm text-slate-500">{t.noLesson}</div>}
-               </div>
-             </div>
-
-             <div className="rounded-[20px] border border-white/80 bg-white/95 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
-               <h3 className="text-lg font-black">{t.reviewTitle}</h3>
-               {myReview ? (
-                 <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800 ring-1 ring-emerald-200">
-                   <div>{t.reviewDone}</div>
-                   <div className="mt-1">⭐ {myReview.stars}/5 • {myReview.comment || t.noComment}</div>
-                 </div>
-               ) : (
-                 <>
-                   <div className="mt-2 text-xs text-slate-500">{t.reviewOnce}</div>
-                   <div className="mt-3 flex gap-2">
-                     {[1, 2, 3, 4, 5].map((star) => (
-                       <button key={star} className={`h-9 w-9 rounded-lg ring-1 ${rating >= star ? "bg-amber-100 text-amber-700 ring-amber-200" : "bg-slate-100 text-slate-500 ring-slate-200"}`} onClick={() => setRating(star)}>
-                         <i className="fa-solid fa-star" />
-                       </button>
-                     ))}
-                   </div>
-                   <textarea className="mt-3 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-300" rows={3} placeholder={t.reviewPlaceholder} value={comment} onChange={(e) => setComment(e.target.value)} />
--                  <button className="btn btn-primary mt-3 w-full" onClick={submitReview}>{t.submit}</button>
-+                  <button className="btn btn-primary mt-3 w-full" onClick={() => void submitReview()} disabled={isSubmittingReview}>{isSubmittingReview ? "..." : t.submit}</button>
-                 </>
-               )}
-             </div>
-           </div>
-         </section>
-       </main>
-     </div>
-   );
+   return data
  }
-diff --git a/student/src/pages/student/student.api.ts b/student/src/pages/student/student.api.ts
-index d22bddbfefe29dedf8c04cceef638e320b596ca9..1c7a0e35fd5eceb716edac5c11d0e8c7865dbc44 100644
---- a/student/src/pages/student/student.api.ts
-+++ b/student/src/pages/student/student.api.ts
-@@ -53,50 +53,52 @@ export type ApiMyCourse = {
-     title: string;
-     price: number;
-     _count?: {
-       lessons?: number;
-     };
-   };
-   progress?: ApiCourseProgress;
- };
 
- export type ApiLearningStats = {
-   activeCourses: number;
-   pendingCourses: number;
-   canceledCourses: number;
-   totalLessons: number;
-   completedLessons: number;
-   averageProgress: number;
- };
+ @Controller('courses')
+@@ -74,50 +71,67 @@ export class CoursesController {
 
- export type ApiCourseReview = {
-   id: number;
-   stars: number;
-   comment?: string | null;
-   customerName?: string;
-   createdAt?: string;
-   updatedAt?: string;
-+  ratingAvg?: number;
-+  ratingCount?: number;
- };
+   @Get('topics')
+   @UseGuards(OptionalAccessTokenGuard)
+   listTopics(@CurrentUser() user: JwtUser | null, @Query('lang') lang?: string) {
+     return this.courses.listTopics(lang, user)
+   }
 
- export type ApiLessonVideo = {
-   id: number;
-   title: string;
-   localizedTitle?: string;
-   description?: string | null;
-   localizedDescription?: string | null;
-   playbackUrl?: string;
-   durationSec?: number;
-   progress?: { watchedSec: number; durationSec: number; completed: boolean };
- };
+   @UseGuards(AccessTokenGuard)
+   @Get(':id')
+   findOne(@Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
+     return this.courses.findOne(id, lang)
+   }
 
- export type ApiLessonModule = {
-   id: number;
-   title: string;
-   localizedTitle?: string;
-   description?: string | null;
-   localizedDescription?: string | null;
-   videos: ApiLessonVideo[];
-   progress?: { watchedSec: number; durationSec: number; percent: number; completed: boolean };
- };
+   @UseGuards(AccessTokenGuard)
+   @Get(':id/lessons')
+   listLessons(@CurrentUser() user: any, @Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
+     return this.courses.listLessons(user, id, lang)
+   }
 
- export type ApiLessonDetail = {
-   id: number;
-@@ -104,26 +106,28 @@ export type ApiLessonDetail = {
-   title: string;
-   localizedTitle?: string;
-   description?: string | null;
-   localizedDescription?: string | null;
-   modules?: ApiLessonModule[];
- };
+   @UseGuards(AccessTokenGuard)
+   @Get(':id/reviews')
+   listReviews(@Param('id', ParseIntPipe) id: number) {
+     return this.courses.listReviews(id)
+   }
 
- export const studentApi = {
-   myCourses: (lang = "vi") => request<ApiMyCourse[]>(`/me/courses?lang=${encodeURIComponent(lang)}`),
-   courseDetail: (courseId: number, lang = "vi") => request<ApiCourseDetail>(`/courses/${courseId}?lang=${encodeURIComponent(lang)}`),
-   courseLessons: (courseId: number, lang = "vi") => request<ApiLesson[]>(`/courses/${courseId}/lessons?lang=${encodeURIComponent(lang)}`),
-   courseLessonsOutline: (courseId: number, lang = "vi") => request<ApiLesson[]>(`/courses/${courseId}/lessons-outline?lang=${encodeURIComponent(lang)}`),
-   courseProgress: (courseId: number) => request<ApiCourseProgress>(`/me/courses/${courseId}/progress`),
-   lessonDetail: (lessonId: number, lang = "vi") => request<ApiLessonDetail>(`/lessons/${lessonId}?lang=${encodeURIComponent(lang)}`),
-   updateVideoProgress: (lessonId: number, videoId: number, watchedSec: number, completed = false) =>
-     request(`/lessons/${lessonId}/videos/${videoId}/progress`, {
-       method: "POST",
-       body: { watchedSec, completed },
-     }),
-   completeModule: (lessonId: number, moduleId: number) =>
-     request(`/lessons/${lessonId}/modules/${moduleId}/complete`, { method: "POST" }),
-   cancelCourse: (courseId: number) => request<{ id: number; status: EnrollmentStatus }>(`/courses/${courseId}/cancel`, { method: "POST" }),
-   myProgress: () => request<Array<{ lessonId: number; lesson?: { courseId?: number; title?: string } }>>(`/me/progress`),
-   learningStats: () => request<ApiLearningStats>(`/me/courses/statistics`),
-   courseReviews: (courseId: number) => request<ApiCourseReview[]>(`/courses/${courseId}/reviews`),
-+  submitCourseReview: (courseId: number, body: { stars: number; comment?: string; customerName?: string }) =>
-+    request<ApiCourseReview>(`/courses/${courseId}/reviews`, { method: "POST", body }),
- };
++  @UseGuards(AccessTokenGuard, PermissionGuard)
++  @Permissions('courses.write')
++  @Delete(':id/reviews/:reviewId')
++  async deleteReview(
++    @Param('id', ParseIntPipe) id: number,
++    @Param('reviewId', ParseIntPipe) reviewId: number,
++  ) {
++    return this.courses.deleteReview(id, reviewId)
++  }
++
++  @UseGuards(AccessTokenGuard, PermissionGuard)
++  @Permissions('courses.write')
++  @Get(':id/students')
++  listStudents(@Param('id', ParseIntPipe) id: number) {
++    return this.courses.listStudents(id)
++  }
++
+   @UseGuards(AccessTokenGuard)
+   @Post(':id/reviews')
+   upsertReview(
+     @CurrentUser() user: JwtUser,
+     @Param('id', ParseIntPipe) id: number,
+     @Body() dto: UpsertCourseReviewDto,
+   ) {
+     return this.courses.upsertReview(user, id, dto)
+   }
+
+   @UseGuards(AccessTokenGuard)
+   @Get(':id/lessons/:lessonId')
+   getLesson(
+     @CurrentUser() user: any,
+     @Param('id', ParseIntPipe) courseId: number,
+     @Param('lessonId', ParseIntPipe) lessonId: number,
+   ) {
+     return this.courses.getLessonDetail(user, courseId, lessonId)
+   }
+
+   @UseGuards(AccessTokenGuard, PermissionGuard)
+   @Permissions('courses.write')
+   @Post('thumbnail/upload')
+   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+   uploadThumbnail(@UploadedFile() file?: any) {
+diff --git a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
+index 3e0b16d8a8ecbc327f755938ee29919d816b9920..547c5684b8c2a51d0c64e0bbbb8c79c338242f3c 100644
+--- a/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
++++ b/backend/ayanavitabackend/app/api/src/courses/courses.service.ts
+@@ -1,31 +1,31 @@
+ import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+ import { PrismaService } from '../prisma/prisma.service'
+ import { EnrollmentsService } from '../enrollments/enrollments.service'
+ import { CreateCourseDto } from './dto/create-course.dto'
+ import { UpdateCourseDto } from './dto/update-course.dto'
+-import { Prisma, ProgressStatus } from '@prisma/client'
++import { CourseAccessStatus, Prisma, ProgressStatus } from '@prisma/client'
+ import { CourseQueryDto } from './dto/course-query.dto'
+ import { CoursesMediaService } from './courses-media.service'
+ import { UpsertCourseReviewDto } from './dto/upsert-course-review.dto'
+ import { JwtUser } from '../auth/decorators/current-user.decorator'
+ import { hasAnyPermission } from '../auth/permission-utils'
+
+ type Locale = 'vi' | 'en' | 'de'
+ type MultiLingualStringList = Record<Locale, string[]>
+
+ @Injectable()
+ export class CoursesService {
+   private canManageCourseContent(user: JwtUser | null | undefined) {
+     return hasAnyPermission(user, ['courses.write', 'courses.manage', 'courses.publish'])
+   }
+
+   constructor(
+     private readonly prisma: PrismaService,
+     private readonly enrollments: EnrollmentsService,
+     private readonly courseMedia: CoursesMediaService,
+   ) {}
+
+   private readonly baseCourseSelect = {
+     id: true,
+     topicId: true,
+     title: true,
+@@ -390,56 +390,145 @@ export class CoursesService {
+   }
+
+   async listReviews(courseId: number) {
+     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } })
+     if (!course) throw new NotFoundException('Course not found')
+
+     const rows = await this.prisma.courseReview.findMany({
+       where: { courseId },
+       orderBy: { createdAt: 'desc' },
+       take: 50,
+       select: {
+         id: true,
+         stars: true,
+         comment: true,
+         customerName: true,
+         createdAt: true,
+         updatedAt: true,
+         user: { select: { name: true, email: true } },
+       },
+     })
+
+     return rows.map((row) => ({
+       id: row.id,
+       stars: row.stars,
+       comment: row.comment,
++      userName: row.user?.name || null,
++      email: row.user?.email || null,
+       customerName: row.customerName || row.user?.name || row.user?.email || 'Học viên',
+       createdAt: row.createdAt,
+       updatedAt: row.updatedAt,
+     }))
+   }
+
++  async deleteReview(courseId: number, reviewId: number) {
++    const course = await this.prisma.course.findUnique({
++      where: { id: courseId },
++      select: { id: true },
++    })
++    if (!course) throw new NotFoundException('Course not found')
++
++    return this.prisma.$transaction(async (tx) => {
++      const review = await tx.courseReview.findFirst({
++        where: { id: reviewId, courseId },
++        select: { id: true },
++      })
++      if (!review) throw new NotFoundException('Review not found')
++
++      await tx.courseReview.delete({ where: { id: reviewId } })
++
++      const aggregate = await tx.courseReview.aggregate({
++        where: { courseId },
++        _avg: { stars: true },
++        _count: { id: true },
++      })
++
++      await tx.course.update({
++        where: { id: courseId },
++        data: {
++          ratingAvg: Number((aggregate._avg.stars || 0).toFixed(1)),
++          ratingCount: aggregate._count.id,
++        },
++        select: { id: true },
++      })
++
++      return { id: reviewId }
++    })
++  }
++
++  async listStudents(courseId: number) {
++    const course = await this.prisma.course.findUnique({
++      where: { id: courseId },
++      select: { id: true },
++    })
++    if (!course) throw new NotFoundException('Course not found')
++
++    const accesses = await this.prisma.courseAccess.findMany({
++      where: { courseId, status: CourseAccessStatus.ACTIVE },
++      select: {
++        id: true,
++        userId: true,
++        grantedAt: true,
++        user: { select: { name: true, email: true, phone: true } },
++      },
++      orderBy: { grantedAt: 'desc' },
++    })
++
++    if (!accesses.length) return []
++
++    const userIds = accesses.map((item) => item.userId)
++    const totalLessons = await this.prisma.lesson.count({ where: { courseId, published: true } })
++
++    const progressRows = await this.prisma.lessonProgress.findMany({
++      where: {
++        userId: { in: userIds },
++        status: ProgressStatus.COMPLETED,
++        lesson: { courseId, published: true },
++      },
++      select: { userId: true },
++    })
++
++    const completedByUser = new Map<number, number>()
++    for (const row of progressRows) {
++      completedByUser.set(row.userId, (completedByUser.get(row.userId) || 0) + 1)
++    }
++
++    return accesses.map((item) => {
++      const completedLessons = completedByUser.get(item.userId) || 0
++      const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0
++      return {
++        id: item.id,
++        userId: item.userId,
++        name: item.user?.name || null,
++        email: item.user?.email || null,
++        phone: item.user?.phone || null,
++        enrolledAt: item.grantedAt,
++        progressPercent,
++      }
++    })
++  }
++
+   async upsertReview(user: JwtUser, courseId: number, dto: UpsertCourseReviewDto) {
+     const course = await this.prisma.course.findUnique({
+       where: { id: courseId },
+       select: { id: true, ratingAvg: true, ratingCount: true },
+     })
+     if (!course) throw new NotFoundException('Course not found')
+     await this.enrollments.assertEnrolledOrAdmin(user, courseId)
+
+     const profile = await this.prisma.user.findUnique({
+       where: { id: user.sub },
+       select: { name: true, email: true },
+     })
+
+     const customerName = dto.customerName?.trim() || profile?.name || profile?.email || 'Học viên'
+     const comment = dto.comment?.trim() || null
+
+     const existing = await this.prisma.courseReview.findFirst({
+       where: { courseId, userId: user.sub },
+       select: { id: true },
+     })
+
+     return this.prisma.$transaction(async (tx) => {
+       const review = existing
+         ? await tx.courseReview.update({
+             where: { id: existing.id },
+diff --git a/backend/ayanavitabackend/app/api/src/instructor/instructor.controller.ts b/backend/ayanavitabackend/app/api/src/instructor/instructor.controller.ts
+index f9ed092321a7a869af791806ef24005823e65780..102a5df6480130736c4cd77c92567aeea7ed368a 100644
+--- a/backend/ayanavitabackend/app/api/src/instructor/instructor.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/instructor/instructor.controller.ts
+@@ -41,50 +41,73 @@ export class InstructorController {
+     private readonly courseTopics: CourseTopicsService,
+   ) {}
+
+   @Get('course-topics')
+   listTopics() {
+     return this.courseTopics.list()
+   }
+
+   @Get('courses')
+   findCourses(@CurrentUser() user: JwtUser, @Query() query: CourseQueryDto) {
+     return this.courses.findAllByCreator(query, user.sub)
+   }
+
+   @Get('courses/:id')
+   async findCourse(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
+     await this.courses.assertCreator(id, user.sub)
+     return this.courses.findOne(id, lang)
+   }
+
+   @Get('courses/:id/lessons-outline')
+   async lessonsOutline(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
+     await this.courses.assertCreator(id, user.sub)
+     return this.courses.lessonsOutline(user, id, lang)
+   }
+
++
++  @Get('courses/:id/reviews')
++  async listCourseReviews(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
++    await this.courses.assertCreator(id, user.sub)
++    return this.courses.listReviews(id)
++  }
++
++  @Delete('courses/:id/reviews/:reviewId')
++  async deleteCourseReview(
++    @CurrentUser() user: JwtUser,
++    @Param('id', ParseIntPipe) id: number,
++    @Param('reviewId', ParseIntPipe) reviewId: number,
++  ) {
++    await this.courses.assertCreator(id, user.sub)
++    return this.courses.deleteReview(id, reviewId)
++  }
++
++  @Get('courses/:id/students')
++  async listCourseStudents(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
++    await this.courses.assertCreator(id, user.sub)
++    return this.courses.listStudents(id)
++  }
++
+   @Post('courses')
+   @UseInterceptors(FileInterceptor('thumbnail', { storage: memoryStorage() }))
+   createCourse(@CurrentUser() user: JwtUser, @Body() rawData: any, @UploadedFile() thumbnail?: any) {
+     return this.courses.create(parseMultipartData(rawData) as CreateCourseDto, thumbnail, user.sub)
+   }
+
+   @Patch('courses/:id')
+   @UseInterceptors(FileInterceptor('thumbnail', { storage: memoryStorage() }))
+   async updateCourse(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Body() rawData: any, @UploadedFile() thumbnail?: any) {
+     await this.courses.assertCreator(id, user.sub)
+     return this.courses.update(id, parseMultipartData(rawData) as UpdateCourseDto, thumbnail)
+   }
+
+   @Delete('courses/:id')
+   async deleteCourse(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+     await this.courses.assertCreator(id, user.sub)
+     return this.courses.remove(id)
+   }
+
+   @Get('lessons/:id')
+   async lessonDetail(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
+     const lesson = await this.prisma.lesson.findUnique({ where: { id }, select: { id: true, courseId: true } })
+     if (!lesson) return this.lessons.findOne(user, id, lang)
+     await this.courses.assertCreator(lesson.courseId, user.sub)
+     return this.lessons.findOne(user, id, lang)
+diff --git a/beay/src/api/adminCourses.api.ts b/beay/src/api/adminCourses.api.ts
+index 44b0f1696eb7073a90d93fb3e9b5f615b8963d16..86dc62a717daf49142976eba244615f62848651f 100644
+--- a/beay/src/api/adminCourses.api.ts
++++ b/beay/src/api/adminCourses.api.ts
+@@ -197,36 +197,36 @@ export const adminCoursesApi = {
+   updateCourse: (id: number, body: Partial<CoursePayload> | FormData) => patch<CourseAdmin>(`/courses/${id}`, body, { auth: true }),
+   deleteCourse: (id: number) => del<{ id: number }>(`/courses/${id}`, { auth: true }),
+   getCourseDetail: (id: number, lang?: string) => {
+     const qs = new URLSearchParams()
+     if (lang) qs.set('lang', lang)
+     const suffix = qs.toString() ? `?${qs.toString()}` : ''
+     return get<CourseDetailAdmin>(`/courses/${id}${suffix}`, { auth: true })
+   },
+
+   listCourseLessons: (courseId: number, lang?: string) => {
+     const qs = new URLSearchParams()
+     if (lang) qs.set('lang', lang)
+     const suffix = qs.toString() ? `?${qs.toString()}` : ''
+     return get<LessonOutlineAdmin[]>(`/courses/${courseId}/lessons-outline${suffix}`, { auth: true })
+   },
+   getLessonDetail: (lessonId: number, lang?: string) => {
+     const qs = new URLSearchParams()
+     if (lang) qs.set('lang', lang)
+     const suffix = qs.toString() ? `?${qs.toString()}` : ''
+     return get<LessonDetailAdmin>(`/lessons/${lessonId}${suffix}`, { auth: true })
+   },
+   createLesson: (courseId: number, body: LessonPayload) => post<LessonAdmin>(`/courses/${courseId}/lessons`, body, { auth: true }),
+   updateLesson: (lessonId: number, body: Partial<LessonPayload>) => patch<LessonAdmin>(`/lessons/${lessonId}`, body, { auth: true }),
+   deleteLesson: (lessonId: number) => del<{ id: number }>(`/lessons/${lessonId}`, { auth: true }),
+   listCourseReviews: (courseId: number) => get<CourseReviewAdmin[]>(`/courses/${courseId}/reviews`, { auth: true }),
+-  deleteCourseReview: (_courseId: number, reviewId: number) => del<{ id: number }>(`/admin/courses/reviews/${reviewId}`, { auth: true }),
++  deleteCourseReview: (courseId: number, reviewId: number) => del<{ id: number }>(`/courses/${courseId}/reviews/${reviewId}`, { auth: true }),
+   listCourseStudents: (courseId: number) => get<CourseStudentAdmin[]>(`/courses/${courseId}/students`, { auth: true }),
+
+   uploadModuleMedia: (lessonId: number, moduleId: string | number, file: File, type: 'video' | 'image', order?: number) => {
+     const body = new FormData()
+     body.append('file', file)
+     body.append('type', type)
+     if (order !== undefined) body.append('order', String(order))
+     return post<{ moduleId?: string; lessonId?: number; hlsPlaylistKey?: string; segmentCount?: number; imageKey?: string; sourceUrl?: string; storage: string; videoId?: number }>(`/lessons/${lessonId}/modules/${moduleId}/media/upload`, body, { auth: true })
+   },
+ }
+diff --git a/beay/src/api/instructorCourses.api.ts b/beay/src/api/instructorCourses.api.ts
+index 82b91aabe6c9d66d66505a34774db620d6b8f631..d442d944a4e5431806d55f9311986f459c05c73b 100644
+--- a/beay/src/api/instructorCourses.api.ts
++++ b/beay/src/api/instructorCourses.api.ts
+@@ -16,34 +16,35 @@ export const instructorCoursesApi: CourseManagementApi = {
+   createCourse: (body: CoursePayload | FormData) => post<CourseAdmin>('/instructor/courses', body, { auth: true }),
+   updateCourse: (id: number, body: Partial<CoursePayload> | FormData) => patch<CourseAdmin>(`/instructor/courses/${id}`, body, { auth: true }),
+   deleteCourse: (id: number) => del<{ id: number }>(`/instructor/courses/${id}`, { auth: true }),
+   getCourseDetail: (id: number, lang?: string) => {
+     const qs = new URLSearchParams()
+     if (lang) qs.set('lang', lang)
+     const suffix = qs.toString() ? `?${qs.toString()}` : ''
+     return get<CourseDetailAdmin>(`/instructor/courses/${id}${suffix}`, { auth: true })
+   },
+   listCourseLessons: (courseId: number, lang?: string) => {
+     const qs = new URLSearchParams()
+     if (lang) qs.set('lang', lang)
+     const suffix = qs.toString() ? `?${qs.toString()}` : ''
+     return get<LessonOutlineAdmin[]>(`/instructor/courses/${courseId}/lessons-outline${suffix}`, { auth: true })
+   },
+   getLessonDetail: (lessonId: number, lang?: string) => {
+     const qs = new URLSearchParams()
+     if (lang) qs.set('lang', lang)
+     const suffix = qs.toString() ? `?${qs.toString()}` : ''
+     return get<LessonDetailAdmin>(`/instructor/lessons/${lessonId}${suffix}`, { auth: true })
+   },
+   createLesson: (courseId: number, body: LessonPayload) => post<LessonAdmin>(`/instructor/courses/${courseId}/lessons`, body, { auth: true }),
+   updateLesson: (lessonId: number, body: Partial<LessonPayload>) => patch<LessonAdmin>(`/instructor/lessons/${lessonId}`, body, { auth: true }),
+   deleteLesson: (lessonId: number) => del<{ id: number }>(`/instructor/lessons/${lessonId}`, { auth: true }),
+   listCourseReviews: (courseId: number) => get(`/instructor/courses/${courseId}/reviews`, { auth: true }),
++  deleteCourseReview: (courseId: number, reviewId: number) => del<{ id: number }>(`/instructor/courses/${courseId}/reviews/${reviewId}`, { auth: true }),
+   listCourseStudents: (courseId: number) => get(`/instructor/courses/${courseId}/students`, { auth: true }),
+   uploadModuleMedia: (lessonId, moduleId, file, type, order) => {
+     const body = new FormData()
+     body.append('file', file)
+     body.append('type', type)
+     if (order !== undefined) body.append('order', String(order))
+     return post<{ moduleId?: string; lessonId?: number; hlsPlaylistKey?: string; segmentCount?: number; imageKey?: string; sourceUrl?: string; storage: string; videoId?: number }>(`/instructor/lessons/${lessonId}/modules/${moduleId}/media/upload`, body, { auth: true })
+   },
+ }
+diff --git a/lecture/src/api/adminCourses.api.ts b/lecture/src/api/adminCourses.api.ts
+index 44b0f1696eb7073a90d93fb3e9b5f615b8963d16..86dc62a717daf49142976eba244615f62848651f 100644
+--- a/lecture/src/api/adminCourses.api.ts
++++ b/lecture/src/api/adminCourses.api.ts
+@@ -197,36 +197,36 @@ export const adminCoursesApi = {
+   updateCourse: (id: number, body: Partial<CoursePayload> | FormData) => patch<CourseAdmin>(`/courses/${id}`, body, { auth: true }),
+   deleteCourse: (id: number) => del<{ id: number }>(`/courses/${id}`, { auth: true }),
+   getCourseDetail: (id: number, lang?: string) => {
+     const qs = new URLSearchParams()
+     if (lang) qs.set('lang', lang)
+     const suffix = qs.toString() ? `?${qs.toString()}` : ''
+     return get<CourseDetailAdmin>(`/courses/${id}${suffix}`, { auth: true })
+   },
+
+   listCourseLessons: (courseId: number, lang?: string) => {
+     const qs = new URLSearchParams()
+     if (lang) qs.set('lang', lang)
+     const suffix = qs.toString() ? `?${qs.toString()}` : ''
+     return get<LessonOutlineAdmin[]>(`/courses/${courseId}/lessons-outline${suffix}`, { auth: true })
+   },
+   getLessonDetail: (lessonId: number, lang?: string) => {
+     const qs = new URLSearchParams()
+     if (lang) qs.set('lang', lang)
+     const suffix = qs.toString() ? `?${qs.toString()}` : ''
+     return get<LessonDetailAdmin>(`/lessons/${lessonId}${suffix}`, { auth: true })
+   },
+   createLesson: (courseId: number, body: LessonPayload) => post<LessonAdmin>(`/courses/${courseId}/lessons`, body, { auth: true }),
+   updateLesson: (lessonId: number, body: Partial<LessonPayload>) => patch<LessonAdmin>(`/lessons/${lessonId}`, body, { auth: true }),
+   deleteLesson: (lessonId: number) => del<{ id: number }>(`/lessons/${lessonId}`, { auth: true }),
+   listCourseReviews: (courseId: number) => get<CourseReviewAdmin[]>(`/courses/${courseId}/reviews`, { auth: true }),
+-  deleteCourseReview: (_courseId: number, reviewId: number) => del<{ id: number }>(`/admin/courses/reviews/${reviewId}`, { auth: true }),
++  deleteCourseReview: (courseId: number, reviewId: number) => del<{ id: number }>(`/courses/${courseId}/reviews/${reviewId}`, { auth: true }),
+   listCourseStudents: (courseId: number) => get<CourseStudentAdmin[]>(`/courses/${courseId}/students`, { auth: true }),
+
+   uploadModuleMedia: (lessonId: number, moduleId: string | number, file: File, type: 'video' | 'image', order?: number) => {
+     const body = new FormData()
+     body.append('file', file)
+     body.append('type', type)
+     if (order !== undefined) body.append('order', String(order))
+     return post<{ moduleId?: string; lessonId?: number; hlsPlaylistKey?: string; segmentCount?: number; imageKey?: string; sourceUrl?: string; storage: string; videoId?: number }>(`/lessons/${lessonId}/modules/${moduleId}/media/upload`, body, { auth: true })
+   },
+ }
+diff --git a/lecture/src/api/instructorCourses.api.ts b/lecture/src/api/instructorCourses.api.ts
+index 82b91aabe6c9d66d66505a34774db620d6b8f631..d442d944a4e5431806d55f9311986f459c05c73b 100644
+--- a/lecture/src/api/instructorCourses.api.ts
++++ b/lecture/src/api/instructorCourses.api.ts
+@@ -16,34 +16,35 @@ export const instructorCoursesApi: CourseManagementApi = {
+   createCourse: (body: CoursePayload | FormData) => post<CourseAdmin>('/instructor/courses', body, { auth: true }),
+   updateCourse: (id: number, body: Partial<CoursePayload> | FormData) => patch<CourseAdmin>(`/instructor/courses/${id}`, body, { auth: true }),
+   deleteCourse: (id: number) => del<{ id: number }>(`/instructor/courses/${id}`, { auth: true }),
+   getCourseDetail: (id: number, lang?: string) => {
+     const qs = new URLSearchParams()
+     if (lang) qs.set('lang', lang)
+     const suffix = qs.toString() ? `?${qs.toString()}` : ''
+     return get<CourseDetailAdmin>(`/instructor/courses/${id}${suffix}`, { auth: true })
+   },
+   listCourseLessons: (courseId: number, lang?: string) => {
+     const qs = new URLSearchParams()
+     if (lang) qs.set('lang', lang)
+     const suffix = qs.toString() ? `?${qs.toString()}` : ''
+     return get<LessonOutlineAdmin[]>(`/instructor/courses/${courseId}/lessons-outline${suffix}`, { auth: true })
+   },
+   getLessonDetail: (lessonId: number, lang?: string) => {
+     const qs = new URLSearchParams()
+     if (lang) qs.set('lang', lang)
+     const suffix = qs.toString() ? `?${qs.toString()}` : ''
+     return get<LessonDetailAdmin>(`/instructor/lessons/${lessonId}${suffix}`, { auth: true })
+   },
+   createLesson: (courseId: number, body: LessonPayload) => post<LessonAdmin>(`/instructor/courses/${courseId}/lessons`, body, { auth: true }),
+   updateLesson: (lessonId: number, body: Partial<LessonPayload>) => patch<LessonAdmin>(`/instructor/lessons/${lessonId}`, body, { auth: true }),
+   deleteLesson: (lessonId: number) => del<{ id: number }>(`/instructor/lessons/${lessonId}`, { auth: true }),
+   listCourseReviews: (courseId: number) => get(`/instructor/courses/${courseId}/reviews`, { auth: true }),
++  deleteCourseReview: (courseId: number, reviewId: number) => del<{ id: number }>(`/instructor/courses/${courseId}/reviews/${reviewId}`, { auth: true }),
+   listCourseStudents: (courseId: number) => get(`/instructor/courses/${courseId}/students`, { auth: true }),
+   uploadModuleMedia: (lessonId, moduleId, file, type, order) => {
+     const body = new FormData()
+     body.append('file', file)
+     body.append('type', type)
+     if (order !== undefined) body.append('order', String(order))
+     return post<{ moduleId?: string; lessonId?: number; hlsPlaylistKey?: string; segmentCount?: number; imageKey?: string; sourceUrl?: string; storage: string; videoId?: number }>(`/instructor/lessons/${lessonId}/modules/${moduleId}/media/upload`, body, { auth: true })
+   },
+ }

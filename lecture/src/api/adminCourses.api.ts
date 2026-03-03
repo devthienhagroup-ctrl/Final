@@ -219,7 +219,7 @@ export const adminCoursesApi = {
   updateLesson: (lessonId: number, body: Partial<LessonPayload>) => patch<LessonAdmin>(`/lessons/${lessonId}`, body, { auth: true }),
   deleteLesson: (lessonId: number) => del<{ id: number }>(`/lessons/${lessonId}`, { auth: true }),
   listCourseReviews: (courseId: number) => get<CourseReviewAdmin[]>(`/courses/${courseId}/reviews`, { auth: true }),
-  deleteCourseReview: (_courseId: number, reviewId: number) => del<{ id: number }>(`/admin/courses/reviews/${reviewId}`, { auth: true }),
+  deleteCourseReview: (courseId: number, reviewId: number) => del<{ id: number }>(`/courses/${courseId}/reviews/${reviewId}`, { auth: true }),
   listCourseStudents: (courseId: number) => get<CourseStudentAdmin[]>(`/courses/${courseId}/students`, { auth: true }),
 
   uploadModuleMedia: (lessonId: number, moduleId: string | number, file: File, type: 'video' | 'image', order?: number) => {

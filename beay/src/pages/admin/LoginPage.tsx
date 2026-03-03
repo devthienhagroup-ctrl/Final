@@ -43,7 +43,7 @@ function resolveDefaultRoute(permissions: string[]) {
     if (permissions.includes(route.permission)) return route.path;
   }
   if (permissions.includes("courses.write")) return "http://localhost:5181/instructor";
-  if (permissions.includes("my_courses.read")) return "http://localhost:50800/student";
+  if (permissions.includes("my_courses.read")) return "http://localhost:5180/student";
   return "/login";
 }
 

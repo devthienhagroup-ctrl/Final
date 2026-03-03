@@ -1,106 +1,410 @@
-diff --git a/beay/src/pages/components/AdminSidebar.tsx b/beay/src/pages/components/AdminSidebar.tsx
-index 41509aa69b688a240b04b36c991118519f1a4109..80a69de17d5aa67f5794658fab7436d67538135b 100644
---- a/beay/src/pages/components/AdminSidebar.tsx
-+++ b/beay/src/pages/components/AdminSidebar.tsx
-@@ -1,63 +1,70 @@
- import { useAuth } from "../../app/auth";
+diff --git a/docker-compose.yml b/docker-compose.yml
+index 94f310f11f8aaa513f080646752724babbfb7af7..af7ab7e6f531f429d5d06d5cc56b28760cb0e2c3 100644
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -126,39 +126,59 @@ services:
+       - backend
+     ports:
+       - "5176:5176"
+     networks:
+       - aya_net
 
- type Props = {
-   open: boolean;
-   onClose: () => void;
- };
+   # =====================
+   # ADMIN (REACT DEV)
+   # =====================
+   admin:
+     image: node:20-alpine
+     container_name: ayanavita-admin
+     working_dir: /app
+     volumes:
+       - ./backend/ayanavitabackend/app/admin:/app
+       - /app/node_modules
+     command: sh -c "npm install && npm run dev -- --host"
+     environment:
+       NODE_ENV: development
+       VITE_API_BASE: http://localhost:8090
+     ports:
+       - "5050:5173"
+     networks:
+       - aya_net
 
- export function AdminSidebar({ open, onClose }: Props) {
--  const { can } = useAuth();
-+  const { can, logout } = useAuth();
 +
-+  function handleLogout() {
-+    onClose();
-+    logout();
++  student:
++    image: node:20-alpine
++    container_name: ayanavita-student
++    working_dir: /app
++    volumes:
++      - ./student:/app
++      - /app/node_modules
++    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5180"
++    environment:
++      NODE_ENV: development
++      CHOKIDAR_USEPOLLING: "true"
++      CHOKIDAR_INTERVAL: "1000"
++    ports:
++      - "5180:5180"
++    depends_on:
++      - backend
++    networks:
++      - aya_net
++
+   adminer:
+     image: adminer
+     container_name: ayanavita-adminer
+     ports:
+       - "8081:8080"
+     networks:
+       - aya_net
+
+ volumes:
+   mysql_data:
+
+ networks:
+   aya_net:
+     driver: bridge
+diff --git a/student/src/App.tsx b/student/src/App.tsx
+index 3d7ded3ff62424046af18e2b5b8b8324c7e0001d..69c4c1451b0805ce621ddb1225235e5a22dfca48 100644
+--- a/student/src/App.tsx
++++ b/student/src/App.tsx
+@@ -1,35 +1,26 @@
+-import { useState } from 'react'
+-import reactLogo from './assets/react.svg'
+-import viteLogo from '/vite.svg'
+-import './App.css'
++import { LearningSpacePage } from './pages/LearningSpacePage'
++import { ForbiddenPage } from './pages/ForbiddenPage'
++import { NotFoundPage } from './pages/NotFoundPage'
++import { useStudentAuth } from './studentAuth'
+
+-function App() {
+-  const [count, setCount] = useState(0)
++export function App() {
++  const { token, can } = useStudentAuth()
++  const path = window.location.pathname
+
+-  return (
+-    <>
+-      <div>
+-        <a href="https://vite.dev" target="_blank">
+-          <img src={viteLogo} className="logo" alt="Vite logo" />
+-        </a>
+-        <a href="https://react.dev" target="_blank">
+-          <img src={reactLogo} className="logo react" alt="React logo" />
+-        </a>
+-      </div>
+-      <h1>Vite + React</h1>
+-      <div className="card">
+-        <button onClick={() => setCount((count) => count + 1)}>
+-          count is {count}
+-        </button>
+-        <p>
+-          Edit <code>src/App.tsx</code> and save to test HMR
+-        </p>
+-      </div>
+-      <p className="read-the-docs">
+-        Click on the Vite and React logos to learn more
+-      </p>
+-    </>
+-  )
+-}
++  if (path === '/') {
++    window.history.replaceState({}, '', '/student/learning-space')
++  }
++
++  if (path === '/student/learning-space') {
++    if (!token || !can('my_courses.read')) {
++      return <ForbiddenPage />
++    }
++    return <LearningSpacePage />
 +  }
 
-   return (
-     <aside
-       className={[
-         "fixed z-50 md:static md:z-auto inset-y-0 left-0 w-72",
-         "bg-white/90 backdrop-blur border-r border-slate-200/70",
-         "transition-transform duration-200",
-         open ? "translate-x-0" : "-translate-x-full md:translate-x-0",
-       ].join(" ")}
-     >
-       <div className="h-48 py-2 px-5 items-center justify-between border-b border-slate-200/70">
-         <div className=" p-4">
-           <div className="flex items-center gap-3">
-             <img
-                 className="h-11 w-11 rounded-2xl object-cover ring-1 ring-slate-200"
-                 src="/imgs/Logo-Ayanavita.png"
-                 alt="Admin"
-             />
-             <div>
-               <div className="font-extrabold">Admin AYANAVITA</div>
-               <div className="text-xs text-slate-500">admin@ayanavita.vn</div>
-             </div>
-           </div>
-           <div className="mt-3 flex gap-2">
-             <span className="chip"><i className="fa-solid fa-shield-halved text-indigo-600 mr-1" /> Admin</span>
-             <span className="chip"><i className="fa-solid fa-circle text-emerald-500 mr-1" /> Online</span>
-           </div>
-         </div>
--        <button className="w-full text-center btn "><i className="fa-solid fa-arrow-right-from-bracket fa-rotate-180"></i> Đăng xuất</button>
-+        <button type="button" className="w-full text-center btn" onClick={handleLogout}>
-+          <i className="fa-solid fa-arrow-right-from-bracket fa-rotate-180"></i> Đăng xuất
-+        </button>
-
-       </div>
-
-       <div className="p-5">
-         <div className="mt-4 card p-3">
-           <div className="text-xs font-semibold text-slate-500">Đi nhanh</div>
-           <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
-             {can("orders.read") ? <a className="btn text-center" href="/admin/orders"><i className="fa-solid fa-receipt mr-1" />Đơn hàng</a> : null}
-             {can("role.read") ? <a className="btn text-center" href="/admin/rbac"><i className="fa-solid fa-user-shield mr-1" />Phân quyền</a> : null}
-             {can("courses.write") ? <a className="btn text-center" href="/instructor"><i className="fa-solid fa-chalkboard-user mr-1" />Giảng viên</a> : null}
-             {can("my_courses.read") ? <a className="btn text-center" href="/student"><i className="fa-solid fa-user-graduate mr-1" />Học viên</a> : null}
-           </div>
-         </div>
-
-         <nav className="mt-5 space-y-2">
-           <a href="#overview" className="flex items-center gap-3 px-4 py-3 rounded-2xl nav-active">
-             <i className="fa-solid fa-gauge-high text-indigo-600" />
-             <span className="font-semibold">Tổng quan</span>
-           </a>
-           <a href="/admin/courses" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
-             <i className="fa-solid fa-book-open text-amber-600" />
-             <span className="font-semibold">Khóa học</span>
-           </a>
-           {/* thêm link: sản phẩm /admin/product */}
-           <a href="/admin/product" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
-@@ -99,26 +106,26 @@ export function AdminSidebar({ open, onClose }: Props) {
-           {/*<a href="#settings" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">*/}
-           {/*  <i className="fa-solid fa-gear text-slate-700" />*/}
-           {/*  <span className="font-semibold">Cài đặt</span>*/}
-           {/*</a>*/}
-         </nav>
-
-         {/* <div className="mt-6 card p-4">
-           <div className="flex items-start justify-between gap-4">
-             <div>
-               <div className="text-xs font-semibold text-slate-500">Gợi ý</div>
-               <div className="mt-1 font-extrabold">Thiết lập thanh toán</div>
-               <div className="mt-1 text-sm text-slate-600">Kết nối MoMo/VNPay/Stripe để bán khoá học.</div>
-             </div>
-             <div className="h-10 w-10 rounded-2xl bg-amber-100 flex items-center justify-center">
-               <i className="fa-solid fa-bolt text-amber-700" />
-             </div>
-           </div>
-           <button onClick={onConnectPay} className="mt-4 w-full btn btn-accent">Kết nối ngay</button>
-           <div className="mt-3 text-xs text-slate-500">
-             Mẹo: <span className="kbd">/</span> focus search • <span className="kbd">g</span> <span className="kbd">o</span> sang Orders
-           </div>
-         </div> */}
-       </div>
-     </aside>
-   );
--}
-\ No newline at end of file
+-export default App
++  if (path === '/403') {
++    return <ForbiddenPage />
++  }
++
++  return <NotFoundPage />
 +}
+diff --git a/student/src/main.tsx b/student/src/main.tsx
+index bef5202a32cbd0632c43de40f6e908532903fd42..831cb4eb93e85fce63dcbf6bc3e36efa07e42f14 100644
+--- a/student/src/main.tsx
++++ b/student/src/main.tsx
+@@ -1,10 +1,10 @@
+ import { StrictMode } from 'react'
+ import { createRoot } from 'react-dom/client'
+ import './index.css'
+-import App from './App.tsx'
++import { App } from './App'
+
+ createRoot(document.getElementById('root')!).render(
+   <StrictMode>
+     <App />
+   </StrictMode>,
+ )
+diff --git a/student/src/pages/ForbiddenPage.tsx b/student/src/pages/ForbiddenPage.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..64d59bd2c40078147a10c7cf78cd7e77578ae0a3
+--- /dev/null
++++ b/student/src/pages/ForbiddenPage.tsx
+@@ -0,0 +1,11 @@
++import './pages.css'
++
++export function ForbiddenPage() {
++  return (
++    <main className="state-wrap">
++      <h1>403</h1>
++      <p>Bạn không có quyền truy cập trang này. Vui lòng đăng nhập với quyền đầy đủ.</p>
++      <a href="/student/learning-space">Thử truy cập lại</a>
++    </main>
++  )
++}
+diff --git a/student/src/pages/LearningSpacePage.tsx b/student/src/pages/LearningSpacePage.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..652981350967c37a1af7af571c0632ca546646e2
+--- /dev/null
++++ b/student/src/pages/LearningSpacePage.tsx
+@@ -0,0 +1,52 @@
++import { clearStudentSession, seedStudentSession } from '../studentAuth'
++import './pages.css'
++
++const courses = [
++  { id: 1, title: 'Giải phẫu da chuyên sâu', progress: 65 },
++  { id: 2, title: 'Phác đồ trị mụn chuẩn spa', progress: 30 },
++  { id: 3, title: 'Xử lý tăng sắc tố an toàn', progress: 80 },
++]
++
++export function LearningSpacePage() {
++  return (
++    <main className="page-wrap">
++      <header className="top-bar">
++        <h1>Không gian học tập</h1>
++        <p>Theo dõi tiến độ khóa học và tiếp tục bài học đang dang dở.</p>
++      </header>
++
++      <section className="card-grid">
++        {courses.map((course) => (
++          <article key={course.id} className="course-card">
++            <h2>{course.title}</h2>
++            <p>Tiến độ: {course.progress}%</p>
++          </article>
++        ))}
++      </section>
++
++      <section className="dev-tools">
++        <p>Kiểm tra quyền truy cập đầy đủ:</p>
++        <div className="btn-row">
++          <button
++            type="button"
++            onClick={() => {
++              seedStudentSession()
++              window.location.href = '/student/learning-space'
++            }}
++          >
++            Cấp quyền đầy đủ
++          </button>
++          <button
++            type="button"
++            onClick={() => {
++              clearStudentSession()
++              window.location.href = '/student/learning-space'
++            }}
++          >
++            Xóa quyền (đá về 403)
++          </button>
++        </div>
++      </section>
++    </main>
++  )
++}
+diff --git a/student/src/pages/NotFoundPage.tsx b/student/src/pages/NotFoundPage.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..0ac6778d1bb251225b40bdebf1bff6655ac12066
+--- /dev/null
++++ b/student/src/pages/NotFoundPage.tsx
+@@ -0,0 +1,11 @@
++import './pages.css'
++
++export function NotFoundPage() {
++  return (
++    <main className="state-wrap">
++      <h1>404</h1>
++      <p>Trang không tồn tại hoặc đường dẫn đã thay đổi.</p>
++      <a href="/student/learning-space">Về Không gian học tập</a>
++    </main>
++  )
++}
+diff --git a/student/src/pages/pages.css b/student/src/pages/pages.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..423fd099fb5bc1cb70acc234a3f5f3cf53110cc2
+--- /dev/null
++++ b/student/src/pages/pages.css
+@@ -0,0 +1,67 @@
++.page-wrap {
++  max-width: 960px;
++  margin: 0 auto;
++  padding: 24px;
++  color: #111827;
++  font-family: Inter, system-ui, -apple-system, sans-serif;
++}
++
++.top-bar h1 {
++  margin: 0;
++  font-size: 2rem;
++}
++
++.top-bar p {
++  color: #4b5563;
++}
++
++.card-grid {
++  display: grid;
++  gap: 16px;
++  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
++  margin-top: 20px;
++}
++
++.course-card {
++  border: 1px solid #e5e7eb;
++  border-radius: 12px;
++  padding: 16px;
++  background: #fff;
++}
++
++.dev-tools {
++  margin-top: 24px;
++  padding: 16px;
++  border-radius: 12px;
++  background: #f3f4f6;
++}
++
++.btn-row {
++  display: flex;
++  gap: 12px;
++  margin-top: 8px;
++}
++
++.btn-row button {
++  border: none;
++  border-radius: 8px;
++  padding: 10px 14px;
++  background: #111827;
++  color: #fff;
++  cursor: pointer;
++}
++
++.state-wrap {
++  min-height: 100vh;
++  display: flex;
++  flex-direction: column;
++  align-items: center;
++  justify-content: center;
++  gap: 12px;
++  font-family: Inter, system-ui, -apple-system, sans-serif;
++}
++
++.state-wrap h1 {
++  margin: 0;
++  font-size: 4rem;
++}
+diff --git a/student/src/studentAuth.ts b/student/src/studentAuth.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..968c510c41bf9855b23583ebbd0faefe94ff1a65
+--- /dev/null
++++ b/student/src/studentAuth.ts
+@@ -0,0 +1,48 @@
++export type StudentSession = {
++  token: string
++  permissions: string[]
++}
++
++const STORAGE_KEY = 'student_session'
++
++const DEFAULT_SESSION: StudentSession = {
++  token: 'student-token-dev',
++  permissions: ['my_courses.read'],
++}
++
++function readSession(): StudentSession | null {
++  const raw = localStorage.getItem(STORAGE_KEY)
++
++  if (!raw) {
++    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SESSION))
++    return DEFAULT_SESSION
++  }
++
++  try {
++    const parsed = JSON.parse(raw) as StudentSession
++    if (!parsed.token || !Array.isArray(parsed.permissions)) {
++      return null
++    }
++    return parsed
++  } catch {
++    return null
++  }
++}
++
++export function useStudentAuth() {
++  const session = readSession()
++
++  return {
++    token: session?.token ?? '',
++    permissions: session?.permissions ?? [],
++    can: (permission: string) => (session?.permissions ?? []).includes(permission),
++  }
++}
++
++export function seedStudentSession() {
++  localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SESSION))
++}
++
++export function clearStudentSession() {
++  localStorage.removeItem(STORAGE_KEY)
++}
+diff --git a/student/tsconfig.node.json b/student/tsconfig.node.json
+index 8a67f62f4ceebff3424e6e8cd4b3c25b17347546..6d0e4574846005482536f65c41ed6ec4cfe3ec7e 100644
+--- a/student/tsconfig.node.json
++++ b/student/tsconfig.node.json
+@@ -1,26 +1,22 @@
+ {
+   "compilerOptions": {
+     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+     "target": "ES2023",
+     "lib": ["ES2023"],
+     "module": "ESNext",
+-    "types": ["node"],
++    "types": [],
+     "skipLibCheck": true,
+-
+-    /* Bundler mode */
+     "moduleResolution": "bundler",
+     "allowImportingTsExtensions": true,
+     "verbatimModuleSyntax": true,
+     "moduleDetection": "force",
+     "noEmit": true,
+-
+-    /* Linting */
+     "strict": true,
+     "noUnusedLocals": true,
+     "noUnusedParameters": true,
+     "erasableSyntaxOnly": true,
+     "noFallthroughCasesInSwitch": true,
+     "noUncheckedSideEffectImports": true
+   },
+   "include": ["vite.config.ts"]
+ }
+diff --git a/student/vite.config.ts b/student/vite.config.ts
+index 8b0f57b91aeb45c54467e29f983a0893dc83c4d9..932b70c370004f18dfdeed145b764784d4cc8f73 100644
+--- a/student/vite.config.ts
++++ b/student/vite.config.ts
+@@ -1,7 +1,10 @@
+ import { defineConfig } from 'vite'
+ import react from '@vitejs/plugin-react'
+
+-// https://vite.dev/config/
+ export default defineConfig({
+   plugins: [react()],
++  server: {
++    host: '0.0.0.0',
++    port: 5180,
++  },
+ })

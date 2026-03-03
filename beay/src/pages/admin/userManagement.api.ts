@@ -40,7 +40,31 @@ export type AdminUserUpsertPayload = {
   address?: string
 }
 
-export const getAdminUsers = () => request<AdminUser[]>('/users')
+export type AdminUserListParams = {
+  q?: string
+  status?: 'ACTIVE' | 'INACTIVE'
+  page?: number
+  pageSize?: number
+}
+
+type PaginatedAdminUsersResponse = {
+  items: AdminUser[]
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+}
+
+export const getAdminUsers = (params: AdminUserListParams = {}) => {
+  const query = new URLSearchParams()
+  if (params.q?.trim()) query.set('q', params.q.trim())
+  if (params.status) query.set('status', params.status)
+  if (params.page) query.set('page', String(params.page))
+  if (params.pageSize) query.set('pageSize', String(params.pageSize))
+  const suffix = query.toString()
+  return request<AdminUser[] | PaginatedAdminUsersResponse>(`/users${suffix ? `?${suffix}` : ''}`)
+}
+
 export const createAdminUser = (payload: AdminUserUpsertPayload) =>
   request<AdminUser>('/users', { method: 'POST', body: JSON.stringify(payload) })
 export const updateAdminUser = (id: number, payload: Partial<AdminUserUpsertPayload>) =>

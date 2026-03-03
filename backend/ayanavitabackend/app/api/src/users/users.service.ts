@@ -378,17 +378,128 @@ export class UsersService {
 
   private async sendResetPasswordMail(email: string, password: string, name: string) {
     const subject = 'Mật khẩu mới tài khoản AYANAVITA'
-    const body = `Xin chào ${name || 'bạn'},\n\nHệ thống vừa reset mật khẩu tài khoản của bạn.\nEmail đăng nhập: ${email}\nMật khẩu mới: ${password}\n\nVui lòng đăng nhập và đổi mật khẩu ngay sau khi vào hệ thống.\n\nTrân trọng,\nĐội ngũ AYANAVITA`
-    await this.sendSmtpViaGmail(email, subject, body)
+    const customerName = name || 'bạn'
+    const year = new Date().getFullYear()
+    const body = `<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>Ayanavita - Mật khẩu</title>
+</head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="520" cellpadding="0" cellspacing="0"
+          style="background:#ffffff;border-radius:14px;padding:32px 28px;
+                 box-shadow:0 8px 24px rgba(0,0,0,0.06);">
+          <tr>
+            <td style="font-size:20px;font-weight:700;color:#111827;">
+              Ayanavita
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-top:18px;font-size:18px;font-weight:600;color:#111827;">
+              Mật khẩu đăng nhập của bạn
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-top:10px;font-size:14px;color:#4b5563;line-height:1.6;">
+              Xin chào ${customerName},<br>
+              Đây là mật khẩu tạm thời của bạn:
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:18px 0;">
+              <div style="background:#111827;color:#ffffff;
+                          padding:14px 16px;border-radius:10px;
+                          font-size:18px;font-weight:700;
+                          letter-spacing:1px;text-align:center;">
+                ${password}
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#6b7280;line-height:1.6;">
+              Vui lòng đăng nhập và đổi mật khẩu để bảo mật tài khoản.
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-top:24px;font-size:12px;color:#9ca3af;">
+              © ${year} Ayanavita
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+    await this.sendSmtpViaGmail(email, subject, body, true)
   }
 
   private async sendEmailChangedNotification(oldEmail: string, newEmail: string, name: string) {
     const subject = 'Thông báo thay đổi email tài khoản AYANAVITA'
-    const body = `Xin chào ${name || 'bạn'},\n\nEmail tài khoản AYANAVITA của bạn đã được đổi sang: ${newEmail}\n\nNếu bạn không thực hiện thay đổi này, vui lòng liên hệ quản trị viên ngay.\n\nTrân trọng,\nĐội ngũ AYANAVITA`
-    await this.sendSmtpViaGmail(oldEmail, subject, body)
+    const customerName = name || 'bạn'
+    const year = new Date().getFullYear()
+    const body = `<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>Ayanavita - Thay đổi Email</title>
+</head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="520" cellpadding="0" cellspacing="0"
+          style="background:#ffffff;border-radius:14px;padding:32px 28px;
+                 box-shadow:0 8px 24px rgba(0,0,0,0.06);">
+          <tr>
+            <td style="font-size:20px;font-weight:700;color:#111827;">
+              Ayanavita
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-top:18px;font-size:18px;font-weight:600;color:#111827;">
+              Email tài khoản đã được cập nhật
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-top:10px;font-size:14px;color:#4b5563;line-height:1.6;">
+              Xin chào ${customerName},<br>
+              Email đăng nhập của bạn đã được thay đổi thành:
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:18px 0;">
+              <div style="background:#eef2ff;color:#111827;
+                          padding:14px 16px;border-radius:10px;
+                          font-size:15px;font-weight:600;text-align:center;">
+                ${newEmail}
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#6b7280;line-height:1.6;">
+              Nếu bạn không thực hiện thay đổi này, vui lòng liên hệ hỗ trợ ngay.
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-top:24px;font-size:12px;color:#9ca3af;">
+              © ${year} Ayanavita
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+    await this.sendSmtpViaGmail(oldEmail, subject, body, true)
   }
 
-  private async sendSmtpViaGmail(to: string, subject: string, body: string) {
+  private async sendSmtpViaGmail(to: string, subject: string, body: string, isHtml = false) {
     const user = process.env.MAIL_USER ?? 'manage.ayanavita@gmail.com'
     const pass = process.env.MAIL_PASS ?? 'xetp fhph luse qydj'
 
@@ -462,7 +573,7 @@ export class UsersService {
         `From: AYANAVITA <${user}>`,
         `To: ${to}`,
         'MIME-Version: 1.0',
-        'Content-Type: text/plain; charset=UTF-8',
+        `Content-Type: ${isHtml ? 'text/html' : 'text/plain'}; charset=UTF-8`,
         '',
         body,
       ].join('\r\n')

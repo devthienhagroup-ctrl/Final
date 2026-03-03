@@ -5,7 +5,6 @@ import { SuccessModal } from "../home/SuccessModal";
 import { authApi } from "../../api/auth.api";
 import { MiniCartModal } from "../shop/MiniCartModal";
 import { useCart } from "../../contexts/CartContext";
-import { useNavigate } from "react-router-dom";
 
 /** ✅ import type CMS của 2 modal (để props typed chuẩn) */
 import type { defaultCmsData as _authDefault } from "../home/AuthModal";
@@ -237,7 +236,7 @@ export function Header({
       timer: 800,
     });
 
-    navigate("/", { replace: true });
+    window.location.replace("/");
   };
 
   const languageOptions = cms.languageOptions ?? defaultCMSData.languageOptions!;

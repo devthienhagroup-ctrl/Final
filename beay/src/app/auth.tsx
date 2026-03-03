@@ -35,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTokenState('')
     setRefreshTokenState('')
     clearTokenPair()
+    window.location.replace('/')
   }
 
   const can = (permission: string) => hasPermission(claims, permission)

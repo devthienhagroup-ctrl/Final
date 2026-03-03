@@ -154,13 +154,9 @@ function sortLessons(ls: ApiLesson[]) {
   return [...ls].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id - b.id);
 }
 
-function reviewStorageKey(courseId: number) {
-  return `student_course_review_${courseId}`;
-}
-
 export function StudentCourseDetailPage() {
   const nav = useNavigate();
-  const { logout, can } = useAuth();
+  const { logout, can, claims } = useAuth();
   const canAccessDashboard = can("dashboard.admin");
   const { id } = useParams();
   const [sp, setSp] = useSearchParams();
@@ -183,6 +179,13 @@ export function StudentCourseDetailPage() {
   const [myReview, setMyReview] = useState<RatingState | null>(null);
   const [openModules, setOpenModules] = useState<Record<number, boolean>>({});
   const [isResetting, setIsResetting] = useState(false);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  function detectMyReview(rows: ApiCourseReview[]) {
+    const email = (claims?.email || "").trim().toLowerCase();
+    if (!email) return null;
+    return rows.find((item) => (item.customerName || "").trim().toLowerCase() === email) || null;
+  }
 
   function buildDefaultOpenModules(lesson: ApiLessonDetail | null) {
     if (!lesson?.modules?.length) return {};
@@ -209,6 +212,16 @@ export function StudentCourseDetailPage() {
       setProgress(progressData);
       setLessons(sortedLessons);
       setReviews(reviewRows);
+      const foundMyReview = detectMyReview(reviewRows);
+      if (foundMyReview) {
+        setMyReview({
+          stars: Number(foundMyReview.stars) || 5,
+          comment: foundMyReview.comment || "",
+          createdAt: foundMyReview.createdAt || new Date().toISOString(),
+        });
+      } else {
+        setMyReview(null);
+      }
 
       if (selectedLessonId) {
         const lessonDetail = await studentApi.lessonDetail(selectedLessonId, lang);
@@ -227,8 +240,6 @@ export function StudentCourseDetailPage() {
 
   useEffect(() => {
     void loadData(lessonIdFromQuery || undefined);
-    const raw = localStorage.getItem(reviewStorageKey(courseId));
-    setMyReview(raw ? (JSON.parse(raw) as RatingState) : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId, lang, lessonIdFromQuery]);
 
@@ -287,12 +298,30 @@ export function StudentCourseDetailPage() {
     }
   }
 
-  function submitReview() {
-    if (myReview) return;
-    const payload: RatingState = { stars: rating, comment: comment.trim(), createdAt: new Date().toISOString() };
-    localStorage.setItem(reviewStorageKey(courseId), JSON.stringify(payload));
-    setMyReview(payload);
-    toast(t.toastSuccess, t.toastReviewSuccess);
+  async function submitReview() {
+    if (myReview || isSubmittingReview) return;
+    setIsSubmittingReview(true);
+    try {
+      const saved = await studentApi.submitCourseReview(courseId, {
+        stars: rating,
+        comment: comment.trim(),
+      });
+
+      const payload: RatingState = {
+        stars: Number(saved.stars) || rating,
+        comment: saved.comment || comment.trim(),
+        createdAt: saved.createdAt || new Date().toISOString(),
+      };
+      setMyReview(payload);
+      setReviews((prev) => [saved, ...prev.filter((item) => item.id !== saved.id)]);
+      setCourse((prev) => (prev ? { ...prev, ratingAvg: saved.ratingAvg ?? prev.ratingAvg, ratingCount: saved.ratingCount ?? prev.ratingCount } : prev));
+      setComment("");
+      toast(t.toastSuccess, t.toastReviewSuccess);
+    } catch (e: any) {
+      toast(t.toastError, e?.message || t.toastError);
+    } finally {
+      setIsSubmittingReview(false);
+    }
   }
 
   const lessonProgressPercent = useMemo(() => {
@@ -476,7 +505,7 @@ export function StudentCourseDetailPage() {
                     ))}
                   </div>
                   <textarea className="mt-3 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-300" rows={3} placeholder={t.reviewPlaceholder} value={comment} onChange={(e) => setComment(e.target.value)} />
-                  <button className="btn btn-primary mt-3 w-full" onClick={submitReview}>{t.submit}</button>
+                  <button className="btn btn-primary mt-3 w-full" onClick={() => void submitReview()} disabled={isSubmittingReview}>{isSubmittingReview ? "..." : t.submit}</button>
                 </>
               )}
             </div>

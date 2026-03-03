@@ -75,6 +75,8 @@ export type ApiCourseReview = {
   customerName?: string;
   createdAt?: string;
   updatedAt?: string;
+  ratingAvg?: number;
+  ratingCount?: number;
 };
 
 export type ApiLessonVideo = {
@@ -126,4 +128,6 @@ export const studentApi = {
   myProgress: () => request<Array<{ lessonId: number; lesson?: { courseId?: number; title?: string } }>>(`/me/progress`),
   learningStats: () => request<ApiLearningStats>(`/me/courses/statistics`),
   courseReviews: (courseId: number) => request<ApiCourseReview[]>(`/courses/${courseId}/reviews`),
+  submitCourseReview: (courseId: number, body: { stars: number; comment?: string; customerName?: string }) =>
+    request<ApiCourseReview>(`/courses/${courseId}/reviews`, { method: "POST", body }),
 };

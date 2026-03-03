@@ -23,7 +23,7 @@ import LessonDetailPage from "./pages/LessonDetailPage";
 import ReviewsCenterPage from "./pages/ReviewsCenterPage";
 import AccountCenter from "./pages/AccountCenter";
 import LoginPage from "./pages/LoginPage";
-import ProtectedRoute from "./components/auth/ProtectedRoute";
+// ví dụ
 
 
 export default function App() {
@@ -45,15 +45,16 @@ export default function App() {
 
                 {/* Product cart (prototype) */}
                 <Route path="/cart" element={<CartPage/>}/>
-                <Route path="/product-checkout" element={<ProtectedRoute><ProductCheckoutPage/></ProtectedRoute>}/>
+                <Route path="/product-checkout" element={<ProductCheckoutPage/>}/>
                 {/* <Route path="/checkout" element={<CheckoutPage/>}/> */}
                 <Route path="/products" element={<ProductsPage/>}/>
                 <Route path="/compare" element={<ComparePage/>}/>
                 <Route path="/track-order" element={<TrackOrderPage/>}/>
+                <Route path="/products" element={<ProductCategoryPage/>}/>
                 <Route path="/products/:slug" element={<ProductDetailPage/>}/>
-                <Route path="/courses/:courseId" element={<CourseDetailPage/>}/>
-                <Route path="/courses/player" element={<ProtectedRoute><CoursePlayerPage/></ProtectedRoute>}/>
-                <Route path="/courses/:courseId/lesson" element={<ProtectedRoute><LessonDetailPage/></ProtectedRoute>}/>
+                <Route path="/courses/:slug" element={<CourseDetailPage/>}/>
+                <Route path="/courses/player" element={<CoursePlayerPage/>}/>
+                <Route path="/courses/:courseId/lesson" element={<LessonDetailPage/>}/>
                 <Route path="/reviews" element={<ReviewsCenterPage/>}/>
 
                 <Route path="/blog" element={<BlogPage/>}/>
@@ -63,8 +64,8 @@ export default function App() {
                 <Route path="/products" element={<div className="p-6">Products (todo)</div>}/>
                 <Route path="/checkout" element={<div className="p-6">Checkout (todo)</div>}/>
                 <Route path="/franchise" element={<div className="p-6">Franchise (todo)</div>}/>
-                <Route path="/account" element={<ProtectedRoute><AccountCenter/></ProtectedRoute>}/>
-                <Route path="/account-center" element={<ProtectedRoute><AccountCenter/></ProtectedRoute>}/>
+                <Route path="/account" element={<AccountCenter/>}/>
+                <Route path="/account-center" element={<AccountCenter/>}/>
                 <Route path="/compare" element={<div className="p-6">Compare (todo)</div>}/>
                 <Route path="/track-order" element={<div className="p-6">Track order (todo)</div>}/>
                         <Route path="/contact" element={<ContactPage />} />

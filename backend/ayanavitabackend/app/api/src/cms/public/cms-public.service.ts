@@ -67,7 +67,12 @@ export class CmsPublicService {
       },
     });
 
-    if (!page) throw new NotFoundException("Page not found");
+    if (!page) {
+      if (slug === "global") {
+        return { slug: "global", title: "Global", sections: [] };
+      }
+      throw new NotFoundException("Page not found");
+    }
 
     const sections = page.sections.map((s) => {
       const chosen = this.pickPublishedLocaleRow(s.locales ?? [], locale, fallbackLocale);

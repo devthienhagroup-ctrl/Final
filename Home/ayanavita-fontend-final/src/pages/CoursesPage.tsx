@@ -714,8 +714,13 @@ export default function CoursesPage({
                             <span className="text-sm font-bold text-slate-600">{`${c.time || c.hours || "-"} Hour`}</span>
                           </div>
 
-                          <h3 className="mt-3 text-lg font-extrabold line-clamp-2">{c.title}</h3>
-                          <p className="mt-2 text-sm text-slate-600 line-clamp-2">{c.desc}</p>
+                          <h3 className="mt-3 text-lg font-extrabold line-clamp-1">
+                            {c.title}
+                          </h3>
+
+                          <p className="mt-2 text-sm text-slate-600 line-clamp-2">
+                            {c.desc}
+                          </p>
 
                           <div className="mt-3 flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 text-slate-600 text-sm">

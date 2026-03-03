@@ -10,5 +10,6 @@ import { LessonsMediaService } from './lessons-media.service'
   imports: [PrismaModule, EnrollmentsModule],
   controllers: [LessonsController],
   providers: [LessonsService, LessonsMediaService],
+  exports: [LessonsService],
 })
 export class LessonsModule {}

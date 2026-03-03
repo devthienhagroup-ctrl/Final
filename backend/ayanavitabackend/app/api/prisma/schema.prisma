@@ -17,7 +17,7 @@ model User {
   birthDate          DateTime?
   gender             Gender?
   address            String?  @db.VarChar(500)
-  role               UserRole @default(USER)
+  role               String   @default("USER") @db.VarChar(32)
   roleId             Int?
   roleRef            RbacRole? @relation("UserRbacRole", fields: [roleId], references: [id], onDelete: SetNull)
   isActive           Boolean  @default(true)
@@ -36,6 +36,7 @@ model User {
   carts          Cart[]
 
   courseReviews CourseReview[]
+  createdCourses Course[] @relation("CourseCreator")
   // ✅ CMS (optional relations)
   cmsSectionVersions CmsSectionVersion[]
   mediaAssets        MediaAsset[]
@@ -45,6 +46,8 @@ model User {
   reviewHelpfulVotes ReviewHelpful[]
   blogPosts          BlogPost[]
   blogSaves          BlogSavedPost[]
+  roleAuditLogsAsActor  RoleAuditLog[] @relation("RoleAuditActor")
+  roleAuditLogsAsTarget RoleAuditLog[] @relation("RoleAuditTarget")
 
   @@index([roleId])
 }
@@ -268,7 +271,7 @@ model Course {
   time                String?  @db.VarChar(120)
   shortDescription    String?  @db.VarChar(500)
   slug                String   @unique
-  description         String?
+  description         String?  @db.LongText
   thumbnail           String?
   price               Int      @default(0)
   published           Boolean  @default(false)
@@ -278,6 +281,7 @@ model Course {
   ratingAvg           Float    @default(0)
   ratingCount         Int      @default(0)
   enrollmentCount     Int      @default(0)
+  creatorId           Int?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -287,12 +291,14 @@ model Course {
   topic       CourseTopic? @relation(fields: [topicId], references: [id], onDelete: Restrict)
   translations CourseTranslation[]
   contentTranslations CourseContentTranslation[]
+  creator             User? @relation("CourseCreator", fields: [creatorId], references: [id], onDelete: SetNull)
 
   // ✅ ADD
   orderItems OrderItem[] // <— opposite for OrderItem.course
   courseReviews CourseReview[]
 
   @@index([topicId])
+  @@index([creatorId])
 }
 
 model CourseTranslation {
@@ -667,6 +673,7 @@ model RbacRole {
   description String?          @db.VarChar(255)
   users       User[]           @relation("UserRbacRole")
   permissions RolePermission[]
+  auditLogs   RoleAuditLog[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
@@ -693,13 +700,25 @@ model RolePermission {
   @@index([permissionId])
 }
 
-enum UserRole {
-  ADMIN
-  MANAGER
-  STAFF
-  USER
-}
+model RoleAuditLog {
+  id           Int       @id @default(autoincrement())
+  action       String    @db.VarChar(80)
+  message      String    @db.VarChar(255)
+  actorUserId  Int?
+  targetUserId Int?
+  roleId       Int?
+  metadata     Json?
+  createdAt    DateTime  @default(now())
 
+  actorUser  User?     @relation("RoleAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  targetUser User?     @relation("RoleAuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+  role       RbacRole? @relation(fields: [roleId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([actorUserId])
+  @@index([targetUserId])
+  @@index([roleId])
+}
 
 enum EnrollmentStatus {
   ACTIVE

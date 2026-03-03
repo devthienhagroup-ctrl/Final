@@ -3,11 +3,15 @@ import { ProgressStatus } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { EnrollmentsService } from '../enrollments/enrollments.service'
 import { UpsertProgressDto } from './dto/upsert-progress.dto'
-
-type JwtUser = { sub: number; role: string }
+import { JwtUser } from '../auth/decorators/current-user.decorator'
+import { hasAnyPermission } from '../auth/permission-utils'
 
 @Injectable()
 export class ProgressService {
+  private canManageCourseProgress(user: JwtUser | null | undefined) {
+    return hasAnyPermission(user, ['courses.write', 'courses.manage', 'courses.publish'])
+  }
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly enrollments: EnrollmentsService,
@@ -36,7 +40,7 @@ export class ProgressService {
   }
 
   private async assertLessonUnlockedOrAdmin(user: JwtUser, lessonId: number, courseId: number) {
-    if (user.role === 'ADMIN') return
+    if (this.canManageCourseProgress(user)) return
 
     const orderedLessons = await this.prisma.lesson.findMany({
       where: { courseId, published: true },
@@ -121,7 +125,7 @@ export class ProgressService {
     const lesson = await this.getLessonOrThrow(lessonId)
     await this.enrollments.assertEnrolledOrAdmin(user, lesson.courseId)
 
-    if (user.role !== 'ADMIN') {
+    if (!this.canManageCourseProgress(user)) {
       if (!lesson.course.published) throw new NotFoundException('Lesson not found')
       if (!lesson.published) throw new NotFoundException('Lesson not found')
     }
@@ -165,7 +169,7 @@ export class ProgressService {
   async upsertVideoProgress(user: JwtUser, lessonId: number, videoId: number, dto: UpsertProgressDto) {
     const lesson = await this.getLessonOrThrow(lessonId)
     await this.enrollments.assertEnrolledOrAdmin(user, lesson.courseId)
-    if (user.role !== 'ADMIN') {
+    if (!this.canManageCourseProgress(user)) {
       if (!lesson.course.published) throw new NotFoundException('Lesson not found')
       if (!lesson.published) throw new NotFoundException('Lesson not found')
     }
@@ -259,7 +263,7 @@ export class ProgressService {
     const lessons = await this.prisma.lesson.findMany({
       where: {
         courseId,
-        ...(user.role === 'ADMIN' ? {} : { published: true }),
+        ...(this.canManageCourseProgress(user) ? {} : { published: true }),
       },
       select: { id: true, order: true, published: true },
       orderBy: [{ order: 'asc' }, { id: 'asc' }],
@@ -268,7 +272,7 @@ export class ProgressService {
     const progress = await this.prisma.lessonProgress.findMany({
       where: {
         userId: user.sub,
-        lesson: { courseId, ...(user.role === 'ADMIN' ? {} : { published: true }) },
+        lesson: { courseId, ...(this.canManageCourseProgress(user) ? {} : { published: true }) },
       },
       select: {
         lessonId: true,

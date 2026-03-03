@@ -4,8 +4,8 @@ import { http } from "../api/http";
 import { SiteHeader } from "../components/layout/SiteHeader";
 import { Footer } from "../components/layout/Footer";
 
-type ModuleItem = { id: number; order: number; title: string };
-type LessonItem = { id: number; order: number; title: string; modules: ModuleItem[] };
+type ModuleItem = { id: number; order: number; title: string; description?: string | null };
+type LessonItem = { id: number; order: number; title: string; description?: string | null; modules: ModuleItem[] };
 type ReviewItem = {
   id: number;
   stars: number;
@@ -174,7 +174,10 @@ export default function CourseDetailPage() {
       <SiteHeader />
       <main className="px-4 py-8">
         <div className="max-w-6xl mx-auto grid gap-4">
-          <button className="btn w-fit" type="button" onClick={() => nav("/courses")}>← Khóa học</button>
+          <button className="inline-flex w-fit items-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-fuchsia-600 px-4 py-2 font-bold text-white shadow-lg shadow-indigo-500/25 transition hover:scale-[1.02]" type="button" onClick={() => nav("/courses")}>
+            <i className="fa-solid fa-arrow-left" />
+            Khóa học
+          </button>
 
           {loading ? (
             <div className="card p-8">Đang tải...</div>
@@ -184,22 +187,43 @@ export default function CourseDetailPage() {
             <section className="grid gap-4 lg:grid-cols-10">
               <div className="lg:col-span-7 grid gap-4">
                 <article className="card p-6">
-                  <div className="chip w-fit">{course.topic?.name || "Course"}</div>
-                  <h1 className="text-3xl font-extrabold mt-3">{course.title}</h1>
-                  <p className="text-slate-700 mt-2">{course.shortDescription || course.description}</p>
+                  <div className="inline-flex w-fit items-center gap-2 rounded-xl bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-700">
+                    <i className="fa-solid fa-layer-group" />
+                    {course.topic?.name || "Course"}
+                  </div>
+                  <h1 className="mt-3 text-3xl font-extrabold">{course.title}</h1>
+                  <p className="mt-2 text-slate-700">{course.shortDescription || course.description}</p>
                 </article>
 
                 <article className="card p-6">
                   <h2 className="text-xl font-extrabold">Nội dung khóa học</h2>
-                  <p className="text-sm text-slate-600 mt-1">{course.lessons.length} bài học • {totalModules} module</p>
+                  <p className="mt-2 flex flex-wrap gap-2 text-sm">
+                    <span className="inline-flex items-center gap-2 rounded-xl bg-cyan-100 px-3 py-1 font-bold text-cyan-700">
+                      <i className="fa-solid fa-book-open" /> {course.lessons.length} bài học
+                    </span>
+                    <span className="inline-flex items-center gap-2 rounded-xl bg-emerald-100 px-3 py-1 font-bold text-emerald-700">
+                      <i className="fa-solid fa-cubes" /> {totalModules} phần nội dung
+                    </span>
+                  </p>
 
                   <div className="mt-4 grid gap-3">
                     {course.lessons.map((lesson) => (
-                      <article key={lesson.id} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
-                        <div className="font-extrabold">Bài {lesson.order + 1}: {lesson.title}</div>
-                        <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                      <article key={lesson.id} className="rounded-2xl bg-gradient-to-r from-slate-50 to-indigo-50 p-4 ring-1 ring-indigo-100">
+                        <div className="flex items-center gap-2 font-extrabold text-indigo-700">
+                          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600 text-xs text-white">{lesson.order + 1}</span>
+                          {lesson.title}
+                        </div>
+                        {lesson.description ? (
+                          <p className="mt-2 text-sm text-slate-600">{lesson.description}</p>
+                        ) : null}
+                        <ul className="mt-3 space-y-2 text-sm text-slate-700">
                           {lesson.modules.map((module) => (
-                            <li key={module.id}>• Module {module.order + 1}: {module.title}</li>
+                            <li key={module.id} className="rounded-xl bg-white px-3 py-2 ring-1 ring-slate-200">
+                              <p className="font-semibold text-slate-900">{module.title}</p>
+                              {module.description ? (
+                                <p className="mt-1 text-xs text-slate-600">{module.description}</p>
+                              ) : null}
+                            </li>
                           ))}
                         </ul>
                       </article>
@@ -211,22 +235,28 @@ export default function CourseDetailPage() {
               <aside className="lg:col-span-3 grid gap-4">
                 <article className="card overflow-hidden">
                   <img src={thumbnail} alt={course.title} className="w-full h-48 object-cover" />
-                  <div className="p-4 text-xs text-slate-500">Thumbnail khóa học</div>
                 </article>
 
                 <article className="card p-5">
                   <div className="text-2xl font-extrabold text-indigo-700">{money(course.price)}</div>
-                  <div className="mt-3 flex flex-wrap gap-2 text-sm">
-                    <span className="chip">⏱ {formatHour(course.time)}</span>
-                    <span className="chip">⭐ {course.ratingAvg.toFixed(1)} ({course.ratingCount})</span>
-                    <span className="chip">👥 {course.enrollmentCount}</span>
+                  <div className="mt-3 grid gap-2 text-sm">
+                    <span className="inline-flex items-center gap-2 rounded-xl bg-emerald-100 px-3 py-2 font-bold text-emerald-700">
+                      <i className="fa-solid fa-clock" /> {formatHour(course.time)}
+                    </span>
+                    <span className="inline-flex items-center gap-2 rounded-xl bg-amber-100 px-3 py-2 font-bold text-amber-700">
+                      <i className="fa-solid fa-star" /> {course.ratingAvg.toFixed(1)} ({course.ratingCount})
+                    </span>
+                    <span className="inline-flex items-center gap-2 rounded-xl bg-indigo-100 px-3 py-2 font-bold text-indigo-700">
+                      <i className="fa-solid fa-users" /> {course.enrollmentCount} học viên
+                    </span>
                   </div>
                   <button
-                    className="btn btn-primary w-full mt-4"
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-fuchsia-600 px-4 py-3 font-extrabold text-white shadow-lg shadow-indigo-500/30 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-70"
                     type="button"
                     onClick={onRegister}
                     disabled={ordering}
                   >
+                    <i className="fa-solid fa-bolt" />
                     {ordering ? "Đang tạo mã QR..." : REGISTER_LABEL[lang] || REGISTER_LABEL.vi}
                   </button>
                 </article>

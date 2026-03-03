@@ -9,6 +9,7 @@ export function RolesPanel(props: {
   onNewRole: () => void;
   onEditRole: (key: string) => void;
   onDeleteRole: (key: string) => void;
+  protectedRoles: Set<string>;
   onJumpRole: (key: string) => void;
 }) {
   return (
@@ -60,6 +61,7 @@ export function RolesPanel(props: {
           {props.roles.length ? (
               props.roles.map((r) => {
                 const active = r.key === props.activeRole;
+                const isProtectedRole = props.protectedRoles.has(r.key);
                 return (
                     <button
                         key={r.key}
@@ -131,6 +133,7 @@ export function RolesPanel(props: {
                           {/* EDIT */}
                           <button
                               title="Edit role"
+                              className="ring-1 ring-indigo-100 hover:ring-indigo-200"
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
@@ -155,26 +158,31 @@ export function RolesPanel(props: {
 
                           {/* DELETE */}
                           <button
-                              title="Delete role"
+                              title={isProtectedRole ? "Role hệ thống không thể xoá" : "Delete role"}
+                              className="ring-1 ring-red-100 hover:ring-red-200"
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
+                                if (isProtectedRole) return;
                                 props.onDeleteRole(r.key);
                               }}
+                              disabled={isProtectedRole}
                               style={{
                                 width: 38,
                                 height: 38,
                                 borderRadius: 14,
-                                background: "#fef2f2",
+                                background: isProtectedRole ? "#f1f5f9" : "#fef2f2",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                                 transition: "0.2s",
+                                cursor: isProtectedRole ? "not-allowed" : "pointer",
+                                opacity: isProtectedRole ? 0.6 : 1,
                               }}
                           >
                             <i
                                 className="fa-solid fa-trash"
-                                style={{ color: "#dc2626" }}
+                                style={{ color: isProtectedRole ? "#94a3b8" : "#dc2626" }}
                             />
                           </button>
                         </div>
@@ -214,6 +222,7 @@ export function RolesPanel(props: {
             ].map((item) => (
                 <button
                     key={item.key}
+                    className="text-slate-700 hover:bg-indigo-50"
                     onClick={() => props.onJumpRole(item.key)}
                     style={{
                       display: "flex",

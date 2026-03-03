@@ -1,8 +1,10 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put, UseGuards } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put, Query, UseGuards } from '@nestjs/common'
 import { AccessTokenGuard } from '../auth/guards/access-token.guard'
 import { Permissions } from '../auth/decorators/permissions.decorator'
 import { PermissionGuard } from '../auth/guards/permission.guard'
+import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
 import { AssignPermissionsDto } from './dto/assign-permissions.dto'
+import { CheckPermissionDto } from './dto/check-permission.dto'
 import { CreatePermissionDto } from './dto/create-permission.dto'
 import { CreateRoleDto } from './dto/create-role.dto'
 import { UpdatePermissionDto } from './dto/update-permission.dto'
@@ -16,8 +18,8 @@ export class RbacController {
 
   @Post('roles')
   @Permissions('role.manage')
-  createRole(@Body() dto: CreateRoleDto) {
-    return this.rbac.createRole(dto)
+  createRole(@Body() dto: CreateRoleDto, @CurrentUser() actor: JwtUser) {
+    return this.rbac.createRole(dto, actor?.sub)
   }
 
   @Get('roles')
@@ -28,14 +30,14 @@ export class RbacController {
 
   @Put('roles/:id')
   @Permissions('role.manage')
-  updateRole(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateRoleDto) {
-    return this.rbac.updateRole(id, dto)
+  updateRole(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateRoleDto, @CurrentUser() actor: JwtUser) {
+    return this.rbac.updateRole(id, dto, actor?.sub)
   }
 
   @Delete('roles/:id')
   @Permissions('role.manage')
-  deleteRole(@Param('id', ParseIntPipe) id: number) {
-    return this.rbac.deleteRole(id)
+  deleteRole(@Param('id', ParseIntPipe) id: number, @CurrentUser() actor: JwtUser) {
+    return this.rbac.deleteRole(id, actor?.sub)
   }
 
   @Post('permissions')
@@ -64,7 +66,19 @@ export class RbacController {
 
   @Post('roles/:roleId/permissions')
   @Permissions('role.manage')
-  assignPermissions(@Param('roleId', ParseIntPipe) roleId: number, @Body() dto: AssignPermissionsDto) {
-    return this.rbac.assignPermissionsToRole(roleId, dto)
+  assignPermissions(@Param('roleId', ParseIntPipe) roleId: number, @Body() dto: AssignPermissionsDto, @CurrentUser() actor: JwtUser) {
+    return this.rbac.assignPermissionsToRole(roleId, dto, actor?.sub)
+  }
+
+  @Get('roles/audit-logs')
+  @Permissions('role.read')
+  getAuditLogs(@Query('limit') limit?: string) {
+    return this.rbac.getRoleAuditLogs(limit ? Number(limit) : 50)
+  }
+
+  @Post('roles/check-permission')
+  @Permissions('role.read')
+  checkPermission(@Body() dto: CheckPermissionDto) {
+    return this.rbac.checkPermission(dto)
   }
 }

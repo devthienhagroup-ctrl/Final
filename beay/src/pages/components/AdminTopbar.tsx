@@ -1,4 +1,4 @@
-import React from "react";
+import { useAuth } from "../../app/auth";
 
 type Props = {
   onOpenSidebar: () => void;
@@ -17,6 +17,8 @@ type Props = {
 };
 
 export function AdminTopbar(props: Props) {
+  const { can } = useAuth();
+
   return (
     <header className="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-slate-200/70">
       <div className="h-16 px-4 md:px-8 flex items-center justify-between gap-4">
@@ -64,10 +66,12 @@ export function AdminTopbar(props: Props) {
             Thông báo
           </button>
 
-          <button onClick={props.onCreateCourse} className="btn btn-primary inline-flex items-center gap-2">
-            <i className="fa-solid fa-plus" />
-            Tạo khóa học
-          </button>
+          {can("courses.write") ? (
+            <button onClick={props.onCreateCourse} className="btn btn-primary inline-flex items-center gap-2">
+              <i className="fa-solid fa-plus" />
+              Tạo khóa học
+            </button>
+          ) : null}
         </div>
       </div>
     </header>

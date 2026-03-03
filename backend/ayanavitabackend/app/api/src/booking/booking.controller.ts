@@ -16,9 +16,9 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express'
 import { memoryStorage } from 'multer'
 import { AccessTokenGuard } from '../auth/guards/access-token.guard'
-import { RolesGuard } from '../auth/guards/roles.guard'
+import { PermissionGuard } from '../auth/guards/permission.guard'
 import { CurrentUser, type JwtUser } from '../auth/decorators/current-user.decorator'
-import { Roles } from '../auth/decorators/roles.decorator'
+import { Permissions } from '../auth/decorators/permissions.decorator'
 import { BookingService } from './booking.service'
 import { AppointmentStatsQueryDto, BookingFilterQueryDto } from './dto/booking-query.dto'
 import { CreateAppointmentDto } from './dto/create-appointment.dto'
@@ -51,6 +51,8 @@ export class BookingController {
     return this.booking.listServicesCatalog(lang)
   }
 
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('spa_services.write')
   @Post('images/temp')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -63,6 +65,8 @@ export class BookingController {
     return this.booking.saveTempImage(file)
   }
 
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('spa_services.write')
   @Post('images/cloud')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -75,11 +79,15 @@ export class BookingController {
     return this.booking.uploadImageToCloud(file)
   }
 
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('spa_services.write')
   @Delete('images/temp/:fileName')
   deleteTempImage(@Param('fileName') fileName: string) {
     return this.booking.deleteTempImage(fileName)
   }
 
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('spa_services.write')
   @Delete('images/cloud')
   deleteCloudImage(@Body() input: { fileName?: string; url?: string }) {
     return this.booking.deleteCloudImage(input)
@@ -97,16 +105,22 @@ export class BookingController {
     return this.booking.listBranches(includeInactive === 'true', parsedServiceId, lang)
   }
 
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('spa_services.manage')
   @Post('branches')
   createBranch(@Body() data: any) {
     return this.booking.createBranch(data)
   }
 
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('spa_services.manage')
   @Patch('branches/:id')
   updateBranch(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
     return this.booking.updateBranch(id, data)
   }
 
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('spa_services.manage')
   @Delete('branches/:id')
   deleteBranch(@Param('id', ParseIntPipe) id: number) {
     return this.booking.deleteBranch(id)
@@ -129,6 +143,8 @@ export class BookingController {
     return this.booking.getServiceDetail(id, lang)
   }
 
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('spa_services.write')
   @Post('services')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -140,6 +156,8 @@ export class BookingController {
     return this.booking.createService(parseMultipartData(data), file)
   }
 
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('spa_services.write')
   @Patch('services/:id')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -151,6 +169,8 @@ export class BookingController {
     return this.booking.updateService(id, parseMultipartData(data), file)
   }
 
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('spa_services.manage')
   @Delete('services/:id')
   deleteService(@Param('id', ParseIntPipe) id: number) {
     return this.booking.deleteService(id)
@@ -161,16 +181,22 @@ export class BookingController {
     return this.booking.listServiceCategories(lang)
   }
 
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('spa_services.manage')
   @Post('service-categories')
   createServiceCategory(@Body() data: any) {
     return this.booking.createServiceCategory(data)
   }
 
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('spa_services.manage')
   @Patch('service-categories/:id')
   updateServiceCategory(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
     return this.booking.updateServiceCategory(id, data)
   }
 
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('spa_services.manage')
   @Delete('service-categories/:id')
   deleteServiceCategory(@Param('id', ParseIntPipe) id: number) {
     return this.booking.deleteServiceCategory(id)
@@ -181,16 +207,22 @@ export class BookingController {
     return this.booking.listSpecialists(query.branchId, query.serviceId, query.lang)
   }
 
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('spa_services.manage')
   @Post('specialists')
   createSpecialist(@Body() data: any) {
     return this.booking.createSpecialist(data)
   }
 
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('spa_services.manage')
   @Patch('specialists/:id')
   updateSpecialist(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
     return this.booking.updateSpecialist(id, data)
   }
 
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('spa_services.manage')
   @Delete('specialists/:id')
   deleteSpecialist(@Param('id', ParseIntPipe) id: number) {
     return this.booking.deleteSpecialist(id)
@@ -218,29 +250,29 @@ export class BookingController {
     return this.booking.getSlotSuggestions(parsedBranchId, parsedServiceId, date)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN', 'STAFF')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('appointments.read')
   @Get('appointments')
   appointments(@CurrentUser() user: JwtUser) {
     return this.booking.listAppointments(user)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN', 'STAFF')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('appointments.read')
   @Get('appointments/stats')
   appointmentStats(@Query() query: AppointmentStatsQueryDto, @CurrentUser() user: JwtUser) {
     return this.booking.getAppointmentStats(query, user)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN', 'STAFF')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('appointments.write')
   @Patch('appointments/:id')
   updateAppointment(@Param('id', ParseIntPipe) id: number, @Body() data: any, @CurrentUser() user: JwtUser) {
     return this.booking.updateAppointment(id, data, user)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('appointments.manage')
   @Delete('appointments/:id')
   deleteAppointment(@Param('id', ParseIntPipe) id: number) {
     return this.booking.deleteAppointment(id)
@@ -256,11 +288,15 @@ export class BookingController {
     return this.booking.createServiceReview(data)
   }
 
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('support.manage')
   @Delete('service-reviews/:id')
   deleteServiceReview(@Param('id', ParseIntPipe) id: number) {
     return this.booking.deleteServiceReview(id)
   }
 
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('spa_services.manage')
   @Post('relations/sync')
   syncRelations(@Body() payload: any) {
     return this.booking.upsertRelations(payload)

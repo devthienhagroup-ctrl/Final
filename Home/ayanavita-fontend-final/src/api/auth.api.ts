@@ -18,6 +18,7 @@ export type RegisterNewReq = {
   phone: string;
   email: string;
   password: string;
+  role: "LECTURER" | "USER";
   otp: string;
   acceptedPolicy: boolean;
   birthDate?: string;

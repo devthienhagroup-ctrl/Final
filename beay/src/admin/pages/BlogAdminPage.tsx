@@ -616,9 +616,9 @@ export function BlogAdminPage() {
       summary: form.summary.trim(),
       content: form.content.trim(),
       tags: form.tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean),
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
       status: form.status,
       coverImage: form.coverImage.trim() || undefined,
     };
@@ -665,12 +665,12 @@ export function BlogAdminPage() {
   };
 
   const tabs = useMemo(
-    () => [
-      { key: "" as const, label: "Tất cả", count: total },
-      { key: "DRAFT" as const, label: "Draft", count: draftCount },
-      { key: "PUBLISHED" as const, label: "Published", count: publishedCount },
-    ],
-    [draftCount, publishedCount, total],
+      () => [
+        { key: "" as const, label: "Tất cả", count: total },
+        { key: "DRAFT" as const, label: "Draft", count: draftCount },
+        { key: "PUBLISHED" as const, label: "Published", count: publishedCount },
+      ],
+      [draftCount, publishedCount, total],
   );
 
   const pagerText = useMemo(() => {
@@ -688,64 +688,64 @@ export function BlogAdminPage() {
   };
 
   return (
-    <>
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-      <style>{PAGE_CSS}</style>
-      <div className="blog-admin">
-        <div className="app">
-          <div className="topbar">
-            <div className="topbar-inner">
-              <div className="brand">
-                <div className="logo">AB</div>
-                <div>
-                  <h1>Admin • Quản lý bài viết</h1>
-                  <p>UI đồng bộ theo trang quản lý đơn hàng (glass + gradient + drawer)</p>
-                </div>
-              </div>
-
-              <div className="top-actions">
-                <div className="pill" title="Quay lại" onClick={handleBack}>
-                  <i className="fa-solid fa-arrow-left" style={{ opacity: 0.85 }} />
-                  <span style={{ fontSize: 13, fontWeight: 700 }}>Quay lại</span>
+      <>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+        <style>{PAGE_CSS}</style>
+        <div className="blog-admin">
+          <div className="app">
+            <div className="topbar">
+              <div className="topbar-inner">
+                <div className="brand">
+                  <div className="logo">AB</div>
+                  <div>
+                    <h1>Admin • Quản lý bài viết</h1>
+                    <p>UI đồng bộ theo trang quản lý đơn hàng (glass + gradient + drawer)</p>
+                  </div>
                 </div>
 
-                <div className={`loading ${loading ? "show" : ""}`}>
-                  <div className="spinner" />
-                  Đang tải dữ liệu...
-                </div>
+                <div className="top-actions">
+                  <div className="pill" title="Quay lại" onClick={handleBack}>
+                    <i className="fa-solid fa-arrow-left" style={{ opacity: 0.85 }} />
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>Quay lại</span>
+                  </div>
 
-                <div className="pill" title="Làm mới" onClick={() => void loadData()}>
-                  <span className="dot" />
-                  <span style={{ fontSize: 13, fontWeight: 700 }}>Refresh</span>
-                  <i className="fa-solid fa-rotate-right" style={{ opacity: 0.7 }} />
-                </div>
+                  <div className={`loading ${loading ? "show" : ""}`}>
+                    <div className="spinner" />
+                    Đang tải dữ liệu...
+                  </div>
 
-                <div className="pill" title="Tạo bài viết" onClick={startCreate}>
-                  <i className="fa-solid fa-pen-to-square" style={{ opacity: 0.85 }} />
-                  <span style={{ fontSize: 13, fontWeight: 700 }}>Tạo bài</span>
-                </div>
+                  <div className="pill" title="Làm mới" onClick={() => void loadData()}>
+                    <span className="dot" />
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>Refresh</span>
+                    <i className="fa-solid fa-rotate-right" style={{ opacity: 0.7 }} />
+                  </div>
 
-                <div className="pill" title="Cleanup view tracker" onClick={() => void runCleanup()}>
-                  <i className="fa-solid fa-broom" style={{ opacity: 0.85 }} />
-                  <span style={{ fontSize: 13, fontWeight: 700 }}>Clear tracker</span>
+                  <div className="pill" title="Tạo bài viết" onClick={startCreate}>
+                    <i className="fa-solid fa-pen-to-square" style={{ opacity: 0.85 }} />
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>Tạo bài</span>
+                  </div>
+
+                  <div className="pill" title="Cleanup view tracker" onClick={() => void runCleanup()}>
+                    <i className="fa-solid fa-broom" style={{ opacity: 0.85 }} />
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>Clear tracker</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="container">
-            <div className="page-title">
-              <div>
-                <h2>Quản lý bài viết</h2>
-                <p className="hint">Tìm kiếm theo tiêu đề/slug, lọc trạng thái, tạo/sửa bằng drawer bên phải.</p>
-              </div>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                <div className="pill" title="Quay lại" onClick={handleBack}>
-                  <i className="fa-solid fa-arrow-left" style={{ opacity: 0.85 }} />
-                  <span style={{ fontSize: 13, fontWeight: 700 }}>Quay lại</span>
+            <div className="container">
+              <div className="page-title">
+                <div>
+                  <h2>Quản lý bài viết</h2>
+                  <p className="hint">Tìm kiếm theo tiêu đề/slug, lọc trạng thái, tạo/sửa bằng drawer bên phải.</p>
                 </div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  <div className="pill" title="Quay lại" onClick={handleBack}>
+                    <i className="fa-solid fa-arrow-left" style={{ opacity: 0.85 }} />
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>Quay lại</span>
+                  </div>
 
-                {/*
+                  {/*
                 <div
                   className="pill"
                   title="Demo export"
@@ -755,142 +755,142 @@ export function BlogAdminPage() {
                   <span style={{ fontSize: 13, fontWeight: 700 }}>Export</span>
                 </div>
                 */}
-              </div>
-            </div>
-
-            {message ? <div className="alert ok">{message}</div> : null}
-            {error ? <div className="alert err">{error}</div> : null}
-
-            <div className="stats">
-              <div className="card stat">
-                <div className="bg" />
-                <p className="label">Tổng bài (theo API)</p>
-                <div className="row">
-                  <p className="value">{total}</p>
-                  <span className="badge-mini"><span className="spark" />All</span>
                 </div>
               </div>
 
-              <div className="card stat">
-                <div className="bg" />
-                <p className="label">Bài trên trang hiện tại</p>
-                <div className="row">
-                  <p className="value">{items.length}</p>
-                  <span className="badge-mini"><span className="spark" />Page</span>
+              {message ? <div className="alert ok">{message}</div> : null}
+              {error ? <div className="alert err">{error}</div> : null}
+
+              <div className="stats">
+                <div className="card stat">
+                  <div className="bg" />
+                  <p className="label">Tổng bài (theo API)</p>
+                  <div className="row">
+                    <p className="value">{total}</p>
+                    <span className="badge-mini"><span className="spark" />All</span>
+                  </div>
+                </div>
+
+                <div className="card stat">
+                  <div className="bg" />
+                  <p className="label">Bài trên trang hiện tại</p>
+                  <div className="row">
+                    <p className="value">{items.length}</p>
+                    <span className="badge-mini"><span className="spark" />Page</span>
+                  </div>
+                </div>
+
+                <div className="card stat">
+                  <div className="bg" />
+                  <p className="label">Đã xuất bản (trang hiện tại)</p>
+                  <div className="row">
+                    <p className="value">{publishedCount}</p>
+                    <span className="badge-mini"><span className="spark" />Published</span>
+                  </div>
+                </div>
+
+                <div className="card stat">
+                  <div className="bg" />
+                  <p className="label">Tổng views (trang hiện tại)</p>
+                  <div className="row">
+                    <p className="value">{viewSum}</p>
+                    <span className="badge-mini"><span className="spark" />Views</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="card stat">
-                <div className="bg" />
-                <p className="label">Đã xuất bản (trang hiện tại)</p>
-                <div className="row">
-                  <p className="value">{publishedCount}</p>
-                  <span className="badge-mini"><span className="spark" />Published</span>
+              <div className="card panel">
+                <div className="panel-head">
+                  <h3><i className="fa-solid fa-filter" style={{ opacity: 0.8 }} /> Bộ lọc</h3>
+                  <div className="right"><span>Tip:</span><span>gõ slug hoặc từ khoá trong tiêu đề</span></div>
                 </div>
-              </div>
 
-              <div className="card stat">
-                <div className="bg" />
-                <p className="label">Tổng views (trang hiện tại)</p>
-                <div className="row">
-                  <p className="value">{viewSum}</p>
-                  <span className="badge-mini"><span className="spark" />Views</span>
+                <div className="filters">
+                  <div>
+                    <label>Tìm kiếm (tiêu đề, slug, tóm tắt)</label>
+                    <input
+                        className="input"
+                        value={qInput}
+                        onChange={(e) => setQInput(e.target.value)}
+                        placeholder="VD: skincare / routine / slug-bai-viet"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            setPage(1);
+                            setQ(qInput.trim());
+                          }
+                        }}
+                    />
+                  </div>
+                  <div>
+                    <label>Trạng thái</label>
+                    <select
+                        className="input"
+                        value={statusFilter}
+                        onChange={(e) => {
+                          setPage(1);
+                          setStatusFilter(e.target.value as "" | BlogStatus);
+                        }}
+                    >
+                      <option value="">Tất cả</option>
+                      <option value="DRAFT">Draft</option>
+                      <option value="PUBLISHED">Published</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            <div className="card panel">
-              <div className="panel-head">
-                <h3><i className="fa-solid fa-filter" style={{ opacity: 0.8 }} /> Bộ lọc</h3>
-                <div className="right"><span>Tip:</span><span>gõ slug hoặc từ khoá trong tiêu đề</span></div>
-              </div>
+                <div className="actions">
+                  <button
+                      className="btn ghost"
+                      type="button"
+                      onClick={() => {
+                        setQInput("");
+                        setQ("");
+                        setStatusFilter("");
+                        setPage(1);
+                        setMessage("Đã reset bộ lọc.");
+                        setError("");
+                      }}
+                  >
+                    <i className="fa-solid fa-eraser" style={{ opacity: 0.85 }} /> Reset
+                  </button>
 
-              <div className="filters">
-                <div>
-                  <label>Tìm kiếm (tiêu đề, slug, tóm tắt)</label>
-                  <input
-                    className="input"
-                    value={qInput}
-                    onChange={(e) => setQInput(e.target.value)}
-                    placeholder="VD: skincare / routine / slug-bai-viet"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
+                  <button
+                      className="btn primary"
+                      type="button"
+                      onClick={() => {
                         setPage(1);
                         setQ(qInput.trim());
-                      }
-                    }}
-                  />
-                </div>
-                <div>
-                  <label>Trạng thái</label>
-                  <select
-                    className="input"
-                    value={statusFilter}
-                    onChange={(e) => {
-                      setPage(1);
-                      setStatusFilter(e.target.value as "" | BlogStatus);
-                    }}
+                      }}
                   >
-                    <option value="">Tất cả</option>
-                    <option value="DRAFT">Draft</option>
-                    <option value="PUBLISHED">Published</option>
-                  </select>
+                    <i className="fa-solid fa-magnifying-glass" style={{ opacity: 0.95 }} /> Áp dụng
+                  </button>
                 </div>
               </div>
 
-              <div className="actions">
-                <button
-                  className="btn ghost"
-                  type="button"
-                  onClick={() => {
-                    setQInput("");
-                    setQ("");
-                    setStatusFilter("");
-                    setPage(1);
-                    setMessage("Đã reset bộ lọc.");
-                    setError("");
-                  }}
-                >
-                  <i className="fa-solid fa-eraser" style={{ opacity: 0.85 }} /> Reset
-                </button>
-
-                <button
-                  className="btn primary"
-                  type="button"
-                  onClick={() => {
-                    setPage(1);
-                    setQ(qInput.trim());
-                  }}
-                >
-                  <i className="fa-solid fa-magnifying-glass" style={{ opacity: 0.95 }} /> Áp dụng
-                </button>
+              <div className="tabs">
+                <div className="tabs-left">
+                  {tabs.map((t) => (
+                      <div
+                          key={t.key}
+                          className={`tab ${t.key === statusFilter ? "active" : ""}`}
+                          onClick={() => {
+                            setPage(1);
+                            setStatusFilter(t.key as "" | BlogStatus);
+                            setMessage(`Đã lọc: ${t.label}`);
+                            setError("");
+                          }}
+                      >
+                        <i className="fa-solid fa-layer-group" style={{ opacity: 0.75 }} />
+                        <span>{t.label}</span>
+                        <span className="count">{t.count}</span>
+                      </div>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div className="tabs">
-              <div className="tabs-left">
-                {tabs.map((t) => (
-                  <div
-                    key={t.key}
-                    className={`tab ${t.key === statusFilter ? "active" : ""}`}
-                    onClick={() => {
-                      setPage(1);
-                      setStatusFilter(t.key as "" | BlogStatus);
-                      setMessage(`Đã lọc: ${t.label}`);
-                      setError("");
-                    }}
-                  >
-                    <i className="fa-solid fa-layer-group" style={{ opacity: 0.75 }} />
-                    <span>{t.label}</span>
-                    <span className="count">{t.count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="card table-wrap">
-              <table>
-                <thead>
+              <div className="card table-wrap">
+                <table>
+                  <thead>
                   <tr>
                     <th style={{ width: "44%" }}>Bài viết</th>
                     <th style={{ width: "16%" }}>Trạng thái</th>
@@ -898,215 +898,215 @@ export function BlogAdminPage() {
                     <th style={{ width: "18%" }}>Cập nhật</th>
                     <th style={{ width: "10%", textAlign: "right" }}>Hành động</th>
                   </tr>
-                </thead>
-                <tbody>
+                  </thead>
+                  <tbody>
                   {loading ? (
-                    <tr>
-                      <td colSpan={5} style={{ padding: "26px 14px", color: "#64748b", background: "rgba(255,255,255,.9)" }}>
-                        Đang tải...
-                      </td>
-                    </tr>
-                  ) : items.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} style={{ padding: "26px 14px", color: "#64748b", background: "rgba(255,255,255,.9)" }}>
-                        Không có dữ liệu.
-                      </td>
-                    </tr>
-                  ) : (
-                    items.map((item) => (
-                      <tr key={item.id}>
-                        <td>
-                          <div style={{ fontWeight: 900 }}>{item.title}</div>
-                          <div className="sub mono">{item.slug}</div>
+                      <tr>
+                        <td colSpan={5} style={{ padding: "26px 14px", color: "#64748b", background: "rgba(255,255,255,.9)" }}>
+                          Đang tải...
                         </td>
-                        <td>
+                      </tr>
+                  ) : items.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ padding: "26px 14px", color: "#64748b", background: "rgba(255,255,255,.9)" }}>
+                          Không có dữ liệu.
+                        </td>
+                      </tr>
+                  ) : (
+                      items.map((item) => (
+                          <tr key={item.id}>
+                            <td>
+                              <div style={{ fontWeight: 900 }}>{item.title}</div>
+                              <div className="sub mono">{item.slug}</div>
+                            </td>
+                            <td>
                           <span className={`status ${item.status === "PUBLISHED" ? "published" : "draft"}`}>
                             <span className="s-dot" />
                             <span style={{ fontWeight: 800 }}>{item.status === "PUBLISHED" ? "Published" : "Draft"}</span>
                           </span>
-                        </td>
-                        <td>{item.views}</td>
-                        <td>{new Date(item.updatedAt).toLocaleString("vi-VN")}</td>
-                        <td style={{ textAlign: "right" }}>
-                          <div className="table-actions">
-                            <button className="icon-btn" title="Sửa" onClick={() => startEdit(item)}>
-                              <i className="fa-solid fa-pen" />
-                            </button>
-                            <button className="icon-btn" title="Xóa" onClick={() => void handleDelete(item)}>
-                              <i className="fa-solid fa-trash" style={{ color: "#b91c1c" }} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                            </td>
+                            <td>{item.views}</td>
+                            <td>{new Date(item.updatedAt).toLocaleString("vi-VN")}</td>
+                            <td style={{ textAlign: "right" }}>
+                              <div className="table-actions">
+                                <button className="icon-btn" title="Sửa" onClick={() => startEdit(item)}>
+                                  <i className="fa-solid fa-pen" />
+                                </button>
+                                <button className="icon-btn" title="Xóa" onClick={() => void handleDelete(item)}>
+                                  <i className="fa-solid fa-trash" style={{ color: "#b91c1c" }} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                      ))
                   )}
-                </tbody>
-              </table>
-            </div>
+                  </tbody>
+                </table>
+              </div>
 
-            <div className="pager">
-              <div className="pager-left">{pagerText}</div>
-              <div className="pager-right">
-                <button
-                  className="page-btn"
-                  title="Trang trước"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  style={{ opacity: page <= 1 ? 0.5 : 1, cursor: page <= 1 ? "not-allowed" : "pointer" }}
-                >
-                  <i className="fa-solid fa-chevron-left" />
-                </button>
+              <div className="pager">
+                <div className="pager-left">{pagerText}</div>
+                <div className="pager-right">
+                  <button
+                      className="page-btn"
+                      title="Trang trước"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                      style={{ opacity: page <= 1 ? 0.5 : 1, cursor: page <= 1 ? "not-allowed" : "pointer" }}
+                  >
+                    <i className="fa-solid fa-chevron-left" />
+                  </button>
 
-                <span className="page-num">{Math.min(Math.max(1, page), totalPages)}</span>
+                  <span className="page-num">{Math.min(Math.max(1, page), totalPages)}</span>
 
-                <button
-                  className="page-btn"
-                  title="Trang sau"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                  style={{ opacity: page >= totalPages ? 0.5 : 1, cursor: page >= totalPages ? "not-allowed" : "pointer" }}
-                >
-                  <i className="fa-solid fa-chevron-right" />
-                </button>
+                  <button
+                      className="page-btn"
+                      title="Trang sau"
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page >= totalPages}
+                      style={{ opacity: page >= totalPages ? 0.5 : 1, cursor: page >= totalPages ? "not-allowed" : "pointer" }}
+                  >
+                    <i className="fa-solid fa-chevron-right" />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className={`overlay ${formOpen ? "show" : ""}`} onClick={() => setFormOpen(false)} />
+            <div className={`overlay ${formOpen ? "show" : ""}`} onClick={() => setFormOpen(false)} />
 
-          <aside className={`drawer ${formOpen ? "show" : ""}`} aria-hidden={!formOpen}>
-            <div className="drawer-head">
-              <div className="drawer-title">
-                <h4>{editing ? `Chỉnh sửa • #${editing.id}` : "Tạo bài viết mới"}</h4>
-                <p>{editing ? `${editing.title}` : "Nhập nội dung và lưu (Draft/Published)"}</p>
+            <aside className={`drawer ${formOpen ? "show" : ""}`} aria-hidden={!formOpen}>
+              <div className="drawer-head">
+                <div className="drawer-title">
+                  <h4>{editing ? `Chỉnh sửa • #${editing.id}` : "Tạo bài viết mới"}</h4>
+                  <p>{editing ? `${editing.title}` : "Nhập nội dung và lưu (Draft/Published)"}</p>
+                </div>
+                <button className="icon-btn" title="Đóng" onClick={() => setFormOpen(false)}>
+                  <i className="fa-solid fa-xmark" />
+                </button>
               </div>
-              <button className="icon-btn" title="Đóng" onClick={() => setFormOpen(false)}>
-                <i className="fa-solid fa-xmark" />
-              </button>
-            </div>
 
-            <div className="drawer-body">
-              <form onSubmit={submitForm}>
-                <div className="section">
-                  <h5><i className="fa-solid fa-font" style={{ opacity: 0.8 }} /> Thông tin cơ bản</h5>
+              <div className="drawer-body">
+                <form onSubmit={submitForm}>
+                  <div className="section">
+                    <h5><i className="fa-solid fa-font" style={{ opacity: 0.8 }} /> Thông tin cơ bản</h5>
 
-                  <div style={{ marginBottom: 10 }}>
-                    <label>Tiêu đề *</label>
-                    <input
-                      className="input"
-                      value={form.title}
-                      onChange={(e) => setForm((s) => ({ ...s, title: e.target.value }))}
-                      placeholder="VD: 5 bước skincare buổi tối"
-                    />
+                    <div style={{ marginBottom: 10 }}>
+                      <label>Tiêu đề *</label>
+                      <input
+                          className="input"
+                          value={form.title}
+                          onChange={(e) => setForm((s) => ({ ...s, title: e.target.value }))}
+                          placeholder="VD: 5 bước skincare buổi tối"
+                      />
+                    </div>
+
+                    <div className="split">
+                      <div>
+                        <label>Trạng thái</label>
+                        <select
+                            className="input"
+                            value={form.status}
+                            onChange={(e) => setForm((s) => ({ ...s, status: e.target.value as BlogStatus }))}
+                        >
+                          <option value="DRAFT">Draft</option>
+                          <option value="PUBLISHED">Published</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label>Tags (dấu phẩy)</label>
+                        <input
+                            className="input"
+                            value={form.tags}
+                            onChange={(e) => setForm((s) => ({ ...s, tags: e.target.value }))}
+                            placeholder="vd: skincare, routine, tips"
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="split">
-                    <div>
-                      <label>Trạng thái</label>
-                      <select
-                        className="input"
-                        value={form.status}
-                        onChange={(e) => setForm((s) => ({ ...s, status: e.target.value as BlogStatus }))}
-                      >
-                        <option value="DRAFT">Draft</option>
-                        <option value="PUBLISHED">Published</option>
-                      </select>
+                  <div className="section">
+                    <h5><i className="fa-solid fa-align-left" style={{ opacity: 0.8 }} /> Nội dung</h5>
+
+                    <div style={{ marginBottom: 10 }}>
+                      <label>Tóm tắt</label>
+                      <textarea
+                          className="input"
+                          style={{ minHeight: 90 }}
+                          value={form.summary}
+                          onChange={(e) => setForm((s) => ({ ...s, summary: e.target.value }))}
+                          placeholder="1-2 câu mô tả ngắn..."
+                      />
                     </div>
+
                     <div>
-                      <label>Tags (dấu phẩy)</label>
-                      <input
-                        className="input"
-                        value={form.tags}
-                        onChange={(e) => setForm((s) => ({ ...s, tags: e.target.value }))}
-                        placeholder="vd: skincare, routine, tips"
+                      <label>Nội dung *</label>
+                      <textarea
+                          className="input"
+                          value={form.content}
+                          onChange={(e) => setForm((s) => ({ ...s, content: e.target.value }))}
+                          placeholder="Bạn có thể dùng Markdown/HTML tuỳ backend..."
                       />
                     </div>
                   </div>
-                </div>
 
-                <div className="section">
-                  <h5><i className="fa-solid fa-align-left" style={{ opacity: 0.8 }} /> Nội dung</h5>
+                  <div className="section">
+                    <h5><i className="fa-solid fa-image" style={{ opacity: 0.8 }} /> Cover</h5>
 
-                  <div style={{ marginBottom: 10 }}>
-                    <label>Tóm tắt</label>
-                    <textarea
-                      className="input"
-                      style={{ minHeight: 90 }}
-                      value={form.summary}
-                      onChange={(e) => setForm((s) => ({ ...s, summary: e.target.value }))}
-                      placeholder="1-2 câu mô tả ngắn..."
-                    />
-                  </div>
-
-                  <div>
-                    <label>Nội dung *</label>
-                    <textarea
-                      className="input"
-                      value={form.content}
-                      onChange={(e) => setForm((s) => ({ ...s, content: e.target.value }))}
-                      placeholder="Bạn có thể dùng Markdown/HTML tuỳ backend..."
-                    />
-                  </div>
-                </div>
-
-                <div className="section">
-                  <h5><i className="fa-solid fa-image" style={{ opacity: 0.8 }} /> Cover</h5>
-
-                  <div className="split">
-                    <div>
-                      <label>Cover image URL</label>
-                      <input
-                        className="input"
-                        value={form.coverImage}
-                        onChange={(e) => setForm((s) => ({ ...s, coverImage: e.target.value }))}
-                        placeholder="https://..."
-                      />
-                      <div className="sub">Nếu có file upload, URL có thể để trống.</div>
-                    </div>
-                    <div>
-                      <label>Cover image file</label>
-                      <input
-                      className="input"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setCoverImageFile(e.target.files?.[0])}
-                      />
-                      <div className="sub">Chọn file sẽ gửi multipart theo API hiện tại.</div>
-                    </div>
+                    <div className="split">
+                      <div>
+                        <label>Cover image URL</label>
+                        <input
+                            className="input"
+                            value={form.coverImage}
+                            onChange={(e) => setForm((s) => ({ ...s, coverImage: e.target.value }))}
+                            placeholder="https://..."
+                        />
+                        <div className="sub">Nếu có file upload, URL có thể để trống.</div>
+                      </div>
+                      <div>
+                        <label>Cover image file</label>
+                        <input
+                            className="input"
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => setCoverImageFile(e.target.files?.[0])}
+                        />
+                        <div className="sub">Chọn file sẽ gửi multipart theo API hiện tại.</div>
+                      </div>
                     </div>
 
                     <div className="image-preview">
-                    {coverImageFile ? (
-                      <img 
-                      src={URL.createObjectURL(coverImageFile)} 
-                      alt="Cover preview" 
-                      style={{width: "100%", height: "auto", objectFit: "cover", borderRadius: "0.5rem"}} 
-                      />
-                    ) : form.coverImage ? (
-                      <img 
-                      src={form.coverImage} 
-                      alt="Cover preview" 
-                      style={{width: "100%", height: "auto", objectFit: "cover", borderRadius: "0.5rem"}} 
-                      />
-                    ) : null}
+                      {coverImageFile ? (
+                          <img
+                              src={URL.createObjectURL(coverImageFile)}
+                              alt="Cover preview"
+                              style={{width: "100%", height: "auto", objectFit: "cover", borderRadius: "0.5rem"}}
+                          />
+                      ) : form.coverImage ? (
+                          <img
+                              src={form.coverImage}
+                              alt="Cover preview"
+                              style={{width: "100%", height: "auto", objectFit: "cover", borderRadius: "0.5rem"}}
+                          />
+                      ) : null}
                     </div>
 
-                </div>
+                  </div>
 
-                <div style={{ display: "flex", gap: 10, paddingBottom: 8, flexWrap: "wrap" }}>
-                  <button ref={submitBtnRef} className="btn primary" type="submit" disabled={saving}>
-                    <i className="fa-solid fa-circle-check" style={{ opacity: 0.95 }} />
-                    {saving ? "Đang lưu..." : editing ? "Cập nhật" : "Tạo bài"}
-                  </button>
-                  <button className="btn ghost" type="button" onClick={resetForm}>
-                    <i className="fa-solid fa-ban" style={{ opacity: 0.85 }} /> Hủy
-                  </button>
-                </div>
-              </form>
-            </div>
-          </aside>
+                  <div style={{ display: "flex", gap: 10, paddingBottom: 8, flexWrap: "wrap" }}>
+                    <button ref={submitBtnRef} className="btn primary" type="submit" disabled={saving}>
+                      <i className="fa-solid fa-circle-check" style={{ opacity: 0.95 }} />
+                      {saving ? "Đang lưu..." : editing ? "Cập nhật" : "Tạo bài"}
+                    </button>
+                    <button className="btn ghost" type="button" onClick={resetForm}>
+                      <i className="fa-solid fa-ban" style={{ opacity: 0.85 }} /> Hủy
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </aside>
+          </div>
         </div>
-      </div>
-    </>
+      </>
   );
 }

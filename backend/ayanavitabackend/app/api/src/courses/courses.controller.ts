@@ -19,8 +19,8 @@ import { UpdateCourseDto } from './dto/update-course.dto'
 import { CurrentUser } from '../auth/decorators/current-user.decorator'
 import { AccessTokenGuard } from '../auth/guards/access-token.guard'
 import { OptionalAccessTokenGuard } from '../auth/guards/optional-access-token.guard'
-import { RolesGuard } from '../auth/guards/roles.guard'
-import { Roles } from '../auth/decorators/roles.decorator'
+import { PermissionGuard } from '../auth/guards/permission.guard'
+import { Permissions } from '../auth/decorators/permissions.decorator'
 import { CoursesService } from './courses.service'
 import { CourseQueryDto } from './dto/course-query.dto'
 import { UpsertCourseReviewDto } from './dto/upsert-course-review.dto'
@@ -86,8 +86,8 @@ export class CoursesController {
 
   @UseGuards(AccessTokenGuard)
   @Get(':id/lessons')
-  listLessons(@CurrentUser() user: any, @Param('id', ParseIntPipe) id: number) {
-    return this.courses.listLessons(user, id)
+  listLessons(@CurrentUser() user: any, @Param('id', ParseIntPipe) id: number, @Query('lang') lang?: string) {
+    return this.courses.listLessons(user, id, lang)
   }
 
   @UseGuards(AccessTokenGuard)
@@ -116,8 +116,8 @@ export class CoursesController {
     return this.courses.getLessonDetail(user, courseId, lessonId)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('courses.write')
   @Post('thumbnail/upload')
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   uploadThumbnail(@UploadedFile() file?: any) {
@@ -125,24 +125,24 @@ export class CoursesController {
     return this.courses.uploadThumbnail(file)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('courses.write')
   @Post()
   @UseInterceptors(FileInterceptor('thumbnail', { storage: memoryStorage() }))
-  create(@Body() rawData: any, @UploadedFile() thumbnail?: any) {
-    return this.courses.create(parseMultipartData(rawData) as CreateCourseDto, thumbnail)
+  create(@CurrentUser() user: JwtUser, @Body() rawData: any, @UploadedFile() thumbnail?: any) {
+    return this.courses.create(parseMultipartData(rawData) as CreateCourseDto, thumbnail, user.sub)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('courses.write')
   @Patch(':id')
   @UseInterceptors(FileInterceptor('thumbnail', { storage: memoryStorage() }))
   update(@Param('id', ParseIntPipe) id: number, @Body() rawData: any, @UploadedFile() thumbnail?: any) {
     return this.courses.update(id, parseMultipartData(rawData) as UpdateCourseDto, thumbnail)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('courses.manage')
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.courses.remove(id)

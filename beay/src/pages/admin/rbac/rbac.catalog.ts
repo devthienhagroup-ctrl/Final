@@ -8,6 +8,7 @@ export const MODULES = [
   { key: "booking", name: "Đặt lịch", desc: "Khách đặt lịch, xác nhận/huỷ" },
   { key: "products", name: "Quản lý sản phẩm (thiết bị cứng)", desc: "Sản phẩm, kho, giá" },
   { key: "courses", name: "Quản lý khóa học", desc: "Khoá, bài học, publish" },
+  { key: "dashboard", name: "Dashboard", desc: "Truy cập trang tổng quan quản trị" },
   { key: "my_courses", name: "Khóa học của tôi", desc: "Enrollment, tiến độ, chứng chỉ" },
   { key: "cms", name: "CMS", desc: "Landing/pages/sections" },
   { key: "cart", name: "Giỏ hàng", desc: "Thêm/sửa/xoá giỏ" },
@@ -16,6 +17,8 @@ export const MODULES = [
   { key: "payments", name: "Thanh toán", desc: "Gateway, capture, refund, reconcile" },
   { key: "packages", name: "Quản lý gói dịch vụ", desc: "Gói spa/gói membership/gói học" },
   { key: "support", name: "Support/Ticket/Chat", desc: "CSKH, ticket, chat" },
+  { key: "reviews", name: "Quản lý đánh giá", desc: "Duyệt, ẩn/hiện, xử lý vi phạm đánh giá" },
+  { key: "blogs", name: "Quản lý blog", desc: "Quản trị bài viết blog" },
 ] as const;
 
 export const ACTIONS = [
@@ -28,22 +31,69 @@ export const ACTIONS = [
   { key: "export", desc: "Xuất file/báo cáo" },
 ] as const;
 
-// ✅ Export PERMS (quan trọng)
-export const PERMS: PermDef[] = (() => {
-  const out: PermDef[] = [];
-  for (const m of MODULES) {
-    for (const a of ACTIONS) {
-      out.push({
-        module: m.key,
-        moduleName: m.name,
-        action: a.key,
-        key: `${m.key}.${a.key}`,
-        desc: `${a.desc} • ${m.name}`,
-      });
-    }
-  }
-  return out;
-})();
+const MODULE_NAME_BY_KEY = Object.fromEntries(MODULES.map((m) => [m.key, m.name])) as Record<string, string>;
+const ACTION_DESC_BY_KEY = Object.fromEntries(ACTIONS.map((a) => [a.key, a.desc])) as Record<string, string>;
+
+const PERM_KEYS = [
+  "booking.read",
+  "booking.write",
+  "cart.manage",
+  "orders.read",
+  "payments.read",
+  "courses.read",
+  "my_courses.read",
+  "enroll.read",
+  "enroll.write",
+  "support.read",
+  "support.write",
+  "spa_services.read",
+  "spa_services.write",
+  "appointments.read",
+  "appointments.write",
+  "appointments.approve",
+  "booking.approve",
+  "products.read",
+  "spa_services.manage",
+  "appointments.manage",
+  "booking.manage",
+  "products.write",
+  "orders.export",
+  "packages.manage",
+  "packages.write",
+  "packages.read",
+  "support.manage",
+  "role.read",
+  "courses.write",
+  "courses.publish",
+  "cms.read",
+  "orders.manage",
+  "cms.write",
+  "payments.manage",
+  "payments.export",
+  "payments.approve",
+  "payments.refund",
+  "orders.refund",
+  "role.manage",
+  "reviews.read",
+  "reviews.manage",
+  "blogs.read",
+  "blogs.write",
+  "blogs.manage",
+  "dashboard.admin",
+] as const;
+
+export const PERMS: PermDef[] = PERM_KEYS.map((key) => {
+  const [module, action] = key.split(".");
+  const moduleName = MODULE_NAME_BY_KEY[module] ?? module;
+  const actionDesc = ACTION_DESC_BY_KEY[action] ?? action;
+  return {
+    key,
+    module,
+    moduleName,
+    action,
+    desc: `${actionDesc} • ${moduleName}`,
+  };
+});
 
 // Nếu bạn đang dùng DEFAULT_ROLES ở nơi khác:
 export const DEFAULT_ROLES = [

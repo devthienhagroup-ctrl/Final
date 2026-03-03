@@ -1692,13 +1692,13 @@ export default function AdminOrdersDemo() {
 
                                 <div style={{ display: "flex", gap: 10, paddingBottom: 8, flexWrap: "wrap" }}>
                                     {(activeOrder.status === "pending" || activeOrder.status === "paid") && (
-                                        <button className="btn ghost" id="btnConfirmShipping" onClick={confirmOrderShipping}>
+                                        <button className="btn " id="btnConfirmShipping" onClick={confirmOrderShipping}>
                                             <i className="fa-solid fa-truck" style={{ opacity: 0.85 }}></i>
                                             Xác nhận đơn → Đang giao
                                         </button>
                                     )}
                                     {activeOrder.status === "cancel_requested" && (
-                                        <button className="btn ghost" onClick={approveCancelRequest}>
+                                        <button className="btn " onClick={approveCancelRequest}>
                                             <i className="fa-solid fa-ban" style={{ opacity: 0.85 }}></i>
                                             Chấp nhận yêu cầu hủy
                                         </button>

@@ -3,6 +3,7 @@ export function RbacHeader(props: {
   onImport: () => void;
   onExport: () => void;
   onSave: () => void;
+  onLogout: () => void;
 }) {
   return (
     <header className="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-slate-200/70">
@@ -18,8 +19,8 @@ export function RbacHeader(props: {
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="btn btn-primary inline-flex items-center gap-2" onClick={props.onSave}>
-            <i className="fa-solid fa-floppy-disk" /> Lưu cấu hình
+          <button className="btn inline-flex items-center gap-2" onClick={props.onLogout}>
+            <i className="fa-solid fa-right-from-bracket" /> Đăng xuất
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/http";
+import { useAuth } from "../../app/auth";
 
 // ==================== KIỂU DỮ LIỆU ====================
 type ReviewVisibility = "visible" | "hidden";
@@ -387,6 +388,9 @@ type SortKey = "newest" | "oldest" | "lowestRating" | "highestRating" | "mostHel
 
 export function ReviewsAdminPage() {
   const navigate = useNavigate();
+  const { can } = useAuth();
+  const canReadReviews = can("reviews.read");
+  const canManageReviews = can("reviews.manage");
   const [reviews, setReviews] = useState<Review[]>([]);
 
   const handleBack = () => {
@@ -618,6 +622,7 @@ export function ReviewsAdminPage() {
   }
 
   async function fakeRefresh() {
+    if (!canReadReviews) return;
     setLoading(true);
     try {
       const rows = await api<ApiReview[]>("/reviews/admin/list");
@@ -692,6 +697,7 @@ export function ReviewsAdminPage() {
   }, [drawerOpen]);
 
   async function toggleVisibility(id: string) {
+    if (!canManageReviews) return;
     const rv = reviews.find((x) => x.id === id);
     if (!rv) return;
 
@@ -743,6 +749,7 @@ export function ReviewsAdminPage() {
   }
 
   function updateStaffNote(id: string, note: string) {
+    if (!canManageReviews) return;
     setReviews((prev) =>
       prev.map((r) => {
         if (r.id !== id) return r;
@@ -760,6 +767,7 @@ export function ReviewsAdminPage() {
   }
 
   function deleteReview(id: string) {
+    if (!canManageReviews) return;
     openConfirm(
       "Xóa đánh giá",
       "Hành động này không thể hoàn tác. Bạn chắc chắn muốn xóa đánh giá này?",
@@ -794,6 +802,7 @@ export function ReviewsAdminPage() {
   const allOnPageChecked = useMemo(() => pageRows.length > 0 && pageRows.every((r) => !!selectedIds[r.id]), [pageRows, selectedIds]);
 
   function bulkAction(kind: "show" | "hide" | "spam" | "unspam" | "delete") {
+    if (!canManageReviews) return;
     const ids = selectedOnPage;
     if (ids.length === 0) return toast("Chưa chọn dòng nào.");
 
@@ -1904,11 +1913,11 @@ export function ReviewsAdminPage() {
               <option value={20}>20 / trang</option>
             </select>
             <span className="ar-mini-label"><i className="fas fa-tasks" /> Bulk</span>
+            {canManageReviews ? <>
             <button className="ar-btn" onClick={() => bulkAction("show")}><i className="fas fa-eye" /> Hiện</button>
             <button className="ar-btn" onClick={() => bulkAction("hide")}><i className="fas fa-eye-slash" /> Ẩn</button>
-            {/* <button className="ar-btn" onClick={() => bulkAction("spam")}><i className="fas fa-ban" /> Spam</button>
-            <button className="ar-btn" onClick={() => bulkAction("unspam")}><i className="fas fa-check-circle" /> Bỏ spam</button> */}
             <button className="ar-btn danger" onClick={() => bulkAction("delete")}><i className="fas fa-trash-alt" /> Xóa</button>
+            </> : null}
           </div>
         </div>
 
@@ -1989,10 +1998,10 @@ export function ReviewsAdminPage() {
                     <td>
                       <div className="ar-table-actions">
                         <button className="ar-icon-btn" onClick={() => openDrawer(rv)} title="Xem chi tiết"><i className="fas fa-info-circle" /></button>
-                        <button className="ar-icon-btn" onClick={() => toggleVisibility(rv.id)} title={rv.visibility === 'visible' ? 'Ẩn' : 'Hiện'}>
+                        {canManageReviews ? <button className="ar-icon-btn" onClick={() => toggleVisibility(rv.id)} title={rv.visibility === 'visible' ? 'Ẩn' : 'Hiện'}>
                           <i className={`fas ${rv.visibility === 'visible' ? 'fa-eye-slash' : 'fa-eye'}`} />
-                        </button>
-                        <button className="ar-icon-btn" onClick={() => deleteReview(rv.id)} title="Xóa"><i className="fas fa-trash-alt" /></button>
+                        </button> : null}
+                        {canManageReviews ? <button className="ar-icon-btn" onClick={() => deleteReview(rv.id)} title="Xóa"><i className="fas fa-trash-alt" /></button> : null}
                       </div>
                     </td>
                   </tr>
@@ -2130,7 +2139,7 @@ export function ReviewsAdminPage() {
               {/* <div className="ar-section">
                 <h5><i className="fas fa-sticky-note" /> Ghi chú nội bộ</h5>
                 <textarea className="ar-note" value={selected.staffNote} onChange={(e) => setSelected(prev => prev ? { ...prev, staffNote: e.target.value } : prev)} placeholder="Nhập ghi chú..." />
-                <button className="ar-btn primary" onClick={() => updateStaffNote(selected.id, selected.staffNote)}><i className="fas fa-save" /> Lưu ghi chú</button>
+                {canManageReviews ? <button className="ar-btn primary" onClick={() => updateStaffNote(selected.id, selected.staffNote)}><i className="fas fa-save" /> Lưu ghi chú</button> : null}
               </div> */}
 
               {/* Lịch sử kiểm duyệt */}

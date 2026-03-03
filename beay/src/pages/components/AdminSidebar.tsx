@@ -1,4 +1,4 @@
-import React from "react";
+import { useAuth } from "../../app/auth";
 
 type Props = {
   open: boolean;
@@ -7,6 +7,8 @@ type Props = {
 };
 
 export function AdminSidebar({ open, onClose, onConnectPay }: Props) {
+  const { can } = useAuth();
+
   return (
     <aside
       className={[
@@ -53,10 +55,10 @@ export function AdminSidebar({ open, onClose, onConnectPay }: Props) {
         <div className="mt-4 card p-3">
           <div className="text-xs font-semibold text-slate-500">Đi nhanh</div>
           <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
-            <a className="btn text-center" href="/admin/orders"><i className="fa-solid fa-receipt mr-1" />Đơn hàng</a>
-            <a className="btn text-center" href="/admin/rbac"><i className="fa-solid fa-user-shield mr-1" />Phân quyền</a>
-            <a className="btn text-center" href="/instructor"><i className="fa-solid fa-chalkboard-user mr-1" />Giảng viên</a>
-            <a className="btn text-center" href="/student"><i className="fa-solid fa-user-graduate mr-1" />Học viên</a>
+            {can("orders.read") ? <a className="btn text-center" href="/admin/orders"><i className="fa-solid fa-receipt mr-1" />Đơn hàng</a> : null}
+            {can("role.read") ? <a className="btn text-center" href="/admin/rbac"><i className="fa-solid fa-user-shield mr-1" />Phân quyền</a> : null}
+            {can("courses.write") ? <a className="btn text-center" href="/instructor"><i className="fa-solid fa-chalkboard-user mr-1" />Giảng viên</a> : null}
+            {can("my_courses.read") ? <a className="btn text-center" href="/student"><i className="fa-solid fa-user-graduate mr-1" />Học viên</a> : null}
           </div>
         </div>
 
@@ -65,7 +67,7 @@ export function AdminSidebar({ open, onClose, onConnectPay }: Props) {
             <i className="fa-solid fa-gauge-high text-indigo-600" />
             <span className="font-semibold">Tổng quan</span>
           </a>
-          <a href="#courses" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+          <a href="/admin/courses" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-book-open text-amber-600" />
             <span className="font-semibold">Khóa học</span>
           </a>
@@ -73,6 +75,10 @@ export function AdminSidebar({ open, onClose, onConnectPay }: Props) {
           <a href="/admin/product" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-box text-emerald-700" />
             <span className="font-semibold">Sản phẩm</span>
+          </a>
+          <a href="/admin/services" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+            <i className="fa-solid fa-spa text-violet-700" />
+            <span className="font-semibold">Dịch vụ</span>
           </a>
           <a href="#students" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-users text-cyan-700" />
@@ -92,14 +98,16 @@ export function AdminSidebar({ open, onClose, onConnectPay }: Props) {
             <i className="fa-solid fa-star text-yellow-700" />
             <span className="font-semibold">Đánh giá</span>
           </a>
-          <a href="#analytics" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
-            <i className="fa-solid fa-chart-line text-violet-700" />
-            <span className="font-semibold">Báo cáo</span>
+
+          <a href="/admin/blog" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+            <i className="fa-solid fa-newspaper text-yellow-700" />
+            <span className="font-semibold">Quản lý blog</span>
           </a>
-          <a href="#settings" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
-            <i className="fa-solid fa-gear text-slate-700" />
-            <span className="font-semibold">Cài đặt</span>
-          </a>
+
+          {/*<a href="#settings" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">*/}
+          {/*  <i className="fa-solid fa-gear text-slate-700" />*/}
+          {/*  <span className="font-semibold">Cài đặt</span>*/}
+          {/*</a>*/}
         </nav>
 
         {/* <div className="mt-6 card p-4">

@@ -21,6 +21,7 @@ import { ProductOrdersModule } from './product-orders/product-orders.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { BlogModule } from './blog/blog.module';
 import { RbacModule } from './rbac/rbac.module';
+import { InstructorModule } from './instructor/instructor.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
@@ -47,6 +48,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     BlogModule,
     RbacModule,
     DashboardModule,
+    InstructorModule,
   ],
 })
 export class AppModule {}

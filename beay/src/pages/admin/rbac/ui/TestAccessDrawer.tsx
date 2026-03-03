@@ -17,7 +17,7 @@ export function TestAccessDrawer(props: {
   roles: Role[];
   modules: ModuleDef[];
   actions: ActionDef[];
-  onRun: (input: TestInput) => { permKey: string; active: boolean; allowed: boolean; reason: string };
+  onRun: (input: TestInput) => Promise<{ permKey: string; active: boolean; allowed: boolean; reason: string }>;
 }) {
   const defaultRole = props.roles[0]?.key || "USER";
   const defaultModule = props.modules[0]?.key || "orders";
@@ -31,7 +31,7 @@ export function TestAccessDrawer(props: {
   const [resource, setResource] = useState("");
   const [scope, setScope] = useState<TestScope>("OWN");
 
-  const [result, setResult] = useState<ReturnType<typeof props.onRun> | null>(null);
+  const [result, setResult] = useState<Awaited<ReturnType<typeof props.onRun>> | null>(null);
 
   const statusUI = useMemo(() => {
     if (!result) return null;
@@ -122,8 +122,8 @@ export function TestAccessDrawer(props: {
             <div className="mt-4 flex items-center justify-end gap-2">
               <button
                 className="btn btn-primary"
-                onClick={() => {
-                  const r = props.onRun({ email: email.trim(), role, module, action, resource: resource.trim(), scope });
+                onClick={async () => {
+                  const r = await props.onRun({ email: email.trim(), role, module, action, resource: resource.trim(), scope });
                   setResult(r);
                 }}
               >

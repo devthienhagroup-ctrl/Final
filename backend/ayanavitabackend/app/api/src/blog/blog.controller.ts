@@ -17,9 +17,9 @@ import type { Request } from 'express'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { memoryStorage } from 'multer'
 import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
-import { Roles } from '../auth/decorators/roles.decorator'
+import { Permissions } from '../auth/decorators/permissions.decorator'
 import { AccessTokenGuard } from '../auth/guards/access-token.guard'
-import { RolesGuard } from '../auth/guards/roles.guard'
+import { PermissionGuard } from '../auth/guards/permission.guard'
 import { BlogService } from './blog.service'
 import { BlogQueryDto } from './dto/blog-query.dto'
 import { CreateBlogPostDto } from './dto/create-blog-post.dto'
@@ -40,15 +40,15 @@ export class BlogController {
     return this.blogService.detailPublic(id, req)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('blogs.read')
   @Get('admin')
-  listAdmin(@Query() query: BlogQueryDto) {
-    return this.blogService.listAdmin(query)
+  listAdmin(@CurrentUser() user: JwtUser, @Query() query: BlogQueryDto) {
+    return this.blogService.listAdmin(user, query)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('blogs.write')
   @Post('admin')
   @UseInterceptors(
     FileInterceptor('coverImageFile', {
@@ -64,8 +64,8 @@ export class BlogController {
     return this.blogService.create(user, dto, file)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('blogs.write')
   @Patch('admin/:id')
   @UseInterceptors(
     FileInterceptor('coverImageFile', {
@@ -73,15 +73,15 @@ export class BlogController {
       limits: { fileSize: 10 * 1024 * 1024 },
     }),
   )
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateBlogPostDto, @UploadedFile() file?: any) {
-    return this.blogService.update(id, dto, file)
+  update(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number, @Body() dto: UpdateBlogPostDto, @UploadedFile() file?: any) {
+    return this.blogService.update(user, id, dto, file)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('blogs.manage')
   @Delete('admin/:id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.blogService.remove(id)
+  remove(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    return this.blogService.remove(user, id)
   }
 
   @UseGuards(AccessTokenGuard)
@@ -102,8 +102,8 @@ export class BlogController {
     return this.blogService.mergeSaved(user.sub, dto.blogIds)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('blogs.manage')
   @Post('admin/view-trackers/cleanup')
   runCleanup(@CurrentUser() user: JwtUser) {
     return this.blogService.triggerCleanup(user)

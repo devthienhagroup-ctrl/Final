@@ -87,6 +87,11 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10)
+    const selectedRole = dto.role === 'LECTURER' ? 'LECTURER' : 'USER'
+    const selectedRoleRef = await this.prisma.rbacRole.findUnique({
+      where: { code: selectedRole },
+      select: { id: true },
+    })
 
     const user = await this.prisma.user.create({
       data: {
@@ -94,7 +99,8 @@ export class AuthService {
         password: passwordHash,
         name: dto.name,
         phone: dto.phone,
-        role: 'USER',
+        role: selectedRole,
+        roleId: selectedRoleRef?.id,
         birthDate: dto.birthDate ? new Date(dto.birthDate) : undefined,
         gender: dto.gender,
         address: dto.address,

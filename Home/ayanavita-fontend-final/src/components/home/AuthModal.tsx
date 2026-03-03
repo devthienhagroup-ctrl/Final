@@ -6,7 +6,7 @@ type AuthTab = "login" | "register";
 type LoginMode = "login" | "forgotEmail" | "forgotOtp" | "forgotReset";
 
 const OTP_LEN = 6;
-const INITIAL_REG = { name: "", phone: "", email: "", pass: "", confirm: "", terms: false };
+const INITIAL_REG = { name: "", phone: "", email: "", pass: "", confirm: "", role: "USER" as "LECTURER" | "USER", terms: false };
 
 /** ===== CMS TYPES ===== */
 type AuthModalCmsData = {
@@ -49,6 +49,9 @@ type AuthModalCmsData = {
     emailPlaceholder: string;
     passwordLabel: string;
     confirmLabel: string;
+    roleLabel: string;
+    roleUserLabel: string;
+    roleLecturerLabel: string;
 
     termsTextPrefix: string; // "Tôi đồng ý với "
     termsLabel: string; // "Điều khoản"
@@ -113,6 +116,9 @@ export const defaultCmsData: AuthModalCmsData = {
     emailPlaceholder: "email@example.com",
     passwordLabel: "Mật khẩu *",
     confirmLabel: "Xác nhận *",
+    roleLabel: "Bạn là ai? *",
+    roleUserLabel: "Người dùng",
+    roleLecturerLabel: "Giảng viên",
 
     termsTextPrefix: "Tôi đồng ý với ",
     termsLabel: "Điều khoản",
@@ -279,6 +285,7 @@ export function AuthModal({
         phone: reg.phone.trim(),
         email: reg.email.trim(),
         password: reg.pass,
+        role: reg.role,
         otp: otpValue,
         acceptedPolicy: reg.terms,
       });
@@ -512,6 +519,18 @@ export function AuthModal({
                   className="form-input"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="form-label">{cms.registerForm.roleLabel}</label>
+              <select
+                value={reg.role}
+                onChange={(e) => setReg((s) => ({ ...s, role: e.target.value as "LECTURER" | "USER" }))}
+                className="form-input"
+              >
+                <option value="USER">{cms.registerForm.roleUserLabel} </option>
+                <option value="LECTURER">{cms.registerForm.roleLecturerLabel} </option>
+              </select>
             </div>
 
             <div>

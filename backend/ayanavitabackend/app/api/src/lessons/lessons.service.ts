@@ -5,10 +5,15 @@ import { UpdateLessonDto } from './dto/update-lesson.dto'
 import { EnrollmentsService } from '../enrollments/enrollments.service'
 import { LessonsMediaService } from './lessons-media.service'
 import { JwtUser } from '../auth/decorators/current-user.decorator'
+import { hasAnyPermission } from '../auth/permission-utils'
 import { LessonMediaType, ProgressStatus } from '@prisma/client'
 
 @Injectable()
 export class LessonsService {
+  private canManageLessonContent(user: JwtUser | null | undefined) {
+    return hasAnyPermission(user, ['courses.write', 'courses.manage', 'courses.publish'])
+  }
+
   constructor(private readonly prisma: PrismaService, private readonly enrollments: EnrollmentsService, private readonly media: LessonsMediaService) {}
 
   private resolveLocale(lang?: string): 'vi' | 'en' | 'de' {
@@ -25,17 +30,17 @@ export class LessonsService {
       select: {
         id: true, courseId: true, title: true, slug: true, description: true, order: true, published: true, content: true, videoUrl: true, createdAt: true, updatedAt: true,
         translations: { select: { locale: true, title: true, description: true } },
-        modules: { where: user.role === 'ADMIN' ? {} : { published: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }], select: {
+        modules: { where: this.canManageLessonContent(user) ? {} : { published: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }], select: {
           id: true, title: true, description: true, order: true, published: true,
           translations: { select: { locale: true, title: true, description: true } },
-          videos: { where: user.role === 'ADMIN' ? {} : { published: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }], select: { id: true, title: true, description: true, sourceUrl: true, hlsPlaylistKey: true, mediaType: true, durationSec: true, order: true, published: true, translations: { select: { locale: true, title: true, description: true } } } },
+          videos: { where: this.canManageLessonContent(user) ? {} : { published: true }, orderBy: [{ order: 'asc' }, { id: 'asc' }], select: { id: true, title: true, description: true, sourceUrl: true, hlsPlaylistKey: true, mediaType: true, durationSec: true, order: true, published: true, translations: { select: { locale: true, title: true, description: true } } } },
         } },
       },
     })
     if (!lesson) throw new NotFoundException('Lesson not found')
     await this.enrollments.assertEnrolledOrAdmin(user, lesson.courseId)
-    if (user.role !== 'ADMIN' && !lesson.published) throw new NotFoundException('Lesson not found')
-    if (user.role !== 'ADMIN') {
+    if (!this.canManageLessonContent(user) && !lesson.published) throw new NotFoundException('Lesson not found')
+    if (!this.canManageLessonContent(user)) {
       const prev = await this.prisma.lesson.findFirst({ where: { courseId: lesson.courseId, published: true, OR: [{ order: { lt: lesson.order ?? 0 } }, { order: lesson.order ?? 0, id: { lt: lesson.id } }] }, select: { id: true }, orderBy: [{ order: 'desc' }, { id: 'desc' }] })
       if (prev) {
         const prevProgress = await this.prisma.lessonProgress.findUnique({ where: { userId_lessonId: { userId: user.sub, lessonId: prev.id } }, select: { status: true } })

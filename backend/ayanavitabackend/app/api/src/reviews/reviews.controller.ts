@@ -18,9 +18,9 @@ import { FilesInterceptor } from '@nestjs/platform-express'
 import { memoryStorage } from 'multer'
 import type { Request } from 'express'
 import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
-import { Roles } from '../auth/decorators/roles.decorator'
+import { Permissions } from '../auth/decorators/permissions.decorator'
 import { AccessTokenGuard } from '../auth/guards/access-token.guard'
-import { RolesGuard } from '../auth/guards/roles.guard'
+import { PermissionGuard } from '../auth/guards/permission.guard'
 import { CreateReviewDto } from './dto/create-review.dto'
 import { HelpfulHistoryQueryDto, MergeHelpfulDto } from './dto/review-helpful.dto'
 import { AdminReviewsQueryDto, PublicReviewsQueryDto } from './dto/reviews-query.dto'
@@ -63,8 +63,6 @@ export class ReviewsController {
   create(@Body() dto: CreateReviewDto, @Req() req: Request, @UploadedFiles() files?: any[]) {
     return this.reviewsService.createReview(dto, req, files || [])
   }
-
-
   @UseGuards(AccessTokenGuard)
   @Post(':id/helpful/toggle')
   toggleHelpful(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
@@ -83,45 +81,46 @@ export class ReviewsController {
     return this.reviewsService.mergeLocalHelpful(user.sub, dto.reviewIds || [])
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('reviews.read')
   @Get('admin/list')
-  adminList(@Query() query: AdminReviewsQueryDto) {
+  adminList(@CurrentUser() _user: JwtUser, @Query() query: AdminReviewsQueryDto) {
     return this.reviewsService.adminList(query)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('reviews.manage')
   @Patch('admin/:id/hide')
-  adminHide(@Param('id', ParseIntPipe) id: number) {
+  adminHide(@CurrentUser() _user: JwtUser, @Param('id', ParseIntPipe) id: number) {
     return this.reviewsService.adminHide(id)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('reviews.manage')
   @Patch('admin/:id/show')
-  adminShow(@Param('id', ParseIntPipe) id: number) {
+  adminShow(@CurrentUser() _user: JwtUser, @Param('id', ParseIntPipe) id: number) {
     return this.reviewsService.adminShow(id)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('reviews.manage')
   @Patch('admin/:id/spam')
-  adminSpam(@Param('id', ParseIntPipe) id: number) {
+  adminSpam(@CurrentUser() _user: JwtUser, @Param('id', ParseIntPipe) id: number) {
     return this.reviewsService.adminSpam(id)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('reviews.manage')
   @Patch('admin/:id/unspam')
-  adminUnspam(@Param('id', ParseIntPipe) id: number) {
+  adminUnspam(@CurrentUser() _user: JwtUser, @Param('id', ParseIntPipe) id: number) {
     return this.reviewsService.adminUnspam(id)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('reviews.manage')
   @Patch('admin/bulk')
   adminBulk(
+    @CurrentUser() _user: JwtUser,
     @Body() body: { ids?: number[]; action?: 'show' | 'hide' | 'spam' | 'unspam' | 'delete' },
   ) {
     const action = body?.action
@@ -130,10 +129,10 @@ export class ReviewsController {
     return this.reviewsService.adminBulk(ids, action)
   }
 
-  @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('reviews.manage')
   @Delete('admin/:id')
-  adminDelete(@Param('id', ParseIntPipe) id: number) {
+  adminDelete(@CurrentUser() _user: JwtUser, @Param('id', ParseIntPipe) id: number) {
     return this.reviewsService.adminDelete(id)
   }
 }

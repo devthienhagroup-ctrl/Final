@@ -23,13 +23,16 @@ import LessonDetailPage from "./pages/LessonDetailPage";
 import ReviewsCenterPage from "./pages/ReviewsCenterPage";
 import AccountCenter from "./pages/AccountCenter";
 import LoginPage from "./pages/LoginPage";
-// ví dụ
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+import NotFoundPage from "./pages/NotFoundPage";
+import ForbiddenPage from "./pages/ForbiddenPage";
 
 
 export default function App() {
     return (
         <Routes>
             <Route path="/login" element={<LoginPage/>} />
+            <Route path="/403" element={<ProtectedRoute><ForbiddenPage/></ProtectedRoute>} />
 
             <Route element={<Layout/>}>
 
@@ -64,12 +67,12 @@ export default function App() {
                 <Route path="/products" element={<div className="p-6">Products (todo)</div>}/>
                 <Route path="/checkout" element={<div className="p-6">Checkout (todo)</div>}/>
                 <Route path="/franchise" element={<div className="p-6">Franchise (todo)</div>}/>
-                <Route path="/account" element={<AccountCenter/>}/>
-                <Route path="/account-center" element={<AccountCenter/>}/>
+                <Route path="/account" element={<ProtectedRoute><AccountCenter/></ProtectedRoute>}/>
+                <Route path="/account-center" element={<ProtectedRoute><AccountCenter/></ProtectedRoute>}/>
                 <Route path="/compare" element={<div className="p-6">Compare (todo)</div>}/>
                 <Route path="/track-order" element={<div className="p-6">Track order (todo)</div>}/>
                         <Route path="/contact" element={<ContactPage />} />
-                <Route path="*" element={<div className="p-6">Not found</div>}/>
+                <Route path="*" element={<ProtectedRoute><NotFoundPage/></ProtectedRoute>}/>
             </Route>
         </Routes>
     );

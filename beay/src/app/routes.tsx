@@ -50,7 +50,14 @@ export function AppRoutes() {
 
             <Route element={<RequireAuth />}>
                 <Route path="/admin/orders" element={<RequirePermission permission="orders.read"><OrderAdminPage /></RequirePermission>} />
-                <Route path="/admin/rbac" element={<Navigate to="/admin/rbac/rbac" replace />} />
+                <Route
+                    path="/admin/rbac"
+                    element={
+                        <RequirePermission permission="role.read">
+                            <Navigate to="/admin/rbac/rbac" replace />
+                        </RequirePermission>
+                    }
+                />
                 <Route path="/admin/rbac/:tab" element={<RequirePermission permission="role.read"><AdminRbacPage /></RequirePermission>} />
                 <Route path="/admin/services" element={<RequirePermission permission="spa_services.read"><AdminSpaPage /></RequirePermission>} />
                 <Route path="/admin/courses" element={<RequirePermission permission="courses.read"><AdminCoursesPage /></RequirePermission>} />

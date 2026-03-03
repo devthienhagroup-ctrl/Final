@@ -1,138 +1,194 @@
-diff --git a/Home/ayanavita-fontend-final/src/components/layout/Header.tsx b/Home/ayanavita-fontend-final/src/components/layout/Header.tsx
-index 819d0c81dd6755206c8fcb7898c2174746cec16c..a58ff08b26dda93933038e4faa465756f005e7d3 100644
---- a/Home/ayanavita-fontend-final/src/components/layout/Header.tsx
-+++ b/Home/ayanavita-fontend-final/src/components/layout/Header.tsx
-@@ -1,33 +1,32 @@
- import React, { useEffect, useMemo, useRef, useState } from "react";
- import { Link, useLocation } from "react-router-dom";
- import { AuthModal } from "../home/AuthModal";
- import { SuccessModal } from "../home/SuccessModal";
- import { authApi } from "../../api/auth.api";
- import { MiniCartModal } from "../shop/MiniCartModal";
- import { useCart } from "../../contexts/CartContext";
--import { useNavigate } from "react-router-dom";
+diff --git a/Home/ayanavita-fontend-final/src/App.tsx b/Home/ayanavita-fontend-final/src/App.tsx
+index 3013c6e60399adb09868228cc596ba647fd28928..63e71f1ffac1bdbf2d3c5072dd5a7b08264535cd 100644
+--- a/Home/ayanavita-fontend-final/src/App.tsx
++++ b/Home/ayanavita-fontend-final/src/App.tsx
+@@ -1,76 +1,79 @@
+ // src/App.tsx
+ import {Routes, Route} from "react-router-dom";
 
- /** ✅ import type CMS của 2 modal (để props typed chuẩn) */
- import type { defaultCmsData as _authDefault } from "../home/AuthModal";
- import type { defaultCmsData as _successDefault } from "../home/SuccessModal";
+ import HomePage from "./pages/HomePage";
+ import ServicesPage from "./pages/ServicesPage";
+ import BookingPage from "./pages/BookingPage";
+ import ServiceDetailPage from "./pages/ServiceDetailPage";
+ import Layout from "./components/layout/Layout";
 
- /**
-  * Trick TS: lấy type từ defaultCmsData export ra
-  * (không ảnh hưởng runtime)
-  */
- type AuthModalCmsData = typeof _authDefault;
- type SuccessModalCmsData = typeof _successDefault;
+ import CoursesPage from "./pages/CoursesPage";
+ import CartPage from "./pages/CartPage";
+ import ProductCheckoutPage from "./pages/ProductCheckoutPage";
+ import ContactPage from "./pages/ContactPage";
+ import ProductsPage from "./pages/ProductsPage";
+ import ComparePage from "./pages/ComparePage";
+ import TrackOrderPage from "./pages/TrackOrderPage";
+ import ProductCategoryPage from "./pages/ProductCategoryPage";
+ import ProductDetailPage from "./pages/ProductDetailPage";
+ import CourseDetailPage from "./pages/CourseDetailPage";
+ import CoursePlayerPage from "./pages/CoursePlayerPage";
+ import BlogPage from "./pages/BlogPage";
+ import LessonDetailPage from "./pages/LessonDetailPage";
+ import ReviewsCenterPage from "./pages/ReviewsCenterPage";
+ import AccountCenter from "./pages/AccountCenter";
+ import LoginPage from "./pages/LoginPage";
+-// ví dụ
++import ProtectedRoute from "./components/auth/ProtectedRoute";
++import NotFoundPage from "./pages/NotFoundPage";
++import ForbiddenPage from "./pages/ForbiddenPage";
 
- type HeaderProps = {
-   brandHref?: string;
-   cmsData?: Partial<HeaderCMSData>;
 
-   /** ✅ NEW: Header chỉ nhận và truyền xuống */
-   cmsAuth?: Partial<AuthModalCmsData>;
-   cmsSuccess?: Partial<SuccessModalCmsData>;
+ export default function App() {
+     return (
+         <Routes>
+             <Route path="/login" element={<LoginPage/>} />
++            <Route path="/403" element={<ProtectedRoute><ForbiddenPage/></ProtectedRoute>} />
+
+             <Route element={<Layout/>}>
+
+                 <Route path="/" element={<HomePage/>}/>
+
+                 {/* Spa services */}
+                 <Route path="/services" element={<ServicesPage/>}/>
+                 <Route path="/services/:serviceId" element={<ServiceDetailPage/>}/>
+                 <Route path="/booking" element={<BookingPage/>}/>
+
+                 {/* Courses (prototype) */}
+                 <Route path="/courses" element={<CoursesPage/>}/>
+
+                 {/* Product cart (prototype) */}
+                 <Route path="/cart" element={<CartPage/>}/>
+                 <Route path="/product-checkout" element={<ProductCheckoutPage/>}/>
+                 {/* <Route path="/checkout" element={<CheckoutPage/>}/> */}
+                 <Route path="/products" element={<ProductsPage/>}/>
+                 <Route path="/compare" element={<ComparePage/>}/>
+                 <Route path="/track-order" element={<TrackOrderPage/>}/>
+                 <Route path="/products" element={<ProductCategoryPage/>}/>
+                 <Route path="/products/:slug" element={<ProductDetailPage/>}/>
+                 <Route path="/courses/:slug" element={<CourseDetailPage/>}/>
+                 <Route path="/courses/player" element={<CoursePlayerPage/>}/>
+                 <Route path="/courses/:courseId/lesson" element={<LessonDetailPage/>}/>
+                 <Route path="/reviews" element={<ReviewsCenterPage/>}/>
+
+                 <Route path="/blog" element={<BlogPage/>}/>
+
+
+                 {/* placeholder các page khác để không vỡ Link */}
+                 <Route path="/products" element={<div className="p-6">Products (todo)</div>}/>
+                 <Route path="/checkout" element={<div className="p-6">Checkout (todo)</div>}/>
+                 <Route path="/franchise" element={<div className="p-6">Franchise (todo)</div>}/>
+-                <Route path="/account" element={<AccountCenter/>}/>
+-                <Route path="/account-center" element={<AccountCenter/>}/>
++                <Route path="/account" element={<ProtectedRoute><AccountCenter/></ProtectedRoute>}/>
++                <Route path="/account-center" element={<ProtectedRoute><AccountCenter/></ProtectedRoute>}/>
+                 <Route path="/compare" element={<div className="p-6">Compare (todo)</div>}/>
+                 <Route path="/track-order" element={<div className="p-6">Track order (todo)</div>}/>
+                         <Route path="/contact" element={<ContactPage />} />
+-                <Route path="*" element={<div className="p-6">Not found</div>}/>
++                <Route path="*" element={<ProtectedRoute><NotFoundPage/></ProtectedRoute>}/>
+             </Route>
+         </Routes>
+     );
+ }
+diff --git a/Home/ayanavita-fontend-final/src/components/auth/ProtectedRoute.tsx b/Home/ayanavita-fontend-final/src/components/auth/ProtectedRoute.tsx
+index a690bfdde4264b9e42d99c10af76b0a76e8313c6..8281aebb7166f8e677460838c5259093bd65f0ea 100644
+--- a/Home/ayanavita-fontend-final/src/components/auth/ProtectedRoute.tsx
++++ b/Home/ayanavita-fontend-final/src/components/auth/ProtectedRoute.tsx
+@@ -1,16 +1,23 @@
+ import React from "react";
+ import { Navigate, useLocation } from "react-router-dom";
+
+ type ProtectedRouteProps = {
+   children: React.ReactElement;
++  canAccess?: boolean;
  };
 
- type DropdownKey = "products" | "pricing" | null;
- type AuthTab = "login" | "register";
- type Language = "vi" | "en" | "de";
- type UserMenuItem = "desktop" | "mobile" | null;
-@@ -215,51 +214,51 @@ export function Header({
-       didOpen: () => {
-         // @ts-ignore CDN
-         Swal.showLoading();
-       },
-     });
+-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
++export default function ProtectedRoute({ children, canAccess = true }: ProtectedRouteProps) {
+   const location = useLocation();
+   const token = localStorage.getItem("aya_access_token");
 
-     try {
-       await authApi.logout();
-     } catch {
-       // Token có thể hết hạn, vẫn local logout bình thường.
-     }
+-  if (token) return children;
++  if (!token) {
++    const next = encodeURIComponent(`${location.pathname}${location.search}`);
++    return <Navigate to={`/login?next=${next}`} replace />;
++  }
 
-     localStorage.removeItem("aya_access_token");
-     localStorage.removeItem("aya_refresh_token");
-     setIsAuthenticated(false);
-     setUserMenuOpen(null);
-     setDrawerOpen(false);
-
-     // Success (không text)
-     await Swal.fire({
-       icon: "success",
-       showConfirmButton: false,
-       timer: 800,
-     });
-
--    navigate("/", { replace: true });
-+    window.location.replace("/");
-   };
-
-   const languageOptions = cms.languageOptions ?? defaultCMSData.languageOptions!;
-
-   return (
-     <>
-       <div
-         ref={rootRef}
-         className="sticky top-0 z-[80] border-b border-slate-200/60 bg-white/80 backdrop-blur-xl"
-       >
-         <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-3 px-4 py-3">
-           {/* Brand */}
-           <Link
-             to={brandHref}
-             className="flex min-w-[180px] items-center gap-3 transition-transform duration-300 hover:scale-[1.02]"
-           >
-             <div
-               className="flex h-10 w-10 items-center justify-center rounded-2xl font-black text-white shadow-lg transition-all duration-300 hover:shadow-xl hover:rotate-3"
-               // style={{
-               //   background: "linear-gradient(135deg,var(--aya-primary-1),var(--aya-primary-2))",
-               //   boxShadow: "0 12px 24px rgba(79,70,229,.22)",
-               // }}
-             >
-               <img src={cms.brandLogoSrc} alt={cms.brandLogoAlt} className={cms.brandLogoClassName + ' rounded-full'} />
-             </div>
-diff --git a/beay/src/app/auth.tsx b/beay/src/app/auth.tsx
-index 8dc7456028ff91f21dd46c16c77d39133e7cf078..2c443e400998641e8653b46db34a7a9d87d9bf95 100644
---- a/beay/src/app/auth.tsx
-+++ b/beay/src/app/auth.tsx
-@@ -13,41 +13,42 @@ type AuthState = {
-
- const AuthContext = createContext<AuthState | null>(null)
-
- export function AuthProvider({ children }: { children: React.ReactNode }) {
-   const [token, setTokenState] = useState<string>(() => readAccessToken())
-   const [refreshToken, setRefreshTokenState] = useState<string>(() => readRefreshToken())
-
-   const claims = useMemo(() => decodeJwtClaims(token), [token])
-
-   const setTokenPair = (nextToken: string, nextRefreshToken: string, permissions?: string[]) => {
-     const cleanToken = nextToken.trim()
-     const cleanRefresh = nextRefreshToken.trim()
-
-     setTokenState(cleanToken)
-     setRefreshTokenState(cleanRefresh)
-
-     localStorage.setItem(ACCESS_TOKEN_KEY, cleanToken)
-     localStorage.setItem(REFRESH_TOKEN_KEY, cleanRefresh)
-     writePermissionKeys(permissions)
-   }
-
-   const logout = () => {
-     setTokenState('')
-     setRefreshTokenState('')
-     clearTokenPair()
-+    window.location.replace('/')
-   }
-
-   const can = (permission: string) => hasPermission(claims, permission)
-   const hasScope = (scope: ScopeType | string) => claims?.role === 'ADMIN' || claims?.scopeType === scope
-
-   const value = useMemo(() => ({ token, refreshToken, claims, setTokenPair, logout, can, hasScope }), [token, refreshToken, claims])
-   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+-  const next = encodeURIComponent(`${location.pathname}${location.search}`);
+-  return <Navigate to={`/login?next=${next}`} replace />;
++  if (!canAccess) {
++    return <Navigate to="/403" replace />;
++  }
++
++  return children;
  }
-
- export function useAuth() {
-   const context = useContext(AuthContext)
-   if (!context) {
-     throw new Error('useAuth must be used within AuthProvider')
-   }
-   return context
- }
+diff --git a/Home/ayanavita-fontend-final/src/pages/ForbiddenPage.tsx b/Home/ayanavita-fontend-final/src/pages/ForbiddenPage.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..21e068fe81d853ccfff6136608d9c98a21b44b6b
+--- /dev/null
++++ b/Home/ayanavita-fontend-final/src/pages/ForbiddenPage.tsx
+@@ -0,0 +1,31 @@
++import { Link } from "react-router-dom";
++
++export default function ForbiddenPage() {
++  return (
++    <main className="min-h-[70vh] bg-gradient-to-b from-rose-50 to-white px-4 py-16">
++      <div className="mx-auto max-w-3xl rounded-3xl border border-rose-100 bg-white/95 p-8 text-center shadow-xl md:p-12">
++        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-rose-500">403</p>
++        <h1 className="mt-3 text-3xl font-bold text-slate-900 md:text-5xl">Bạn chưa có quyền truy cập</h1>
++        <p className="mt-4 text-base leading-relaxed text-slate-600 md:text-lg">
++          Tài khoản hiện tại không có quyền mở trang này. Vui lòng liên hệ quản trị viên hoặc quay lại khu
++          vực cho phép.
++        </p>
++
++        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
++          <Link
++            to="/"
++            className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
++          >
++            Về trang chủ
++          </Link>
++          <Link
++            to="/account-center"
++            className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
++          >
++            Vào trung tâm tài khoản
++          </Link>
++        </div>
++      </div>
++    </main>
++  );
++}
+diff --git a/Home/ayanavita-fontend-final/src/pages/NotFoundPage.tsx b/Home/ayanavita-fontend-final/src/pages/NotFoundPage.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..eaef1007d5b6e9a425e04be7b5a56eca74396d67
+--- /dev/null
++++ b/Home/ayanavita-fontend-final/src/pages/NotFoundPage.tsx
+@@ -0,0 +1,31 @@
++import { Link } from "react-router-dom";
++
++export default function NotFoundPage() {
++  return (
++    <main className="min-h-[70vh] bg-gradient-to-b from-slate-50 to-white px-4 py-16">
++      <div className="mx-auto max-w-3xl rounded-3xl border border-slate-200 bg-white/95 p-8 text-center shadow-xl md:p-12">
++        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-indigo-500">404</p>
++        <h1 className="mt-3 text-3xl font-bold text-slate-900 md:text-5xl">Trang bạn tìm không tồn tại</h1>
++        <p className="mt-4 text-base leading-relaxed text-slate-600 md:text-lg">
++          Đường dẫn này có thể đã bị thay đổi hoặc bị xoá. Bạn có thể quay về trang chủ để tiếp tục trải
++          nghiệm.
++        </p>
++
++        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
++          <Link
++            to="/"
++            className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
++          >
++            Về trang chủ
++          </Link>
++          <Link
++            to="/courses"
++            className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
++          >
++            Khám phá khóa học
++          </Link>
++        </div>
++      </div>
++    </main>
++  );
++}

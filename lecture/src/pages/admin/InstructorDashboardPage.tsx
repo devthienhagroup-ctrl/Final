@@ -10,6 +10,8 @@ import { KpiGrid } from '../components/KpiGrid'
 import { QuickActions } from '../components/QuickActions'
 import { CourseDetailTabs } from './courseTabs/courseDetail/CourseDetailTabs'
 import { CreateCourseModal } from './courseTabs/CreateCourseModal'
+import './AdminSpaPage.css'
+import './AdminCoursesPage.css'
 
 type AdminLang = 'vi' | 'en' | 'de'
 

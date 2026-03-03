@@ -193,14 +193,14 @@ export function StudentPortalPage() {
       }
 
       toast("Tiếp tục học", `Mở bài học: ${nextLesson.title}`);
-      nav(`/student/courses${course.courseId}?lessonId=${nextLesson.id}&lang=vi`);
+      nav(`/student/courses/${course.courseId}?lessonId=${nextLesson.id}&lang=vi`);
     } catch (error: any) {
       toast("Không thể vào học", error?.message || "Không lấy được danh sách bài học.");
     }
   }
 
   function openDetail(course: StudentCourse) {
-    nav(`/student/courses${course.courseId}`);
+    nav(`/student/courses/${course.courseId}`);
   }
 
   async function cancelCourse(course: StudentCourse) {

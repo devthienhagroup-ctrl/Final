@@ -148,6 +148,18 @@ services:
     networks:
       - aya_net
 
+  student:
+    build:
+      context: ./student
+      dockerfile: Dockerfile
+    container_name: ayanavita-student
+    ports:
+      - "5080:5080"
+    depends_on:
+      - backend
+    networks:
+      - aya_net
+
   adminer:
     image: adminer
     container_name: ayanavita-adminer

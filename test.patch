@@ -1,7 +1,75 @@
-diff --git a/beay/src/app/auth.tsx b/beay/src/app/auth.tsx
+diff --git a/beay/src/admin/pages/NotFound.tsx b/beay/src/admin/pages/NotFound.tsx
+index 3c1db3d98b95a5e75a884d20b7959f4babe56928..b3a9d326d6ef0435fc2cb1ff2bacf09fc73e1200 100644
+--- a/beay/src/admin/pages/NotFound.tsx
++++ b/beay/src/admin/pages/NotFound.tsx
+@@ -1,15 +1,17 @@
+ import React from "react";
+-import { Link } from "react-router-dom";
++import { useNavigate } from "react-router-dom";
+
+ export function NotFound() {
++  const navigate = useNavigate();
++
+   return (
+     <div className="container" style={{ paddingTop: 24 }}>
+       <div className="card">
+         <div className="h1">404</div>
+         <div className="muted" style={{ marginTop: 6 }}>Không có route này.</div>
+         <div className="sep" />
+-        <Link to="/" className="btn btn-primary">Về trang chính</Link>
++        <button type="button" className="btn btn-primary" onClick={() => navigate(-1)}>Quay lại</button>
+       </div>
+     </div>
+   );
+ }
+diff --git a/beay/src/pages/ErrorStatusPage.tsx b/beay/src/pages/ErrorStatusPage.tsx
+index 7a99e58faf0433fe36243c36b2074f6dd5646310..f7d3cd5b17a35dac1a1a9b58879ebab24f52e820 100644
+--- a/beay/src/pages/ErrorStatusPage.tsx
++++ b/beay/src/pages/ErrorStatusPage.tsx
+@@ -1,29 +1,35 @@
+-import { Link } from 'react-router-dom'
++import { Link, useNavigate } from 'react-router-dom'
+
+ type ErrorStatusPageProps = {
+   code: 403 | 404
+   title: string
+   message: string
+ }
+
+ export function ErrorStatusPage({ code, title, message }: ErrorStatusPageProps) {
++  const navigate = useNavigate()
++
+   return (
+     <main className="status-page">
+       <div className="status-card">
+         <p className="status-code">{code}</p>
+         <h1>{title}</h1>
+         <p className="status-message">{message}</p>
+
+         <div className="status-actions">
+-          <Link to="/admin/dashboard" className="btn btn-primary">
+-            Về trang chính
+-          </Link>
++          <button
++            type="button"
++            className="btn btn-primary"
++            onClick={() => navigate(-1)}
++          >
++            Quay lại
++          </button>
+           <Link to="/login" className="btn">
+             Đăng nhập lại
+           </Link>
+         </div>
+       </div>
+     </main>
+   )
+ }
+
+diff --git a/lecture/src/app/auth.tsx b/lecture/src/app/auth.tsx
 index 2c443e400998641e8653b46db34a7a9d87d9bf95..7df6435dbeefb3aac16e815d6c6b8e9564a9c914 100644
---- a/beay/src/app/auth.tsx
-+++ b/beay/src/app/auth.tsx
+--- a/lecture/src/app/auth.tsx
++++ b/lecture/src/app/auth.tsx
 @@ -13,42 +13,42 @@ type AuthState = {
 
  const AuthContext = createContext<AuthState | null>(null)
@@ -46,3 +114,139 @@ index 2c443e400998641e8653b46db34a7a9d87d9bf95..7df6435dbeefb3aac16e815d6c6b8e95
    }
    return context
  }
+diff --git a/lecture/src/pages/ErrorStatusPage.tsx b/lecture/src/pages/ErrorStatusPage.tsx
+index 7a99e58faf0433fe36243c36b2074f6dd5646310..f7d3cd5b17a35dac1a1a9b58879ebab24f52e820 100644
+--- a/lecture/src/pages/ErrorStatusPage.tsx
++++ b/lecture/src/pages/ErrorStatusPage.tsx
+@@ -1,29 +1,35 @@
+-import { Link } from 'react-router-dom'
++import { Link, useNavigate } from 'react-router-dom'
+
+ type ErrorStatusPageProps = {
+   code: 403 | 404
+   title: string
+   message: string
+ }
+
+ export function ErrorStatusPage({ code, title, message }: ErrorStatusPageProps) {
++  const navigate = useNavigate()
++
+   return (
+     <main className="status-page">
+       <div className="status-card">
+         <p className="status-code">{code}</p>
+         <h1>{title}</h1>
+         <p className="status-message">{message}</p>
+
+         <div className="status-actions">
+-          <Link to="/admin/dashboard" className="btn btn-primary">
+-            Về trang chính
+-          </Link>
++          <button
++            type="button"
++            className="btn btn-primary"
++            onClick={() => navigate(-1)}
++          >
++            Quay lại
++          </button>
+           <Link to="/login" className="btn">
+             Đăng nhập lại
+           </Link>
+         </div>
+       </div>
+     </main>
+   )
+ }
+
+diff --git a/student/src/app/auth.tsx b/student/src/app/auth.tsx
+index 2c443e400998641e8653b46db34a7a9d87d9bf95..7df6435dbeefb3aac16e815d6c6b8e9564a9c914 100644
+--- a/student/src/app/auth.tsx
++++ b/student/src/app/auth.tsx
+@@ -13,42 +13,42 @@ type AuthState = {
+
+ const AuthContext = createContext<AuthState | null>(null)
+
+ export function AuthProvider({ children }: { children: React.ReactNode }) {
+   const [token, setTokenState] = useState<string>(() => readAccessToken())
+   const [refreshToken, setRefreshTokenState] = useState<string>(() => readRefreshToken())
+
+   const claims = useMemo(() => decodeJwtClaims(token), [token])
+
+   const setTokenPair = (nextToken: string, nextRefreshToken: string, permissions?: string[]) => {
+     const cleanToken = nextToken.trim()
+     const cleanRefresh = nextRefreshToken.trim()
+
+     setTokenState(cleanToken)
+     setRefreshTokenState(cleanRefresh)
+
+     localStorage.setItem(ACCESS_TOKEN_KEY, cleanToken)
+     localStorage.setItem(REFRESH_TOKEN_KEY, cleanRefresh)
+     writePermissionKeys(permissions)
+   }
+
+   const logout = () => {
+     setTokenState('')
+     setRefreshTokenState('')
+     clearTokenPair()
+-    window.location.replace('/')
++    window.location.replace('/login')
+   }
+
+   const can = (permission: string) => hasPermission(claims, permission)
+   const hasScope = (scope: ScopeType | string) => claims?.role === 'ADMIN' || claims?.scopeType === scope
+
+   const value = useMemo(() => ({ token, refreshToken, claims, setTokenPair, logout, can, hasScope }), [token, refreshToken, claims])
+   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+ }
+
+ export function useAuth() {
+   const context = useContext(AuthContext)
+   if (!context) {
+     throw new Error('useAuth must be used within AuthProvider')
+   }
+   return context
+ }
+diff --git a/student/src/pages/ErrorStatusPage.tsx b/student/src/pages/ErrorStatusPage.tsx
+index 7a99e58faf0433fe36243c36b2074f6dd5646310..f7d3cd5b17a35dac1a1a9b58879ebab24f52e820 100644
+--- a/student/src/pages/ErrorStatusPage.tsx
++++ b/student/src/pages/ErrorStatusPage.tsx
+@@ -1,29 +1,35 @@
+-import { Link } from 'react-router-dom'
++import { Link, useNavigate } from 'react-router-dom'
+
+ type ErrorStatusPageProps = {
+   code: 403 | 404
+   title: string
+   message: string
+ }
+
+ export function ErrorStatusPage({ code, title, message }: ErrorStatusPageProps) {
++  const navigate = useNavigate()
++
+   return (
+     <main className="status-page">
+       <div className="status-card">
+         <p className="status-code">{code}</p>
+         <h1>{title}</h1>
+         <p className="status-message">{message}</p>
+
+         <div className="status-actions">
+-          <Link to="/admin/dashboard" className="btn btn-primary">
+-            Về trang chính
+-          </Link>
++          <button
++            type="button"
++            className="btn btn-primary"
++            onClick={() => navigate(-1)}
++          >
++            Quay lại
++          </button>
+           <Link to="/login" className="btn">
+             Đăng nhập lại
+           </Link>
+         </div>
+       </div>
+     </main>
+   )
+ }
+

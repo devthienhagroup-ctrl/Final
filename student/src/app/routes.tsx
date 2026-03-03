@@ -59,7 +59,7 @@ export function AppRoutes() {
 
             <Route element={<RequireAuth />}>
                 <Route path="/student" element={<RequirePermission permission="my_courses.read"><StudentPortalPage /></RequirePermission>} />
-                <Route path="/student/courses:id" element={<RequirePermission permission="my_courses.read"><StudentCourseDetailPage /></RequirePermission>} />
+                <Route path="/student/courses/:id" element={<RequirePermission permission="my_courses.read"><StudentCourseDetailPage /></RequirePermission>} />
                 <Route path="/student/lessons/:id" element={<RequirePermission permission="my_courses.read"><StudentLessonPlayerPage /></RequirePermission>} />
 
             </Route>

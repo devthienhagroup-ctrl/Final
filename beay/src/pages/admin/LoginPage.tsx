@@ -13,6 +13,21 @@ const DEFAULT_REFRESH_TOKEN =
 const SCOPE_TYPE_KEY = "aya_admin_scope_type";
 
 type ScopeType = "OWN" | "BRANCH" | "COURSE" | "GLOBAL";
+type RefreshResponse = {
+  user?: { permissions?: string[] };
+  permissions?: string[];
+  accessToken?: string;
+  refreshToken?: string;
+};
+
+const API_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:8090").replace(/\/+$/, "");
+const CROSS_APP_SESSION_PARAM = "aya_session";
+
+type CrossAppSession = {
+  accessToken: string;
+  refreshToken: string;
+  permissions: string[];
+};
 
 function normalizeScopeType(scopeType: unknown): ScopeType | null {
   if (scopeType === "OWN" || scopeType === "BRANCH" || scopeType === "COURSE" || scopeType === "GLOBAL") {
@@ -68,6 +83,43 @@ function resolveLoginTarget(from: string, permissions: string[], scopeType: Scop
   return from || resolveDefaultRoute(permissions, scopeType);
 }
 
+async function refreshLoginSession(refreshToken: string) {
+  const cleanRefreshToken = refreshToken.trim();
+  if (!cleanRefreshToken) return null;
+
+  const response = await fetch(`${API_BASE}/auth/refresh`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${cleanRefreshToken}` },
+    credentials: "include",
+  });
+
+  if (!response.ok) return null;
+
+  const text = await response.text();
+  if (!text) return null;
+  const payload = JSON.parse(text) as RefreshResponse;
+  if (!payload.accessToken || !payload.refreshToken) return null;
+
+  return {
+    accessToken: payload.accessToken,
+    refreshToken: payload.refreshToken,
+    permissions: payload.user?.permissions ?? payload.permissions ?? null,
+  };
+}
+
+function buildCrossAppRedirectUrl(targetPath: string, session: CrossAppSession) {
+  const targetUrl = new URL(targetPath);
+  const payload = btoa(
+    JSON.stringify({
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+      permissions: session.permissions,
+    }),
+  );
+  targetUrl.searchParams.set(CROSS_APP_SESSION_PARAM, payload);
+  return targetUrl.toString();
+}
+
 export function LoginPage() {
   const { setTokenPair, token } = useAuth();
   const nav = useNavigate();
@@ -94,17 +146,38 @@ export function LoginPage() {
     const forceLogin = sessionStorage.getItem(FORCE_LOGIN_KEY) === "1";
     if (forceLogin) return;
 
-    const defaultScopeType: ScopeType = "GLOBAL";
-    localStorage.setItem(SCOPE_TYPE_KEY, defaultScopeType);
-    setTokenPair(DEFAULT_ACCESS_TOKEN, DEFAULT_REFRESH_TOKEN, DEFAULT_PERMISSIONS);
-    const targetPath = resolveLoginTarget(from, DEFAULT_PERMISSIONS, defaultScopeType);
+    const bootstrapLogin = async () => {
+      const defaultScopeType: ScopeType = "GLOBAL";
+      localStorage.setItem(SCOPE_TYPE_KEY, defaultScopeType);
+      setTokenPair(DEFAULT_ACCESS_TOKEN, DEFAULT_REFRESH_TOKEN, DEFAULT_PERMISSIONS);
+      const targetPath = resolveLoginTarget(from, DEFAULT_PERMISSIONS, defaultScopeType);
 
-    if (targetPath.startsWith("http")) {
-      window.location.href = targetPath;
-      return;
-    }
+      if (targetPath.startsWith("http")) {
+        const refreshed = await refreshLoginSession(DEFAULT_REFRESH_TOKEN);
+        const crossAppSession: CrossAppSession = refreshed
+          ? {
+              accessToken: refreshed.accessToken,
+              refreshToken: refreshed.refreshToken,
+              permissions: refreshed.permissions ?? DEFAULT_PERMISSIONS,
+            }
+          : {
+              accessToken: DEFAULT_ACCESS_TOKEN,
+              refreshToken: DEFAULT_REFRESH_TOKEN,
+              permissions: DEFAULT_PERMISSIONS,
+            };
 
-    nav(targetPath, { replace: true });
+        if (refreshed) {
+          setTokenPair(crossAppSession.accessToken, crossAppSession.refreshToken, crossAppSession.permissions);
+        }
+
+        window.location.href = buildCrossAppRedirectUrl(targetPath, crossAppSession);
+        return;
+      }
+
+      nav(targetPath, { replace: true });
+    };
+
+    void bootstrapLogin();
   }, [from, nav, setTokenPair, token]);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -127,7 +200,24 @@ export function LoginPage() {
 
       const targetPath = resolveLoginTarget(from, permissions, scopeType);
       if (targetPath.startsWith("http")) {
-        window.location.href = targetPath;
+        const refreshed = await refreshLoginSession(result.refreshToken);
+        const crossAppSession: CrossAppSession = refreshed
+          ? {
+              accessToken: refreshed.accessToken,
+              refreshToken: refreshed.refreshToken,
+              permissions: refreshed.permissions ?? permissions,
+            }
+          : {
+              accessToken: result.accessToken,
+              refreshToken: result.refreshToken,
+              permissions,
+            };
+
+        if (refreshed) {
+          setTokenPair(crossAppSession.accessToken, crossAppSession.refreshToken, crossAppSession.permissions);
+        }
+
+        window.location.href = buildCrossAppRedirectUrl(targetPath, crossAppSession);
         return;
       }
 

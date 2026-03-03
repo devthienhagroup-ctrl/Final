@@ -8,6 +8,22 @@ function run(command, options = {}) {
   })
 }
 
+function resolveKnownFailedMigrations() {
+  const rollbackMigrations = [
+    '20260226130000_add_product_images',
+    '202603080001_course_translation_strings',
+    '20260409999999_add_user_management_logs',
+  ]
+
+  for (const migrationName of rollbackMigrations) {
+    try {
+      run(`npx prisma migrate resolve --rolled-back ${migrationName}`)
+    } catch (error) {
+      console.log(`ℹ️ Bỏ qua migrate resolve cho ${migrationName} vì migration này không cần rollback ở môi trường hiện tại.`)
+    }
+  }
+}
+
 async function hasUserTable() {
   const { PrismaClient } = require('@prisma/client')
   const prisma = new PrismaClient()
@@ -22,18 +38,7 @@ async function hasUserTable() {
 
 async function main() {
   run('node scripts/bootstrap-db.js')
-  const rollbackMigrations = [
-    '20260226130000_add_product_images',
-    '202603080001_course_translation_strings',
-  ]
-
-  for (const migrationName of rollbackMigrations) {
-    try {
-      run(`npx prisma migrate resolve --rolled-back ${migrationName}`)
-    } catch (error) {
-      console.log(`ℹ️ Bỏ qua migrate resolve cho ${migrationName} vì migration này không cần rollback ở môi trường hiện tại.`)
-    }
-  }
+  resolveKnownFailedMigrations()
   run('npx prisma migrate deploy')
   run('npx prisma generate')
 

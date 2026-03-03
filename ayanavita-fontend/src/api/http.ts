@@ -15,6 +15,7 @@ export class ApiError extends Error {
 
 // Bạn có thể đổi key/token storage tùy dự án
 const ACCESS_TOKEN_KEY = "accessToken";
+const REFRESH_TOKEN_KEY = "refreshToken";
 
 // Base URL: ưu tiên env, fallback localhost
 function getBaseUrl() {
@@ -42,12 +43,81 @@ export function setAccessToken(token: string) {
   }
 }
 
+export function getRefreshToken() {
+  try {
+    return localStorage.getItem(REFRESH_TOKEN_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+export function setRefreshToken(token: string) {
+  try {
+    localStorage.setItem(REFRESH_TOKEN_KEY, token);
+  } catch {
+    // ignore
+  }
+}
+
 export function clearAccessToken() {
   try {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
   } catch {
     // ignore
   }
+}
+
+export function clearRefreshToken() {
+  try {
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export function clearAuthTokens() {
+  clearAccessToken();
+  clearRefreshToken();
+}
+
+let refreshTokenPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(baseUrl: string): Promise<string | null> {
+  if (refreshTokenPromise) return refreshTokenPromise;
+
+  refreshTokenPromise = (async () => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) return null;
+
+    let res: Response;
+    try {
+      res = await fetch(`${baseUrl}/auth/refresh`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${refreshToken}` },
+      });
+    } catch {
+      return null;
+    }
+
+    if (!res.ok) return null;
+
+    const data = await parseResponseBody(res);
+    const nextAccessToken = (data as any)?.accessToken;
+    const nextRefreshToken = (data as any)?.refreshToken;
+
+    if (typeof nextAccessToken !== "string" || !nextAccessToken) return null;
+
+    setAccessToken(nextAccessToken);
+    if (typeof nextRefreshToken === "string" && nextRefreshToken) {
+      setRefreshToken(nextRefreshToken);
+    }
+
+    return nextAccessToken;
+  })().finally(() => {
+    refreshTokenPromise = null;
+  });
+
+  return refreshTokenPromise;
 }
 
 function isJsonResponse(res: Response) {
@@ -102,6 +172,7 @@ export async function request<T>(
     signal?: AbortSignal;
     // nếu muốn override baseUrl trong vài trường hợp (hiếm)
     baseUrl?: string;
+    _retry?: boolean;
   }
 ): Promise<T> {
   const baseUrl = (options?.baseUrl || getBaseUrl()).replace(/\/+$/, "");
@@ -157,8 +228,21 @@ export async function request<T>(
     // (Tuỳ chọn) xử lý 401 tập trung:
     // - nếu token hết hạn hoặc sai, clear để tránh loop lỗi
     if (res.status === 401) {
+      const shouldTryRefresh =
+        auth &&
+        !options?._retry &&
+        !path.includes("/auth/refresh") &&
+        Boolean(getRefreshToken());
+
+      if (shouldTryRefresh) {
+        const refreshedToken = await refreshAccessToken(baseUrl);
+        if (refreshedToken) {
+          return request<T>(path, { ...options, _retry: true });
+        }
+      }
+
       // bạn có thể comment dòng này nếu không muốn auto-clear
-      clearAccessToken();
+      clearAuthTokens();
     }
 
     throw new ApiError(msg, res.status, data);

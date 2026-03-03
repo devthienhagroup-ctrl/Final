@@ -308,6 +308,7 @@ export class AuthService {
       include: { roleRef: { include: { permissions: { include: { permission: true } } } } },
     })
     if (!user) throw new UnauthorizedException('Invalid credentials')
+    if (!user.isActive) throw new UnauthorizedException('Tài khoản đã bị khóa')
 
     const ok = await bcrypt.compare(dto.password, user.password)
     if (!ok) throw new UnauthorizedException('Invalid credentials')

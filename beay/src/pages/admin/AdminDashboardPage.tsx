@@ -70,7 +70,7 @@ export function AdminDashboardPage() {
       { key: "email", label: "Thiết lập email thông báo" },
       { key: "pay", label: "Kết nối thanh toán" },
       { key: "import", label: "Import học viên" },
-      { key: "cert", label: "Bật chứng chỉ hoàn thành" },
+      { key: "cert", label: "Bật c`hứng chỉ hoàn thành" },
     ],
     []
   );

@@ -1,5 +1,5 @@
 // src/api/auth.api.ts
-import { get, post, setAccessToken, clearAccessToken } from "./http";
+import { get, post, setAccessToken, setRefreshToken, clearAuthTokens } from "./http";
 
 export type AuthRole = "USER" | "ADMIN";
 
@@ -10,6 +10,7 @@ export type LoginReq = {
 
 export type LoginRes = {
   accessToken: string;
+  refreshToken?: string;
 };
 
 export type RegisterReq = {
@@ -40,6 +41,7 @@ export const authApi = {
   async login(body: LoginReq) {
     const res = await post<LoginRes>("/auth/login", body, { auth: false });
     if (res?.accessToken) setAccessToken(res.accessToken);
+    if (res?.refreshToken) setRefreshToken(res.refreshToken);
     return res;
   },
 
@@ -65,6 +67,6 @@ export const authApi = {
    * (Backend không bắt buộc có endpoint)
    */
   logout() {
-    clearAccessToken();
+    clearAuthTokens();
   },
 };

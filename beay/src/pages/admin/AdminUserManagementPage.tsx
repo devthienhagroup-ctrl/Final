@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AdminShell } from '../components/AdminShell'
 import {
   createAdminUser,
   deleteAdminUser,
@@ -35,11 +34,13 @@ function mapUserToForm(user: AdminUser): UserFormState {
 }
 
 export function AdminUserManagementPage() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [users, setUsers] = useState<AdminUser[]>([])
   const [logs, setLogs] = useState<UserChangeLog[]>([])
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL')
+  const [roleFilter, setRoleFilter] = useState<'ALL' | string>('ALL')
+  const [genderFilter, setGenderFilter] = useState<'ALL' | UserGender>('ALL')
 
   const [createForm, setCreateForm] = useState<UserFormState>({
     email: '',
@@ -72,11 +73,25 @@ export function AdminUserManagementPage() {
     void loadData()
   }, [])
 
+  const availableRoles = useMemo(() => {
+    return Array.from(new Set(users.map((u) => u.roleRef?.code || u.role).filter(Boolean))).sort()
+  }, [users])
+
   const filteredUsers = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return users
-    return users.filter((u) => `${u.email} ${u.name || ''} ${u.phone || ''}`.toLowerCase().includes(q))
-  }, [users, search])
+    return users.filter((u) => {
+      if (q && !`${u.email} ${u.name || ''} ${u.phone || ''}`.toLowerCase().includes(q)) return false
+      if (statusFilter === 'ACTIVE' && !u.isActive) return false
+      if (statusFilter === 'INACTIVE' && u.isActive) return false
+
+      const roleCode = u.roleRef?.code || u.role
+      if (roleFilter !== 'ALL' && roleCode !== roleFilter) return false
+
+      if (genderFilter !== 'ALL' && u.gender !== genderFilter) return false
+
+      return true
+    })
+  }, [users, search, statusFilter, roleFilter, genderFilter])
 
   async function onCreateUser() {
     if (!createForm.email.trim()) return
@@ -130,20 +145,37 @@ export function AdminUserManagementPage() {
   }
 
   return (
-    <AdminShell
-      theme={theme}
-      onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      rangeDays={30}
-      onRangeChange={() => undefined}
-      search={search}
-      onSearchChange={setSearch}
-      onHotkey={() => undefined}
-      onConnectPay={() => undefined}
-      onCreateCourse={() => undefined}
-      onExportMiniOrders={() => undefined}
-    >
+    <main className='mx-auto max-w-7xl p-4 md:p-6 space-y-5'>
       <section className='card p-4'>
-        <h2 className='text-xl font-bold mb-3'>User Management</h2>
+        <div className='flex flex-wrap items-center justify-between gap-2 mb-3'>
+          <h1 className='text-2xl font-bold'>User Management</h1>
+          <button className='btn' onClick={() => window.history.back()}>← Quay lại trang trước</button>
+        </div>
+
+        <div className='grid md:grid-cols-4 gap-2'>
+          <input className='input' placeholder='Tìm theo email/tên/sđt' value={search} onChange={(e) => setSearch(e.target.value)} />
+          <select className='input' value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'ALL' | 'ACTIVE' | 'INACTIVE')}>
+            <option value='ALL'>Tất cả trạng thái</option>
+            <option value='ACTIVE'>Đang hoạt động</option>
+            <option value='INACTIVE'>Đã khóa</option>
+          </select>
+          <select className='input' value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+            <option value='ALL'>Tất cả role</option>
+            {availableRoles.map((roleCode) => (
+              <option key={roleCode} value={roleCode}>{roleCode}</option>
+            ))}
+          </select>
+          <select className='input' value={genderFilter} onChange={(e) => setGenderFilter(e.target.value as 'ALL' | UserGender)}>
+            <option value='ALL'>Tất cả giới tính</option>
+            <option value='MALE'>MALE</option>
+            <option value='FEMALE'>FEMALE</option>
+            <option value='OTHER'>OTHER</option>
+          </select>
+        </div>
+      </section>
+
+      <section className='card p-4'>
+        <h2 className='text-xl font-bold mb-3'>Tạo user</h2>
         <div className='grid md:grid-cols-4 gap-2'>
           <input className='input' placeholder='Email' value={createForm.email} onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))} />
           <input className='input' placeholder='Tên' value={createForm.name} onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))} />
@@ -165,7 +197,7 @@ export function AdminUserManagementPage() {
       </section>
 
       <section className='card p-4'>
-        <h3 className='text-lg font-semibold mb-3'>Danh sách user</h3>
+        <h3 className='text-lg font-semibold mb-3'>Danh sách user ({filteredUsers.length})</h3>
         {loading ? <p>Đang tải...</p> : null}
         <div className='space-y-4'>
           {filteredUsers.map((u) => {
@@ -220,6 +252,6 @@ export function AdminUserManagementPage() {
           ))}
         </div>
       </section>
-    </AdminShell>
+    </main>
   )
 }

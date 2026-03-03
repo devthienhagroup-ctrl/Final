@@ -1,7 +1,7 @@
 // src/state/auth.store.tsx
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { authApi, type MeRes } from "../api/auth.api";
-import { clearAccessToken, getAccessToken, setAccessToken } from "../api/http";
+import { clearAuthTokens, getAccessToken, setAccessToken } from "../api/http";
 
 export type AuthStatus = "loading" | "guest" | "authed";
 
@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setStatus("authed");
     } catch {
       // http.ts đã auto clear token khi 401, nhưng vẫn clear chắc chắn
-      clearAccessToken();
+      clearAuthTokens();
       setToken("");
       setUser(null);
       setStatus("guest");
@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(me);
       setStatus("authed");
     } catch (error) {
-      clearAccessToken();
+      clearAuthTokens();
       setToken("");
       setUser(null);
       setStatus("guest");
@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    clearAccessToken();
+    clearAuthTokens();
     setToken("");
     setUser(null);
     setStatus("guest");

@@ -1,353 +1,372 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import React, {useEffect, useMemo, useState} from "react";
+import {Link} from "react-router-dom";
 import {
-  adminListPages,
-  adminPatchPage,
-  adminDuplicatePage,
-  adminGetPublicPageUrl,
-  type CmsPageLite,
+    adminListPages,
+    adminPatchPage,
+    adminDuplicatePage,
+    adminGetPublicPageUrl,
+    type CmsPageLite,
 } from "../api/cms.api";
-import { useAuth } from "../../app/auth";
-import { useToast } from "../components/Toast";
-import { useNavigate } from "react-router-dom";
+import {useAuth} from "../../app/auth";
+import {useToast} from "../components/Toast";
+import {useNavigate} from "react-router-dom";
 
 type SortKey = "slug" | "title" | "updatedAt";
 type SortDir = "asc" | "desc";
 
 function fmtDate(s?: string) {
-  if (!s) return "";
-  const d = new Date(s);
-  if (Number.isNaN(d.getTime())) return s;
-  return d.toLocaleString();
+    if (!s) return "";
+    const d = new Date(s);
+    if (Number.isNaN(d.getTime())) return s;
+    return d.toLocaleString();
 }
+
 function cmp(a: string, b: string) {
-  return a.localeCompare(b, undefined, { sensitivity: "base" });
+    return a.localeCompare(b, undefined, {sensitivity: "base"});
 }
 
 function safeSlugify(input: string) {
-  return input
-    .trim()
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
+    return input
+        .trim()
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 80);
 }
 
 export function CmsPagesPage() {
-  const { token } = useAuth();
-  const toast = useToast();
-  const navigate = useNavigate();
+    const {token} = useAuth();
+    const toast = useToast();
+    const navigate = useNavigate();
 
-  const [rows, setRows] = useState<CmsPageLite[]>([]);
-  const [loading, setLoading] = useState(true);
+    const [rows, setRows] = useState<CmsPageLite[]>([]);
+    const [loading, setLoading] = useState(true);
 
-  const [q, setQ] = useState("");
-  const [onlyActive, setOnlyActive] = useState(false);
+    const [q, setQ] = useState("");
+    const [onlyActive, setOnlyActive] = useState(false);
 
-  const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+    const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
+    const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  // pagination
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+    // pagination
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
 
-  // row action loading states
-  const [busyId, setBusyId] = useState<number | null>(null);
+    // row action loading states
+    const [busyId, setBusyId] = useState<number | null>(null);
 
-  async function load() {
-    setLoading(true);
-    try {
-      const data = await adminListPages(token);
-      setRows(Array.isArray(data) ? data : []);
-    } catch (e: any) {
-      toast.push({ kind: "err", title: "Load pages failed", detail: e?.message || String(e) });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function toggleSort(key: SortKey) {
-    if (sortKey !== key) {
-      setSortKey(key);
-      setSortDir("asc");
-      return;
-    }
-    setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-  }
-
-  // pin landing
-  const pinnedSlug = "landing";
-
-  const filtered = useMemo(() => {
-    const keyword = q.trim().toLowerCase();
-    let list = rows;
-
-    if (onlyActive) list = list.filter((r) => (r.isActive ?? true) === true);
-
-    if (keyword) {
-      list = list.filter((r) => {
-        const s1 = (r.slug || "").toLowerCase();
-        const s2 = (r.title || "").toLowerCase();
-        return s1.includes(keyword) || s2.includes(keyword);
-      });
+    async function load() {
+        setLoading(true);
+        try {
+            const data = await adminListPages(token);
+            setRows(Array.isArray(data) ? data : []);
+        } catch (e: any) {
+            toast.push({kind: "err", title: "Load pages failed", detail: e?.message || String(e)});
+        } finally {
+            setLoading(false);
+        }
     }
 
-    const dir = sortDir === "asc" ? 1 : -1;
+    useEffect(() => {
+        load();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-    const sorted = [...list].sort((a, b) => {
-      if (sortKey === "slug") return dir * cmp(a.slug || "", b.slug || "");
-      if (sortKey === "title") return dir * cmp(a.title || "", b.title || "");
-      const ta = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-      const tb = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-      return dir * (ta - tb);
-    });
-
-    // pin landing to top (if exists)
-    const idx = sorted.findIndex((x) => x.slug === pinnedSlug);
-    if (idx > 0) {
-      const [pin] = sorted.splice(idx, 1);
-      sorted.unshift(pin);
-    }
-    return sorted;
-  }, [rows, q, onlyActive, sortKey, sortDir]);
-
-  // reset page when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [q, onlyActive, pageSize, sortKey, sortDir]);
-
-  const total = rows.length;
-  const shown = filtered.length;
-
-  const totalPages = Math.max(1, Math.ceil(shown / pageSize));
-  const pageClamped = Math.min(page, totalPages);
-  const start = (pageClamped - 1) * pageSize;
-  const paged = filtered.slice(start, start + pageSize);
-
-  async function onToggleActive(r: CmsPageLite) {
-    if (!r.id) {
-      toast.push({ kind: "err", title: "Cannot toggle", detail: "Page missing id" });
-      return;
-    }
-    const next = !((r.isActive ?? true) === true);
-    setBusyId(r.id);
-    try {
-      await adminPatchPage(token, r.id, { isActive: next });
-      toast.push({ kind: "ok", title: "Updated", detail: `isActive = ${String(next)}` });
-      // optimistic update
-      setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, isActive: next } : x)));
-    } catch (e: any) {
-      toast.push({
-        kind: "err",
-        title: "Toggle active failed",
-        detail:
-          e?.message ||
-          "Backend chưa có endpoint PATCH /admin/cms/pages/:id (mình đã để sẵn, chỉ cần implement).",
-      });
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function onDuplicate(r: CmsPageLite) {
-    if (!r.id) {
-      toast.push({ kind: "err", title: "Cannot duplicate", detail: "Page missing id" });
-      return;
+    function toggleSort(key: SortKey) {
+        if (sortKey !== key) {
+            setSortKey(key);
+            setSortDir("asc");
+            return;
+        }
+        setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     }
 
-    // UI-only: đề xuất slug mới để backend dùng (nếu backend bạn muốn)
-    const suggested = `${r.slug}-copy-${safeSlugify(new Date().toISOString().slice(0, 10))}`;
+    // pin landing
+    const pinnedSlug = "landing";
 
-    setBusyId(r.id);
-    try {
-      const res = await adminDuplicatePage(token, r.id);
-      toast.push({
-        kind: "ok",
-        title: "Duplicated",
-        detail: res?.newSlug ? `New slug: ${res.newSlug}` : `Suggested slug: ${suggested}`,
-      });
-      // reload vì backend có thể tạo sections/locale…
-      await load();
-    } catch (e: any) {
-      toast.push({
-        kind: "err",
-        title: "Duplicate failed",
-        detail:
-          e?.message ||
-          "Backend chưa có endpoint POST /admin/cms/pages/:id/duplicate (mình đã đề xuất route).",
-      });
-    } finally {
-      setBusyId(null);
+    const filtered = useMemo(() => {
+        const keyword = q.trim().toLowerCase();
+        let list = rows;
+
+        if (onlyActive) list = list.filter((r) => (r.isActive ?? true) === true);
+
+        if (keyword) {
+            list = list.filter((r) => {
+                const s1 = (r.slug || "").toLowerCase();
+                const s2 = (r.title || "").toLowerCase();
+                return s1.includes(keyword) || s2.includes(keyword);
+            });
+        }
+
+        const dir = sortDir === "asc" ? 1 : -1;
+
+        const sorted = [...list].sort((a, b) => {
+            if (sortKey === "slug") return dir * cmp(a.slug || "", b.slug || "");
+            if (sortKey === "title") return dir * cmp(a.title || "", b.title || "");
+            const ta = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+            const tb = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+            return dir * (ta - tb);
+        });
+
+        // pin landing to top (if exists)
+        const idx = sorted.findIndex((x) => x.slug === pinnedSlug);
+        if (idx > 0) {
+            const [pin] = sorted.splice(idx, 1);
+            sorted.unshift(pin);
+        }
+        return sorted;
+    }, [rows, q, onlyActive, sortKey, sortDir]);
+
+    // reset page when filters change
+    useEffect(() => {
+        setPage(1);
+    }, [q, onlyActive, pageSize, sortKey, sortDir]);
+
+    const total = rows.length;
+    const shown = filtered.length;
+
+    const totalPages = Math.max(1, Math.ceil(shown / pageSize));
+    const pageClamped = Math.min(page, totalPages);
+    const start = (pageClamped - 1) * pageSize;
+    const paged = filtered.slice(start, start + pageSize);
+
+    async function onToggleActive(r: CmsPageLite) {
+        if (!r.id) {
+            toast.push({kind: "err", title: "Cannot toggle", detail: "Page missing id"});
+            return;
+        }
+        const next = !((r.isActive ?? true) === true);
+        setBusyId(r.id);
+        try {
+            await adminPatchPage(token, r.id, {isActive: next});
+            toast.push({kind: "ok", title: "Updated", detail: `isActive = ${String(next)}`});
+            // optimistic update
+            setRows((prev) => prev.map((x) => (x.id === r.id ? {...x, isActive: next} : x)));
+        } catch (e: any) {
+            toast.push({
+                kind: "err",
+                title: "Toggle active failed",
+                detail:
+                    e?.message ||
+                    "Backend chưa có endpoint PATCH /admin/cms/pages/:id (mình đã để sẵn, chỉ cần implement).",
+            });
+        } finally {
+            setBusyId(null);
+        }
     }
-  }
 
-  function onPreview(r: CmsPageLite) {
-    const url = adminGetPublicPageUrl(r.slug);
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
+    async function onDuplicate(r: CmsPageLite) {
+        if (!r.id) {
+            toast.push({kind: "err", title: "Cannot duplicate", detail: "Page missing id"});
+            return;
+        }
 
-  const pinned = useMemo(() => rows.find((x) => x.slug === pinnedSlug) || null, [rows]);
+        // UI-only: đề xuất slug mới để backend dùng (nếu backend bạn muốn)
+        const suggested = `${r.slug}-copy-${safeSlugify(new Date().toISOString().slice(0, 10))}`;
 
-  return (
-    <div className="x-wrap">
-      <div className="x-topbar">
-        <div>
-          <div className="x-title-row">
-            <h1 className="x-title">Quản lý CMS</h1>
-            <span className="x-pill x-pill-info">Trang nội dung</span>
-            <span className="x-pill">Hiển thị: {shown}/{total}</span>
-          </div>
-          <p className="x-subtitle">Quản lý trang CMS theo bố cục đồng bộ với các trang quản trị khác.</p>
-        </div>
-        <button className="x-btn" onClick={load} disabled={loading}>
-          {loading ? "Đang tải..." : "Làm mới"}
-        </button>
-      </div>
+        setBusyId(r.id);
+        try {
+            const res = await adminDuplicatePage(token, r.id);
+            toast.push({
+                kind: "ok",
+                title: "Duplicated",
+                detail: res?.newSlug ? `New slug: ${res.newSlug}` : `Suggested slug: ${suggested}`,
+            });
+            // reload vì backend có thể tạo sections/locale…
+            await load();
+        } catch (e: any) {
+            toast.push({
+                kind: "err",
+                title: "Duplicate failed",
+                detail:
+                    e?.message ||
+                    "Backend chưa có endpoint POST /admin/cms/pages/:id/duplicate (mình đã đề xuất route).",
+            });
+        } finally {
+            setBusyId(null);
+        }
+    }
 
-      {pinned ? (
-        <div className="x-card x-card-pin">
-          <div className="x-pin-left">
-            <span className="x-pin-icon">📌</span>
-            <div>
-              <div className="x-pin-title">
-                <span>Trang ghim</span>
-                <span className="x-badge x-badge-landing">Landing</span>
-              </div>
-              <div className="muted" style={{ marginTop: 8 }}>
-                <code className="x-code">{pinned.slug}</code> • {pinned.title}
-              </div>
+    function onPreview(r: CmsPageLite) {
+        const url = adminGetPublicPageUrl(r.slug);
+        window.open(url, "_blank", "noopener,noreferrer");
+    }
+
+    const pinned = useMemo(() => rows.find((x) => x.slug === pinnedSlug) || null, [rows]);
+
+    return (
+        <div className="x-wrap">
+            <div className="x-topbar">
+                <div>
+                    <div className="x-title-row">
+                        <h1 className="x-title">Quản lý CMS</h1>
+                        <span className="x-pill x-pill-info">Trang nội dung</span>
+                        <span className="x-pill">Hiển thị: {shown}/{total}</span>
+                    </div>
+                    <p className="x-subtitle">Quản lý trang CMS theo bố cục đồng bộ với các trang quản trị khác.</p>
+                </div>
+                <div className="action flex gap-2">
+                    <button className="x-btn" onClick={() => navigate(-1)}>
+                        Quay lại
+                    </button>
+                    <button className="x-btn" onClick={load} disabled={loading}>
+                        {loading ? (
+                            "Đang tải..."
+                        ) : (
+                            <i className="fa-solid fa-rotate-right"></i>
+                        )}
+                    </button>
+                </div>
             </div>
-          </div>
-          <div className="x-row x-row-wrap">
-            <button className="x-btn" type="button" onClick={() => onPreview(pinned)}>
-              Xem public
-            </button>
-            <Link className="x-btn x-btn-primary" to={`/admin/cms/pages/${encodeURIComponent(pinned.slug)}`}>
-              Sửa landing
-            </Link>
-          </div>
-        </div>
-      ) : null}
 
-      <div className="x-card">
-        <div className="x-toolbar">
-                <button
-        className="x-btn "
-        onClick={() => navigate(-1)}
-        style={{ margin: "10px 0", alignSelf: "flex-start" }}
-      >
-        Quay lại
-      </button>
-          <div className="x-search">
+            {pinned ? (
+                <div className="x-card x-card-pin">
+                    <div className="x-pin-left">
+                        <span className="x-pin-icon">📌</span>
+                        <div>
+                            <div className="x-pin-title">
+                                <span>Trang ghim</span>
+                                <span className="x-badge x-badge-landing">Landing</span>
+                            </div>
+                            <div className="muted" style={{marginTop: 8}}>
+                                <code className="x-code">{pinned.slug}</code> • {pinned.title}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="x-row x-row-wrap">
+                        <button className="x-btn" type="button" onClick={() => onPreview(pinned)}>
+                            Xem public
+                        </button>
+                        <Link className="x-btn x-btn-primary"
+                              to={`/admin/cms/pages/${encodeURIComponent(pinned.slug)}`}>
+                            Sửa landing
+                        </Link>
+                    </div>
+                </div>
+            ) : null}
+
+            <div className="x-card">
+                <div className="x-toolbar">
+                    <button
+                        className="x-btn "
+                        onClick={() => navigate(-1)}
+                        style={{margin: "10px 0", alignSelf: "flex-start"}}
+                    >
+                        Quay lại
+                    </button>
+                    <div className="x-search">
             <span className="x-search-icon" aria-hidden="true">
               ⌕
             </span>
-            <input
-              className="x-input"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Tìm theo slug hoặc title..."
-            />
-            {q ? (
-              <button className="x-search-clear" type="button" onClick={() => setQ("")} aria-label="Clear">
-                ✕
-              </button>
-            ) : null}
-          </div>
+                        <input
+                            className="x-input"
+                            value={q}
+                            onChange={(e) => setQ(e.target.value)}
+                            placeholder="Tìm theo slug hoặc title..."
+                        />
+                        {q ? (
+                            <button className="x-search-clear" type="button" onClick={() => setQ("")}
+                                    aria-label="Clear">
+                                ✕
+                            </button>
+                        ) : null}
+                    </div>
 
-          <label className="x-check">
-            <input type="checkbox" checked={onlyActive} onChange={(e) => setOnlyActive(e.target.checked)} />
-            <span>Chỉ Active</span>
-          </label>
+                    <label className="x-check">
+                        <input type="checkbox" checked={onlyActive} onChange={(e) => setOnlyActive(e.target.checked)}/>
+                        <span>Chỉ Active</span>
+                    </label>
 
-          <div className="x-row x-row-wrap x-sort">
-            <button className={`x-chip ${sortKey === "updatedAt" ? "x-chip-on" : ""}`} onClick={() => toggleSort("updatedAt")}>
-              Updated {sortKey === "updatedAt" ? (sortDir === "asc" ? "↑" : "↓") : ""}
-            </button>
-            <button className={`x-chip ${sortKey === "slug" ? "x-chip-on" : ""}`} onClick={() => toggleSort("slug")}>
-              Slug {sortKey === "slug" ? (sortDir === "asc" ? "↑" : "↓") : ""}
-            </button>
-            <button className={`x-chip ${sortKey === "title" ? "x-chip-on" : ""}`} onClick={() => toggleSort("title")}>
-              Title {sortKey === "title" ? (sortDir === "asc" ? "↑" : "↓") : ""}
-            </button>
-          </div>
-        </div>
+                    <div className="x-row x-row-wrap x-sort">
+                        <button className={`x-chip ${sortKey === "updatedAt" ? "x-chip-on" : ""}`}
+                                onClick={() => toggleSort("updatedAt")}>
+                            Updated {sortKey === "updatedAt" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                        </button>
+                        <button className={`x-chip ${sortKey === "slug" ? "x-chip-on" : ""}`}
+                                onClick={() => toggleSort("slug")}>
+                            Slug {sortKey === "slug" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                        </button>
+                        <button className={`x-chip ${sortKey === "title" ? "x-chip-on" : ""}`}
+                                onClick={() => toggleSort("title")}>
+                            Title {sortKey === "title" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                        </button>
+                    </div>
+                </div>
 
-        <div className="x-table-wrap">
-          <table className="x-table">
-            <thead>
-              <tr>
-                <th style={{ width: 210 }} onClick={() => toggleSort("slug")} className="x-th-sort">
-                  Slug {sortKey === "slug" ? (sortDir === "asc" ? "↑" : "↓") : ""}
-                </th>
-                <th onClick={() => toggleSort("title")} className="x-th-sort">
-                  Title {sortKey === "title" ? (sortDir === "asc" ? "↑" : "↓") : ""}
-                </th>
-                <th style={{ width: 120 }}>Status</th>
-                <th style={{ width: 220 }} onClick={() => toggleSort("updatedAt")} className="x-th-sort">
-                  Updated {sortKey === "updatedAt" ? (sortDir === "asc" ? "↑" : "↓") : ""}
-                </th>
-                <th style={{ width: 360, textAlign: "right" }}>Quick actions</th>
-              </tr>
-            </thead>
+                <div className="x-table-wrap">
+                    <table className="x-table">
+                        <thead>
+                        <tr>
+                            <th style={{width: 210}} onClick={() => toggleSort("slug")} className="x-th-sort">
+                                Slug {sortKey === "slug" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                            </th>
+                            <th onClick={() => toggleSort("title")} className="x-th-sort">
+                                Title {sortKey === "title" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                            </th>
+                            <th style={{width: 120}}>Status</th>
+                            <th style={{width: 220}} onClick={() => toggleSort("updatedAt")} className="x-th-sort">
+                                Updated {sortKey === "updatedAt" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                            </th>
+                            <th style={{width: 360, textAlign: "right"}}>Quick actions</th>
+                        </tr>
+                        </thead>
 
-            <tbody>
-              {loading ? (
-                <>
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <tr key={i}>
-                      <td>
-                        <div className="sk sk1" />
-                      </td>
-                      <td>
-                        <div className="sk sk2" />
-                      </td>
-                      <td>
-                        <div className="sk sk3" />
-                      </td>
-                      <td>
-                        <div className="sk sk4" />
-                      </td>
-                      <td style={{ textAlign: "right" }}>
-                        <div className="sk skBtn" />
-                      </td>
-                    </tr>
-                  ))}
-                </>
-              ) : (
-                <>
-                  {paged.map((r) => {
-                    const active = (r.isActive ?? true) === true;
-                    const isLanding = r.slug === pinnedSlug;
+                        <tbody>
+                        {loading ? (
+                            <>
+                                {Array.from({length: 6}).map((_, i) => (
+                                    <tr key={i}>
+                                        <td>
+                                            <div className="sk sk1"/>
+                                        </td>
+                                        <td>
+                                            <div className="sk sk2"/>
+                                        </td>
+                                        <td>
+                                            <div className="sk sk3"/>
+                                        </td>
+                                        <td>
+                                            <div className="sk sk4"/>
+                                        </td>
+                                        <td style={{textAlign: "right"}}>
+                                            <div className="sk skBtn"/>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </>
+                        ) : (
+                            <>
+                                {paged.map((r) => {
+                                    const active = (r.isActive ?? true) === true;
+                                    const isLanding = r.slug === pinnedSlug;
 
-                    return (
-                      <tr key={r.slug}>
-                        <td>
-                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                            <code className="x-code">{r.slug}</code>
-                            {isLanding ? <span className="x-badge x-badge-landing-sm">Landing</span> : null}
-                          </div>
-                        </td>
+                                    return (
+                                        <tr key={r.slug}>
+                                            <td>
+                                                <div style={{display: "flex", gap: 8, alignItems: "center"}}>
+                                                    <code className="x-code">{r.slug}</code>
+                                                    {isLanding ? <span
+                                                        className="x-badge x-badge-landing-sm">Landing</span> : null}
+                                                </div>
+                                            </td>
 
-                        <td className="x-title-cell">
-                          <div className="x-t1">{r.title}</div>
-                          <div className="x-t2 muted">/{r.slug} • {active ? "Public" : "Hidden"}</div>
-                        </td>
+                                            <td className="x-title-cell">
+                                                <div className="x-t1">{r.title}</div>
+                                                <div
+                                                    className="x-t2 muted">/{r.slug} • {active ? "Public" : "Hidden"}</div>
+                                            </td>
 
-                        <td>
-                          <span className={`x-badge ${active ? "x-badge-ok" : "x-badge-off"}`}>{active ? "ACTIVE" : "DISABLED"}</span>
-                        </td>
+                                            <td>
+                                                <span
+                                                    className={`x-badge ${active ? "x-badge-ok" : "x-badge-off"}`}>{active ? "ACTIVE" : "DISABLED"}</span>
+                                            </td>
 
-                        <td className="muted">{fmtDate(r.updatedAt)}</td>
+                                            <td className="muted">{fmtDate(r.updatedAt)}</td>
 
-                        <td style={{ textAlign: "right" }}>
-                          <div className="x-row x-row-wrap" style={{ justifyContent: "flex-end", gap: 8 }}>
-                            {/* <button className="x-btn" type="button" onClick={() => onPreview(r)}>
+                                            <td style={{textAlign: "right"}}>
+                                                <div className="x-row x-row-wrap"
+                                                     style={{justifyContent: "flex-end", gap: 8}}>
+                                                    {/* <button className="x-btn" type="button" onClick={() => onPreview(r)}>
                               Preview
                             </button>
 
@@ -371,86 +390,89 @@ export function CmsPagesPage() {
                               {active ? "Disable" : "Enable"}
                             </button> */}
 
-                            <Link className="x-btn x-btn-primary" to={`/admin/cms/pages/${encodeURIComponent(r.slug)}`}>
-                              Edit
-                            </Link>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                                                    <Link className="x-btn x-btn-primary"
+                                                          to={`/admin/cms/pages/${encodeURIComponent(r.slug)}`}>
+                                                        Edit
+                                                    </Link>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
 
-                  {!paged.length ? (
-                    <tr>
-                      <td colSpan={5}>
-                        <div className="x-empty">
-                          <div className="x-empty-title">Không có dữ liệu phù hợp.</div>
-                          <div className="x-empty-desc muted">
-                            {total === 0
-                              ? "Chưa có page nào hoặc endpoint trả về rỗng."
-                              : "Thử xoá filter/search hoặc bấm Refresh."}
-                          </div>
-                          <div style={{ marginTop: 12 }}>
-                            <button className="x-btn" onClick={load}>
-                              Refresh
-                            </button>
-                          </div>
+                                {!paged.length ? (
+                                    <tr>
+                                        <td colSpan={5}>
+                                            <div className="x-empty">
+                                                <div className="x-empty-title">Không có dữ liệu phù hợp.</div>
+                                                <div className="x-empty-desc muted">
+                                                    {total === 0
+                                                        ? "Chưa có page nào hoặc endpoint trả về rỗng."
+                                                        : "Thử xoá filter/search hoặc bấm Refresh."}
+                                                </div>
+                                                <div style={{marginTop: 12}}>
+                                                    <button className="x-btn" onClick={load}>
+                                                        Refresh
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ) : null}
+                            </>
+                        )}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Pagination */}
+                <div className="x-pager">
+                    <div className="muted">
+                        Page <b>{pageClamped}</b> / {totalPages} • Showing{" "}
+                        <b>{shown === 0 ? 0 : start + 1}</b>–<b>{Math.min(start + pageSize, shown)}</b> of {shown}
+                    </div>
+
+                    <div className="x-row x-row-wrap" style={{gap: 12}}>
+                        <div className="x-row" style={{gap: 8}}>
+                            <span className="muted">Rows:</span>
+                            <select
+                                className="x-select"
+                                value={pageSize}
+                                onChange={(e) => setPageSize(Number(e.target.value))}
+                            >
+                                {[10, 20, 50, 100].map((n) => (
+                                    <option key={n} value={n}>
+                                        {n}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
-                      </td>
-                    </tr>
-                  ) : null}
-                </>
-              )}
-            </tbody>
-          </table>
-        </div>
 
-        {/* Pagination */}
-        <div className="x-pager">
-          <div className="muted">
-            Page <b>{pageClamped}</b> / {totalPages} • Showing{" "}
-            <b>{shown === 0 ? 0 : start + 1}</b>–<b>{Math.min(start + pageSize, shown)}</b> of {shown}
-          </div>
-
-          <div className="x-row x-row-wrap" style={{ gap: 12 }}>
-            <div className="x-row" style={{ gap: 8 }}>
-              <span className="muted">Rows:</span>
-              <select
-                className="x-select"
-                value={pageSize}
-                onChange={(e) => setPageSize(Number(e.target.value))}
-              >
-                {[10, 20, 50, 100].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
+                        <div className="x-row" style={{gap: 8}}>
+                            <button className="x-btn" onClick={() => setPage(1)} disabled={pageClamped <= 1}>
+                                ⟪
+                            </button>
+                            <button className="x-btn" onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                    disabled={pageClamped <= 1}>
+                                Prev
+                            </button>
+                            <button
+                                className="x-btn"
+                                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                                disabled={pageClamped >= totalPages}
+                            >
+                                Next
+                            </button>
+                            <button className="x-btn" onClick={() => setPage(totalPages)}
+                                    disabled={pageClamped >= totalPages}>
+                                ⟫
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div className="x-row" style={{ gap: 8 }}>
-              <button className="x-btn" onClick={() => setPage(1)} disabled={pageClamped <= 1}>
-                ⟪
-              </button>
-              <button className="x-btn" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={pageClamped <= 1}>
-                Prev
-              </button>
-              <button
-                className="x-btn"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={pageClamped >= totalPages}
-              >
-                Next
-              </button>
-              <button className="x-btn" onClick={() => setPage(totalPages)} disabled={pageClamped >= totalPages}>
-                ⟫
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <style>{`
+            <style>{`
         .x-wrap{ display:grid; gap:14px; max-width: 1200px; margin: 24px auto; padding: 0 12px; }
         .x-topbar{
           border-radius:18px;
@@ -611,6 +633,6 @@ export function CmsPagesPage() {
           .x-search{ min-width: 220px; }
         }
       `}</style>
-    </div>
-  );
+        </div>
+    );
 }

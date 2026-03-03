@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { useToast } from "../../ui/toast";
 import { useAuth } from "../../app/auth";
 import {
@@ -35,6 +36,11 @@ const PAGE_SIZE = 10;
 const PROTECTED_ROLES = new Set(["LECTURER", "STAFF", "USER", "ADMIN"]);
 
 export function AdminRbacPage() {
+  const navigate = useNavigate();
+  const params = useParams();
+  const rawTab = (params as any).tab as string | undefined;
+
+  const activeTab: "rbac" | "users" | "test" = rawTab === "users" || rawTab === "test" ? rawTab : "rbac";
   const { toast } = useToast();
   const { logout } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -49,6 +55,12 @@ export function AdminRbacPage() {
   const [roleSearch, setRoleSearch] = useState("");
   const [moduleFilter, setModuleFilter] = useState<string>("ALL");
   const [testOpen, setTestOpen] = useState(false);
+
+// Sync "Test quyền truy cập" tab with the dialog state
+  useEffect(() => {
+    setTestOpen(activeTab === "test");
+  }, [activeTab]);
+
   const [testKey, setTestKey] = useState(0);
 
   const [roleForm, setRoleForm] = useState<RoleFormState | null>(null);
@@ -275,110 +287,164 @@ export function AdminRbacPage() {
   if (loading) return <div className="p-6">Đang tải RBAC...</div>;
 
   return (
-    <div className="soft text-slate-900 min-h-screen">
-      <RbacHeader
-        onTest={() => {
-          setTestKey((k) => k + 1);
-          setTestOpen(true);
-        }}
-        onImport={async () => {
-          await importJsonFile();
-        }}
-        onExport={exportJson}
-        onSave={saveAll}
-        onLogout={logout}
-      />
-      <main className="px-4 md:px-8 py-6 space-y-6">
-        <section className="grid gap-4 lg:grid-cols-3">
-          <RolesPanel roles={visibleRoles} activeRole={activeRole} onSelectRole={setActiveRole} search={roleSearch} onSearch={setRoleSearch} onNewRole={openCreateRoleModal} onEditRole={openEditRoleModal} onDeleteRole={openDeleteRoleModal} protectedRoles={PROTECTED_ROLES} onJumpRole={setActiveRole} />
-          <PermissionsMatrix activeRole={activeRole} moduleFilter={moduleFilter} onChangeModuleFilter={setModuleFilter} presetSelectOptions={[{ value: "KEEP", label: "Preset: (không đổi)" }, { value: "STRICT", label: "Preset: Nghiêm ngặt" }, { value: "USER", label: "Preset: USER" }, { value: "STAFF", label: "Preset: STAFF" }, { value: "BRANCH_MANAGER", label: "Preset: BRANCH_MANAGER" }, { value: "LECTURER", label: "Preset: LECTURER" }, { value: "SUPPORT", label: "Preset: SUPPORT" }, { value: "OPS", label: "Preset: OPS" }, { value: "FINANCE", label: "Preset: FINANCE" }, { value: "ADMIN", label: "Preset: ADMIN" }]} onApplyPreset={(v) => { if (v !== "KEEP") void applyPresetToActive(v as PresetKey); }} onAll={() => void allPerms()} onNone={() => void nonePerms()} perms={filteredPerms} activePermSet={activePermSet} onTogglePerm={(k, c) => void togglePerm(k, c)} roles={roles} />
-        </section>
-        <section className="grid gap-4 lg:grid-cols-3">
-          <AssignmentsPanel
-            rows={userRows}
-            keyword={userKeyword}
-            onKeywordChange={(v) => {
-              setUserKeyword(v);
-              setUserPage(1);
+      <div className="soft text-slate-900 min-h-screen">
+        <RbacHeader
+            onTest={() => {
+              setTestKey((k) => k + 1);
+              navigate("/admin/rbac/test");
             }}
-            page={userPage}
-            pageSize={PAGE_SIZE}
-            totalPages={totalPages}
-            onPrevPage={() => setUserPage((p) => Math.max(1, p - 1))}
-            onNextPage={() => setUserPage((p) => Math.min(totalPages, p + 1))}
-            onEdit={openAssignmentModal}
-            onResetUserRole={(id) => void resetUserRole(id)}
-          />
-          <AuditPanel audit={audit} onClear={clearAudit} />
-        </section>
-      </main>
-
-      <TestAccessDrawer key={testKey} open={testOpen} onClose={() => setTestOpen(false)} roles={roles} modules={[...MODULES]} actions={[...ACTIONS]} onRun={(input) => runTestAccess(input)} />
-
-      {roleForm && (
-        <div className="fixed inset-0 z-40 bg-slate-900/35 flex items-center justify-center p-4">
-          <div className="card w-full max-w-lg p-5">
-            <div className="text-lg font-extrabold">{roleForm.mode === "create" ? "Tạo role" : `Sửa role ${roleForm.key}`}</div>
-            <div className="mt-4 space-y-3">
-              <div>
-                <div className="text-xs font-bold text-slate-500">Role key</div>
-                <input className="input mt-1" value={roleForm.code} onChange={(e) => setRoleForm((prev) => (prev ? { ...prev, code: e.target.value.toUpperCase() } : prev))} disabled={roleForm.mode === "edit"} />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-slate-500">Scope</div>
-                <select className="input mt-1" value={roleForm.scopeType} onChange={(e) => setRoleForm((prev) => (prev ? { ...prev, scopeType: e.target.value as Role["scope"] } : prev))}>
-                  <option value="OWN">OWN</option>
-                  <option value="BRANCH">BRANCH</option>
-                  <option value="COURSE">COURSE</option>
-                  <option value="GLOBAL">GLOBAL</option>
-                </select>
-              </div>
-              <div>
-                <div className="text-xs font-bold text-slate-500">Mô tả</div>
-                <textarea className="input mt-1 min-h-[88px]" value={roleForm.description} onChange={(e) => setRoleForm((prev) => (prev ? { ...prev, description: e.target.value } : prev))} />
-              </div>
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button className="btn" onClick={() => setRoleForm(null)}>Huỷ</button>
-              <button className="btn btn-primary" onClick={() => void submitRoleForm()}>Xác nhận</button>
-            </div>
+            onImport={async () => {
+              await importJsonFile();
+            }}
+            onExport={exportJson}
+            onSave={saveAll}
+            onLogout={logout}
+        />
+        <main className="px-4 md:px-8 py-6 space-y-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+                type="button"
+                className={
+                    "px-3 py-1.5 rounded-lg text-sm font-medium border transition " +
+                    (activeTab === "rbac"
+                        ? "bg-white border-slate-300 shadow-sm"
+                        : "bg-transparent border-slate-200 hover:bg-white/60")
+                }
+                onClick={() => navigate("/admin/rbac")}
+            >
+              RBAC
+            </button>
+            <button
+                type="button"
+                className={
+                    "px-3 py-1.5 rounded-lg text-sm font-medium border transition " +
+                    (activeTab === "users"
+                        ? "bg-white border-slate-300 shadow-sm"
+                        : "bg-transparent border-slate-200 hover:bg-white/60")
+                }
+                onClick={() => navigate("/admin/rbac/users")}
+            >
+              Phân quyền User
+            </button>
+            <button
+                type="button"
+                className={
+                    "px-3 py-1.5 rounded-lg text-sm font-medium border transition " +
+                    (activeTab === "test"
+                        ? "bg-white border-slate-300 shadow-sm"
+                        : "bg-transparent border-slate-200 hover:bg-white/60")
+                }
+                onClick={() => {
+                  setTestKey((k) => k + 1);
+                  navigate("/admin/rbac/test");
+                }}
+            >
+              Test quyền truy cập
+            </button>
           </div>
-        </div>
-      )}
+          {activeTab === "rbac" && (
+              <section className="grid gap-4 lg:grid-cols-3">
+                <RolesPanel roles={visibleRoles} activeRole={activeRole} onSelectRole={setActiveRole} search={roleSearch} onSearch={setRoleSearch} onNewRole={openCreateRoleModal} onEditRole={openEditRoleModal} onDeleteRole={openDeleteRoleModal} protectedRoles={PROTECTED_ROLES} onJumpRole={setActiveRole} />
+                <PermissionsMatrix activeRole={activeRole} moduleFilter={moduleFilter} onChangeModuleFilter={setModuleFilter} presetSelectOptions={[{ value: "KEEP", label: "Preset: (không đổi)" }, { value: "STRICT", label: "Preset: Nghiêm ngặt" }, { value: "USER", label: "Preset: USER" }, { value: "STAFF", label: "Preset: STAFF" }, { value: "BRANCH_MANAGER", label: "Preset: BRANCH_MANAGER" }, { value: "LECTURER", label: "Preset: LECTURER" }, { value: "SUPPORT", label: "Preset: SUPPORT" }, { value: "OPS", label: "Preset: OPS" }, { value: "FINANCE", label: "Preset: FINANCE" }, { value: "ADMIN", label: "Preset: ADMIN" }]} onApplyPreset={(v) => { if (v !== "KEEP") void applyPresetToActive(v as PresetKey); }} onAll={() => void allPerms()} onNone={() => void nonePerms()} perms={filteredPerms} activePermSet={activePermSet} onTogglePerm={(k, c) => void togglePerm(k, c)} roles={roles} />
+              </section>
+          )}
+          {activeTab === "users" && (
+              <section className="grid gap-4 lg:grid-cols-1">
+                <AssignmentsPanel
+                    rows={userRows}
+                    keyword={userKeyword}
+                    onKeywordChange={(v) => {
+                      setUserKeyword(v);
+                      setUserPage(1);
+                    }}
+                    page={userPage}
+                    pageSize={PAGE_SIZE}
+                    totalPages={totalPages}
+                    onPrevPage={() => setUserPage((p) => Math.max(1, p - 1))}
+                    onNextPage={() => setUserPage((p) => Math.min(totalPages, p + 1))}
+                    onEdit={openAssignmentModal}
+                    onResetUserRole={(id) => void resetUserRole(id)}
+                />
+              </section>
+          )}
 
-      {assignmentForm && (
-        <div className="fixed inset-0 z-40 bg-slate-900/35 flex items-center justify-center p-4">
-          <div className="card w-full max-w-lg p-5">
-            <div className="text-lg font-extrabold">Gán role cho user</div>
-            <div className="mt-2 text-sm text-slate-600">User: <b>{assignmentForm.userEmail}</b></div>
-            <div className="mt-4">
-              <div className="text-xs font-bold text-slate-500">Role</div>
-              <select className="input mt-1" value={assignmentForm.role} onChange={(e) => setAssignmentForm((prev) => (prev ? { ...prev, role: e.target.value } : prev))}>
-                {roles.map((r) => (
-                  <option key={r.key} value={r.key}>{r.key}</option>
-                ))}
-              </select>
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button className="btn" onClick={() => setAssignmentForm(null)}>Huỷ</button>
-              <button className="btn btn-primary" onClick={() => void submitAssignment()}>Lưu role</button>
-            </div>
-          </div>
-        </div>
-      )}
+          {activeTab === "rbac" && (
+              <section className="grid gap-4 lg:grid-cols-1">
+                <AuditPanel audit={audit} onClear={clearAudit} />
+              </section>
+          )}
 
-      {deleteTarget && (
-        <div className="fixed inset-0 z-40 bg-slate-900/35 flex items-center justify-center p-4">
-          <div className="card w-full max-w-md p-5">
-            <div className="text-lg font-extrabold text-red-600">Xoá role {deleteTarget.key}?</div>
-            <div className="text-sm text-slate-600 mt-2">Hành động này sẽ xoá role khỏi hệ thống.</div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button className="btn" onClick={() => setDeleteTarget(null)}>Huỷ</button>
-              <button className="btn" style={{ background: "#dc2626", color: "white" }} onClick={() => void confirmDeleteRole()}>Xoá</button>
+        </main>
+
+        <TestAccessDrawer key={testKey} open={testOpen} onClose={() => {
+          setTestOpen(false);
+          navigate("/admin/rbac", { replace: true });
+        }} roles={roles} modules={[...MODULES]} actions={[...ACTIONS]} onRun={(input) => runTestAccess(input)} />
+
+        {roleForm && (
+            <div className="fixed inset-0 z-40 bg-slate-900/35 flex items-center justify-center p-4">
+              <div className="card w-full max-w-lg p-5">
+                <div className="text-lg font-extrabold">{roleForm.mode === "create" ? "Tạo role" : `Sửa role ${roleForm.key}`}</div>
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <div className="text-xs font-bold text-slate-500">Role key</div>
+                    <input className="input mt-1" value={roleForm.code} onChange={(e) => setRoleForm((prev) => (prev ? { ...prev, code: e.target.value.toUpperCase() } : prev))} disabled={roleForm.mode === "edit"} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-500">Scope</div>
+                    <select className="input mt-1" value={roleForm.scopeType} onChange={(e) => setRoleForm((prev) => (prev ? { ...prev, scopeType: e.target.value as Role["scope"] } : prev))}>
+                      <option value="OWN">OWN</option>
+                      <option value="BRANCH">BRANCH</option>
+                      <option value="COURSE">COURSE</option>
+                      <option value="GLOBAL">GLOBAL</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-500">Mô tả</div>
+                    <textarea className="input mt-1 min-h-[88px]" value={roleForm.description} onChange={(e) => setRoleForm((prev) => (prev ? { ...prev, description: e.target.value } : prev))} />
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-end gap-2">
+                  <button className="btn" onClick={() => setRoleForm(null)}>Huỷ</button>
+                  <button className="btn btn-primary" onClick={() => void submitRoleForm()}>Xác nhận</button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
-    </div>
+        )}
+
+        {assignmentForm && (
+            <div className="fixed inset-0 z-40 bg-slate-900/35 flex items-center justify-center p-4">
+              <div className="card w-full max-w-lg p-5">
+                <div className="text-lg font-extrabold">Gán role cho user</div>
+                <div className="mt-2 text-sm text-slate-600">User: <b>{assignmentForm.userEmail}</b></div>
+                <div className="mt-4">
+                  <div className="text-xs font-bold text-slate-500">Role</div>
+                  <select className="input mt-1" value={assignmentForm.role} onChange={(e) => setAssignmentForm((prev) => (prev ? { ...prev, role: e.target.value } : prev))}>
+                    {roles.map((r) => (
+                        <option key={r.key} value={r.key}>{r.key}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="mt-4 flex justify-end gap-2">
+                  <button className="btn" onClick={() => setAssignmentForm(null)}>Huỷ</button>
+                  <button className="btn btn-primary" onClick={() => void submitAssignment()}>Lưu role</button>
+                </div>
+              </div>
+            </div>
+        )}
+
+        {deleteTarget && (
+            <div className="fixed inset-0 z-40 bg-slate-900/35 flex items-center justify-center p-4">
+              <div className="card w-full max-w-md p-5">
+                <div className="text-lg font-extrabold text-red-600">Xoá role {deleteTarget.key}?</div>
+                <div className="text-sm text-slate-600 mt-2">Hành động này sẽ xoá role khỏi hệ thống.</div>
+                <div className="mt-4 flex justify-end gap-2">
+                  <button className="btn" onClick={() => setDeleteTarget(null)}>Huỷ</button>
+                  <button className="btn" style={{ background: "#dc2626", color: "white" }} onClick={() => void confirmDeleteRole()}>Xoá</button>
+                </div>
+              </div>
+            </div>
+        )}
+      </div>
   );
 }

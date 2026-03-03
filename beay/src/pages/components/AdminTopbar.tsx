@@ -1,4 +1,5 @@
 import { useAuth } from "../../app/auth";
+import {Link} from "react-router-dom";
 
 type Props = {
   onOpenSidebar: () => void;
@@ -67,10 +68,10 @@ export function AdminTopbar(props: Props) {
           </button>
 
           {can("courses.write") ? (
-            <button onClick={props.onCreateCourse} className="btn btn-primary inline-flex items-center gap-2">
+            <Link to="/admin/courses" className="btn btn-primary inline-flex items-center gap-2">
               <i className="fa-solid fa-plus" />
               Tạo khóa học
-            </button>
+            </Link>
           ) : null}
         </div>
       </div>

@@ -48,7 +48,7 @@ export function RolesPanel(props: {
           <div className="relative">
             <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
-                className="input pl-11"
+                className="input !pl-11"
                 placeholder="Tìm role... (phím /)"
                 value={props.search}
                 onChange={(e) => props.onSearch(e.target.value)}

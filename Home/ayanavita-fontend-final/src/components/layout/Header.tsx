@@ -5,6 +5,7 @@ import { SuccessModal } from "../home/SuccessModal";
 import { authApi } from "../../api/auth.api";
 import { MiniCartModal } from "../shop/MiniCartModal";
 import { useCart } from "../../contexts/CartContext";
+import { useNavigate } from "react-router-dom";
 
 /** ✅ import type CMS của 2 modal (để props typed chuẩn) */
 import type { defaultCmsData as _authDefault } from "../home/AuthModal";
@@ -37,8 +38,6 @@ type HeaderCMSData = {
   brandLogoClassName?: string;
   showBrandText?: boolean;
   brandText: string;
-  productsDropdownLabel: string;
-  productsDropdownItems: Array<{ label: string; to: string } | { separator: true }>;
   pricingDropdownLabel: string;
   pricingDropdownItems: Array<{ label: string; to: string } | { separator: true }>;
   navLinks: Array<{ label: string; to: string }>;
@@ -52,14 +51,6 @@ const defaultCMSData: HeaderCMSData = {
   brandLogoAlt: "AYANAVITA",
   showBrandText: true,
   brandText: "AYANAVITA",
-  productsDropdownLabel: "Sản phẩm",
-  productsDropdownItems: [
-    { label: "Danh mục sản phẩm", to: "/category" },
-    { label: "Sản phẩm nổi bật", to: "/products" },
-    { label: "Tìm sản phẩm phù hợp", to: "/quiz-fit" },
-    { separator: true },
-    { label: "Giỏ hàng", to: "/cart" },
-  ],
   pricingDropdownLabel: "Gói & Giá",
   pricingDropdownItems: [
     { label: "Dịch vụ Spa", to: "/services" },
@@ -110,6 +101,25 @@ export function Header({
   });
   const [langOpen, setLangOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const miniCartCloseTimeoutRef = useRef<number | null>(null);
+
+  const openMiniCart = () => {
+    if (miniCartCloseTimeoutRef.current) {
+      window.clearTimeout(miniCartCloseTimeoutRef.current);
+      miniCartCloseTimeoutRef.current = null;
+    }
+    setMiniCartOpen(true);
+  };
+
+  const closeMiniCartWithDelay = () => {
+    if (miniCartCloseTimeoutRef.current) {
+      window.clearTimeout(miniCartCloseTimeoutRef.current);
+    }
+    miniCartCloseTimeoutRef.current = window.setTimeout(() => {
+      setMiniCartOpen(false);
+      miniCartCloseTimeoutRef.current = null;
+    }, 150);
+  };
 
   useEffect(() => {
     localStorage.setItem("preferred-language", language);
@@ -120,12 +130,6 @@ export function Header({
     if (path === "/") return location.pathname === "/";
     return location.pathname.startsWith(path);
   };
-
-  const isProductsActive = useMemo(() => {
-    return cms.productsDropdownItems.some(
-      (item) => !("separator" in item) && location.pathname.startsWith(item.to),
-    );
-  }, [location.pathname, cms.productsDropdownItems]);
 
   const isPricingActive = useMemo(() => {
     return cms.pricingDropdownItems.some(
@@ -142,6 +146,7 @@ export function Header({
         setDrawerOpen(false);
         setLangOpen(false);
         setUserMenuOpen(null);
+        setMiniCartOpen(false);
       }
     };
     const onKey = (e: KeyboardEvent) => {
@@ -150,11 +155,15 @@ export function Header({
         setDrawerOpen(false);
         setLangOpen(false);
         setUserMenuOpen(null);
+        setMiniCartOpen(false);
       }
     };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
     return () => {
+      if (miniCartCloseTimeoutRef.current) {
+        window.clearTimeout(miniCartCloseTimeoutRef.current);
+      }
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
@@ -195,8 +204,20 @@ export function Header({
     setAuthOpen(false);
     openSuccess("Đăng ký thành công (prototype). Sau này bạn sẽ gọi API tạo user và gửi email xác thực.");
   };
-
   const handleLogout = async () => {
+
+    // @ts-ignore CDN
+    Swal.fire({
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showConfirmButton: false,
+      backdrop: true,
+      didOpen: () => {
+        // @ts-ignore CDN
+        Swal.showLoading();
+      },
+    });
+
     try {
       await authApi.logout();
     } catch {
@@ -208,6 +229,15 @@ export function Header({
     setIsAuthenticated(false);
     setUserMenuOpen(null);
     setDrawerOpen(false);
+
+    // Success (không text)
+    await Swal.fire({
+      icon: "success",
+      showConfirmButton: false,
+      timer: 800,
+    });
+
+    navigate("/", { replace: true });
   };
 
   const languageOptions = cms.languageOptions ?? defaultCMSData.languageOptions!;
@@ -240,56 +270,6 @@ export function Header({
 
           {/* Desktop nav */}
           <nav className="hidden flex-1 items-center justify-center gap-1 lg:flex">
-            {/* Products dropdown */}
-            <div className="relative">
-              <button
-                type="button"
-                className={`group inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[15px] font-extrabold transition-all duration-200 ${
-                  openDd === "products" || isProductsActive
-                    ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 border-indigo-200"
-                    : "border border-transparent text-slate-900 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md hover:scale-[1.02]"
-                }`}
-                aria-expanded={openDd === "products"}
-                onClick={() => toggleDd("products")}
-              >
-                <span className="relative">
-                  {cms.productsDropdownLabel}
-                  {(openDd === "products" || isProductsActive) && (
-                    <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" />
-                  )}
-                </span>
-                <span
-                  className={`text-xs transition-transform duration-200 group-hover:translate-y-0.5 ${
-                    openDd === "products" ? "rotate-180" : ""
-                  }`}
-                >
-                  ▾
-                </span>
-              </button>
-
-              {openDd === "products" && (
-                <div className="absolute left-0 top-full z-[60] min-w-[260px] animate-in fade-in slide-in-from-top-2 duration-200 rounded-2xl border border-slate-200/70 bg-white p-2 shadow-[0_18px_40px_rgba(2,6,23,.10)]">
-                  {cms.productsDropdownItems.map((it, idx) =>
-                    "separator" in it ? (
-                      <div key={`sep-${idx}`} className="my-2 h-px bg-slate-200/70" />
-                    ) : (
-                      <Link
-                        key={it.to}
-                        to={it.to}
-                        className={`block rounded-xl px-3 py-2 font-extrabold transition-all duration-200 ${
-                          isActiveLink(it.to)
-                            ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700"
-                            : "text-slate-900 hover:bg-indigo-50 hover:text-indigo-700 hover:translate-x-1"
-                        }`}
-                        onClick={() => setOpenDd(null)}
-                      >
-                        {it.label}
-                      </Link>
-                    ),
-                  )}
-                </div>
-              )}
-            </div>
 
             {/* Pricing dropdown */}
             <div className="relative">
@@ -361,13 +341,29 @@ export function Header({
               </Link>
             ))}
           </nav>
-            
+
           {/* Actions */}
           <div className="flex min-w-fit items-center gap-2 lg:min-w-[260px] lg:justify-end">
-                      <button type="button" onClick={() => setMiniCartOpen(true)} className="relative rounded-xl border px-3 py-2 text-sm font-semibold hover:bg-slate-50">
-            <i className="fa-solid fa-cart-shopping" />
-            {totalItems > 0 && <span className="absolute -top-2 -right-2 rounded-full bg-rose-500 px-2 py-0.5 text-[8px] text-white">{totalItems}</span>}
-          </button>
+            <div
+              className="relative"
+              onMouseEnter={openMiniCart}
+              onMouseLeave={closeMiniCartWithDelay}
+            >
+              <button
+                type="button"
+                onClick={() => setMiniCartOpen((prev) => !prev)}
+                className="relative rounded-xl border px-3 py-2 text-sm font-semibold hover:bg-slate-50"
+                aria-expanded={miniCartOpen}
+                aria-label="Mở mini cart"
+              >
+                <i className="fa-solid fa-cart-shopping" />
+                {totalItems > 0 && <span className="absolute -top-2 -right-2 rounded-full bg-rose-500 px-2 py-0.5 text-[8px] text-white">{totalItems}</span>}
+              </button>
+
+              <div className="absolute right-0 top-[calc(100%+10px)] z-[80]">
+                <MiniCartModal open={miniCartOpen} onClose={() => setMiniCartOpen(false)} />
+              </div>
+            </div>
             {/* Language (Desktop) */}
             <div className="relative hidden sm:block">
               <button
@@ -453,7 +449,7 @@ export function Header({
                 <button
                   type="button"
                   onClick={() => openAuth("register")}
-                  className="inline-flex rounded-full px-4 py-2 font-black text-slate-900 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] hover:brightness-110"
+                  className="hidden rounded-full px-4 py-2 font-black text-slate-900 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] hover:brightness-110 sm:inline-flex"
                   style={{
                     background: "linear-gradient(135deg,var(--aya-accent-1),var(--aya-accent-2))",
                     border: "1px solid rgba(17,24,39,.10)",
@@ -499,29 +495,6 @@ export function Header({
               </div>
 
               <div className="grid gap-2 p-4">
-                <details className="overflow-hidden rounded-2xl border border-slate-200">
-                  <summary className="cursor-pointer bg-slate-50 px-4 py-3 font-black transition-colors hover:bg-indigo-50 hover:text-indigo-700">
-                    {cms.productsDropdownLabel}
-                  </summary>
-                  <div className="grid">
-                    {cms.productsDropdownItems
-                      .filter((item): item is { label: string; to: string } => !("separator" in item))
-                      .map((it) => (
-                        <Link
-                          key={it.to}
-                          to={it.to}
-                          className={`border-t border-slate-200 px-4 py-3 font-extrabold transition-all duration-200 ${
-                            isActiveLink(it.to)
-                              ? "bg-indigo-50 text-indigo-700"
-                              : "text-slate-900 hover:bg-indigo-50 hover:text-indigo-700 hover:translate-x-1"
-                          }`}
-                          onClick={() => setDrawerOpen(false)}
-                        >
-                          {it.label}
-                        </Link>
-                      ))}
-                  </div>
-                </details>
 
                 <details className="overflow-hidden rounded-2xl border border-slate-200">
                   <summary className="cursor-pointer bg-slate-50 px-4 py-3 font-black transition-colors hover:bg-indigo-50 hover:text-indigo-700">
@@ -653,7 +626,6 @@ export function Header({
         cmsData={cmsSuccess}
       />
 
-      <MiniCartModal open={miniCartOpen} onClose={() => setMiniCartOpen(false)} />
     </>
   );
 }

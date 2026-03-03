@@ -20,7 +20,7 @@ export function StudentLessonPlayerPage() {
       nav("/student", { replace: true });
       return;
     }
-    nav(`/student/courses/${courseId}?lessonId=${id}&lang=${lang}`, { replace: true });
+    nav(`/student/courses${courseId}?lessonId=${id}&lang=${lang}`, { replace: true });
   }, [courseId, id, lang, nav]);
 
   return (

@@ -1,7 +1,6 @@
 // src/pages/CartPage.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-
 import { http } from "../api/http";
 import { useCart } from "../contexts/CartContext";
 
@@ -116,7 +115,7 @@ const defaultCmsData: CmsData = {
   upsellTitle: "Gợi ý mua kèm",
   upsellSubtitle: "Combo tăng hiệu quả chăm sóc",
   addButton: "Thêm",
-  addToCartMessage: "Đã thêm vào giỏ (demo).",
+  addToCartMessage: "Đã thêm vào giỏ",
   clearCartButton: "Xoá giỏ",
   confirmClearCart: "Xoá toàn bộ giỏ hàng?",
   syncButton: "Sync",
@@ -143,7 +142,7 @@ const defaultCmsData: CmsData = {
 export default function CartPage() {
   const navigate = useNavigate();
   const productIdMap = useMemo(() => {
-    return new Map(
+  return new Map(
       Object.values(PRODUCTS).map((p) => [Number(p.id.replace(/\D+/g, "")), p])
     );
   }, []);
@@ -349,6 +348,7 @@ export default function CartPage() {
       image: product.image || "",
     });
 
+                            // @ts-ignore dùng CDN của SweetAlert2 để hiển thị toast (không cần import)
                             Swal.fire({
                             title: cms.addToCartMessage,
                             icon: "success",

@@ -3,10 +3,9 @@ import { useAuth } from "../../app/auth";
 type Props = {
   open: boolean;
   onClose: () => void;
-  onConnectPay: () => void;
 };
 
-export function AdminSidebar({ open, onClose, onConnectPay }: Props) {
+export function AdminSidebar({ open, onClose }: Props) {
   const { can } = useAuth();
 
   return (
@@ -18,28 +17,13 @@ export function AdminSidebar({ open, onClose, onConnectPay }: Props) {
         open ? "translate-x-0" : "-translate-x-full md:translate-x-0",
       ].join(" ")}
     >
-      <div className="h-16 px-5 flex items-center justify-between border-b border-slate-200/70">
-        <a href="/admin/dashboard" className="flex items-center gap-2 font-extrabold">
-          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-            <span className="text-white text-lg">A</span>
-          </div>
-          <div>
-            <div className="text-sm text-slate-500 font-semibold -mb-1">AYANAVITA</div>
-            <div className="text-lg">Admin</div>
-          </div>
-        </a>
-        <button onClick={onClose} className="md:hidden h-10 w-10 rounded-2xl bg-slate-50 ring-1 ring-slate-200 hover:bg-slate-100">
-          <i className="fa-solid fa-xmark" />
-        </button>
-      </div>
-
-      <div className="p-5">
-        <div className="card p-4">
+      <div className="h-48 py-2 px-5 items-center justify-between border-b border-slate-200/70">
+        <div className=" p-4">
           <div className="flex items-center gap-3">
             <img
-              className="h-11 w-11 rounded-2xl object-cover ring-1 ring-slate-200"
-              src="/imgs/Logo-Ayanavita.png"
-              alt="Admin"
+                className="h-11 w-11 rounded-2xl object-cover ring-1 ring-slate-200"
+                src="/imgs/Logo-Ayanavita.png"
+                alt="Admin"
             />
             <div>
               <div className="font-extrabold">Admin AYANAVITA</div>
@@ -51,7 +35,11 @@ export function AdminSidebar({ open, onClose, onConnectPay }: Props) {
             <span className="chip"><i className="fa-solid fa-circle text-emerald-500 mr-1" /> Online</span>
           </div>
         </div>
+        <button className="w-full text-center btn "><i className="fa-solid fa-arrow-right-from-bracket fa-rotate-180"></i> Đăng xuất</button>
 
+      </div>
+
+      <div className="p-5">
         <div className="mt-4 card p-3">
           <div className="text-xs font-semibold text-slate-500">Đi nhanh</div>
           <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
@@ -80,7 +68,7 @@ export function AdminSidebar({ open, onClose, onConnectPay }: Props) {
             <i className="fa-solid fa-spa text-violet-700" />
             <span className="font-semibold">Dịch vụ</span>
           </a>
-          <a href="#students" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+          <a href="/student" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-users text-cyan-700" />
             <span className="font-semibold">Học viên</span>
           </a>

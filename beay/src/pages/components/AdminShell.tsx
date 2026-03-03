@@ -86,7 +86,6 @@ export function AdminShell(props: Props) {
       <AdminSidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        onConnectPay={props.onConnectPay}
       />
 
       <main className="flex-1 w-full">

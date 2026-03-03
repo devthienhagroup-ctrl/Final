@@ -840,7 +840,7 @@ export function BlogAdminPage() {
 
                 <div className="actions">
                   <button
-                      className="btn ghost"
+                      className="btn"
                       type="button"
                       onClick={() => {
                         setQInput("");
@@ -1098,7 +1098,7 @@ export function BlogAdminPage() {
                       <i className="fa-solid fa-circle-check" style={{ opacity: 0.95 }} />
                       {saving ? "Đang lưu..." : editing ? "Cập nhật" : "Tạo bài"}
                     </button>
-                    <button className="btn ghost" type="button" onClick={resetForm}>
+                    <button className="btn" type="button" onClick={resetForm}>
                       <i className="fa-solid fa-ban" style={{ opacity: 0.85 }} /> Hủy
                     </button>
                   </div>

@@ -30,6 +30,17 @@ type DropdownKey = "products" | "pricing" | null;
 type AuthTab = "login" | "register";
 type Language = "vi" | "en" | "de";
 type UserMenuItem = "desktop" | "mobile" | null;
+type ScopeType = "OWN" | "BRANCH" | "COURSE" | "GLOBAL";
+
+type SessionClaims = {
+  scopeType?: ScopeType | string | null;
+  permissions?: string[];
+};
+
+type PermissionDestination = {
+  targetPath: string;
+  label: string;
+};
 
 type HeaderCMSData = {
   brandLogoSrc: string;
@@ -71,6 +82,133 @@ const defaultCMSData: HeaderCMSData = {
     { code: "de", label: "Deutsch", flag: "fi-de" },
   ],
 };
+
+const CROSS_APP_SESSION_PARAM = "aya_session";
+const ADMIN_APP_BASE_URL = "http://localhost:5179";
+const INSTRUCTOR_APP_BASE_URL = "http://localhost:5181";
+const STUDENT_APP_BASE_URL = "http://localhost:5180";
+
+const ROUTE_BY_PERMISSION = {
+  dashboardAdmin: "/admin/dashboard",
+  ordersRead: "/admin/orders",
+  roleRead: "/admin/rbac",
+  spaServicesRead: "/admin/services",
+  coursesRead: "/admin/courses",
+  reviewsRead: "/admin/reviews",
+  blogsRead: "/admin/blog",
+  productsRead: "/admin/product",
+  cmsRead: "/admin/cms",
+  cmsWrite: "/admin/cms",
+  instructorHome: "/instructor",
+  studentHome: "/student",
+  login: "/login",
+} as const;
+
+const ROUTE_LABEL_BY_PERMISSION = {
+  dashboardAdmin: "Admin Dashboard",
+  ordersRead: "Quản lý đơn hàng",
+  roleRead: "Quản lý phân quyền",
+  spaServicesRead: "Quản lý dịch vụ Spa",
+  coursesRead: "Quản lý khóa học",
+  reviewsRead: "Quản lý đánh giá",
+  blogsRead: "Quản lý blog",
+  productsRead: "Quản lý sản phẩm",
+  cmsRead: "Quản lý CMS",
+  cmsWrite: "Quản lý CMS",
+  instructorHome: "Trang giảng viên",
+  studentHome: "Khóa học của tôi",
+  login: "Trang đăng nhập quản trị",
+} as const;
+
+
+const ADMIN_PERMISSION_ROUTE_MAP: Array<{ permission: string; path: string; label: string }> = [
+  { permission: "orders.read", path: ROUTE_BY_PERMISSION.ordersRead, label: ROUTE_LABEL_BY_PERMISSION.ordersRead },
+  { permission: "role.read", path: ROUTE_BY_PERMISSION.roleRead, label: ROUTE_LABEL_BY_PERMISSION.roleRead },
+  { permission: "spa_services.read", path: ROUTE_BY_PERMISSION.spaServicesRead, label: ROUTE_LABEL_BY_PERMISSION.spaServicesRead },
+  { permission: "courses.write", path: ROUTE_BY_PERMISSION.coursesRead, label: ROUTE_LABEL_BY_PERMISSION.coursesRead },
+  { permission: "reviews.read", path: ROUTE_BY_PERMISSION.reviewsRead, label: ROUTE_LABEL_BY_PERMISSION.reviewsRead },
+  { permission: "blogs.read", path: ROUTE_BY_PERMISSION.blogsRead, label: ROUTE_LABEL_BY_PERMISSION.blogsRead },
+  { permission: "products.read", path: ROUTE_BY_PERMISSION.productsRead, label: ROUTE_LABEL_BY_PERMISSION.productsRead },
+  { permission: "cms.read", path: ROUTE_BY_PERMISSION.cmsRead, label: ROUTE_LABEL_BY_PERMISSION.cmsRead },
+  { permission: "cms.write", path: ROUTE_BY_PERMISSION.cmsWrite, label: ROUTE_LABEL_BY_PERMISSION.cmsWrite },
+];
+
+function decodeJwtClaims(token: string): SessionClaims | null {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(
+      atob(normalized)
+        .split("")
+        .map((ch) => `%${(`00${ch.charCodeAt(0).toString(16)}`).slice(-2)}`)
+        .join(""),
+    );
+    return JSON.parse(json) as SessionClaims;
+  } catch {
+    return null;
+  }
+}
+
+function buildAppUrl(baseUrl: string, path: string) {
+  return `${baseUrl}${path}`;
+}
+
+function resolveCoursesRoute(scopeType: ScopeType | null) {
+  if (scopeType === "COURSE") return buildAppUrl(INSTRUCTOR_APP_BASE_URL, ROUTE_BY_PERMISSION.instructorHome);
+  return buildAppUrl(ADMIN_APP_BASE_URL, ROUTE_BY_PERMISSION.coursesRead);
+}
+
+function resolveTargetByPermissions(permissions: string[], scopeType: ScopeType | null): PermissionDestination {
+  if (permissions.includes("dashboard.admin")) {
+    return {
+      targetPath: buildAppUrl(ADMIN_APP_BASE_URL, ROUTE_BY_PERMISSION.dashboardAdmin),
+      label: ROUTE_LABEL_BY_PERMISSION.dashboardAdmin,
+    };
+  }
+
+  if (permissions.includes("courses.write")) {
+    const isCourseScope = scopeType === "COURSE";
+    return {
+      targetPath: resolveCoursesRoute(scopeType),
+      label: isCourseScope ? ROUTE_LABEL_BY_PERMISSION.instructorHome : ROUTE_LABEL_BY_PERMISSION.coursesRead,
+    };
+  }
+
+  for (const route of ADMIN_PERMISSION_ROUTE_MAP) {
+    if (permissions.includes(route.permission)) {
+      return {
+        targetPath: buildAppUrl(ADMIN_APP_BASE_URL, route.path),
+        label: route.label,
+      };
+    }
+  }
+
+  if (permissions.includes("my_courses.read")) {
+    return {
+      targetPath: buildAppUrl(STUDENT_APP_BASE_URL, ROUTE_BY_PERMISSION.studentHome),
+      label: ROUTE_LABEL_BY_PERMISSION.studentHome,
+    };
+  }
+
+  return {
+    targetPath: buildAppUrl(ADMIN_APP_BASE_URL, ROUTE_BY_PERMISSION.login),
+    label: ROUTE_LABEL_BY_PERMISSION.login,
+  };
+}
+
+function buildCrossAppRedirectUrl(targetPath: string, accessToken: string, refreshToken: string, permissions: string[]) {
+  const targetUrl = new URL(targetPath);
+  const payload = btoa(
+    JSON.stringify({
+      accessToken,
+      refreshToken,
+      permissions,
+    }),
+  );
+  targetUrl.searchParams.set(CROSS_APP_SESSION_PARAM, payload);
+  return targetUrl.toString();
+}
 
 export function Header({
   brandHref = "/",
@@ -239,6 +377,42 @@ export function Header({
 
     window.location.replace("/");
   };
+
+  const handleGoToPermissionApp = () => {
+    const accessToken = localStorage.getItem("aya_access_token")?.trim() || "";
+    const refreshToken = localStorage.getItem("aya_refresh_token")?.trim() || "";
+    if (!accessToken || !refreshToken) return;
+
+    const claims = decodeJwtClaims(accessToken);
+    const scope = claims?.scopeType;
+    const scopeType: ScopeType | null =
+      scope === "OWN" || scope === "BRANCH" || scope === "COURSE" || scope === "GLOBAL" ? scope : null;
+
+    const permissions = Array.isArray(claims?.permissions)
+      ? claims.permissions.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean)
+      : [];
+
+    const destination = resolveTargetByPermissions(permissions, scopeType);
+
+    setUserMenuOpen(null);
+    setDrawerOpen(false);
+    window.location.href = buildCrossAppRedirectUrl(destination.targetPath, accessToken, refreshToken, permissions);
+  };
+
+  const goToPermissionLabel = useMemo(() => {
+    const accessToken = localStorage.getItem("aya_access_token")?.trim() || "";
+    if (!accessToken) return ROUTE_LABEL_BY_PERMISSION.login;
+
+    const claims = decodeJwtClaims(accessToken);
+    const scope = claims?.scopeType;
+    const scopeType: ScopeType | null =
+      scope === "OWN" || scope === "BRANCH" || scope === "COURSE" || scope === "GLOBAL" ? scope : null;
+    const permissions = Array.isArray(claims?.permissions)
+      ? claims.permissions.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean)
+      : [];
+
+    return resolveTargetByPermissions(permissions, scopeType).label;
+  }, [isAuthenticated]);
 
   const languageOptions = cms.languageOptions ?? defaultCMSData.languageOptions!;
 
@@ -426,6 +600,13 @@ export function Header({
                     </Link>
                     <button
                       type="button"
+                      className="mt-1 block w-full rounded-xl px-3 py-2 text-left font-extrabold text-slate-900 transition-all duration-200 hover:bg-indigo-50 hover:text-indigo-700"
+                      onClick={handleGoToPermissionApp}
+                    >
+                      <i className="fa-solid fa-arrow-up-right-from-square"></i> {goToPermissionLabel}
+                    </button>
+                    <button
+                      type="button"
                       className="mt-1 block w-full rounded-xl px-3 py-2 text-left font-extrabold text-slate-900 transition-all duration-200 hover:bg-rose-50 hover:text-rose-700"
                       onClick={handleLogout}
                     >
@@ -565,6 +746,13 @@ export function Header({
                       >
                         Quản lý tài khoản
                       </Link>
+                      <button
+                        type="button"
+                        onClick={handleGoToPermissionApp}
+                        className="w-full rounded-full border border-indigo-200 bg-indigo-50 px-4 py-3 font-black text-indigo-700 transition-all duration-200 hover:bg-indigo-100"
+                      >
+                        {goToPermissionLabel}
+                      </button>
                       <button
                         type="button"
                         onClick={handleLogout}

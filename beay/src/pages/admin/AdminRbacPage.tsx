@@ -299,6 +299,7 @@ export function AdminRbacPage() {
             onExport={exportJson}
             onSave={saveAll}
             onLogout={logout}
+            onBackDashboard={() => navigate("/admin/dashboard")}
         />
         <main className="px-4 md:px-8 py-6 space-y-6">
           <div className="flex flex-wrap items-center gap-2">

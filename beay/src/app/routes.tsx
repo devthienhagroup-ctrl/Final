@@ -3,12 +3,8 @@ import { useAuth } from './auth'
 import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage'
 import { LoginPage } from '../pages/admin/LoginPage'
 import { AdminRbacPage } from '../pages/admin/AdminRbacPage'
-import { StudentPortalPage } from '../pages/admin/StudentPortalPage'
-import { StudentCourseDetailPage } from '../pages/admin/StudentCourseDetailPage'
-import { StudentLessonPlayerPage } from '../pages/admin/StudentLessonPlayerPage'
 import AdminSpaPage from '../pages/admin/AdminSpaPage'
 import AdminCoursesPage from '../pages/admin/AdminCoursesPage'
-import { InstructorDashboardPage } from '../pages/admin/InstructorDashboardPage'
 import { CmsEditPage } from "../admin/pages/CmsEditPage";
 import { ToastProvider as AdminToastProvider } from "../admin/components/Toast";
 import { CmsPagesPage } from "../admin/pages/CmsPagesPage";
@@ -18,6 +14,7 @@ import { BlogAdminPage } from "../admin/pages/BlogAdminPage";
 import { ProductAdminListPage } from "../admin/pages/ProductAdminListPage";
 import { ProductAdminDetailPage } from "../admin/pages/ProductAdminDetailPage";
 import { AdminUserManagementPage } from '../pages/admin/AdminUserManagementPage'
+import { ErrorStatusPage } from '../pages/ErrorStatusPage';
 
 
 
@@ -36,10 +33,32 @@ function RequirePermission({ permission, children }: { permission: string; child
     const { can } = useAuth();
 
     if (!can(permission)) {
-        return <Navigate to="/login" replace />;
+        return (
+            <ErrorStatusPage
+                code={403}
+                title="403 - Không có quyền truy cập"
+                message="Tài khoản của bạn đã đăng nhập nhưng chưa được cấp quyền để vào trang này."
+            />
+        );
     }
 
     return <>{children}</>;
+}
+
+function FallbackRoute() {
+    const { token } = useAuth();
+
+    if (!token) {
+        return <Navigate to="/login" replace />;
+    }
+
+    return (
+        <ErrorStatusPage
+            code={404}
+            title="404 - Không tìm thấy trang"
+            message="Đường dẫn không tồn tại hoặc đã được thay đổi. Vui lòng kiểm tra lại đường dẫn."
+        />
+    );
 }
 
 export function AppRoutes() {
@@ -50,7 +69,14 @@ export function AppRoutes() {
 
             <Route element={<RequireAuth />}>
                 <Route path="/admin/orders" element={<RequirePermission permission="orders.read"><OrderAdminPage /></RequirePermission>} />
-                <Route path="/admin/rbac" element={<Navigate to="/admin/rbac/rbac" replace />} />
+                <Route
+                    path="/admin/rbac"
+                    element={
+                        <RequirePermission permission="role.read">
+                            <Navigate to="/admin/rbac/rbac" replace />
+                        </RequirePermission>
+                    }
+                />
                 <Route path="/admin/rbac/:tab" element={<RequirePermission permission="role.read"><AdminRbacPage /></RequirePermission>} />
                 <Route path="/admin/services" element={<RequirePermission permission="spa_services.read"><AdminSpaPage /></RequirePermission>} />
                 <Route path="/admin/courses" element={<RequirePermission permission="courses.read"><AdminCoursesPage /></RequirePermission>} />
@@ -59,10 +85,6 @@ export function AppRoutes() {
                 <Route path="/admin/product" element={<RequirePermission permission="products.read"><ProductAdminListPage /></RequirePermission>} />
                 <Route path="/admin/product/:productId" element={<RequirePermission permission="products.read"><ProductAdminDetailPage /></RequirePermission>} />
                 <Route path="/admin/users" element={<RequirePermission permission="role.read"><AdminUserManagementPage /></RequirePermission>} />
-                <Route path="/student" element={<RequirePermission permission="my_courses.read"><StudentPortalPage /></RequirePermission>} />
-                <Route path="/instructor" element={<RequirePermission permission="courses.write"><InstructorDashboardPage /></RequirePermission>} />
-                <Route path="/student/courses:id" element={<RequirePermission permission="my_courses.read"><StudentCourseDetailPage /></RequirePermission>} />
-                <Route path="/student/lessons/:id" element={<RequirePermission permission="my_courses.read"><StudentLessonPlayerPage /></RequirePermission>} />
                 <Route path="/admin/dashboard" element={<RequirePermission permission="dashboard.admin"><AdminDashboardPage /></RequirePermission>} />
                 <Route
                     path="/admin/cms"
@@ -74,7 +96,7 @@ export function AppRoutes() {
                 />
             </Route>
 
-            <Route path="*" element={<div className="p-6">404</div>} />
+            <Route path="*" element={<FallbackRoute />} />
         </Routes>
     );
 

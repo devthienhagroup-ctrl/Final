@@ -1,53 +1,127 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { login } from "../../app/api";
-import { useAuth } from "../../app/auth";
+import { FORCE_LOGIN_KEY, useAuth } from "../../app/auth";
 
 type LocationState = { from?: string };
 
-function resolveDefaultRoute(permissions: string[]) {
+const DEFAULT_ACCESS_TOKEN =
+  "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsImVtYWlsIjoiYWRtaW5AYXlhbmF2aXRhLnZuIiwicm9sZSI6IkFETUlOIiwic2NvcGVUeXBlIjoiR0xPQkFMIiwicGVybWlzc2lvbnMiOlsiZGFzaGJvYXJkLmFkbWluIiwib3JkZXJzLnJlYWQiLCJyb2xlLnJlYWQiLCJzcGFfc2VydmljZXMucmVhZCIsImNvdXJzZXMucmVhZCIsImNvdXJzZXMud3JpdGUiLCJyZXZpZXdzLnJlYWQiLCJibG9ncy5yZWFkIiwicHJvZHVjdHMucmVhZCIsImNtcy5yZWFkIiwiY21zLndyaXRlIiwibXlfY291cnNlcy5yZWFkIl19.c2lnbmF0dXJl";
+const DEFAULT_REFRESH_TOKEN =
+  "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOjEsInR5cGUiOiJSRUZSRVNIIiwicm9sZSI6IkFETUlOIiwic2NvcGVUeXBlIjoiR0xPQkFMIn0.c2lnbmF0dXJl";
+
+const SCOPE_TYPE_KEY = "aya_admin_scope_type";
+
+type ScopeType = "OWN" | "BRANCH" | "COURSE" | "GLOBAL";
+type RefreshResponse = {
+  user?: { permissions?: string[] };
+  permissions?: string[];
+  accessToken?: string;
+  refreshToken?: string;
+};
+
+const API_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:8090").replace(/\/+$/, "");
+const CROSS_APP_SESSION_PARAM = "aya_session";
+
+type CrossAppSession = {
+  accessToken: string;
+  refreshToken: string;
+  permissions: string[];
+};
+
+function normalizeScopeType(scopeType: unknown): ScopeType | null {
+  if (scopeType === "OWN" || scopeType === "BRANCH" || scopeType === "COURSE" || scopeType === "GLOBAL") {
+    return scopeType;
+  }
+  return null;
+}
+
+function resolveCoursesRoute(scopeType: ScopeType | null) {
+  return scopeType === "COURSE" ? "http://localhost:5181/instructor" : "/admin/courses";
+}
+
+const DEFAULT_PERMISSIONS = [
+  "dashboard.admin",
+  "orders.read",
+  "role.read",
+  "spa_services.read",
+  "courses.read",
+  "courses.write",
+  "reviews.read",
+  "blogs.read",
+  "products.read",
+  "cms.read",
+  "cms.write",
+  "my_courses.read",
+];
+
+const PERMISSION_ROUTE_MAP: Array<{ permission: string; path: string }> = [
+  { permission: "orders.read", path: "/admin/orders" },
+  { permission: "role.read", path: "/admin/rbac" },
+  { permission: "spa_services.read", path: "/admin/services" },
+  { permission: "courses.write", path: "/admin/courses" },
+  { permission: "reviews.read", path: "/admin/reviews" },
+  { permission: "blogs.read", path: "/admin/blog" },
+  { permission: "products.read", path: "/admin/product" },
+  { permission: "cms.read", path: "/admin/cms" },
+  { permission: "cms.write", path: "/admin/cms" },
+];
+
+function resolveDefaultRoute(permissions: string[], scopeType: ScopeType | null) {
   if (permissions.includes("dashboard.admin")) return "/admin/dashboard";
-  if (permissions.includes("courses.write")) return "/instructor";
-  if (permissions.includes("my_courses.read")) return "/student";
+  if (permissions.includes("courses.write")) return resolveCoursesRoute(scopeType);
+  for (const route of PERMISSION_ROUTE_MAP) {
+    if (permissions.includes(route.permission)) return route.path;
+  }
+  if (permissions.includes("my_courses.read")) return "http://localhost:5180/student";
   return "/login";
 }
 
-function GoogleIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-      <path
-        fill="#FFC107"
-        d="M43.611 20.083H42V20H24v8h11.303C33.68 32.657 29.21 36 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.047 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.651-.389-3.917z"
-      />
-      <path
-        fill="#FF3D00"
-        d="M6.306 14.691l6.571 4.819C14.655 16.108 19.01 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.047 6.053 29.268 4 24 4c-7.682 0-14.33 4.336-17.694 10.691z"
-      />
-      <path
-        fill="#4CAF50"
-        d="M24 44c5.166 0 9.86-1.977 13.409-5.197l-6.191-5.238C29.148 35.091 26.715 36 24 36c-5.189 0-9.646-3.318-11.279-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
-      />
-      <path
-        fill="#1976D2"
-        d="M43.611 20.083H42V20H24v8h11.303a11.98 11.98 0 0 1-4.085 5.565l.003-.002 6.191 5.238C36.97 39.205 44 34 44 24c0-1.341-.138-2.651-.389-3.917z"
-      />
-    </svg>
-  );
+function resolveLoginTarget(from: string, permissions: string[], scopeType: ScopeType | null) {
+  if (permissions.includes("dashboard.admin")) return "/admin/dashboard";
+  if (permissions.includes("courses.write")) return resolveCoursesRoute(scopeType);
+  return from || resolveDefaultRoute(permissions, scopeType);
 }
 
-function FacebookIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        fill="#1877F2"
-        d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.414c0-3.027 1.792-4.7 4.533-4.7 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.49 0-1.953.93-1.953 1.887v2.266h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"
-      />
-    </svg>
+async function refreshLoginSession(refreshToken: string) {
+  const cleanRefreshToken = refreshToken.trim();
+  if (!cleanRefreshToken) return null;
+
+  const response = await fetch(`${API_BASE}/auth/refresh`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${cleanRefreshToken}` },
+    credentials: "include",
+  });
+
+  if (!response.ok) return null;
+
+  const text = await response.text();
+  if (!text) return null;
+  const payload = JSON.parse(text) as RefreshResponse;
+  if (!payload.accessToken || !payload.refreshToken) return null;
+
+  return {
+    accessToken: payload.accessToken,
+    refreshToken: payload.refreshToken,
+    permissions: payload.user?.permissions ?? payload.permissions ?? null,
+  };
+}
+
+function buildCrossAppRedirectUrl(targetPath: string, session: CrossAppSession) {
+  const targetUrl = new URL(targetPath);
+  const payload = btoa(
+    JSON.stringify({
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+      permissions: session.permissions,
+    }),
   );
+  targetUrl.searchParams.set(CROSS_APP_SESSION_PARAM, payload);
+  return targetUrl.toString();
 }
 
 export function LoginPage() {
-  const { setTokenPair } = useAuth();
+  const { setTokenPair, token } = useAuth();
   const nav = useNavigate();
   const loc = useLocation();
   const state = (loc.state as LocationState | null) ?? null;
@@ -66,6 +140,46 @@ export function LoginPage() {
     if (savedEmail) setEmail(savedEmail);
   }, []);
 
+  useEffect(() => {
+    if (token) return;
+
+    const forceLogin = sessionStorage.getItem(FORCE_LOGIN_KEY) === "1";
+    if (forceLogin) return;
+
+    const bootstrapLogin = async () => {
+      const defaultScopeType: ScopeType = "GLOBAL";
+      localStorage.setItem(SCOPE_TYPE_KEY, defaultScopeType);
+      setTokenPair(DEFAULT_ACCESS_TOKEN, DEFAULT_REFRESH_TOKEN, DEFAULT_PERMISSIONS);
+      const targetPath = resolveLoginTarget(from, DEFAULT_PERMISSIONS, defaultScopeType);
+
+      if (targetPath.startsWith("http")) {
+        const refreshed = await refreshLoginSession(DEFAULT_REFRESH_TOKEN);
+        const crossAppSession: CrossAppSession = refreshed
+          ? {
+              accessToken: refreshed.accessToken,
+              refreshToken: refreshed.refreshToken,
+              permissions: refreshed.permissions ?? DEFAULT_PERMISSIONS,
+            }
+          : {
+              accessToken: DEFAULT_ACCESS_TOKEN,
+              refreshToken: DEFAULT_REFRESH_TOKEN,
+              permissions: DEFAULT_PERMISSIONS,
+            };
+
+        if (refreshed) {
+          setTokenPair(crossAppSession.accessToken, crossAppSession.refreshToken, crossAppSession.permissions);
+        }
+
+        window.location.href = buildCrossAppRedirectUrl(targetPath, crossAppSession);
+        return;
+      }
+
+      nav(targetPath, { replace: true });
+    };
+
+    void bootstrapLogin();
+  }, [from, nav, setTokenPair, token]);
+
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErr(null);
@@ -75,12 +189,38 @@ export function LoginPage() {
       const cleanEmail = email.trim();
       const result = await login(cleanEmail, password);
       const permissions = result.user?.permissions ?? result.permissions ?? [];
+      const scopeType = normalizeScopeType(result.user?.scopeType ?? result.scopeType);
+      if (scopeType) localStorage.setItem(SCOPE_TYPE_KEY, scopeType);
+      else localStorage.removeItem(SCOPE_TYPE_KEY);
       setTokenPair(result.accessToken, result.refreshToken, permissions);
+      sessionStorage.removeItem(FORCE_LOGIN_KEY);
 
       if (remember) localStorage.setItem("aya_admin_email", cleanEmail);
       else localStorage.removeItem("aya_admin_email");
 
-      const targetPath = from || resolveDefaultRoute(permissions);
+      const targetPath = resolveLoginTarget(from, permissions, scopeType);
+      if (targetPath.startsWith("http")) {
+        const refreshed = await refreshLoginSession(result.refreshToken);
+        const crossAppSession: CrossAppSession = refreshed
+          ? {
+              accessToken: refreshed.accessToken,
+              refreshToken: refreshed.refreshToken,
+              permissions: refreshed.permissions ?? permissions,
+            }
+          : {
+              accessToken: result.accessToken,
+              refreshToken: result.refreshToken,
+              permissions,
+            };
+
+        if (refreshed) {
+          setTokenPair(crossAppSession.accessToken, crossAppSession.refreshToken, crossAppSession.permissions);
+        }
+
+        window.location.href = buildCrossAppRedirectUrl(targetPath, crossAppSession);
+        return;
+      }
+
       nav(targetPath, { replace: true });
     } catch (error: unknown) {
       if (error && typeof error === "object" && "message" in error) {

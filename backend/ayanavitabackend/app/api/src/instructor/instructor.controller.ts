@@ -63,6 +63,29 @@ export class InstructorController {
     return this.courses.lessonsOutline(user, id, lang)
   }
 
+
+  @Get('courses/:id/reviews')
+  async listCourseReviews(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    await this.courses.assertCreator(id, user.sub)
+    return this.courses.listReviews(id)
+  }
+
+  @Delete('courses/:id/reviews/:reviewId')
+  async deleteCourseReview(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('reviewId', ParseIntPipe) reviewId: number,
+  ) {
+    await this.courses.assertCreator(id, user.sub)
+    return this.courses.deleteReview(id, reviewId)
+  }
+
+  @Get('courses/:id/students')
+  async listCourseStudents(@CurrentUser() user: JwtUser, @Param('id', ParseIntPipe) id: number) {
+    await this.courses.assertCreator(id, user.sub)
+    return this.courses.listStudents(id)
+  }
+
   @Post('courses')
   @UseInterceptors(FileInterceptor('thumbnail', { storage: memoryStorage() }))
   createCourse(@CurrentUser() user: JwtUser, @Body() rawData: any, @UploadedFile() thumbnail?: any) {

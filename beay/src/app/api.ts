@@ -9,8 +9,10 @@ function joinUrl(path: string) {
 type LoginResponse = {
   user?: {
     permissions?: string[];
+    scopeType?: "OWN" | "BRANCH" | "COURSE" | "GLOBAL" | string | null;
   };
   permissions?: string[];
+  scopeType?: "OWN" | "BRANCH" | "COURSE" | "GLOBAL" | string | null;
   accessToken: string;
   refreshToken: string;
 };

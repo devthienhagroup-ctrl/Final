@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service'
 import { EnrollmentsService } from '../enrollments/enrollments.service'
 import { CreateCourseDto } from './dto/create-course.dto'
 import { UpdateCourseDto } from './dto/update-course.dto'
-import { Prisma, ProgressStatus } from '@prisma/client'
+import { CourseAccessStatus, Prisma, ProgressStatus } from '@prisma/client'
 import { CourseQueryDto } from './dto/course-query.dto'
 import { CoursesMediaService } from './courses-media.service'
 import { UpsertCourseReviewDto } from './dto/upsert-course-review.dto'
@@ -412,10 +412,99 @@ export class CoursesService {
       id: row.id,
       stars: row.stars,
       comment: row.comment,
+      userName: row.user?.name || null,
+      email: row.user?.email || null,
       customerName: row.customerName || row.user?.name || row.user?.email || 'Học viên',
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     }))
+  }
+
+  async deleteReview(courseId: number, reviewId: number) {
+    const course = await this.prisma.course.findUnique({
+      where: { id: courseId },
+      select: { id: true },
+    })
+    if (!course) throw new NotFoundException('Course not found')
+
+    return this.prisma.$transaction(async (tx) => {
+      const review = await tx.courseReview.findFirst({
+        where: { id: reviewId, courseId },
+        select: { id: true },
+      })
+      if (!review) throw new NotFoundException('Review not found')
+
+      await tx.courseReview.delete({ where: { id: reviewId } })
+
+      const aggregate = await tx.courseReview.aggregate({
+        where: { courseId },
+        _avg: { stars: true },
+        _count: { id: true },
+      })
+
+      await tx.course.update({
+        where: { id: courseId },
+        data: {
+          ratingAvg: Number((aggregate._avg.stars || 0).toFixed(1)),
+          ratingCount: aggregate._count.id,
+        },
+        select: { id: true },
+      })
+
+      return { id: reviewId }
+    })
+  }
+
+  async listStudents(courseId: number) {
+    const course = await this.prisma.course.findUnique({
+      where: { id: courseId },
+      select: { id: true },
+    })
+    if (!course) throw new NotFoundException('Course not found')
+
+    const accesses = await this.prisma.courseAccess.findMany({
+      where: { courseId, status: CourseAccessStatus.ACTIVE },
+      select: {
+        id: true,
+        userId: true,
+        grantedAt: true,
+        user: { select: { name: true, email: true, phone: true } },
+      },
+      orderBy: { grantedAt: 'desc' },
+    })
+
+    if (!accesses.length) return []
+
+    const userIds = accesses.map((item) => item.userId)
+    const totalLessons = await this.prisma.lesson.count({ where: { courseId, published: true } })
+
+    const progressRows = await this.prisma.lessonProgress.findMany({
+      where: {
+        userId: { in: userIds },
+        status: ProgressStatus.COMPLETED,
+        lesson: { courseId, published: true },
+      },
+      select: { userId: true },
+    })
+
+    const completedByUser = new Map<number, number>()
+    for (const row of progressRows) {
+      completedByUser.set(row.userId, (completedByUser.get(row.userId) || 0) + 1)
+    }
+
+    return accesses.map((item) => {
+      const completedLessons = completedByUser.get(item.userId) || 0
+      const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0
+      return {
+        id: item.id,
+        userId: item.userId,
+        name: item.user?.name || null,
+        email: item.user?.email || null,
+        phone: item.user?.phone || null,
+        enrolledAt: item.grantedAt,
+        progressPercent,
+      }
+    })
   }
 
   async upsertReview(user: JwtUser, courseId: number, dto: UpsertCourseReviewDto) {

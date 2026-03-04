@@ -6,7 +6,12 @@ type Props = {
 };
 
 export function AdminSidebar({ open, onClose }: Props) {
-  const { can } = useAuth();
+  const { can, logout } = useAuth();
+
+  function handleLogout() {
+    onClose();
+    logout();
+  }
 
   return (
     <aside
@@ -35,7 +40,9 @@ export function AdminSidebar({ open, onClose }: Props) {
             <span className="chip"><i className="fa-solid fa-circle text-emerald-500 mr-1" /> Online</span>
           </div>
         </div>
-        <button className="w-full text-center btn "><i className="fa-solid fa-arrow-right-from-bracket fa-rotate-180"></i> Đăng xuất</button>
+        <button type="button" className="w-full text-center btn" onClick={handleLogout}>
+          <i className="fa-solid fa-arrow-right-from-bracket fa-rotate-180"></i> Đăng xuất
+        </button>
 
       </div>
 
@@ -45,8 +52,6 @@ export function AdminSidebar({ open, onClose }: Props) {
           <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
             {can("orders.read") ? <a className="btn text-center" href="/admin/orders"><i className="fa-solid fa-receipt mr-1" />Đơn hàng</a> : null}
             {can("role.read") ? <a className="btn text-center" href="/admin/rbac"><i className="fa-solid fa-user-shield mr-1" />Phân quyền</a> : null}
-            {can("courses.write") ? <a className="btn text-center" href="/instructor"><i className="fa-solid fa-chalkboard-user mr-1" />Giảng viên</a> : null}
-            {can("my_courses.read") ? <a className="btn text-center" href="/student"><i className="fa-solid fa-user-graduate mr-1" />Học viên</a> : null}
           </div>
         </div>
 
@@ -67,10 +72,6 @@ export function AdminSidebar({ open, onClose }: Props) {
           <a href="/admin/services" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-spa text-violet-700" />
             <span className="font-semibold">Dịch vụ</span>
-          </a>
-          <a href="/student" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
-            <i className="fa-solid fa-users text-cyan-700" />
-            <span className="font-semibold">Học viên</span>
           </a>
           <a href="/admin/orders" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-bag-shopping text-emerald-700" />

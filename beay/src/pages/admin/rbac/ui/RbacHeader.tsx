@@ -4,6 +4,7 @@ export function RbacHeader(props: {
   onExport: () => void;
   onSave: () => void;
   onLogout: () => void;
+  onBackDashboard: () => void;
 }) {
   return (
     <header className="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-slate-200/70">
@@ -19,6 +20,9 @@ export function RbacHeader(props: {
         </div>
 
         <div className="flex items-center gap-2">
+          <button className="btn inline-flex items-center gap-2" onClick={props.onBackDashboard}>
+            <i className="fa-solid fa-gauge" /> Về dashboard
+          </button>
           <button className="btn inline-flex items-center gap-2" onClick={props.onLogout}>
             <i className="fa-solid fa-right-from-bracket" /> Đăng xuất
           </button>

@@ -30,6 +30,21 @@ type ConfirmState = {
   onConfirm: null | (() => void)
 }
 
+type DrawerMode = 'DETAIL' | 'CREATE'
+
+function ensureFontAwesomeCdn() {
+  // Best-effort: inject Font Awesome CDN once.
+  // If your app already loads FA in index.html, this is a no-op.
+  const id = 'fa-cdn'
+  if (document.getElementById(id)) return
+  const link = document.createElement('link')
+  link.id = id
+  link.rel = 'stylesheet'
+  link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css'
+  link.referrerPolicy = 'no-referrer'
+  document.head.appendChild(link)
+}
+
 function mapUserToForm(user: AdminUser): UserFormState {
   return {
     email: user.email,
@@ -88,6 +103,7 @@ export function AdminUserManagementPage() {
 
   // drawer
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [drawerMode, setDrawerMode] = useState<DrawerMode>('DETAIL')
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const selectedUser = useMemo(() => users.find((u) => u.id === selectedId) || null, [users, selectedId])
 
@@ -107,6 +123,10 @@ export function AdminUserManagementPage() {
   const openConfirm = (title: string, desc: string, onConfirm: () => void) => {
     setConfirm({ open: true, title, desc, onConfirm })
   }
+
+  useEffect(() => {
+    ensureFontAwesomeCdn()
+  }, [])
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearch(searchInput.trim()), 320)
@@ -246,6 +266,13 @@ export function AdminUserManagementPage() {
 
   function openDrawer(userId: number) {
     setSelectedId(userId)
+    setDrawerMode('DETAIL')
+    setDrawerOpen(true)
+  }
+
+  function openCreateDrawer() {
+    setSelectedId(null)
+    setDrawerMode('CREATE')
     setDrawerOpen(true)
   }
 
@@ -296,8 +323,7 @@ export function AdminUserManagementPage() {
     const all = users.length
     const active = users.filter((u) => u.isActive).length
     const inactive = users.filter((u) => !u.isActive).length
-    const withRefresh = users.filter((u) => (u as any).hasRefreshToken).length
-    return { all, active, inactive, withRefresh }
+    return { all, active, inactive }
   }, [users])
 
   return (
@@ -431,7 +457,9 @@ export function AdminUserManagementPage() {
         .au-btn:disabled{ opacity: .55; cursor:not-allowed; transform:none; box-shadow:none; }
 
         .au-filters{ display:grid; grid-template-columns: 2fr 1fr; gap: 10px; align-items:end; }
-        .au-actions{ display:flex; gap: 10px; justify-content:flex-end; margin-top: 10px; flex-wrap: wrap; }
+        .au-actions{ display:flex; gap: 10px; justify-content:space-between; align-items:center; margin-top: 10px; flex-wrap: wrap; }
+        .au-actions-left{ display:flex; gap:10px; flex-wrap:wrap; }
+        .au-actions-right{ display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
 
         /* table */
         .au-table-wrap{ overflow:hidden; }
@@ -465,6 +493,20 @@ export function AdminUserManagementPage() {
         .au-icon-btn:active{ transform: translateY(0); }
 
         .au-table-actions{ display:flex; gap: 8px; justify-content:flex-end; }
+
+        .au-avatar{
+          width: 34px; height: 34px;
+          border-radius: 14px;
+          display:grid;
+          place-items:center;
+          font-weight: 900;
+          color: white;
+          background: var(--grad);
+          box-shadow: 0 14px 28px rgba(124, 58, 237, 0.14);
+          flex: 0 0 auto;
+        }
+        .au-cell-user{ display:flex; align-items:center; gap: 10px; }
+        .au-name{ font-weight: 900; letter-spacing:-0.01em; }
 
         .au-pager{
           margin-top: 12px;
@@ -599,11 +641,14 @@ export function AdminUserManagementPage() {
               <p className='au-hint'>List (table) + Detail (drawer) • đồng bộ phong cách UI</p>
             </div>
             <div className='au-title-actions'>
+              <button className='au-pill' onClick={openCreateDrawer}>
+                <i className='fa-solid fa-user-plus' /> Tạo người dùng
+              </button>
               <button className='au-pill' onClick={() => void loadData()}>
-                ↻ Làm mới
+                <i className='fa-solid fa-rotate-right' /> Làm mới
               </button>
               <button className='au-pill' onClick={() => window.history.back()}>
-                ← Quay lại
+                <i className='fa-solid fa-arrow-left' /> Quay lại
               </button>
               <span style={{ display: loading ? 'inline-flex' : 'none', alignItems: 'center', gap: 10, color: 'var(--muted)', fontSize: 12 }}>
               <span
@@ -687,72 +732,27 @@ export function AdminUserManagementPage() {
               </div>
             </div>
             <div className='au-actions'>
-              <button
-                  className='au-btn'
-                  onClick={() => {
-                    setSearchInput('')
-                    setStatusFilter('ALL')
-                    setPage(1)
-                    showToast('Đã reset bộ lọc', 'info')
-                  }}
-              >
-                ↺ Reset
-              </button>
-              <button className='au-btn primary' onClick={() => showToast('Đã áp dụng bộ lọc', 'success')}>
-                ✓ Áp dụng
-              </button>
-            </div>
-          </div>
-
-          {/* create */}
-          <div className='au-card au-panel' style={{ marginBottom: 12 }}>
-            <div className='au-panel-head'>
-              <h3>Tạo user</h3>
-              <div className='au-panel-right'>Tạo xong hệ thống sẽ gửi email mật khẩu</div>
-            </div>
-            <div className='au-grid' style={{ marginBottom: 0 }}>
-              <div style={{ gridColumn: 'span 4' }} className='au-field'>
-                <label>Email</label>
-                <input className='au-input' value={createForm.email} onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))} />
+              <div className='au-actions-left'>
+                <button className='au-btn' onClick={openCreateDrawer}>
+                  <i className='fa-solid fa-user-plus' /> Tạo người dùng
+                </button>
               </div>
-              <div style={{ gridColumn: 'span 3' }} className='au-field'>
-                <label>Tên</label>
-                <input className='au-input' value={createForm.name} onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))} />
+              <div className='au-actions-right'>
+                <button
+                    className='au-btn'
+                    onClick={() => {
+                      setSearchInput('')
+                      setStatusFilter('ALL')
+                      setPage(1)
+                      showToast('Đã reset bộ lọc', 'info')
+                    }}
+                >
+                  <i className='fa-solid fa-rotate-left' /> Reset
+                </button>
+                <button className='au-btn primary' onClick={() => showToast('Đã áp dụng bộ lọc', 'success')}>
+                  <i className='fa-solid fa-check' /> Áp dụng
+                </button>
               </div>
-              <div style={{ gridColumn: 'span 3' }} className='au-field'>
-                <label>Phone</label>
-                <input className='au-input' value={createForm.phone} onChange={(e) => setCreateForm((p) => ({ ...p, phone: e.target.value }))} />
-              </div>
-              <div style={{ gridColumn: 'span 2' }} className='au-field'>
-                <label>Birth</label>
-                <input type='date' className='au-input' value={createForm.birthDate} onChange={(e) => setCreateForm((p) => ({ ...p, birthDate: e.target.value }))} />
-              </div>
-
-              <div style={{ gridColumn: 'span 3' }} className='au-field'>
-                <label>Gender</label>
-                <select className='au-input' value={createForm.gender} onChange={(e) => setCreateForm((p) => ({ ...p, gender: e.target.value as '' | UserGender }))}>
-                  <option value=''>—</option>
-                  <option value='MALE'>MALE</option>
-                  <option value='FEMALE'>FEMALE</option>
-                  <option value='OTHER'>OTHER</option>
-                </select>
-              </div>
-              <div style={{ gridColumn: 'span 7' }} className='au-field'>
-                <label>Address</label>
-                <input className='au-input' value={createForm.address} onChange={(e) => setCreateForm((p) => ({ ...p, address: e.target.value }))} />
-              </div>
-              <div style={{ gridColumn: 'span 2' }} className='au-field'>
-                <label>isActive</label>
-                <select className='au-input' value={createForm.isActive ? '1' : '0'} onChange={(e) => setCreateForm((p) => ({ ...p, isActive: e.target.value === '1' }))}>
-                  <option value='1'>Active</option>
-                  <option value='0'>Inactive</option>
-                </select>
-              </div>
-            </div>
-            <div className='au-actions'>
-              <button className='au-btn primary' onClick={() => void onCreateUser()}>
-                ＋ Tạo user
-              </button>
             </div>
           </div>
 
@@ -762,17 +762,19 @@ export function AdminUserManagementPage() {
               <thead>
               <tr>
                 <th style={{ width: 90 }}>ID</th>
-                <th>User</th>
-                <th>Role</th>
-                <th>Status</th>
+                <th style={{ width: 240 }}>Tên</th>
+                <th>Email</th>
+                <th style={{ width: 150 }}>Phone</th>
+                <th style={{ width: 150 }}>Role</th>
+                <th style={{ width: 130 }}>Trạng thái</th>
                 <th style={{ width: 170 }}>Updated</th>
-                <th style={{ textAlign: 'right', width: 220 }}>Thao tác</th>
+                <th style={{ textAlign: 'right', width: 190 }}>Thao tác</th>
               </tr>
               </thead>
               <tbody className='au-tbody'>
               {pageRows.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ padding: 18, color: 'var(--muted)' }}>
+                    <td colSpan={8} style={{ padding: 18, color: 'var(--muted)' }}>
                       Không có dữ liệu.
                     </td>
                   </tr>
@@ -781,12 +783,21 @@ export function AdminUserManagementPage() {
                       <tr key={u.id} className='au-rowlink' onClick={() => openDrawer(u.id)}>
                         <td>
                           <div className='au-mono'>#{u.id}</div>
-                          <div className='au-sub'>{(u as any).hasRefreshToken ? 'Refresh: Có' : 'Refresh: Không'}</div>
                         </td>
                         <td>
-                          <div style={{ fontWeight: 800 }}>{u.name || '—'}</div>
-                          <div className='au-sub'>{u.email}</div>
-                          <div className='au-sub'>{u.phone || '—'}</div>
+                          <div className='au-cell-user'>
+                            <div className='au-avatar'>{(u.name || u.email || '?').trim().slice(0, 1).toUpperCase()}</div>
+                            <div>
+                              <div className='au-name'>{u.name || '—'}</div>
+                              <div className='au-sub'>ID: <span className='au-mono'>#{u.id}</span></div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 700 }}>{u.email}</div>
+                        </td>
+                        <td>
+                          <div className='au-mono'>{u.phone || '—'}</div>
                         </td>
                         <td>
                       <span className='au-badge'>
@@ -802,13 +813,13 @@ export function AdminUserManagementPage() {
                         <td onClick={(e) => e.stopPropagation()}>
                           <div className='au-table-actions'>
                             <button className='au-icon-btn' title='Chi tiết' onClick={() => openDrawer(u.id)}>
-                              ⓘ
+                              <i className='fa-solid fa-circle-info' />
                             </button>
                             <button className='au-icon-btn' title='Reset mật khẩu' onClick={() => void onResetPassword(u.id)}>
-                              ↺
+                              <i className='fa-solid fa-key' />
                             </button>
                             <button className='au-icon-btn' title='Xóa' onClick={() => void onDeleteUser(u.id)}>
-                              🗑
+                              <i className='fa-solid fa-trash' />
                             </button>
                           </div>
                         </td>
@@ -897,22 +908,92 @@ export function AdminUserManagementPage() {
           <div className='au-drawer-head'>
             <div className='au-drawer-title'>
               <h4>
-                Chi tiết user • <span className='au-mono'>#{selectedUser?.id ?? '—'}</span>
+                {drawerMode === 'CREATE' ? (
+                    <>Tạo người dùng</>
+                ) : (
+                    <>
+                      Chi tiết user • <span className='au-mono'>#{selectedUser?.id ?? '—'}</span>
+                    </>
+                )}
               </h4>
-              <p>{selectedUser ? selectedUser.email : 'Chọn 1 user từ danh sách để xem'}</p>
+              <p>
+                {drawerMode === 'CREATE'
+                    ? 'Tạo xong hệ thống sẽ gửi email mật khẩu cho người dùng'
+                    : selectedUser
+                        ? selectedUser.email
+                        : 'Chọn 1 user từ danh sách để xem'}
+              </p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              {selectedUser ? (
+              {drawerMode === 'DETAIL' && selectedUser ? (
                   <span className={`au-badge ${selectedUser.isActive ? 'active' : 'inactive'}`}>{selectedUser.isActive ? 'ACTIVE' : 'INACTIVE'}</span>
               ) : null}
               <button className='au-icon-btn' onClick={closeDrawer}>
-                ✕
+                <i className='fa-solid fa-xmark' />
               </button>
             </div>
           </div>
 
           <div className='au-drawer-body'>
-            {!selectedUser ? (
+            {drawerMode === 'CREATE' ? (
+                <>
+                  <div className='au-section'>
+                    <h5>Thông tin người dùng</h5>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div className='au-field' style={{ gridColumn: 'span 2' }}>
+                        <label>Email</label>
+                        <input className='au-input' value={createForm.email} onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))} />
+                      </div>
+                      <div className='au-field'>
+                        <label>Tên</label>
+                        <input className='au-input' value={createForm.name} onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))} />
+                      </div>
+                      <div className='au-field'>
+                        <label>Phone</label>
+                        <input className='au-input' value={createForm.phone} onChange={(e) => setCreateForm((p) => ({ ...p, phone: e.target.value }))} />
+                      </div>
+                      <div className='au-field'>
+                        <label>Birth</label>
+                        <input type='date' className='au-input' value={createForm.birthDate} onChange={(e) => setCreateForm((p) => ({ ...p, birthDate: e.target.value }))} />
+                      </div>
+                      <div className='au-field'>
+                        <label>Gender</label>
+                        <select className='au-input' value={createForm.gender} onChange={(e) => setCreateForm((p) => ({ ...p, gender: e.target.value as '' | UserGender }))}>
+                          <option value=''>—</option>
+                          <option value='MALE'>MALE</option>
+                          <option value='FEMALE'>FEMALE</option>
+                          <option value='OTHER'>OTHER</option>
+                        </select>
+                      </div>
+                      <div className='au-field'>
+                        <label>Status</label>
+                        <select className='au-input' value={createForm.isActive ? '1' : '0'} onChange={(e) => setCreateForm((p) => ({ ...p, isActive: e.target.value === '1' }))}>
+                          <option value='1'>ACTIVE</option>
+                          <option value='0'>INACTIVE</option>
+                        </select>
+                      </div>
+                      <div className='au-field' style={{ gridColumn: 'span 2' }}>
+                        <label>Address</label>
+                        <input className='au-input' value={createForm.address} onChange={(e) => setCreateForm((p) => ({ ...p, address: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 12, display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                      <button className='au-btn ghost' onClick={closeDrawer}>
+                        Hủy
+                      </button>
+                      <button
+                          className='au-btn primary'
+                          onClick={async () => {
+                            await onCreateUser()
+                            setDrawerOpen(false)
+                          }}
+                      >
+                        <i className='fa-solid fa-user-plus' /> Tạo người dùng
+                      </button>
+                    </div>
+                  </div>
+                </>
+            ) : !selectedUser ? (
                 <div className='au-section'>
                   <p className='au-text'>Chọn một user trong bảng để mở drawer.</p>
                 </div>
@@ -925,10 +1006,6 @@ export function AdminUserManagementPage() {
                       <div>
                         <div className='au-k'>Role</div>
                         <div className='au-v'>{String((selectedUser as any).roleRef?.code || selectedUser.role || '—')}</div>
-                      </div>
-                      <div>
-                        <div className='au-k'>Refresh token</div>
-                        <div className='au-v'>{(selectedUser as any).hasRefreshToken ? 'Có' : 'Không'}</div>
                       </div>
                       <div>
                         <div className='au-k'>Created</div>
@@ -1017,13 +1094,13 @@ export function AdminUserManagementPage() {
 
                             <div style={{ gridColumn: 'span 2', display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                               <button className='au-btn' onClick={() => void onResetPassword(selectedUser.id)}>
-                                ↺ Reset password
+                                <i className='fa-solid fa-key' /> Reset password
                               </button>
                               <button className='au-btn primary' onClick={() => void onUpdateUser(selectedUser.id)}>
-                                ✓ Lưu
+                                <i className='fa-solid fa-check' /> Lưu
                               </button>
                               <button className='au-btn danger' onClick={() => void onDeleteUser(selectedUser.id)}>
-                                🗑 Xóa
+                                <i className='fa-solid fa-trash' /> Xóa
                               </button>
                             </div>
                           </div>

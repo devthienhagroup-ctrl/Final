@@ -229,7 +229,8 @@ export function Header({
     setUserMenuOpen(null);
     setDrawerOpen(false);
 
-    // Success (không text)
+    //
+    // @ts-ignore CDN
     await Swal.fire({
       icon: "success",
       showConfirmButton: false,
@@ -620,7 +621,7 @@ export function Header({
 
       <SuccessModal
         open={success.open}
-        message={success.message}
+        message={""}
         onClose={() => setSuccess({ open: false, message: "" })}
         cmsData={cmsSuccess}
       />

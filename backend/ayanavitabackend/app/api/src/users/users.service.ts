@@ -5,40 +5,72 @@ import { PrismaService } from '../prisma/prisma.service'
 import { AdminCreateUserDto } from './dto/admin-create-user.dto'
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto'
 import { Prisma } from '@prisma/client'
+import { AdminListUsersQueryDto } from './dto/admin-list-users-query.dto'
 
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name)
 
   constructor(private readonly prisma: PrismaService) {}
-  
 
-  async findAll() {
-    const rows = await this.prisma.user.findMany({
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        phone: true,
-        birthDate: true,
-        gender: true,
-        address: true,
-        isActive: true,
-        role: true,
-        roleId: true,
-        hashedRefreshToken: true,
-        roleRef: { select: { code: true, scopeType: true } },
-        createdAt: true,
-        updatedAt: true,
-      },
-      orderBy: { id: 'asc' },
-    })
 
-    return rows.map((row) => ({
-      ...row,
-      hasRefreshToken: Boolean(row.hashedRefreshToken),
-      hashedRefreshToken: undefined,
-    }))
+  async findAll(query: AdminListUsersQueryDto = {}) {
+    const page = Math.max(1, query.page ?? 1)
+    const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 10))
+    const skip = (page - 1) * pageSize
+
+    const where: Prisma.UserWhereInput = {}
+
+    if (query.q?.trim()) {
+      const keyword = query.q.trim()
+      where.OR = [
+        { email: { contains: keyword } },
+        { name: { contains: keyword } },
+        { phone: { contains: keyword } },
+        { address: { contains: keyword } },
+      ]
+    }
+
+    if (query.status === 'ACTIVE') where.isActive = true
+    if (query.status === 'INACTIVE') where.isActive = false
+
+    const [rows, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          phone: true,
+          birthDate: true,
+          gender: true,
+          address: true,
+          isActive: true,
+          role: true,
+          roleId: true,
+          hashedRefreshToken: true,
+          roleRef: { select: { code: true, scopeType: true } },
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: { id: 'asc' },
+        skip,
+        take: pageSize,
+      }),
+      this.prisma.user.count({ where }),
+    ])
+
+    return {
+      items: rows.map((row) => ({
+        ...row,
+        hasRefreshToken: Boolean(row.hashedRefreshToken),
+        hashedRefreshToken: undefined,
+      })),
+      page,
+      pageSize,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    }
   }
 
   async getChangeLogs(limit = 200) {

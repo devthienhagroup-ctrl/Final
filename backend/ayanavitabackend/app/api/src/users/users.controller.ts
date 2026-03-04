@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common'
 import { UsersService } from './users.service'
@@ -17,6 +18,7 @@ import { AssignRoleDto } from './dto/assign-role.dto'
 import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
 import { AdminCreateUserDto } from './dto/admin-create-user.dto'
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto'
+import { AdminListUsersQueryDto } from './dto/admin-list-users-query.dto'
 
 @Controller('users')
 export class UsersController {
@@ -25,8 +27,8 @@ export class UsersController {
   @UseGuards(AccessTokenGuard, PermissionGuard)
   @Permissions('role.read')
   @Get()
-  findAll() {
-    return this.users.findAll()
+  findAll(@Query() query: AdminListUsersQueryDto) {
+    return this.users.findAll(query)
   }
 
   @UseGuards(AccessTokenGuard, PermissionGuard)

@@ -1,154 +1,223 @@
-diff --git a/backend/ayanavitabackend/app/api/scripts/prisma-setup.js b/backend/ayanavitabackend/app/api/scripts/prisma-setup.js
-index 9cfc6f0823bd927ef31ae07fcc6730a03fe50287..18f4b50a7743447235ea2421ebc14ce0d4d764ac 100644
---- a/backend/ayanavitabackend/app/api/scripts/prisma-setup.js
-+++ b/backend/ayanavitabackend/app/api/scripts/prisma-setup.js
-@@ -1,54 +1,59 @@
- const { execSync } = require('node:child_process')
- function run(command, options = {}) {
-   console.log(`\n➡️  ${command}`)
-   execSync(command, {
-     stdio: 'inherit',
-     env: process.env,
-     ...options,
-   })
- }
-
-+function resolveKnownFailedMigrations() {
-+  const rollbackMigrations = [
-+    '20260226130000_add_product_images',
-+    '202603080001_course_translation_strings',
-+    '20260409999999_add_user_management_logs',
-+  ]
+diff --git a/backend/ayanavitabackend/app/api/src/users/dto/admin-list-users-query.dto.ts b/backend/ayanavitabackend/app/api/src/users/dto/admin-list-users-query.dto.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..e33e92f04662b80f799d4caf5f5219fdd51bf5dc
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/users/dto/admin-list-users-query.dto.ts
+@@ -0,0 +1,26 @@
++import { Type } from 'class-transformer'
++import { IsIn, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator'
 +
-+  for (const migrationName of rollbackMigrations) {
-+    try {
-+      run(`npx prisma migrate resolve --rolled-back ${migrationName}`)
-+    } catch (error) {
-+      console.log(`ℹ️ Bỏ qua migrate resolve cho ${migrationName} vì migration này không cần rollback ở môi trường hiện tại.`)
-+    }
-+  }
++export class AdminListUsersQueryDto {
++  @IsOptional()
++  @IsString()
++  @MaxLength(255)
++  q?: string
++
++  @IsOptional()
++  @IsString()
++  @IsIn(['ACTIVE', 'INACTIVE'])
++  status?: 'ACTIVE' | 'INACTIVE'
++
++  @IsOptional()
++  @Type(() => Number)
++  @IsInt()
++  @Min(1)
++  page?: number
++
++  @IsOptional()
++  @Type(() => Number)
++  @IsInt()
++  @Min(1)
++  pageSize?: number
 +}
-+
- async function hasUserTable() {
-   const { PrismaClient } = require('@prisma/client')
-   const prisma = new PrismaClient()
+diff --git a/backend/ayanavitabackend/app/api/src/users/users.controller.ts b/backend/ayanavitabackend/app/api/src/users/users.controller.ts
+index 28c07cd3da87849a74daaef257e03085b2be5f4a..f1e13af2c8ef04f5abf6411114a2f84e0834dd19 100644
+--- a/backend/ayanavitabackend/app/api/src/users/users.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/users/users.controller.ts
+@@ -1,54 +1,56 @@
+ import {
+   Body,
+   Controller,
+   Delete,
+   Get,
+   Param,
+   ParseIntPipe,
+   Post,
+   Put,
++  Query,
+   UseGuards,
+ } from '@nestjs/common'
+ import { UsersService } from './users.service'
+ import { AccessTokenGuard } from '../auth/guards/access-token.guard'
+ import { PermissionGuard } from '../auth/guards/permission.guard'
+ import { Permissions } from '../auth/decorators/permissions.decorator'
+ import { AssignRoleDto } from './dto/assign-role.dto'
+ import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
+ import { AdminCreateUserDto } from './dto/admin-create-user.dto'
+ import { AdminUpdateUserDto } from './dto/admin-update-user.dto'
++import { AdminListUsersQueryDto } from './dto/admin-list-users-query.dto'
 
-   try {
-     const rows = await prisma.$queryRawUnsafe("SHOW TABLES LIKE 'User'")
-     return Array.isArray(rows) && rows.length > 0
-   } finally {
-     await prisma.$disconnect()
+ @Controller('users')
+ export class UsersController {
+   constructor(private readonly users: UsersService) {}
+
+   @UseGuards(AccessTokenGuard, PermissionGuard)
+   @Permissions('role.read')
+   @Get()
+-  findAll() {
+-    return this.users.findAll()
++  findAll(@Query() query: AdminListUsersQueryDto) {
++    return this.users.findAll(query)
    }
- }
 
- async function main() {
-   run('node scripts/bootstrap-db.js')
--  const rollbackMigrations = [
--    '20260226130000_add_product_images',
--    '202603080001_course_translation_strings',
--  ]
--
--  for (const migrationName of rollbackMigrations) {
--    try {
--      run(`npx prisma migrate resolve --rolled-back ${migrationName}`)
--    } catch (error) {
--      console.log(`ℹ️ Bỏ qua migrate resolve cho ${migrationName} vì migration này không cần rollback ở môi trường hiện tại.`)
--    }
--  }
-+  resolveKnownFailedMigrations()
-   run('npx prisma migrate deploy')
-   run('npx prisma generate')
-
-   const userTableExists = await hasUserTable()
-
-   if (!userTableExists) {
-     console.log('⚠️ Không thấy bảng User sau migrate deploy, chạy thêm prisma db push để đồng bộ schema.')
-     run('npx prisma db push')
-     run('npx prisma generate')
+   @UseGuards(AccessTokenGuard, PermissionGuard)
+   @Permissions('role.read')
+   @Get('change-logs')
+   getChangeLogs() {
+     return this.users.getChangeLogs()
    }
 
-   run('npx prisma db seed')
- }
+   @UseGuards(AccessTokenGuard, PermissionGuard)
+   @Permissions('role.manage')
+   @Post()
+   createUser(@Body() dto: AdminCreateUserDto, @CurrentUser() actor: JwtUser) {
+     return this.users.createUser(dto, actor?.sub)
+   }
 
- main().catch((error) => {
-   console.error('\n❌ Prisma setup thất bại:', error)
-   process.exit(1)
--})
-\ No newline at end of file
-+})
-diff --git a/backend/ayanavitabackend/app/api/scripts/setup-prisma.js b/backend/ayanavitabackend/app/api/scripts/setup-prisma.js
-index 6884a8b6cdacb1abeadd22c30a5ddeaa2f656c4e..18f4b50a7743447235ea2421ebc14ce0d4d764ac 100644
---- a/backend/ayanavitabackend/app/api/scripts/setup-prisma.js
-+++ b/backend/ayanavitabackend/app/api/scripts/setup-prisma.js
-@@ -1,54 +1,59 @@
- const { execSync } = require('node:child_process')
- function run(command, options = {}) {
-   console.log(`\n➡️  ${command}`)
-   execSync(command, {
-     stdio: 'inherit',
-     env: process.env,
-     ...options,
-   })
- }
+   @UseGuards(AccessTokenGuard, PermissionGuard)
+   @Permissions('role.manage')
+   @Put(':id')
+   updateUser(
+     @Param('id', ParseIntPipe) id: number,
+     @Body() dto: AdminUpdateUserDto,
+     @CurrentUser() actor: JwtUser,
+   ) {
+     return this.users.updateUser(id, dto, actor?.sub)
+diff --git a/backend/ayanavitabackend/app/api/src/users/users.service.ts b/backend/ayanavitabackend/app/api/src/users/users.service.ts
+index c3dfee4730b8cb2d33e8c65048b2aa4faf278a7f..7e3bad6b4750d1da7511347f89c1d708ea68b311 100644
+--- a/backend/ayanavitabackend/app/api/src/users/users.service.ts
++++ b/backend/ayanavitabackend/app/api/src/users/users.service.ts
+@@ -1,66 +1,98 @@
+ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common'
+ import * as bcrypt from 'bcrypt'
+ import * as tls from 'tls'
+ import { PrismaService } from '../prisma/prisma.service'
+ import { AdminCreateUserDto } from './dto/admin-create-user.dto'
+ import { AdminUpdateUserDto } from './dto/admin-update-user.dto'
+ import { Prisma } from '@prisma/client'
++import { AdminListUsersQueryDto } from './dto/admin-list-users-query.dto'
 
-+function resolveKnownFailedMigrations() {
-+  const rollbackMigrations = [
-+    '20260226130000_add_product_images',
-+    '202603080001_course_translation_strings',
-+    '20260409999999_add_user_management_logs',
-+  ]
+ @Injectable()
+ export class UsersService {
+   private readonly logger = new Logger(UsersService.name)
+
+   constructor(private readonly prisma: PrismaService) {}
+
+
+-  async findAll() {
+-    const rows = await this.prisma.user.findMany({
+-      select: {
+-        id: true,
+-        email: true,
+-        name: true,
+-        phone: true,
+-        birthDate: true,
+-        gender: true,
+-        address: true,
+-        isActive: true,
+-        role: true,
+-        roleId: true,
+-        hashedRefreshToken: true,
+-        roleRef: { select: { code: true, scopeType: true } },
+-        createdAt: true,
+-        updatedAt: true,
+-      },
+-      orderBy: { id: 'asc' },
+-    })
++  async findAll(query: AdminListUsersQueryDto = {}) {
++    const page = Math.max(1, query.page ?? 1)
++    const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 10))
++    const skip = (page - 1) * pageSize
 +
-+  for (const migrationName of rollbackMigrations) {
-+    try {
-+      run(`npx prisma migrate resolve --rolled-back ${migrationName}`)
-+    } catch (error) {
-+      console.log(`ℹ️ Bỏ qua migrate resolve cho ${migrationName} vì migration này không cần rollback ở môi trường hiện tại.`)
++    const where: Prisma.UserWhereInput = {}
++
++    if (query.q?.trim()) {
++      const keyword = query.q.trim()
++      where.OR = [
++        { email: { contains: keyword, mode: 'insensitive' } },
++        { name: { contains: keyword, mode: 'insensitive' } },
++        { phone: { contains: keyword, mode: 'insensitive' } },
++        { address: { contains: keyword, mode: 'insensitive' } },
++      ]
 +    }
-+  }
-+}
+
+-    return rows.map((row) => ({
+-      ...row,
+-      hasRefreshToken: Boolean(row.hashedRefreshToken),
+-      hashedRefreshToken: undefined,
+-    }))
++    if (query.status === 'ACTIVE') where.isActive = true
++    if (query.status === 'INACTIVE') where.isActive = false
 +
- async function hasUserTable() {
-   const { PrismaClient } = require('@prisma/client')
-   const prisma = new PrismaClient()
-
-   try {
-     const rows = await prisma.$queryRawUnsafe("SHOW TABLES LIKE 'User'")
-     return Array.isArray(rows) && rows.length > 0
-   } finally {
-     await prisma.$disconnect()
++    const [rows, total] = await Promise.all([
++      this.prisma.user.findMany({
++        where,
++        select: {
++          id: true,
++          email: true,
++          name: true,
++          phone: true,
++          birthDate: true,
++          gender: true,
++          address: true,
++          isActive: true,
++          role: true,
++          roleId: true,
++          hashedRefreshToken: true,
++          roleRef: { select: { code: true, scopeType: true } },
++          createdAt: true,
++          updatedAt: true,
++        },
++        orderBy: { id: 'asc' },
++        skip,
++        take: pageSize,
++      }),
++      this.prisma.user.count({ where }),
++    ])
++
++    return {
++      items: rows.map((row) => ({
++        ...row,
++        hasRefreshToken: Boolean(row.hashedRefreshToken),
++        hashedRefreshToken: undefined,
++      })),
++      page,
++      pageSize,
++      total,
++      totalPages: Math.max(1, Math.ceil(total / pageSize)),
++    }
    }
- }
 
- async function main() {
-   run('node scripts/bootstrap-db.js')
--  const rollbackMigrations = [
--    '20260226130000_add_product_images',
--    '202603080001_course_translation_strings',
--  ]
--
--  for (const migrationName of rollbackMigrations) {
--    try {
--      run(`npx prisma migrate resolve --rolled-back ${migrationName}`)
--    } catch (error) {
--      console.log(`ℹ️ Bỏ qua migrate resolve cho ${migrationName} vì migration này không cần rollback ở môi trường hiện tại.`)
--    }
--  }
-+  resolveKnownFailedMigrations()
-   run('npx prisma migrate deploy')
-   run('npx prisma generate')
-
-   const userTableExists = await hasUserTable()
-
-   if (!userTableExists) {
-     console.log('⚠️ Không thấy bảng User sau migrate deploy, chạy thêm prisma db push để đồng bộ schema.')
-     run('npx prisma db push')
-     run('npx prisma generate')
+   async getChangeLogs(limit = 200) {
+     return this.prisma.userManagementLog.findMany({
+       take: limit,
+       orderBy: { createdAt: 'desc' },
+       include: {
+         actorUser: { select: { email: true } },
+         targetUser: { select: { email: true, name: true } },
+       },
+     })
    }
 
-   run('npx prisma db seed')
- }
+   async createUser(dto: AdminCreateUserDto, actorUserId?: number) {
+     const email = dto.email.trim().toLowerCase()
+     const exists = await this.prisma.user.findUnique({ where: { email }, select: { id: true } })
+     if (exists) throw new BadRequestException('Email đã tồn tại')
 
- main().catch((error) => {
-   console.error('\n❌ Prisma setup thất bại:', error)
-   process.exit(1)
- })
+     const plainPassword = this.generatePassword()
+     const password = await bcrypt.hash(plainPassword, 10)
+
+     const userRole = await this.prisma.rbacRole.findUnique({ where: { code: 'USER' }, select: { id: true } })
+
+     const created = await this.prisma.user.create({
+       data: {

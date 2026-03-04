@@ -3,7 +3,7 @@ import {
   createAdminUser,
   deleteAdminUser,
   getAdminUsers,
-  getUserChangeLogs,
+  getUserManagementLogs,
   resetAdminUserPassword,
   type AdminUser,
   type UserChangeLog,
@@ -75,6 +75,7 @@ function chip(v: string) {
 export function AdminUserManagementPage() {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [logs, setLogs] = useState<UserChangeLog[]>([])
+  const [activeTab, setActiveTab] = useState<'USERS' | 'LOGS'>('USERS')
   const [loading, setLoading] = useState(false)
 
   const [searchInput, setSearchInput] = useState('')
@@ -147,7 +148,7 @@ export function AdminUserManagementPage() {
           page,
           pageSize,
         }),
-        getUserChangeLogs(),
+        getUserManagementLogs(),
       ])
 
       const isPaginated = !Array.isArray(usersRes) && Array.isArray((usersRes as any).items)
@@ -624,6 +625,24 @@ export function AdminUserManagementPage() {
         .au-confirm-desc{ margin: 0 0 12px 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
         .au-confirm-actions{ display:flex; gap: 10px; justify-content:flex-end; flex-wrap: wrap; }
 
+        .au-tabs{ display:flex; gap:8px; margin-bottom: 12px; flex-wrap:wrap; }
+        .au-tab{
+          border:1px solid var(--border);
+          border-radius:999px;
+          background: rgba(255,255,255,0.9);
+          color: var(--text);
+          padding: 8px 14px;
+          font-size: 12px;
+          font-weight: 700;
+          cursor:pointer;
+        }
+        .au-tab.active{
+          background: var(--grad);
+          color: white;
+          border-color: transparent;
+          box-shadow: 0 12px 24px rgba(124, 58, 237, 0.25);
+        }
+
         @media (max-width: 980px){
           .au-stat{ grid-column: span 6; }
           .au-filters{ grid-template-columns: 1fr; }
@@ -702,6 +721,17 @@ export function AdminUserManagementPage() {
             </div>
           </div>
 
+          <div className='au-tabs'>
+            <button className={`au-tab ${activeTab === 'USERS' ? 'active' : ''}`} onClick={() => setActiveTab('USERS')}>
+              Danh sách user
+            </button>
+            <button className={`au-tab ${activeTab === 'LOGS' ? 'active' : ''}`} onClick={() => setActiveTab('LOGS')}>
+              UserManagementLog (chỉ xem)
+            </button>
+          </div>
+
+          {activeTab === 'USERS' ? (
+            <>
           {/* filters */}
           <div className='au-card au-panel' style={{ marginBottom: 12 }}>
             <div className='au-panel-head'>
@@ -864,6 +894,49 @@ export function AdminUserManagementPage() {
               </button>
             </div>
           </div>
+            </>
+          ) : (
+            <div className='au-card au-panel'>
+              <div className='au-panel-head'>
+                <h3>Danh sách UserManagementLog</h3>
+                <div className='au-panel-right'>Chỉ xem • tối đa 200 bản ghi mới nhất</div>
+              </div>
+              <div className='au-table-wrap'>
+                <table className='au-table'>
+                  <thead>
+                    <tr>
+                      <th style={{ width: 90 }}>ID</th>
+                      <th style={{ width: 170 }}>Hành động</th>
+                      <th>Nội dung</th>
+                      <th style={{ width: 220 }}>Actor</th>
+                      <th style={{ width: 200 }}>Target</th>
+                      <th style={{ width: 180 }}>Thời gian</th>
+                    </tr>
+                  </thead>
+                  <tbody className='au-tbody'>
+                    {logs.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ padding: 18, color: 'var(--muted)' }}>
+                          Chưa có log.
+                        </td>
+                      </tr>
+                    ) : (
+                      logs.map((log) => (
+                        <tr key={log.id}>
+                          <td><span className='au-mono'>#{log.id}</span></td>
+                          <td><span className='au-badge'>{log.action || '—'}</span></td>
+                          <td>{log.message || '—'}</td>
+                          <td className='au-mono'>{(log as any).actorUser?.email || 'system'}</td>
+                          <td className='au-mono'>{(log as any).targetUser?.email || (log as any).targetUser?.name || '—'}</td>
+                          <td>{fmtDateTime(log.createdAt)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* overlay */}

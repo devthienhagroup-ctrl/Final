@@ -1,223 +1,104 @@
-diff --git a/backend/ayanavitabackend/app/api/src/users/dto/admin-list-users-query.dto.ts b/backend/ayanavitabackend/app/api/src/users/dto/admin-list-users-query.dto.ts
-new file mode 100644
-index 0000000000000000000000000000000000000000..e33e92f04662b80f799d4caf5f5219fdd51bf5dc
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/users/dto/admin-list-users-query.dto.ts
-@@ -0,0 +1,26 @@
-+import { Type } from 'class-transformer'
-+import { IsIn, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator'
+diff --git a/backend/ayanavitabackend/app/api/src/main.ts b/backend/ayanavitabackend/app/api/src/main.ts
+index 942dde13a5c5738849ebf46b0f4c15a26ab302da..93c8ff3c35e09942bcab7d578f5b3e0d1d645e78 100644
+--- a/backend/ayanavitabackend/app/api/src/main.ts
++++ b/backend/ayanavitabackend/app/api/src/main.ts
+@@ -1,85 +1,72 @@
+ import { ValidationPipe } from "@nestjs/common";
+ import { NestFactory } from "@nestjs/core";
+ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+ import { join } from "path";
+ import * as express from "express";
+
+ import { AppModule } from "./app.module";
+ import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
+
+ async function bootstrap() {
+   const app = await NestFactory.create(AppModule, {
+     logger: ["log", "error", "warn", "debug", "verbose"],
+   });
+
+-  // ✅ CORS – chuẩn cho cả production + admin + dev
++  // ✅ CORS – hỗ trợ domain cố định + local dev nhiều port
+   const allow = new Set<string>([
+-    // 🌍 Production main domain
+     "http://ayanavita-germany.com",
+     "https://ayanavita-germany.com",
+-
+-    // 🔐 Admin subdomain
+     "http://admin.ayanavita.com",
+     "https://admin.ayanavita.com",
+-
+-    // 🧪 Dev local
+-    "http://localhost:5173",
+-    "http://127.0.0.1:5173",
+-    "http://localhost:5174",
+-    "http://127.0.0.1:5174",
+-    "http://localhost:5175",
+-    "http://127.0.0.1:5175",
+-    "http://localhost:5176",
+-    "http://127.0.0.1:5179",
+-    "http://localhost:5179",
+-    "http://127.0.0.1:5176",
+-    "http://localhost:5178",
+-    "http://127.0.0.1:5178",
+-    "http://localhost:5180",
+-    "http://127.0.0.1:5180",
+-    "http://localhost:5181",
+-    "http://127.0.0.1:5181",
+-    "http://localhost:5050",
+-    "http://127.0.0.1:5050",
+   ]);
+
++  const envOrigins = (process.env.CORS_ORIGINS || "")
++    .split(",")
++    .map((value) => value.trim())
++    .filter(Boolean);
 +
-+export class AdminListUsersQueryDto {
-+  @IsOptional()
-+  @IsString()
-+  @MaxLength(255)
-+  q?: string
++  for (const origin of envOrigins) {
++    allow.add(origin);
++  }
 +
-+  @IsOptional()
-+  @IsString()
-+  @IsIn(['ACTIVE', 'INACTIVE'])
-+  status?: 'ACTIVE' | 'INACTIVE'
++  const isLocalDevOrigin = (origin: string) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 +
-+  @IsOptional()
-+  @Type(() => Number)
-+  @IsInt()
-+  @Min(1)
-+  page?: number
-+
-+  @IsOptional()
-+  @Type(() => Number)
-+  @IsInt()
-+  @Min(1)
-+  pageSize?: number
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/users/users.controller.ts b/backend/ayanavitabackend/app/api/src/users/users.controller.ts
-index 28c07cd3da87849a74daaef257e03085b2be5f4a..f1e13af2c8ef04f5abf6411114a2f84e0834dd19 100644
---- a/backend/ayanavitabackend/app/api/src/users/users.controller.ts
-+++ b/backend/ayanavitabackend/app/api/src/users/users.controller.ts
-@@ -1,54 +1,56 @@
- import {
-   Body,
-   Controller,
-   Delete,
-   Get,
-   Param,
-   ParseIntPipe,
-   Post,
-   Put,
-+  Query,
-   UseGuards,
- } from '@nestjs/common'
- import { UsersService } from './users.service'
- import { AccessTokenGuard } from '../auth/guards/access-token.guard'
- import { PermissionGuard } from '../auth/guards/permission.guard'
- import { Permissions } from '../auth/decorators/permissions.decorator'
- import { AssignRoleDto } from './dto/assign-role.dto'
- import { CurrentUser, JwtUser } from '../auth/decorators/current-user.decorator'
- import { AdminCreateUserDto } from './dto/admin-create-user.dto'
- import { AdminUpdateUserDto } from './dto/admin-update-user.dto'
-+import { AdminListUsersQueryDto } from './dto/admin-list-users-query.dto'
+   app.enableCors({
+     origin: (origin, callback) => {
+       // Cho phép server-to-server hoặc curl
+       if (!origin) return callback(null, true);
 
- @Controller('users')
- export class UsersController {
-   constructor(private readonly users: UsersService) {}
+-      if (allow.has(origin)) {
++      if (allow.has(origin) || isLocalDevOrigin(origin)) {
+         return callback(null, true);
+       }
 
-   @UseGuards(AccessTokenGuard, PermissionGuard)
-   @Permissions('role.read')
-   @Get()
--  findAll() {
--    return this.users.findAll()
-+  findAll(@Query() query: AdminListUsersQueryDto) {
-+    return this.users.findAll(query)
-   }
+       console.error(`❌ CORS blocked for origin: ${origin}`);
+       return callback(new Error(`CORS blocked for origin: ${origin}`), false);
+     },
+     credentials: true,
+-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+-    allowedHeaders: ["Content-Type", "Authorization"],
++    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+     optionsSuccessStatus: 204,
+   });
 
-   @UseGuards(AccessTokenGuard, PermissionGuard)
-   @Permissions('role.read')
-   @Get('change-logs')
-   getChangeLogs() {
-     return this.users.getChangeLogs()
-   }
+   app.useGlobalPipes(
+   new ValidationPipe({
+     transform: true,
+     whitelist: true,
+     transformOptions: {
+       enableImplicitConversion: false, // QUAN TRỌNG
+     },
+   }),
+ )
 
-   @UseGuards(AccessTokenGuard, PermissionGuard)
-   @Permissions('role.manage')
-   @Post()
-   createUser(@Body() dto: AdminCreateUserDto, @CurrentUser() actor: JwtUser) {
-     return this.users.createUser(dto, actor?.sub)
-   }
+   // ✅ serve temporary uploaded images
+   app.use("/booking-temp-images", express.static(join(process.cwd(), "temp-images")));
 
-   @UseGuards(AccessTokenGuard, PermissionGuard)
-   @Permissions('role.manage')
-   @Put(':id')
-   updateUser(
-     @Param('id', ParseIntPipe) id: number,
-     @Body() dto: AdminUpdateUserDto,
-     @CurrentUser() actor: JwtUser,
-   ) {
-     return this.users.updateUser(id, dto, actor?.sub)
-diff --git a/backend/ayanavitabackend/app/api/src/users/users.service.ts b/backend/ayanavitabackend/app/api/src/users/users.service.ts
-index c3dfee4730b8cb2d33e8c65048b2aa4faf278a7f..7e3bad6b4750d1da7511347f89c1d708ea68b311 100644
---- a/backend/ayanavitabackend/app/api/src/users/users.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/users/users.service.ts
-@@ -1,66 +1,98 @@
- import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common'
- import * as bcrypt from 'bcrypt'
- import * as tls from 'tls'
- import { PrismaService } from '../prisma/prisma.service'
- import { AdminCreateUserDto } from './dto/admin-create-user.dto'
- import { AdminUpdateUserDto } from './dto/admin-update-user.dto'
- import { Prisma } from '@prisma/client'
-+import { AdminListUsersQueryDto } from './dto/admin-list-users-query.dto'
+   // ✅ Global Exception Filter
+   app.useGlobalFilters(new AllExceptionsFilter());
 
- @Injectable()
- export class UsersService {
-   private readonly logger = new Logger(UsersService.name)
+   // ✅ Graceful shutdown
+   app.enableShutdownHooks();
 
-   constructor(private readonly prisma: PrismaService) {}
-
-
--  async findAll() {
--    const rows = await this.prisma.user.findMany({
--      select: {
--        id: true,
--        email: true,
--        name: true,
--        phone: true,
--        birthDate: true,
--        gender: true,
--        address: true,
--        isActive: true,
--        role: true,
--        roleId: true,
--        hashedRefreshToken: true,
--        roleRef: { select: { code: true, scopeType: true } },
--        createdAt: true,
--        updatedAt: true,
--      },
--      orderBy: { id: 'asc' },
--    })
-+  async findAll(query: AdminListUsersQueryDto = {}) {
-+    const page = Math.max(1, query.page ?? 1)
-+    const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 10))
-+    const skip = (page - 1) * pageSize
-+
-+    const where: Prisma.UserWhereInput = {}
-+
-+    if (query.q?.trim()) {
-+      const keyword = query.q.trim()
-+      where.OR = [
-+        { email: { contains: keyword, mode: 'insensitive' } },
-+        { name: { contains: keyword, mode: 'insensitive' } },
-+        { phone: { contains: keyword, mode: 'insensitive' } },
-+        { address: { contains: keyword, mode: 'insensitive' } },
-+      ]
-+    }
-
--    return rows.map((row) => ({
--      ...row,
--      hasRefreshToken: Boolean(row.hashedRefreshToken),
--      hashedRefreshToken: undefined,
--    }))
-+    if (query.status === 'ACTIVE') where.isActive = true
-+    if (query.status === 'INACTIVE') where.isActive = false
-+
-+    const [rows, total] = await Promise.all([
-+      this.prisma.user.findMany({
-+        where,
-+        select: {
-+          id: true,
-+          email: true,
-+          name: true,
-+          phone: true,
-+          birthDate: true,
-+          gender: true,
-+          address: true,
-+          isActive: true,
-+          role: true,
-+          roleId: true,
-+          hashedRefreshToken: true,
-+          roleRef: { select: { code: true, scopeType: true } },
-+          createdAt: true,
-+          updatedAt: true,
-+        },
-+        orderBy: { id: 'asc' },
-+        skip,
-+        take: pageSize,
-+      }),
-+      this.prisma.user.count({ where }),
-+    ])
-+
-+    return {
-+      items: rows.map((row) => ({
-+        ...row,
-+        hasRefreshToken: Boolean(row.hashedRefreshToken),
-+        hashedRefreshToken: undefined,
-+      })),
-+      page,
-+      pageSize,
-+      total,
-+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
-+    }
-   }
-
-   async getChangeLogs(limit = 200) {
-     return this.prisma.userManagementLog.findMany({
-       take: limit,
-       orderBy: { createdAt: 'desc' },
-       include: {
-         actorUser: { select: { email: true } },
-         targetUser: { select: { email: true, name: true } },
-       },
-     })
-   }
-
-   async createUser(dto: AdminCreateUserDto, actorUserId?: number) {
-     const email = dto.email.trim().toLowerCase()
-     const exists = await this.prisma.user.findUnique({ where: { email }, select: { id: true } })
-     if (exists) throw new BadRequestException('Email đã tồn tại')
-
-     const plainPassword = this.generatePassword()
-     const password = await bcrypt.hash(plainPassword, 10)
-
-     const userRole = await this.prisma.rbacRole.findUnique({ where: { code: 'USER' }, select: { id: true } })
-
-     const created = await this.prisma.user.create({
-       data: {
+   // ✅ Validation
+   app.useGlobalPipes(
+     new ValidationPipe({

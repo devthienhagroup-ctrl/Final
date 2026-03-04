@@ -73,3 +73,4 @@ export const deleteAdminUser = (id: number) => request<{ success: boolean }>(`/u
 export const resetAdminUserPassword = (id: number) =>
   request<{ success: boolean; message: string }>(`/users/${id}/reset-password`, { method: 'POST' })
 export const getUserChangeLogs = () => request<UserChangeLog[]>('/users/change-logs')
+export const getUserManagementLogs = () => request<UserChangeLog[]>('/users/user-management-logs')

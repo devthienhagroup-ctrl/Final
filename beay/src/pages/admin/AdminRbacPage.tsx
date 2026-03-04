@@ -119,9 +119,10 @@ export function AdminRbacPage() {
   const filteredPerms = useMemo(() => (moduleFilter === "ALL" ? PERMS : PERMS.filter((p) => p.module === moduleFilter)), [moduleFilter]);
 
   const filteredUsers = useMemo(() => {
+    const userList = Array.isArray(users) ? users : [];
     const kw = userKeyword.trim().toLowerCase();
-    if (!kw) return users;
-    return users.filter((u) => `${u.name || ""} ${u.email}`.toLowerCase().includes(kw));
+    if (!kw) return userList;
+    return userList.filter((u) => `${u.name || ""} ${u.email}`.toLowerCase().includes(kw));
   }, [users, userKeyword]);
 
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));

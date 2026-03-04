@@ -39,6 +39,13 @@ export class UsersController {
   }
 
   @UseGuards(AccessTokenGuard, PermissionGuard)
+  @Permissions('role.read')
+  @Get('user-management-logs')
+  getUserManagementLogs() {
+    return this.users.getChangeLogs()
+  }
+
+  @UseGuards(AccessTokenGuard, PermissionGuard)
   @Permissions('role.manage')
   @Post()
   createUser(@Body() dto: AdminCreateUserDto, @CurrentUser() actor: JwtUser) {

@@ -132,7 +132,12 @@ export async function request<T>(
     if (token) headers['Authorization'] = `Bearer ${token}`
   }
 
-  const fetchInit: RequestInit = { method, headers, signal: options?.signal }
+  const fetchInit: RequestInit = {
+    method,
+    headers,
+    signal: options?.signal,
+    credentials: 'include', // ✅ thêm dòng này
+  }
   if (body !== undefined && body !== null) {
     fetchInit.body = isFormData ? body : JSON.stringify(body)
   }

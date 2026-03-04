@@ -89,6 +89,13 @@ export async function login(email: string, password: string): Promise<LoginRespo
 export type ApiRole = { id: number; code: string; scopeType: "OWN" | "BRANCH" | "COURSE" | "GLOBAL"; description?: string | null };
 export type ApiPermission = { id: number; code: string; resource: string; action: string };
 export type ApiUser = { id: number; email: string; name?: string | null; roleId: number | null; roleRef?: { id: number; code: string; scopeType: string } | null };
+type PaginatedApiUsers = {
+  items: ApiUser[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+};
 
 export type ApiRoleAuditLog = {
   id: number;
@@ -130,7 +137,10 @@ export const updatePermission = (id: number, payload: Partial<Omit<ApiPermission
 export const deletePermission = (id: number) => request<void>(`/permissions/${id}`, { method: "DELETE" });
 
 export const assignPermissionsToRole = (roleId: number, permissionIds: number[]) => request(`/roles/${roleId}/permissions`, { method: "POST", body: JSON.stringify({ permissionIds }) });
-export const getUsers = () => request<ApiUser[]>("/users");
+export const getUsers = async () => {
+  const payload = await request<ApiUser[] | PaginatedApiUsers>("/users");
+  return Array.isArray(payload) ? payload : payload.items;
+};
 export const assignRoleToUser = (userId: number, roleId: number) => request(`/users/${userId}/role`, { method: "PUT", body: JSON.stringify({ roleId }) });
 export const getRoleAuditLogs = (limit = 50) => request<ApiRoleAuditLog[]>(`/roles/audit-logs?limit=${limit}`);
 export const checkPermission = (payload: ApiPermissionCheck) => request<ApiPermissionCheckResult>("/roles/check-permission", { method: "POST", body: JSON.stringify(payload) });

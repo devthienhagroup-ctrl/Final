@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common'
 import {
+  CourseEntitlementSourceType,
   CourseAccessStatus,
   OrderStatus,
   Prisma,
@@ -8,15 +9,19 @@ import {
 } from '@prisma/client'
 import * as bcrypt from 'bcrypt'
 import { PrismaService } from 'src/prisma/prisma.service'
+import { CoursePlanPaymentsService } from '../course-plans/course-plan-payments.service'
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly coursePlanPayments: CoursePlanPaymentsService,
+  ) {}
 
   private readonly sepayKeyHash =
       process.env.SEPAY_WEBHOOK_KEY_HASH ?? '$2b$10$9dcVYk0jeiF76U84AzpCM.sixhaI/bEi/vQMKYvrW5sF1WhTEGDSy'
 
-  // Bank nhận tiền
+  // Bank nháº­n tiá»n
   private readonly bankInfo = {
     gateway: 'BIDV',
     accountNumber: '8810091561',
@@ -27,13 +32,13 @@ export class OrdersService {
     return `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`
   }
 
-  // Nội dung chuyển khoản sẽ nhét vào QR: RQA:<email>::<slug>
-  // (encodeURIComponent để an toàn ký tự)
+  // Ná»™i dung chuyá»ƒn khoáº£n sáº½ nhĂ©t vĂ o QR: RQA:<email>::<slug>
+  // (encodeURIComponent Ä‘á»ƒ an toĂ n kĂ½ tá»±)
   private buildSepayCode(email: string, courseSlug: string) {
     return `RQA:${encodeURIComponent(email)}::${encodeURIComponent(courseSlug)}`
   }
 
-  // Parse được dù ngân hàng thêm chữ trước/sau vì mình match theo pattern có RQA:
+  // Parse Ä‘Æ°á»£c dĂ¹ ngĂ¢n hĂ ng thĂªm chá»¯ trÆ°á»›c/sau vĂ¬ mĂ¬nh match theo pattern cĂ³ RQA:
   private parseSepayCode(content?: string | null): { email: string; courseSlug: string } | null {
     if (!content) return null
 
@@ -91,13 +96,13 @@ export class OrdersService {
   async assertWebhookKey(rawKey?: string) {
     const token = (rawKey ?? '').trim()
     if (!token) throw new UnauthorizedException('Missing SePay webhook key')
-      
+
     const ok = await bcrypt.compare(token, this.sepayKeyHash)
     if (!ok) throw new UnauthorizedException('Invalid SePay webhook key')
   }
 
   // ADMIN: list orders cho UI Admin Orders (GET /orders)
-  // Fix lỗi mode: 'insensitive' (MySQL không support mode trong Prisma contains)
+  // Fix lá»—i mode: 'insensitive' (MySQL khĂ´ng support mode trong Prisma contains)
   async list(params: { status?: string; q?: string }) {
     const statusRaw = (params.status ?? '').toString().trim()
     const q = (params.q ?? '').toString().trim()
@@ -209,13 +214,36 @@ export class OrdersService {
           create: { userId, courseId, status: CourseAccessStatus.ACTIVE },
         })
 
+        await tx.courseEntitlement.upsert({
+          where: {
+            userId_courseId_sourceType_sourceId: {
+              userId,
+              courseId,
+              sourceType: CourseEntitlementSourceType.SINGLE_PURCHASE,
+              sourceId: paidOrder.id,
+            },
+          },
+          update: {
+            accessStartAt: new Date(),
+            accessEndAt: null,
+          },
+          create: {
+            userId,
+            courseId,
+            sourceType: CourseEntitlementSourceType.SINGLE_PURCHASE,
+            sourceId: paidOrder.id,
+            accessStartAt: new Date(),
+            accessEndAt: null,
+          },
+        })
+
         return paidOrder
       })
 
       return { mode: 'FREE', enrolled: true, orderId: paid.id }
     }
 
-    // Nếu đã có pending order thì trả lại để dùng lại QR/nội dung
+    // Náº¿u Ä‘Ă£ cĂ³ pending order thĂ¬ tráº£ láº¡i Ä‘á»ƒ dĂ¹ng láº¡i QR/ná»™i dung
     const pending = await this.prisma.order.findFirst({
       where: {
         userId,
@@ -258,12 +286,12 @@ export class OrdersService {
   }
 
   async handleSepayWebhook(payload: any) {
-    // 1) chỉ nhận tiền vào
+    // 1) chá»‰ nháº­n tiá»n vĂ o
     if (String(payload?.transferType || '').toLowerCase() !== 'in') {
       return { ok: true, ignored: true, message: 'Ignore transferType != in' }
     }
 
-    // 2) verify đúng ngân hàng + đúng STK (chống fake webhook)
+    // 2) verify Ä‘Ăºng ngĂ¢n hĂ ng + Ä‘Ăºng STK (chá»‘ng fake webhook)
     if (
       String(payload?.gateway || '').toUpperCase() !== this.bankInfo.gateway ||
       String(payload?.accountNumber || '') !== this.bankInfo.accountNumber
@@ -277,11 +305,16 @@ export class OrdersService {
       return this.handleProductOrderWebhook(payload, productPaymentId)
     }
 
+    const coursePlanPaymentId = this.coursePlanPayments.parseTransferContent(content)
+    if (coursePlanPaymentId) {
+      return this.coursePlanPayments.handleSepayWebhook(payload, coursePlanPaymentId)
+    }
+
     return this.handleCourseOrderWebhook(payload, content)
   }
 
   private async handleCourseOrderWebhook(payload: any, content: string) {
-    // parse content để ra email + courseSlug
+    // parse content Ä‘á»ƒ ra email + courseSlug
     const parsed = this.parseSepayCode(content)
     if (!parsed) {
       return { ok: true, ignored: true, message: 'Missing supported transfer code in content' }
@@ -310,7 +343,7 @@ export class OrdersService {
     })
     if (!order) throw new NotFoundException('Order not found for SePay webhook')
 
-    // tiền chuyển phải đủ
+    // tiá»n chuyá»ƒn pháº£i Ä‘á»§
     const transferAmount = Number(payload?.transferAmount ?? 0)
     if (!Number.isFinite(transferAmount) || transferAmount < (order.total ?? 0)) {
       throw new ForbiddenException('Transfer amount is not enough for this order')
@@ -324,7 +357,7 @@ export class OrdersService {
 
     return {
       ok: true,
-      message: 'Thanh toán SePay thành công, đã kích hoạt khóa học',
+      message: 'Thanh toĂ¡n SePay thĂ nh cĂ´ng, Ä‘Ă£ kĂ­ch hoáº¡t khĂ³a há»c',
       orderId: order.id,
       paid,
     }
@@ -384,7 +417,7 @@ export class OrdersService {
 
     return {
       ok: true,
-      message: 'Thanh toán SePay sản phẩm thành công',
+      message: 'Thanh toĂ¡n SePay sáº£n pháº©m thĂ nh cĂ´ng',
       orderId: payment.order.id.toString(),
       paymentId: payment.id.toString(),
     }
@@ -432,13 +465,13 @@ export class OrdersService {
     if (order.status === OrderStatus.PAID) return { ok: true, alreadyPaid: true }
 
     return this.prisma.$transaction(async (tx) => {
-      // idempotent: chỉ update nếu đang PENDING
+      // idempotent: chá»‰ update náº¿u Ä‘ang PENDING
       const updated = await tx.order.updateMany({
         where: { id: orderId, status: OrderStatus.PENDING },
         data: { status: OrderStatus.PAID },
       })
       if (updated.count === 0) {
-        // có thể webhook bắn lại, order đã PAID bởi request khác
+        // cĂ³ thá»ƒ webhook báº¯n láº¡i, order Ä‘Ă£ PAID bá»Ÿi request khĂ¡c
         return { ok: true, alreadyPaid: true }
       }
 
@@ -452,6 +485,29 @@ export class OrdersService {
             status: CourseAccessStatus.ACTIVE,
           },
         })
+
+        await tx.courseEntitlement.upsert({
+          where: {
+            userId_courseId_sourceType_sourceId: {
+              userId: order.userId,
+              courseId: item.courseId,
+              sourceType: CourseEntitlementSourceType.SINGLE_PURCHASE,
+              sourceId: order.id,
+            },
+          },
+          update: {
+            accessStartAt: new Date(),
+            accessEndAt: null,
+          },
+          create: {
+            userId: order.userId,
+            courseId: item.courseId,
+            sourceType: CourseEntitlementSourceType.SINGLE_PURCHASE,
+            sourceId: order.id,
+            accessStartAt: new Date(),
+            accessEndAt: null,
+          },
+        })
       }
 
       return {
@@ -462,3 +518,5 @@ export class OrdersService {
     })
   }
 }
+
+

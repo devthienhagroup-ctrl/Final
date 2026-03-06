@@ -3,7 +3,6 @@ import { useLocalStorage } from "../../ui/useLocalStorage";
 import { useToast } from "../../ui/toast";
 import { OrdersMiniTable, type OrderMini } from "../components/OrdersMiniTable";
 import { StudentsProgressCard, type StudentProgress } from "../components/StudentsProgressCard";
-import { ChecklistCard, type ChecklistItem } from "../components/ChecklistCard";
 import { KpiCard } from "../components/KpiCard";
 import { AdminShell } from "../components/AdminShell";
 import { MainLineChart, type MainChartMode } from "../components/charts/MainLineChart";
@@ -15,7 +14,6 @@ import { getDashboardStats, type DashboardStatsResponse } from "./dashboard.api"
 const LS = {
   theme: "aya_theme",
   range: "aya_admin_range",
-  checklist: "aya_admin_checklist",
 } as const;
 
 function fmtVND(n: number) {
@@ -33,7 +31,6 @@ export function AdminDashboardPage() {
 
   const [theme, setTheme] = useLocalStorage<"light" | "dark">(LS.theme, "light");
   const [rangeDays, setRangeDays] = useLocalStorage<number>(LS.range, 30);
-  const [checks, setChecks] = useLocalStorage<Record<string, boolean>>(LS.checklist, {});
 
   const [chartMode, setChartMode] = React.useState<MainChartMode>("revenue");
   const [search, setSearch] = React.useState("");
@@ -47,7 +44,6 @@ export function AdminDashboardPage() {
       try {
         setLoading(true);
         const res = await getDashboardStats(rangeDays);
-        console.log("Dashboard stats:", res);
         if (!mounted) return;
         setStats(res);
       } catch {
@@ -63,22 +59,14 @@ export function AdminDashboardPage() {
     };
   }, [rangeDays, toast]);
 
-  const checklistItems: ChecklistItem[] = useMemo(
-    () => [
-      { key: "cat", label: "Tạo danh mục khóa học" },
-      { key: "price", label: "Cấu hình giá & voucher" },
-      { key: "email", label: "Thiết lập email thông báo" },
-      { key: "pay", label: "Kết nối thanh toán" },
-      { key: "import", label: "Import học viên" },
-      { key: "cert", label: "Bật c`hứng chỉ hoàn thành" },
-    ],
-    []
-  );
-
   const dataTopCourses: TopCourse[] = useMemo(() => {
     const tones: TopCourse["tone"][] = ["cyan", "indigo", "amber", "emerald"];
     const icons: TopCourse["icon"][] = ["mobile-screen", "layer-group", "cubes", "bullhorn"];
-    return (stats?.topCourses ?? []).map((c, i) => ({ ...c, tone: tones[i % tones.length], icon: icons[i % icons.length] }));
+    return (stats?.topCourses ?? []).map((c, i) => ({
+      ...c,
+      tone: tones[i % tones.length],
+      icon: icons[i % icons.length],
+    }));
   }, [stats?.topCourses]);
 
   const dataOrders: OrderMini[] = useMemo(
@@ -87,7 +75,7 @@ export function AdminDashboardPage() {
         ...o,
         status: o.status === "PAID" ? "PAID" : o.status === "PENDING" ? "PENDING" : "REFUND",
       })),
-    [stats?.recentOrders]
+    [stats?.recentOrders],
   );
 
   const dataStudents: StudentProgress[] = useMemo(() => stats?.studentProgress ?? [], [stats?.studentProgress]);
@@ -121,15 +109,32 @@ export function AdminDashboardPage() {
     const values = (stats?.revenueByProductCategory ?? []).map((i) => i.revenue);
     return { labels, values };
   }, [stats?.revenueByProductCategory]);
-  console.log("Payment chart data:", categoryChart);
+
+  const servicePackageChart = useMemo(() => {
+    const labels = (stats?.revenueByServicePackage ?? []).map((i) => i.packageName);
+    const values = (stats?.revenueByServicePackage ?? []).map((i) => i.revenue);
+    return { labels, values };
+  }, [stats?.revenueByServicePackage]);
+
   const kpis = stats?.kpis ?? {
     revenue: 0,
+    revenueBreakdown: {
+      courseRevenue: 0,
+      productRevenue: 0,
+      packageRevenue: 0,
+    },
     orders: 0,
     students: 0,
     completionRate: 0,
     revenueChangePct: 0,
     ordersChangePct: 0,
   };
+
+  const revenueDetailLines = [
+    `Khóa học: ${fmtVND(kpis.revenueBreakdown.courseRevenue)}`,
+    `Sản phẩm thành công: ${fmtVND(kpis.revenueBreakdown.productRevenue)}`,
+    `Gói dịch vụ: ${fmtVND(kpis.revenueBreakdown.packageRevenue)}`,
+  ];
 
   return (
     <AdminShell
@@ -141,7 +146,7 @@ export function AdminDashboardPage() {
       rangeDays={rangeDays}
       onRangeChange={(v) => {
         setRangeDays(v);
-        toast("Đã đổi khoảng thời gian", `Đang xem: ${v} n  gày`);
+        toast("Đã đổi khoảng thời gian", `Đang xem: ${v} ngày`);
       }}
       search={search}
       onSearchChange={setSearch}
@@ -160,8 +165,8 @@ export function AdminDashboardPage() {
                 [o.code, o.student, o.course, o.total, o.status, o.date]
                   .map((x) => String(x).replaceAll('"', '""'))
                   .map((x) => `"${x}"`)
-                  .join(",")
-              )
+                  .join(","),
+              ),
             )
             .join("\n") + "\n";
 
@@ -176,11 +181,36 @@ export function AdminDashboardPage() {
       }}
     >
       {loading && <div className="mb-4 text-sm text-slate-500">Đang tải dữ liệu dashboard...</div>}
-<section className="grid gap-4 md:grid-cols-[2fr_1fr_1fr_1fr]">
-        <KpiCard title="Doanh thu" value={fmtVND(kpis.revenue)} hint={trendLabel(kpis.revenueChangePct)} icon="sack-dollar" tone="emerald" />
-        <KpiCard title="Đơn hàng" value={new Intl.NumberFormat("vi-VN").format(kpis.orders)} hint={trendLabel(kpis.ordersChangePct)} icon="bag-shopping" tone="amber" />
-        <KpiCard title="Học viên mới" value={new Intl.NumberFormat("vi-VN").format(kpis.students)} hint="Theo số user đăng ký trong kỳ" icon="users" tone="cyan" />
-        <KpiCard title="Tỷ lệ hoàn thành" value={`${kpis.completionRate}%`} hint="Tỷ lệ hoàn thành bài học" icon="graduation-cap" tone="indigo" />
+      <section className="grid gap-4 md:grid-cols-[2fr_1fr_1fr_1fr]">
+        <KpiCard
+          title="Doanh thu"
+          value={fmtVND(kpis.revenue)}
+          hint={trendLabel(kpis.revenueChangePct)}
+          details={revenueDetailLines}
+          icon="sack-dollar"
+          tone="emerald"
+        />
+        <KpiCard
+          title="Đơn hàng"
+          value={new Intl.NumberFormat("vi-VN").format(kpis.orders)}
+          hint={trendLabel(kpis.ordersChangePct)}
+          icon="bag-shopping"
+          tone="amber"
+        />
+        <KpiCard
+          title="Học viên mới"
+          value={new Intl.NumberFormat("vi-VN").format(kpis.students)}
+          hint="Theo số user đăng ký trong kỳ"
+          icon="users"
+          tone="cyan"
+        />
+        <KpiCard
+          title="Tỷ lệ hoàn thành"
+          value={`${kpis.completionRate}%`}
+          hint="Tỷ lệ hoàn thành bài học"
+          icon="graduation-cap"
+          tone="indigo"
+        />
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
@@ -189,11 +219,23 @@ export function AdminDashboardPage() {
             <div>
               <div className="text-xs font-semibold text-slate-500">Báo cáo</div>
               <div className="text-lg font-extrabold">Doanh thu & Đơn hàng</div>
-              <div className="mt-1 text-sm text-slate-600">Lọc theo 7/30/90 ngày, chuyển mode nhanh.</div>
+              <div className="mt-1 text-sm text-slate-600">
+                Mode doanh thu hiển thị 3 đường: khóa học, sản phẩm thành công, gói dịch vụ.
+              </div>
             </div>
             <div className="flex gap-2">
-              <button className={`btn ${chartMode === "revenue" ? "btn-primary" : ""}`} onClick={() => setChartMode("revenue")}>Doanh thu</button>
-              <button className={`btn ${chartMode === "orders" ? "btn-primary" : ""}`} onClick={() => setChartMode("orders")}>Đơn hàng</button>
+              <button
+                className={`btn ${chartMode === "revenue" ? "btn-primary" : ""}`}
+                onClick={() => setChartMode("revenue")}
+              >
+                Doanh thu
+              </button>
+              <button
+                className={`btn ${chartMode === "orders" ? "btn-primary" : ""}`}
+                onClick={() => setChartMode("orders")}
+              >
+                Đơn hàng
+              </button>
             </div>
           </div>
 
@@ -201,7 +243,9 @@ export function AdminDashboardPage() {
             <MainLineChart
               mode={chartMode}
               labels={stats?.lineChart.labels ?? []}
-              revenueData={stats?.lineChart.revenue ?? []}
+              courseRevenueData={stats?.lineChart.courseRevenue ?? []}
+              productRevenueData={stats?.lineChart.productRevenue ?? []}
+              packageRevenueData={stats?.lineChart.packageRevenue ?? []}
               orderData={stats?.lineChart.orders ?? []}
             />
           </div>
@@ -231,7 +275,7 @@ export function AdminDashboardPage() {
         />
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
+      <section className="grid gap-4 lg:grid-cols-3">
         <div className="card p-6">
           <div className="text-xs font-semibold text-slate-500">Phân tích</div>
           <div className="text-lg font-extrabold">Doanh thu sản phẩm theo phương thức thanh toán</div>
@@ -242,7 +286,7 @@ export function AdminDashboardPage() {
         </div>
 
         <div className="card p-6">
-          <div className="text-xs font-semibold text-slate-500">Chất lượng</div>
+          <div className="text-xs font-semibold text-slate-500">Danh mục sản phẩm</div>
           <div className="text-lg font-extrabold">Doanh thu theo danh mục sản phẩm</div>
           <div className="mt-1 text-sm text-slate-600">Top danh mục có doanh thu cao nhất.</div>
           <div className="mt-5">
@@ -250,12 +294,14 @@ export function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* <ChecklistCard
-          items={checklistItems}
-          value={checks}
-          onChange={setChecks}
-          onSave={() => toast("Đã lưu cấu hình", "Checklist đã được lưu trong trình duyệt.")}
-        /> */}
+        <div className="card p-6">
+          <div className="text-xs font-semibold text-slate-500">Gói dịch vụ</div>
+          <div className="text-lg font-extrabold">Doanh thu theo gói dịch vụ</div>
+          <div className="mt-1 text-sm text-slate-600">Top gói dịch vụ có doanh thu cao nhất trong kỳ.</div>
+          <div className="mt-5">
+            <BarChart labels={servicePackageChart.labels} values={servicePackageChart.values} />
+          </div>
+        </div>
       </section>
 
       <footer className="py-6 text-center text-sm text-slate-500">© 2025 AYANAVITA Admin Dashboard • Integrated with NestJS APIs.</footer>

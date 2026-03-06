@@ -221,7 +221,7 @@
 .admin-overview {
   margin-top: 14px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(190px, 1fr));
+  grid-template-columns: repeat(5, minmax(190px, 1fr));
   gap: 10px;
 }
 
@@ -377,7 +377,7 @@
 .admin-btn-save { background: linear-gradient(135deg, #0ea5e9, #2563eb); color: #fff; box-shadow: 0 8px 18px rgba(37, 99, 235, 0.28); }
 
 .admin-table-wrap { overflow: auto; border: 1px solid #e5e7ff; border-radius: 12px; }
-.admin-table { width: 100%; border-collapse: collapse; min-width: 780px; background: #fff; table-layout: auto; }
+.admin-table { width: 100%; border-collapse: collapse; background: #fff; table-layout: auto; }
 .admin-table thead tr { background: linear-gradient(135deg, #eef2ff, #fdf2f8); }
 .admin-table th {
   text-align: left;

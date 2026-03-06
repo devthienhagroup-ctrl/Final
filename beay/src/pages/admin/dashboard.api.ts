@@ -4,6 +4,11 @@ export type DashboardStatsResponse = {
   rangeDays: number;
   kpis: {
     revenue: number;
+    revenueBreakdown: {
+      courseRevenue: number;
+      productRevenue: number;
+      packageRevenue: number;
+    };
     orders: number;
     students: number;
     completionRate: number;
@@ -14,6 +19,9 @@ export type DashboardStatsResponse = {
     labels: string[];
     revenue: number[];
     orders: number[];
+    courseRevenue: number[];
+    productRevenue: number[];
+    packageRevenue: number[];
   };
   topCourses: Array<{
     name: string;
@@ -42,7 +50,11 @@ export type DashboardStatsResponse = {
     category: string;
     revenue: number;
   }>;
+  revenueByServicePackage: Array<{
+    packageName: string;
+    revenue: number;
+  }>;
 };
 
-export const getDashboardStats = (rangeDays: number) => 
+export const getDashboardStats = (rangeDays: number) =>
   request<DashboardStatsResponse>(`/admin/dashboard/stats?range=${rangeDays}`);

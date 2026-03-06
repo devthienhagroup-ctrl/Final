@@ -1,4 +1,5 @@
 import { useAuth } from "../../app/auth";
+import {Link} from "react-router-dom";
 
 type Props = {
   open: boolean;
@@ -50,52 +51,58 @@ export function AdminSidebar({ open, onClose }: Props) {
         <div className="mt-4 card p-3">
           <div className="text-xs font-semibold text-slate-500">Đi nhanh</div>
           <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
-            {can("orders.read") ? <a className="btn text-center" href="/admin/orders"><i className="fa-solid fa-receipt mr-1" />Đơn hàng</a> : null}
-            {can("role.read") ? <a className="btn text-center" href="/admin/rbac"><i className="fa-solid fa-user-shield mr-1" />Phân quyền</a> : null}
+            {can("orders.write") ? <a className="btn text-center" href="/admin/orders"><i className="fa-solid fa-receipt mr-1" />Đơn hàng</a> : null}
+            {can("role.write") ? <a className="btn text-center" href="/admin/rbac"><i className="fa-solid fa-user-shield mr-1" />Phân quyền</a> : null}
           </div>
         </div>
 
         <nav className="mt-5 space-y-2">
-          <a href="#overview" className="flex items-center gap-3 px-4 py-3 rounded-2xl nav-active">
+          <Link to="#overview" className="flex items-center gap-3 px-4 py-3 rounded-2xl nav-active">
             <i className="fa-solid fa-gauge-high text-indigo-600" />
             <span className="font-semibold">Tổng quan</span>
-          </a>
-          <a href="/admin/courses" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+          </Link>
+          <Link to="/admin/courses" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-book-open text-amber-600" />
             <span className="font-semibold">Khóa học</span>
-          </a>
+          </Link>
+          {can("packages.read") ? (
+            <Link to="/admin/course-plans" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+              <i className="fa-solid fa-layer-group text-sky-700" />
+              <span className="font-semibold">Gói dịch vụ khóa học</span>
+            </Link>
+          ) : null}
           {/* thêm link: sản phẩm /admin/product */}
-          <a href="/admin/product" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+          <Link to="/admin/product" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-box text-emerald-700" />
             <span className="font-semibold">Sản phẩm</span>
-          </a>
-          <a href="/admin/services" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+          </Link>
+          <Link to="/admin/services" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-spa text-violet-700" />
             <span className="font-semibold">Dịch vụ</span>
-          </a>
-          <a href="/admin/orders" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+          </Link>
+          <Link to="/admin/orders" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-bag-shopping text-emerald-700" />
             <span className="font-semibold">Đơn hàng</span>
-          </a>
-          <a href="/admin/users" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+          </Link>
+          <Link to="/admin/users" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-users-gear text-indigo-700" />
             <span className="font-semibold">User Management</span>
-          </a>
+          </Link>
           {/* Thêm link: CMS /admin/cms */}
-          <a href="/admin/cms" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+          <Link to="/admin/cms" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-file-lines text-slate-700" />
             <span className="font-semibold">CMS</span>
-          </a>
+          </Link>
           {/* Thêm link: Đánh giá /admin/reviews */}
-          <a href="/admin/reviews" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+          <Link to="/admin/reviews" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-star text-yellow-700" />
             <span className="font-semibold">Đánh giá</span>
-          </a>
+          </Link>
 
-          <a href="/admin/blog" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+          <Link to="/admin/blog" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-newspaper text-yellow-700" />
             <span className="font-semibold">Quản lý blog</span>
-          </a>
+          </Link>
 
           {/*<a href="#settings" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">*/}
           {/*  <i className="fa-solid fa-gear text-slate-700" />*/}
@@ -123,3 +130,6 @@ export function AdminSidebar({ open, onClose }: Props) {
     </aside>
   );
 }
+
+
+

@@ -1,7 +1,6 @@
 import { request } from '../../api/http'
 import type { EnrollmentStatus } from './student.types'
 
-
 export type ApiLesson = {
   id: number;
   title: string;
@@ -48,6 +47,17 @@ export type ApiMyCourse = {
   id: number;
   courseId: number;
   status: EnrollmentStatus;
+  sourceType?: string | null;
+  sourceId?: number | null;
+  canAccess?: boolean;
+  blockedReason?: string | null;
+  blockedMessage?: string | null;
+  upgradePlan?: {
+    id: number;
+    code: string;
+    name: string;
+    price: number;
+  } | null;
   course: {
     id: number;
     title: string;
@@ -131,3 +141,4 @@ export const studentApi = {
   submitCourseReview: (courseId: number, body: { stars: number; comment?: string; customerName?: string }) =>
     request<ApiCourseReview>(`/courses/${courseId}/reviews`, { method: "POST", body }),
 };
+

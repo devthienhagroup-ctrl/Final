@@ -350,6 +350,18 @@ export default function AdminCoursesPage() {
     return map;
   }, [courses]);
 
+  const totalStudents = useMemo(
+    () => courses.reduce((sum, course) => sum + (course.enrollmentCount || 0), 0),
+    [courses],
+  );
+
+  const studentCountDesc =
+    lang === "vi"
+      ? "Tong hoc vien cua cac khoa hoc dang hien thi"
+      : lang === "de"
+        ? "Gesamtteilnehmer der aktuell angezeigten Kurse"
+        : "Total students across displayed courses";
+
   const setTopicField = (
     activeLang: AdminLang,
     field: "name" | "description",
@@ -431,8 +443,8 @@ export default function AdminCoursesPage() {
     <main
       className={`admin-page admin-courses-theme ${theme === "dark" ? "admin-courses-theme-dark" : ""}`}
     >
-      <section className="admin-header">
-        <div>
+      <section className="admin-header items-center justify-between">
+        <div className="left-header flex-1" >
           <p className="admin-header-kicker">{t.kicker}</p>
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
@@ -516,6 +528,13 @@ export default function AdminCoursesPage() {
           </span>
           <strong>{coursesTotal}</strong>
           <small>{t.courseCountDesc}</small>
+        </article>
+        <article className="overview-card">
+          <span>
+            <i className="fa-solid fa-user-group" /> {t.enrollmentCol}
+          </span>
+          <strong>{totalStudents}</strong>
+          <small>{studentCountDesc}</small>
         </article>
         <article className="overview-card">
           <span>

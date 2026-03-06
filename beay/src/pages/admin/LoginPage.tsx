@@ -42,38 +42,38 @@ function resolveCoursesRoute(scopeType: ScopeType | null) {
 
 const DEFAULT_PERMISSIONS = [
     "dashboard.admin",
-    "orders.read",
-    "role.read",
-    "spa_services.read",
+    "orders.write",
+    "role.write",
+    "spa_services.write",
     "courses.read",
     "courses.write",
-    "reviews.read",
-    "blogs.read",
-    "products.read",
+    "reviews.write",
+    "blogs.write",
+    "products.write",
     "cms.read",
     "cms.write",
     "my_courses.read",
 ];
 
 const PERMISSION_ROUTE_MAP: Array<{ permission: string; path: string }> = [
-    { permission: "orders.read", path: "/admin/orders" },
-    { permission: "role.read", path: "/admin/rbac" },
-    { permission: "spa_services.read", path: "/admin/services" },
+    { permission: "orders.write", path: "/admin/orders" },
+    { permission: "role.write", path: "/admin/rbac" },
+    { permission: "spa_services.write", path: "/admin/services" },
     { permission: "courses.write", path: "/admin/courses" },
-    { permission: "reviews.read", path: "/admin/reviews" },
-    { permission: "blogs.read", path: "/admin/blog" },
-    { permission: "products.read", path: "/admin/product" },
+    { permission: "reviews.write", path: "/admin/reviews" },
+    { permission: "blogs.write", path: "/admin/blog" },
+    { permission: "products.write", path: "/admin/product" },
     { permission: "cms.read", path: "/admin/cms" },
     { permission: "cms.write", path: "/admin/cms" },
 ];
 
 function resolveDefaultRoute(permissions: string[], scopeType: ScopeType | null) {
     if (permissions.includes("dashboard.admin")) return "/admin/dashboard";
+    if (permissions.includes("my_courses.read")) return "http://localhost:5180/student";
     if (permissions.includes("courses.write")) return resolveCoursesRoute(scopeType);
     for (const route of PERMISSION_ROUTE_MAP) {
         if (permissions.includes(route.permission)) return route.path;
     }
-    if (permissions.includes("my_courses.read")) return "http://localhost:5180/student";
     return "/login";
 }
 

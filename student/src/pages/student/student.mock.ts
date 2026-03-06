@@ -13,6 +13,7 @@ export const MOCK_STUDENT_COURSES: StudentCourse[] = [
     completedLessons: 19,
     nextLessonTitle: "Bài 08 • GetX",
     active: true,
+    canAccess: true,
   },
   {
     id: 2,
@@ -26,6 +27,7 @@ export const MOCK_STUDENT_COURSES: StudentCourse[] = [
     completedLessons: 9,
     nextLessonTitle: "Bài 05 • Guards",
     active: true,
+    canAccess: true,
   },
   {
     id: 3,
@@ -39,6 +41,7 @@ export const MOCK_STUDENT_COURSES: StudentCourse[] = [
     completedLessons: 0,
     nextLessonTitle: "Bài 01 • Funnel",
     active: false,
+    canAccess: false,
   },
 ];
 
@@ -47,3 +50,4 @@ export const DEFAULT_PLAN: StudyPlanItem[] = [
   { id: "wed", day: "Thứ 4", task: "NestJS • Bài 05", time: "18 phút", done: false },
   { id: "fri", day: "Thứ 6", task: "Flutter • Quiz", time: "10 phút", done: false },
 ];
+

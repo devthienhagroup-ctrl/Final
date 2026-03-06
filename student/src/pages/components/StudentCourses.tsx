@@ -10,9 +10,6 @@ type Props = {
 };
 
 export function StudentCourses(props: Props) {
-  const activeCount = props.courses.filter((c) => c.active).length;
-  const avgProgress = props.courses.length ? Math.round(props.courses.reduce((sum, c) => sum + c.progress, 0) / props.courses.length) : 0;
-  const finishedCount = props.courses.filter((c) => c.progress >= 100).length;
 
   return (
     <div className="rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-6 lg:col-span-2">
@@ -38,9 +35,13 @@ export function StudentCourses(props: Props) {
         {props.courses.map((c) => (
           <div
             key={c.id}
-            className="relative cursor-pointer rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-5"
-            onClick={() => props.onDetail(c)}
+            className={`relative rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-5 ${c.canAccess ? "cursor-pointer" : "cursor-not-allowed opacity-90"}`}
+            onClick={() => {
+              if (!c.canAccess) return;
+              props.onDetail(c);
+            }}
             onKeyDown={(e) => {
+              if (!c.canAccess) return;
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
                 props.onDetail(c);
@@ -49,7 +50,7 @@ export function StudentCourses(props: Props) {
             role="button"
             tabIndex={0}
           >
-            <span className="absolute left-3 top-3 inline-flex h-3.5 w-3.5 rounded-full border-2 border-emerald-200 bg-emerald-400" />
+            <span className={`absolute left-3 top-3 inline-flex h-3.5 w-3.5 rounded-full border-2 ${c.canAccess ? "border-emerald-200 bg-emerald-400" : "border-amber-200 bg-amber-400"}`} />
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-lg font-extrabold">{c.title}</div>
@@ -58,7 +59,7 @@ export function StudentCourses(props: Props) {
                 </div>
               </div>
               <span className="chip">
-                {c.active ? (
+                {c.canAccess ? (
                   <>
                     <i className="fa-solid fa-circle text-emerald-500 mr-1" />
                     {c.status}
@@ -66,7 +67,7 @@ export function StudentCourses(props: Props) {
                 ) : (
                   <>
                     <i className="fa-solid fa-lock text-amber-600 mr-1" />
-                    {c.status}
+                    LOCKED
                   </>
                 )}
               </span>
@@ -86,13 +87,21 @@ export function StudentCourses(props: Props) {
               <div className="mt-1 text-sm text-slate-600">
                 Tiếp theo: <b>{c.nextLessonTitle}</b>
               </div>
+              {!c.canAccess ? (
+                <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  {c.blockedMessage || "Ban can nang cap hoac gia han goi de tiep tuc xem khoa hoc nay."}
+                  {c.upgradePlan ? ` Goi de nghi: ${c.upgradePlan.name}.` : ""}
+                </div>
+              ) : null}
             </div>
 
             <div className="mt-4 flex justify-end gap-2">
               <button
                 className="btn btn-primary !px-3 !py-1.5 !text-sm"
+                disabled={!c.canAccess}
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (!c.canAccess) return;
                   props.onDetail(c);
                 }}
               >
@@ -115,3 +124,4 @@ export function StudentCourses(props: Props) {
     </div>
   );
 }
+

@@ -23,6 +23,7 @@ import { BlogModule } from './blog/blog.module';
 import { RbacModule } from './rbac/rbac.module';
 import { InstructorModule } from './instructor/instructor.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { CoursePlansModule } from './course-plans/course-plans.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     RbacModule,
     DashboardModule,
     InstructorModule,
+    CoursePlansModule,
   ],
 })
 export class AppModule {}

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Post, Req, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Logger, Patch, Post, Req, UseGuards } from '@nestjs/common'
 import { Request } from 'express'
 import { AuthService } from './auth.service'
 import { RegisterDto } from '../users/dto/register.dto'
@@ -17,9 +17,9 @@ import { CurrentUser } from './decorators/current-user.decorator'
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name)
+
   constructor(private readonly auth: AuthService) {}
-  
-  
 
   @Post('register')
   register(@Body() dto: RegisterDto) {
@@ -40,7 +40,6 @@ export class AuthController {
   registerNew(@Body() dto: RegisterNewDto) {
     return this.auth.registerNew(dto)
   }
-
 
   @Post('forgot-password/send-otp')
   sendForgotPasswordOtp(@Body() dto: SendOtpDto, @Req() req: Request) {
@@ -85,7 +84,9 @@ export class AuthController {
 
   @UseGuards(RefreshTokenGuard)
   @Post('refresh')
-  refresh(@CurrentUser() user: any) {
+  refresh(@CurrentUser() user: any, @Req() req: Request) {
+    const userAgent = typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : 'unknown'
+    this.logger.log(`Refresh endpoint called for userId=${user?.sub ?? 'unknown'} ua=${userAgent}`)
     return this.auth.refreshTokens(user.sub, user.refreshToken)
   }
 

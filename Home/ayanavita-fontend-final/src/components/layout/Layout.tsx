@@ -5,6 +5,7 @@ import { Header } from "./Header";
 import { Footer } from "./Footer";
 import {http} from "../../api/http";
 import {ParticlesBackground} from "./ParticlesBackground";
+import {CartProvider} from "../../contexts/CartContext";
 
 export default function AppLayout() {
     const [globalData, setGlobalData] = useState<any>(null);
@@ -46,6 +47,7 @@ export default function AppLayout() {
                 cmsAuth={globalData?.sections?.[2]?.data}
                 cmsSuccess={globalData?.sections?.[3]?.data}
             />
+
             <main>
                 <Outlet />
             </main>

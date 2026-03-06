@@ -389,7 +389,7 @@ type SortKey = "newest" | "oldest" | "lowestRating" | "highestRating" | "mostHel
 export function ReviewsAdminPage() {
   const navigate = useNavigate();
   const { can } = useAuth();
-  const canReadReviews = can("reviews.read");
+  const canReadReviews = can("reviews.write");
   const canManageReviews = can("reviews.manage");
   const [reviews, setReviews] = useState<Review[]>([]);
 

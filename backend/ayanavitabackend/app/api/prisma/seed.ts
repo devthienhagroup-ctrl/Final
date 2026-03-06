@@ -284,6 +284,133 @@ async function seedRbac() {
     await prisma.user.updateMany({ where: { role: 'USER', roleId: null }, data: { roleId: userRoleId } })
   }
 }
+
+async function seedCoursePlans() {
+  const tagSeeds = [
+    { code: 'lv1', name: 'Level 1' },
+    { code: 'lv2', name: 'Level 2' },
+    { code: 'vip', name: 'VIP' },
+  ] as const
+
+  const tagByCode = new Map<string, number>()
+  for (const seed of tagSeeds) {
+    const tag = await prisma.courseTag.upsert({
+      where: { code: seed.code.toUpperCase() },
+      update: { name: seed.name },
+      create: { code: seed.code.toUpperCase(), name: seed.name },
+    })
+    tagByCode.set(seed.code, tag.id)
+  }
+
+  const taggedCourses = await prisma.course.findMany({
+    where: { slug: { in: ['co-ban-cham-soc-da', 'tri-mun-an-toan'] } },
+    select: { id: true, slug: true },
+  })
+  const courseBySlug = new Map(taggedCourses.map((item) => [item.slug, item.id]))
+
+  const basicCourseId = courseBySlug.get('co-ban-cham-soc-da')
+  if (basicCourseId && tagByCode.get('lv1')) {
+    await prisma.courseTagLink.upsert({
+      where: { courseId_tagId: { courseId: basicCourseId, tagId: tagByCode.get('lv1')! } },
+      update: {},
+      create: { courseId: basicCourseId, tagId: tagByCode.get('lv1')! },
+    })
+  }
+
+  const acneCourseId = courseBySlug.get('tri-mun-an-toan')
+  if (acneCourseId) {
+    const lv2TagId = tagByCode.get('lv2')
+    const vipTagId = tagByCode.get('vip')
+    if (lv2TagId) {
+      await prisma.courseTagLink.upsert({
+        where: { courseId_tagId: { courseId: acneCourseId, tagId: lv2TagId } },
+        update: {},
+        create: { courseId: acneCourseId, tagId: lv2TagId },
+      })
+    }
+    if (vipTagId) {
+      await prisma.courseTagLink.upsert({
+        where: { courseId_tagId: { courseId: acneCourseId, tagId: vipTagId } },
+        update: {},
+        create: { courseId: acneCourseId, tagId: vipTagId },
+      })
+    }
+  }
+
+  const planSeeds = [
+    {
+      code: 'LV1',
+      name: 'Gói LV1',
+      price: 299000,
+      durationDays: 30,
+      graceDays: 14,
+      maxUnlocks: 50,
+      maxCoursePrice: 1000000,
+      isActive: true,
+      excludedTagCodes: ['lv2', 'vip'],
+    },
+    {
+      code: 'LV2',
+      name: 'Gói LV2',
+      price: 499000,
+      durationDays: 30,
+      graceDays: 14,
+      maxUnlocks: 80,
+      maxCoursePrice: null,
+      isActive: true,
+      excludedTagCodes: ['vip'],
+    },
+    {
+      code: 'VIP',
+      name: 'Gói VIP',
+      price: 799000,
+      durationDays: 30,
+      graceDays: 14,
+      maxUnlocks: 120,
+      maxCoursePrice: null,
+      isActive: true,
+      excludedTagCodes: [],
+    },
+  ] as const
+
+  for (const seed of planSeeds) {
+    const plan = await prisma.coursePlan.upsert({
+      where: { code: seed.code },
+      update: {
+        name: seed.name,
+        price: seed.price,
+        durationDays: seed.durationDays,
+        graceDays: seed.graceDays,
+        maxUnlocks: seed.maxUnlocks,
+        maxCoursePrice: seed.maxCoursePrice,
+        isActive: seed.isActive,
+      },
+      create: {
+        code: seed.code,
+        name: seed.name,
+        price: seed.price,
+        durationDays: seed.durationDays,
+        graceDays: seed.graceDays,
+        maxUnlocks: seed.maxUnlocks,
+        maxCoursePrice: seed.maxCoursePrice,
+        isActive: seed.isActive,
+      },
+    })
+
+    await prisma.coursePlanExcludedTag.deleteMany({ where: { planId: plan.id } })
+
+    const excludedTagIds = seed.excludedTagCodes
+      .map((code) => tagByCode.get(code))
+      .filter((id): id is number => Boolean(id))
+
+    if (excludedTagIds.length > 0) {
+      await prisma.coursePlanExcludedTag.createMany({
+        data: excludedTagIds.map((tagId) => ({ planId: plan.id, tagId })),
+        skipDuplicates: true,
+      })
+    }
+  }
+}
 async function main() {
   const passwordHash = await bcrypt.hash('123456', 10)
 
@@ -884,6 +1011,8 @@ async function main() {
   }
 
 
+  await seedCoursePlans()
+
   const courses = await prisma.course.findMany({ orderBy: { id: 'asc' } })
   console.log('ðŸŒ± Seed OK')
   console.log({ userId: user.id, coursesCount: courses.length, branches: branches.length, services: services.length, specialists: specialists.length })
@@ -897,3 +1026,4 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
+

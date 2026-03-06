@@ -100,6 +100,14 @@ function sortLessons(ls: LessonView[]) {
   });
 }
 
+function normalizeList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
 export function CourseDetailPage() {
   const nav = useNavigate();
   const { id } = useParams();
@@ -237,6 +245,10 @@ export function CourseDetailPage() {
 
   const percent = gate.canAccess ? progress?.percent ?? 0 : 0;
 
+  const objectives = useMemo(() => normalizeList(course?.objectives), [course?.objectives]);
+  const targetAudience = useMemo(() => normalizeList(course?.targetAudience), [course?.targetAudience]);
+  const benefits = useMemo(() => normalizeList(course?.benefits), [course?.benefits]);
+
   return (
     <div className={`student-page student-courses-theme ${uiTheme === "dark" ? "student-courses-theme-dark" : ""}`}>
       <div className="student-shell" style={{ marginBottom: 12 }}>
@@ -302,6 +314,48 @@ export function CourseDetailPage() {
                   </div>
                   <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
                     <Badge tone={gate.canAccess ? "success" : "warning"}>Enrollment: {gate.status}</Badge>
+                    <Badge tone="neutral">Hoc vien: {course.enrollmentCount || 0}</Badge>
+                  </div>
+
+                  <div style={{ marginTop: 14, display: "grid", gap: 12 }}>
+                    <div>
+                      <div style={{ fontWeight: 800 }}>Muc tieu</div>
+                      {objectives.length > 0 ? (
+                        <ul style={{ margin: "6px 0 0", paddingLeft: 18, display: "grid", gap: 4 }}>
+                          {objectives.map((item, index) => (
+                            <li key={`objective-${index}`}>{item}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <Muted><div style={{ marginTop: 6 }}>-</div></Muted>
+                      )}
+                    </div>
+
+                    <div>
+                      <div style={{ fontWeight: 800 }}>Doi tuong</div>
+                      {targetAudience.length > 0 ? (
+                        <ul style={{ margin: "6px 0 0", paddingLeft: 18, display: "grid", gap: 4 }}>
+                          {targetAudience.map((item, index) => (
+                            <li key={`audience-${index}`}>{item}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <Muted><div style={{ marginTop: 6 }}>-</div></Muted>
+                      )}
+                    </div>
+
+                    <div>
+                      <div style={{ fontWeight: 800 }}>Loi ich</div>
+                      {benefits.length > 0 ? (
+                        <ul style={{ margin: "6px 0 0", paddingLeft: 18, display: "grid", gap: 4 }}>
+                          {benefits.map((item, index) => (
+                            <li key={`benefit-${index}`}>{item}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <Muted><div style={{ marginTop: 6 }}>-</div></Muted>
+                      )}
+                    </div>
                   </div>
                 </div>
 

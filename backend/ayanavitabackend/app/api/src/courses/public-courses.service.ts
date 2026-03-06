@@ -90,6 +90,32 @@ export class PublicCoursesService {
       course.translations.find((item) => item.locale === locale) ||
       course.translations.find((item) => item.locale === 'vi')
 
+    const normalizeList = (value: unknown) =>
+      Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+
+    const [enrollmentRows] = await Promise.all([
+      this.prisma.$queryRaw<Array<{ enrollmentCount: bigint | number }>>`
+        SELECT COUNT(*) as enrollmentCount
+        FROM (
+          SELECT ca.userId
+          FROM CourseAccess ca
+          WHERE ca.courseId = ${course.id}
+            AND ca.status = 'ACTIVE'
+          UNION
+          SELECT ce.userId
+          FROM CourseEntitlement ce
+          WHERE ce.courseId = ${course.id}
+            AND ce.accessStartAt <= NOW()
+            AND (ce.accessEndAt IS NULL OR ce.accessEndAt > NOW())
+        ) active
+      `,
+    ])
+
+    const objectives = normalizeList(courseTr?.objectives ?? course.objectives)
+    const targetAudience = normalizeList(courseTr?.targetAudience ?? course.targetAudience)
+    const benefits = normalizeList(courseTr?.benefits ?? course.benefits)
+    const enrollmentCount = Number(enrollmentRows[0]?.enrollmentCount || 0)
+
     return {
       id: course.id,
       slug: course.slug,
@@ -101,7 +127,10 @@ export class PublicCoursesService {
       price: course.price,
       ratingAvg: course.ratingAvg,
       ratingCount: course.ratingCount,
-      enrollmentCount: course.enrollmentCount,
+      objectives,
+      targetAudience,
+      benefits,
+      enrollmentCount,
       topic: course.topic
         ? {
             id: course.topic.id,

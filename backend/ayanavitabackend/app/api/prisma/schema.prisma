@@ -25,19 +25,23 @@ model User {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  // ✅ ADD
+  // Ă„â€Ă‚Â¢Ä‚â€¦Ă¢â‚¬Å“Ä‚Â¢Ă¢â€Â¬Ă‚Â¦ ADD
   enrollments    Enrollment[]
   courseAccesses CourseAccess[]
+  coursePasses   UserCoursePass[]
+  coursePlanPayments CoursePlanPayment[]
+  courseEntitlements CourseEntitlement[]
+  planUnlockLogs PlanUnlockLog[]
   lessonProgress LessonProgress[]
   lessonVideoProgress LessonVideoProgress[]
-  orders         Order[] // <— opposite for Order.user
+  orders         Order[] // <Ă„â€Ă‚Â¢Ä‚Â¢Ă¢â‚¬ÂĂ‚Â¬Ä‚Â¢Ă¢â€Â¬Ă‚Â opposite for Order.user
   productOrders  ProductOrder[]
   processedProductOrders ProductOrder[] @relation("ProductOrderProcessedBy")
   carts          Cart[]
 
   courseReviews CourseReview[]
   createdCourses Course[] @relation("CourseCreator")
-  // ✅ CMS (optional relations)
+  // Ă„â€Ă‚Â¢Ä‚â€¦Ă¢â‚¬Å“Ä‚Â¢Ă¢â€Â¬Ă‚Â¦ CMS (optional relations)
   cmsSectionVersions CmsSectionVersion[]
   mediaAssets        MediaAsset[]
   serviceReviews     ServiceReview[]
@@ -309,13 +313,16 @@ model Course {
   lessons     Lesson[]
   enrollments Enrollment[]
   accesses    CourseAccess[]
+  tagLinks    CourseTagLink[]
+  entitlements CourseEntitlement[]
+  planUnlockLogs PlanUnlockLog[]
   topic       CourseTopic? @relation(fields: [topicId], references: [id], onDelete: Restrict)
   translations CourseTranslation[]
   contentTranslations CourseContentTranslation[]
   creator             User? @relation("CourseCreator", fields: [creatorId], references: [id], onDelete: SetNull)
 
-  // ✅ ADD
-  orderItems OrderItem[] // <— opposite for OrderItem.course
+  // Ă„â€Ă‚Â¢Ä‚â€¦Ă¢â‚¬Å“Ä‚Â¢Ă¢â€Â¬Ă‚Â¦ ADD
+  orderItems OrderItem[] // <Ă„â€Ă‚Â¢Ä‚Â¢Ă¢â‚¬ÂĂ‚Â¬Ä‚Â¢Ă¢â€Â¬Ă‚Â opposite for OrderItem.course
   courseReviews CourseReview[]
 
   @@index([topicId])
@@ -367,7 +374,6 @@ model CourseTopicTranslation {
   @@index([locale])
 }
 
-
 model CourseReview {
   id           Int      @id @default(autoincrement())
   courseId      Int
@@ -381,6 +387,142 @@ model CourseReview {
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
   user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  @@index([courseId])
+}
+
+model CourseTag {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique @db.VarChar(80)
+  name      String   @db.VarChar(120)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courseLinks     CourseTagLink[]
+  excludedInPlans CoursePlanExcludedTag[]
+
+  @@index([name])
+}
+
+model CourseTagLink {
+  courseId  Int
+  tagId     Int
+  createdAt DateTime @default(now())
+
+  course Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  tag    CourseTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, tagId])
+  @@index([tagId])
+}
+
+model CoursePlan {
+  id             Int      @id @default(autoincrement())
+  code           String   @unique @db.VarChar(40)
+  name           String   @db.VarChar(120)
+  price          Int      @default(0)
+  durationDays   Int      @default(30)
+  graceDays      Int      @default(14)
+  maxUnlocks     Int      @default(50)
+  maxCoursePrice Int?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  excludedTags CoursePlanExcludedTag[]
+  passes       UserCoursePass[]
+  payments     CoursePlanPayment[]
+}
+
+model CoursePlanExcludedTag {
+  planId Int
+  tagId  Int
+
+  plan CoursePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  tag  CourseTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([planId, tagId])
+  @@index([tagId])
+}
+
+model UserCoursePass {
+  id               Int                @id @default(autoincrement())
+  userId           Int
+  planId           Int
+  purchaseId       Int?
+  startAt          DateTime
+  endAt            DateTime
+  graceUntil       DateTime
+  remainingUnlocks Int
+  status           UserCoursePassStatus @default(ACTIVE)
+  canceledAt       DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan       CoursePlan    @relation(fields: [planId], references: [id], onDelete: Restrict)
+  unlockLogs PlanUnlockLog[]
+
+  @@index([userId, graceUntil])
+  @@index([userId, endAt])
+  @@index([userId, status])
+  @@index([planId])
+}
+
+model CoursePlanPayment {
+  id              Int                     @id @default(autoincrement())
+  userId          Int
+  planId          Int
+  provider        String                  @default("SEPAY") @db.VarChar(32)
+  status          CoursePlanPaymentStatus @default(PENDING)
+  amount          Int
+  transferCode    String                  @db.VarChar(64)
+  transferContent String                  @unique @db.VarChar(128)
+  paidAt          DateTime?
+  expiredAt       DateTime?
+  rawResponse     Json?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan CoursePlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([planId, createdAt])
+  @@index([status, expiredAt])
+}
+model CourseEntitlement {
+  id            Int                         @id @default(autoincrement())
+  userId        Int
+  courseId      Int
+  sourceType    CourseEntitlementSourceType
+  sourceId      Int?
+  accessStartAt DateTime                    @default(now())
+  accessEndAt   DateTime?
+  createdAt     DateTime                    @default(now())
+  updatedAt     DateTime                    @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId, sourceType, sourceId])
+  @@index([userId, courseId])
+  @@index([userId, accessEndAt])
+  @@index([sourceType, sourceId])
+}
+
+model PlanUnlockLog {
+  id         Int      @id @default(autoincrement())
+  passId     Int
+  userId     Int
+  courseId   Int
+  unlockedAt DateTime @default(now())
+
+  pass   UserCoursePass @relation(fields: [passId], references: [id], onDelete: Cascade)
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([passId, courseId])
+  @@index([userId, unlockedAt])
   @@index([courseId])
 }
 
@@ -612,7 +754,7 @@ model LessonProgress {
   completed    Boolean  @default(false)
   lastOpenedAt DateTime @default(now())
 
-  // tiến độ
+  // tiĂ„â€Ă‚Â¡Ä‚â€Ă‚ÂºÄ‚â€Ă‚Â¿n Ă„â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‹Å“Ă„â€Ă‚Â¡Ä‚â€Ă‚Â»Ä‚Â¢Ă¢â‚¬ÂĂ‚Â¢
   status          ProgressStatus @default(IN_PROGRESS)
   percent         Int            @default(0) // 0..100
   lastPositionSec Int            @default(0)
@@ -750,6 +892,24 @@ enum CourseAccessStatus {
   ACTIVE
   CANCELED
 }
+enum UserCoursePassStatus {
+  ACTIVE
+  GRACE
+  EXPIRED
+  CANCELED
+}
+
+enum CoursePlanPaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+}
+enum CourseEntitlementSourceType {
+  SINGLE_PURCHASE
+  PLAN_PASS
+  ADMIN_GRANT
+}
 
 enum OrderStatus {
   PENDING
@@ -760,7 +920,7 @@ enum OrderStatus {
 
 model Order {
   id          Int          @id @default(autoincrement())
-  code        String       @unique @db.VarChar(32) // mã đơn
+  code        String       @unique @db.VarChar(32) // mÄ‚â€Ă¢â‚¬ÂÄ‚â€Ă‚Â£ Ă„â€Ă¢â‚¬ÂÄ‚Â¢Ă¢â€Â¬Ă‹Å“Ă„â€Ă¢â‚¬Â Ä‚â€Ă‚Â¡n
   userId      Int
   status      OrderStatus  @default(PENDING)
   enrollments Enrollment[]
@@ -788,7 +948,7 @@ model OrderItem {
   courseId Int
 
   price       Int    @default(0)
-  courseTitle String @db.VarChar(255) // snapshot (khuyến nghị)
+  courseTitle String @db.VarChar(255) // snapshot (khuyĂ„â€Ă‚Â¡Ä‚â€Ă‚ÂºÄ‚â€Ă‚Â¿n nghĂ„â€Ă‚Â¡Ä‚â€Ă‚Â»Ä‚Â¢Ă¢â€Â¬Ă‚Â¹)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -863,7 +1023,7 @@ model CmsSectionVersion {
   id        Int       @id @default(autoincrement())
   sectionId Int
   locale    CmsLocale
-  status    CmsStatus // snapshot loại gì (draft/published)
+  status    CmsStatus // snapshot loĂ„â€Ă‚Â¡Ä‚â€Ă‚ÂºÄ‚â€Ă‚Â¡i gÄ‚â€Ă¢â‚¬ÂÄ‚â€Ă‚Â¬ (draft/published)
   data      Json
   note      String?   @db.VarChar(255)
   createdBy Int?
@@ -1318,3 +1478,6 @@ model ProductIngredient {
   @@index([productId, sortOrder], map: "idx_product_ingredient_sort")
   @@map("product_ingredients")
 }
+
+
+

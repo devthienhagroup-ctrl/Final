@@ -9,6 +9,10 @@ export type Course = {
   thumbnail: string | null;
   price: number;
   published: boolean;
+  objectives?: string[] | null;
+  targetAudience?: string[] | null;
+  benefits?: string[] | null;
+  enrollmentCount?: number;
   ratingAvg?: number;
   ratingCount?: number;
   _count?: { lessons: number };
@@ -17,7 +21,7 @@ export type Course = {
 export type Lesson = {
   id: number;
   title: string;
-  content: string | null; // thường outline sẽ null
+  content: string | null; // outline is usually null
   videoUrl: string | null;
   order: number;
 };

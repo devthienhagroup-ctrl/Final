@@ -57,13 +57,13 @@ export function OrdersMiniTable(props: {
         </div>
 
         <div className="flex gap-2">
-          <button
-            className="btn"
-            onClick={props.onOpenOrders}
-          >
-            <i className="fa-solid fa-receipt mr-1" />
-            Chi tiết
-          </button>
+          {/*<button*/}
+          {/*  className="btn"*/}
+          {/*  onClick={props.onOpenOrders}*/}
+          {/*>*/}
+          {/*  <i className="fa-solid fa-receipt mr-1" />*/}
+          {/*  Chi tiết*/}
+          {/*</button>*/}
         </div>
       </div>
 

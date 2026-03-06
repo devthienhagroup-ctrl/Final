@@ -1,11 +1,10 @@
-import React from "react";
-
 type Tone = "emerald" | "amber" | "cyan" | "indigo";
 
 export function KpiCard(props: {
   title: string;
   value: string;
   hint: string;
+  details?: string[];
   icon: string;
   tone: Tone;
 }) {
@@ -21,9 +20,14 @@ export function KpiCard(props: {
         <div>
           <div className="text-xs font-semibold text-slate-500">{props.title}</div>
           <div className="mt-2 text-3xl font-extrabold">{props.value}</div>
-          <div className="mt-2 text-sm text-slate-600 font-semibold">
-            {props.hint}
-          </div>
+          <div className="mt-2 text-sm text-slate-600 font-semibold">{props.hint}</div>
+          {props.details && props.details.length > 0 && (
+            <div className="mt-2 space-y-1 text-xs text-slate-500">
+              {props.details.map((line, index) => (
+                <div key={`${props.title}-${index}`}>{line}</div>
+              ))}
+            </div>
+          )}
         </div>
         <div className={`h-11 w-11 rounded-2xl flex items-center justify-center ${bg}`}>
           <i className={`fa-solid fa-${props.icon}`} />

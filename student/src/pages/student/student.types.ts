@@ -13,6 +13,15 @@ export type StudentCourse = {
   nextLessonTitle: string;
   nextLessonId?: number;
   active: boolean;
+  canAccess: boolean;
+  blockedReason?: string | null;
+  blockedMessage?: string | null;
+  upgradePlan?: {
+    id: number;
+    code: string;
+    name: string;
+    price: number;
+  } | null;
 };
 
 export type StudyPlanItem = {
@@ -22,3 +31,4 @@ export type StudyPlanItem = {
   time: string;
   done: boolean;
 };
+

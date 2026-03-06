@@ -19,7 +19,7 @@ export function StudentsProgressCard(props: {
           <div className="text-lg font-extrabold">Tiến độ học tập</div>
           <div className="mt-1 text-sm text-slate-600">Top 6 đang học.</div>
         </div>
-        <button className="btn" onClick={props.onOpenPortal}>Xem portal</button>
+        {/*<button className="btn" onClick={props.onOpenPortal}>Xem portal</button>*/}
       </div>
 
       <div className="mt-5 space-y-4">

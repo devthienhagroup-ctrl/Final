@@ -54,6 +54,30 @@ type HeaderCMSData = {
   loginButtonText: string;
   registerButtonText: string;
   languageOptions?: Array<{ code: string; label: string; flag: string }>;
+  cartButtonAriaLabel: string;
+  accountButtonText: string;
+  accountCenterText: string;
+  logoutButtonText: string;
+  mobileMenuButtonAriaLabel: string;
+  mobileMenuTitle: string;
+  mobileMenuCloseButtonAriaLabel: string;
+  loginSuccessMessage: string;
+  registerSuccessMessage: string;
+  permissionLabels: {
+    dashboardAdmin: string;
+    ordersRead: string;
+    roleRead: string;
+    spaServicesRead: string;
+    coursesRead: string;
+    reviewsRead: string;
+    blogsRead: string;
+    productsRead: string;
+    cmsRead: string;
+    cmsWrite: string;
+    instructorHome: string;
+    studentHome: string;
+    login: string;
+  };
 };
 
 const defaultCMSData: HeaderCMSData = {
@@ -76,12 +100,38 @@ const defaultCMSData: HeaderCMSData = {
   ],
   loginButtonText: "Đăng nhập",
   registerButtonText: "Đăng ký",
+  cartButtonAriaLabel: "Mở giỏ hàng mini",
+  accountButtonText: "Tài khoản",
+  accountCenterText: "Quản lý tài khoản",
+  logoutButtonText: "Đăng xuất",
+  mobileMenuButtonAriaLabel: "Mở menu",
+  mobileMenuTitle: "Menu",
+  mobileMenuCloseButtonAriaLabel: "Đóng menu",
+  loginSuccessMessage: "Đăng nhập thành công (prototype). Sau này bạn sẽ lưu token từ API.",
+  registerSuccessMessage: "Đăng ký thành công (prototype). Sau này bạn sẽ gọi API tạo user và gửi email xác thực.",
+  permissionLabels: {
+    dashboardAdmin: "Admin Dashboard",
+    ordersRead: "Quản lý đơn hàng",
+    roleRead: "Quản lý phân quyền",
+    spaServicesRead: "Quản lý dịch vụ Spa",
+    coursesRead: "Quản lý khóa học",
+    reviewsRead: "Quản lý đánh giá",
+    blogsRead: "Quản lý blog",
+    productsRead: "Quản lý sản phẩm",
+    cmsRead: "Quản lý CMS",
+    cmsWrite: "Quản lý CMS",
+    instructorHome: "Trang giảng viên",
+    studentHome: "Khóa học của tôi",
+    login: "Trang đăng nhập quản trị",
+  },
   languageOptions: [
     { code: "vi", label: "Tiếng Việt", flag: "fi-vn" },
     { code: "en", label: "English", flag: "fi-gb" },
     { code: "de", label: "Deutsch", flag: "fi-de" },
   ],
 };
+
+export const defaultCmsData = defaultCMSData;
 
 const CROSS_APP_SESSION_PARAM = "aya_session";
 const ADMIN_APP_BASE_URL = "http://localhost:5179";
@@ -104,45 +154,16 @@ const ROUTE_BY_PERMISSION = {
   login: "/login",
 } as const;
 
-const ROUTE_LABEL_BY_PERMISSION = {
-  dashboardAdmin: "Admin Dashboard",
-  ordersRead: "Quản lý đơn hàng",
-  roleRead: "Quản lý phân quyền",
-  spaServicesRead: "Quản lý dịch vụ Spa",
-  coursesRead: "Quản lý khóa học",
-  reviewsRead: "Quản lý đánh giá",
-  blogsRead: "Quản lý blog",
-  productsRead: "Quản lý sản phẩm",
-  cmsRead: "Quản lý CMS",
-  cmsWrite: "Quản lý CMS",
-  instructorHome: "Trang giảng viên",
-  studentHome: "Khóa học của tôi",
-  login: "Trang đăng nhập quản trị",
-} as const;
-
-
-const ADMIN_PERMISSION_ROUTE_MAP: Array<{ permission: string; path: string; label: string }> = [
-  { permission: "orders.read", path: ROUTE_BY_PERMISSION.ordersRead, label: ROUTE_LABEL_BY_PERMISSION.ordersRead },
-  { permission: "role.read", path: ROUTE_BY_PERMISSION.roleRead, label: ROUTE_LABEL_BY_PERMISSION.roleRead },
-  { permission: "spa_services.read", path: ROUTE_BY_PERMISSION.spaServicesRead, label: ROUTE_LABEL_BY_PERMISSION.spaServicesRead },
-  { permission: "courses.write", path: ROUTE_BY_PERMISSION.coursesRead, label: ROUTE_LABEL_BY_PERMISSION.coursesRead },
-  { permission: "reviews.read", path: ROUTE_BY_PERMISSION.reviewsRead, label: ROUTE_LABEL_BY_PERMISSION.reviewsRead },
-  { permission: "blogs.read", path: ROUTE_BY_PERMISSION.blogsRead, label: ROUTE_LABEL_BY_PERMISSION.blogsRead },
-  { permission: "products.read", path: ROUTE_BY_PERMISSION.productsRead, label: ROUTE_LABEL_BY_PERMISSION.productsRead },
-  { permission: "cms.read", path: ROUTE_BY_PERMISSION.cmsRead, label: ROUTE_LABEL_BY_PERMISSION.cmsRead },
-  { permission: "cms.write", path: ROUTE_BY_PERMISSION.cmsWrite, label: ROUTE_LABEL_BY_PERMISSION.cmsWrite },
-];
-
 function decodeJwtClaims(token: string): SessionClaims | null {
   try {
     const payload = token.split(".")[1];
     if (!payload) return null;
     const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
     const json = decodeURIComponent(
-      atob(normalized)
-        .split("")
-        .map((ch) => `%${(`00${ch.charCodeAt(0).toString(16)}`).slice(-2)}`)
-        .join(""),
+        atob(normalized)
+            .split("")
+            .map((ch) => `%${(`00${ch.charCodeAt(0).toString(16)}`).slice(-2)}`)
+            .join(""),
     );
     return JSON.parse(json) as SessionClaims;
   } catch {
@@ -154,68 +175,56 @@ function buildAppUrl(baseUrl: string, path: string) {
   return `${baseUrl}${path}`;
 }
 
-function resolveCoursesRoute(scopeType: ScopeType | null) {
-  if (scopeType === "COURSE") return buildAppUrl(INSTRUCTOR_APP_BASE_URL, ROUTE_BY_PERMISSION.instructorHome);
-  return buildAppUrl(ADMIN_APP_BASE_URL, ROUTE_BY_PERMISSION.coursesRead);
-}
-
-function resolveTargetByPermissions(permissions: string[], scopeType: ScopeType | null): PermissionDestination {
+function resolveTargetByPermissions(
+    permissions: string[],
+    permissionLabels: HeaderCMSData["permissionLabels"],
+): PermissionDestination {
   if (permissions.includes("dashboard.admin")) {
     return {
       targetPath: buildAppUrl(ADMIN_APP_BASE_URL, ROUTE_BY_PERMISSION.dashboardAdmin),
-      label: ROUTE_LABEL_BY_PERMISSION.dashboardAdmin,
+      label: permissionLabels.dashboardAdmin,
     };
   }
 
   if (permissions.includes("courses.write")) {
-    const isCourseScope = scopeType === "COURSE";
     return {
-      targetPath: resolveCoursesRoute(scopeType),
-      label: isCourseScope ? ROUTE_LABEL_BY_PERMISSION.instructorHome : ROUTE_LABEL_BY_PERMISSION.coursesRead,
+      targetPath: buildAppUrl(INSTRUCTOR_APP_BASE_URL, ROUTE_BY_PERMISSION.instructorHome),
+      label: permissionLabels.instructorHome,
     };
-  }
-
-  for (const route of ADMIN_PERMISSION_ROUTE_MAP) {
-    if (permissions.includes(route.permission)) {
-      return {
-        targetPath: buildAppUrl(ADMIN_APP_BASE_URL, route.path),
-        label: route.label,
-      };
-    }
   }
 
   if (permissions.includes("my_courses.read")) {
     return {
       targetPath: buildAppUrl(STUDENT_APP_BASE_URL, ROUTE_BY_PERMISSION.studentHome),
-      label: ROUTE_LABEL_BY_PERMISSION.studentHome,
+      label: permissionLabels.studentHome,
     };
   }
 
   return {
     targetPath: buildAppUrl(ADMIN_APP_BASE_URL, ROUTE_BY_PERMISSION.login),
-    label: ROUTE_LABEL_BY_PERMISSION.login,
+    label: permissionLabels.login,
   };
 }
 
 function buildCrossAppRedirectUrl(targetPath: string, accessToken: string, refreshToken: string, permissions: string[]) {
   const targetUrl = new URL(targetPath);
   const payload = btoa(
-    JSON.stringify({
-      accessToken,
-      refreshToken,
-      permissions,
-    }),
+      JSON.stringify({
+        accessToken,
+        refreshToken,
+        permissions,
+      }),
   );
   targetUrl.searchParams.set(CROSS_APP_SESSION_PARAM, payload);
   return targetUrl.toString();
 }
 
 export function Header({
-  brandHref = "/",
-  cmsData,
-  cmsAuth,
-  cmsSuccess,
-}: HeaderProps) {
+                         brandHref = "/",
+                         cmsData,
+                         cmsAuth,
+                         cmsSuccess,
+                       }: HeaderProps) {
   const cms: HeaderCMSData = useMemo(() => ({ ...defaultCMSData, ...(cmsData ?? {}) }), [cmsData]);
 
   const location = useLocation();
@@ -270,7 +279,7 @@ export function Header({
 
   const isPricingActive = useMemo(() => {
     return cms.pricingDropdownItems.some(
-      (item) => !("separator" in item) && location.pathname.startsWith(item.to),
+        (item) => !("separator" in item) && location.pathname.startsWith(item.to),
     );
   }, [location.pathname, cms.pricingDropdownItems]);
 
@@ -332,14 +341,14 @@ export function Header({
     setIsAuthenticated(true);
     setUserMenuOpen(null);
     setAuthOpen(false);
-    openSuccess("Đăng nhập thành công (prototype). Sau này bạn sẽ lưu token từ API.");
+    openSuccess(cms.loginSuccessMessage);
   };
 
   const handleRegisterSuccess = () => {
     setIsAuthenticated(true);
     setUserMenuOpen(null);
     setAuthOpen(false);
-    openSuccess("Đăng ký thành công (prototype). Sau này bạn sẽ gọi API tạo user và gửi email xác thực.");
+    openSuccess(cms.registerSuccessMessage);
   };
   const handleLogout = async () => {
 
@@ -384,15 +393,11 @@ export function Header({
     if (!accessToken || !refreshToken) return;
 
     const claims = decodeJwtClaims(accessToken);
-    const scope = claims?.scopeType;
-    const scopeType: ScopeType | null =
-      scope === "OWN" || scope === "BRANCH" || scope === "COURSE" || scope === "GLOBAL" ? scope : null;
-
     const permissions = Array.isArray(claims?.permissions)
-      ? claims.permissions.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean)
-      : [];
+        ? claims.permissions.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean)
+        : [];
 
-    const destination = resolveTargetByPermissions(permissions, scopeType);
+    const destination = resolveTargetByPermissions(permissions, cms.permissionLabels);
 
     setUserMenuOpen(null);
     setDrawerOpen(false);
@@ -401,419 +406,416 @@ export function Header({
 
   const goToPermissionLabel = useMemo(() => {
     const accessToken = localStorage.getItem("aya_access_token")?.trim() || "";
-    if (!accessToken) return ROUTE_LABEL_BY_PERMISSION.login;
+    if (!accessToken) return cms.permissionLabels.login;
 
     const claims = decodeJwtClaims(accessToken);
-    const scope = claims?.scopeType;
-    const scopeType: ScopeType | null =
-      scope === "OWN" || scope === "BRANCH" || scope === "COURSE" || scope === "GLOBAL" ? scope : null;
     const permissions = Array.isArray(claims?.permissions)
-      ? claims.permissions.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean)
-      : [];
+        ? claims.permissions.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean)
+        : [];
 
-    return resolveTargetByPermissions(permissions, scopeType).label;
-  }, [isAuthenticated]);
+    return resolveTargetByPermissions(permissions, cms.permissionLabels).label;
+  }, [isAuthenticated, cms.permissionLabels]);
 
   const languageOptions = cms.languageOptions ?? defaultCMSData.languageOptions!;
 
   return (
-    <>
-      <div
-        ref={rootRef}
-        className="sticky top-0 z-[80] border-b border-slate-200/60 bg-white/80 backdrop-blur-xl"
-      >
-        <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-3 px-4 py-3">
-          {/* Brand */}
-          <Link
-            to={brandHref}
-            className="flex min-w-[180px] items-center gap-3 transition-transform duration-300 hover:scale-[1.02]"
-          >
-            <div
-              className="flex h-10 w-10 items-center justify-center rounded-2xl font-black text-white shadow-lg transition-all duration-300 hover:shadow-xl hover:rotate-3"
-              // style={{
-              //   background: "linear-gradient(135deg,var(--aya-primary-1),var(--aya-primary-2))",
-              //   boxShadow: "0 12px 24px rgba(79,70,229,.22)",
-              // }}
+      <>
+        <div
+            ref={rootRef}
+            className="sticky top-0 z-[80] border-b border-slate-200/60 bg-white/80 backdrop-blur-xl"
+        >
+          <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-3 px-4 py-3">
+            {/* Brand */}
+            <Link
+                to={brandHref}
+                className="flex min-w-[180px] items-center gap-3 transition-transform duration-300 hover:scale-[1.02]"
             >
-              <img src={cms.brandLogoSrc} alt={cms.brandLogoAlt} className={cms.brandLogoClassName + ' rounded-full'} />
-            </div>
-            <div className="font-black tracking-[0.3px] text-slate-900">{cms.brandText}</div>
-          </Link>
-
-
-
-          {/* Desktop nav */}
-          <nav className="hidden flex-1 items-center justify-center gap-1 lg:flex">
-
-            {/* Pricing dropdown */}
-            <div className="relative">
-              <button
-                type="button"
-                className={`group inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[15px] font-extrabold transition-all duration-200 ${
-                  openDd === "pricing" || isPricingActive
-                    ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 border-indigo-200"
-                    : "border border-transparent text-slate-900 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md hover:scale-[1.02]"
-                }`}
-                aria-expanded={openDd === "pricing"}
-                onClick={() => toggleDd("pricing")}
+              <div
+                  className="flex h-10 w-10 items-center justify-center rounded-2xl font-black text-white shadow-lg transition-all duration-300 hover:shadow-xl hover:rotate-3"
+                  // style={{
+                  //   background: "linear-gradient(135deg,var(--aya-primary-1),var(--aya-primary-2))",
+                  //   boxShadow: "0 12px 24px rgba(79,70,229,.22)",
+                  // }}
               >
+                <img src={cms.brandLogoSrc} alt={cms.brandLogoAlt} className={cms.brandLogoClassName + ' rounded-full'} />
+              </div>
+              <div className="font-black tracking-[0.3px] text-slate-900">{cms.brandText}</div>
+            </Link>
+
+
+
+            {/* Desktop nav */}
+            <nav className="hidden flex-1 items-center justify-center gap-1 lg:flex">
+
+              {/* Pricing dropdown */}
+              <div className="relative">
+                <button
+                    type="button"
+                    className={`group inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[15px] font-extrabold transition-all duration-200 ${
+                        openDd === "pricing" || isPricingActive
+                            ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 border-indigo-200"
+                            : "border border-transparent text-slate-900 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md hover:scale-[1.02]"
+                    }`}
+                    aria-expanded={openDd === "pricing"}
+                    onClick={() => toggleDd("pricing")}
+                >
                 <span className="relative">
                   {cms.pricingDropdownLabel}
                   {(openDd === "pricing" || isPricingActive) && (
-                    <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" />
+                      <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" />
                   )}
                 </span>
-                <span
-                  className={`text-xs transition-transform duration-200 group-hover:translate-y-0.5 ${
-                    openDd === "pricing" ? "rotate-180" : ""
-                  }`}
-                >
+                  <span
+                      className={`text-xs transition-transform duration-200 group-hover:translate-y-0.5 ${
+                          openDd === "pricing" ? "rotate-180" : ""
+                      }`}
+                  >
                   ▾
                 </span>
-              </button>
+                </button>
 
-              {openDd === "pricing" && (
-                <div className="absolute left-0 top-full z-[60] min-w-[260px] animate-in fade-in slide-in-from-top-2 duration-200 rounded-2xl border border-slate-200/70 bg-white p-2 shadow-[0_18px_40px_rgba(2,6,23,.10)]">
-                  {cms.pricingDropdownItems.map((it, idx) =>
-                    "separator" in it ? (
-                      <div key={`sep-${idx}`} className="my-2 h-px bg-slate-200/70" />
-                    ) : (
-                      <Link
-                        key={it.to}
-                        to={it.to}
-                        className={`block rounded-xl px-3 py-2 font-extrabold transition-all duration-200 ${
-                          isActiveLink(it.to)
-                            ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700"
-                            : "text-slate-900 hover:bg-indigo-50 hover:text-indigo-700 hover:translate-x-1"
-                        }`}
-                        onClick={() => setOpenDd(null)}
-                      >
-                        {it.label}
-                      </Link>
-                    ),
-                  )}
-                </div>
-              )}
-            </div>
+                {openDd === "pricing" && (
+                    <div className="absolute left-0 top-full z-[60] min-w-[260px] animate-in fade-in slide-in-from-top-2 duration-200 rounded-2xl border border-slate-200/70 bg-white p-2 shadow-[0_18px_40px_rgba(2,6,23,.10)]">
+                      {cms.pricingDropdownItems.map((it, idx) =>
+                          "separator" in it ? (
+                              <div key={`sep-${idx}`} className="my-2 h-px bg-slate-200/70" />
+                          ) : (
+                              <Link
+                                  key={it.to}
+                                  to={it.to}
+                                  className={`block rounded-xl px-3 py-2 font-extrabold transition-all duration-200 ${
+                                      isActiveLink(it.to)
+                                          ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700"
+                                          : "text-slate-900 hover:bg-indigo-50 hover:text-indigo-700 hover:translate-x-1"
+                                  }`}
+                                  onClick={() => setOpenDd(null)}
+                              >
+                                {it.label}
+                              </Link>
+                          ),
+                      )}
+                    </div>
+                )}
+              </div>
 
-            {cms.navLinks.map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                className={`relative rounded-xl px-3 py-2 text-[15px] font-extrabold transition-all duration-200 ${
-                  isActiveLink(link.to)
-                    ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700"
-                    : "border border-transparent text-slate-900 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md hover:scale-[1.02]"
-                }`}
-              >
+              {cms.navLinks.map((link) => (
+                  <Link
+                      key={link.to}
+                      to={link.to}
+                      className={`relative rounded-xl px-3 py-2 text-[15px] font-extrabold transition-all duration-200 ${
+                          isActiveLink(link.to)
+                              ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700"
+                              : "border border-transparent text-slate-900 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md hover:scale-[1.02]"
+                      }`}
+                  >
                 <span className="relative">
                   {link.label}
                   {isActiveLink(link.to) && (
-                    <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" />
+                      <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" />
                   )}
                 </span>
-              </Link>
-            ))}
-          </nav>
+                  </Link>
+              ))}
+            </nav>
 
-          {/* Actions */}
-          <div className="flex min-w-fit items-center gap-2 lg:min-w-[260px] lg:justify-end">
-            <div
-              className="relative"
-              onMouseEnter={openMiniCart}
-              onMouseLeave={closeMiniCartWithDelay}
-            >
-              <button
-                type="button"
-                onClick={() => setMiniCartOpen((prev) => !prev)}
-                className="relative rounded-xl border px-3 py-2 text-sm font-semibold hover:bg-slate-50"
-                aria-expanded={miniCartOpen}
-                aria-label="Mở mini cart"
-              >
-                <i className="fa-solid fa-cart-shopping" />
-                {totalItems > 0 && <span className="absolute -top-2 -right-2 rounded-full bg-rose-500 px-2 py-0.5 text-[8px] text-white">{totalItems}</span>}
-              </button>
-
-              <div className="absolute right-0 top-[calc(100%+10px)] z-[80]">
-                <MiniCartModal open={miniCartOpen} onClose={() => setMiniCartOpen(false)} />
-              </div>
-            </div>
-            {/* Language (Desktop) */}
-            <div className="relative hidden sm:block">
-              <button
-                type="button"
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-lg transition-all duration-200 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md hover:scale-110"
-                onClick={() => setLangOpen(!langOpen)}
-              >
-                <span
-                  className={`fi ${
-                    languageOptions.find((opt) => opt.code === language)?.flag ?? "fi-vn"
-                  }`}
-                  style={{ width: 24, height: 18 }}
-                />
-              </button>
-
-              {langOpen && (
-                <div className="absolute right-0 top-full z-[60] min-w-[160px] animate-in fade-in slide-in-from-top-2 duration-200 rounded-2xl border border-slate-200/70 bg-white p-2 shadow-[0_18px_40px_rgba(2,6,23,.10)]">
-                  {languageOptions.map((opt) => (
-                    <button
-                      key={opt.code}
-                      className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left font-extrabold transition-all duration-200 ${
-                        language === opt.code
-                          ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700"
-                          : "text-slate-900 hover:bg-indigo-50 hover:text-indigo-700"
-                      }`}
-                      onClick={() => {
-                        setLanguage(opt.code as Language);
-                        setLangOpen(false);
-                      }}
-                    >
-                      <span className={`fi ${opt.flag} mr-2`} style={{ width: 20, height: 15 }} />
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {isAuthenticated ? (
+            {/* Actions */}
+            <div className="flex min-w-fit items-center gap-2 lg:min-w-[260px] lg:justify-end">
               <div
-                className="relative hidden sm:block"
-                onMouseEnter={() => setUserMenuOpen("desktop")}
-                onMouseLeave={() => setUserMenuOpen(null)}
+                  className="relative"
+                  onMouseEnter={openMiniCart}
+                  onMouseLeave={closeMiniCartWithDelay}
               >
                 <button
-                  type="button"
-                  className="inline-flex gap-2 items-center rounded-full border border-slate-200 bg-white px-4 py-2 font-black text-slate-900 transition-all duration-200 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md"
+                    type="button"
+                    onClick={() => setMiniCartOpen((prev) => !prev)}
+                    className="relative rounded-xl border px-3 py-2 text-sm font-semibold hover:bg-slate-50"
+                    aria-expanded={miniCartOpen}
+                    aria-label={cms.cartButtonAriaLabel}
                 >
-                  <i className="fa-solid fa-circle-user text-xl"></i> Tài khoản
+                  <i className="fa-solid fa-cart-shopping" />
+                  {totalItems > 0 && <span className="absolute -top-2 -right-2 rounded-full bg-rose-500 px-2 py-0.5 text-[8px] text-white">{totalItems}</span>}
                 </button>
 
-                {userMenuOpen === "desktop" && (
-                  <div className="absolute right-0 top-full z-[60] min-w-[220px] animate-in fade-in slide-in-from-top-2 duration-200 rounded-2xl border border-slate-200/70 bg-white p-2 shadow-[0_18px_40px_rgba(2,6,23,.10)]">
-                    <Link
-                      to="/account-center"
-                      className="block rounded-xl px-3 py-2 font-extrabold text-slate-900 transition-all duration-200 hover:bg-indigo-50 hover:text-indigo-700"
-                      onClick={() => setUserMenuOpen(null)}
-                    >
-                      <i className="fa-solid fa-address-book"></i> Quản lý tài khoản
-                    </Link>
-                    <button
-                      type="button"
-                      className="mt-1 block w-full rounded-xl px-3 py-2 text-left font-extrabold text-slate-900 transition-all duration-200 hover:bg-indigo-50 hover:text-indigo-700"
-                      onClick={handleGoToPermissionApp}
-                    >
-                      <i className="fa-solid fa-arrow-up-right-from-square"></i> {goToPermissionLabel}
-                    </button>
-                    <button
-                      type="button"
-                      className="mt-1 block w-full rounded-xl px-3 py-2 text-left font-extrabold text-slate-900 transition-all duration-200 hover:bg-rose-50 hover:text-rose-700"
-                      onClick={handleLogout}
-                    >
-                     <i className="fa-solid fa-person-walking-dashed-line-arrow-right"></i> Đăng xuất
-                    </button>
-                  </div>
+                <div className="absolute right-0 top-[calc(100%+10px)] z-[80]">
+                  <MiniCartModal open={miniCartOpen} onClose={() => setMiniCartOpen(false)} />
+                </div>
+              </div>
+              {/* Language (Desktop) */}
+              <div className="relative hidden sm:block">
+                <button
+                    type="button"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-lg transition-all duration-200 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md hover:scale-110"
+                    onClick={() => setLangOpen(!langOpen)}
+                >
+                <span
+                    className={`fi ${
+                        languageOptions.find((opt) => opt.code === language)?.flag ?? "fi-vn"
+                    }`}
+                    style={{ width: 24, height: 18 }}
+                />
+                </button>
+
+                {langOpen && (
+                    <div className="absolute right-0 top-full z-[60] min-w-[160px] animate-in fade-in slide-in-from-top-2 duration-200 rounded-2xl border border-slate-200/70 bg-white p-2 shadow-[0_18px_40px_rgba(2,6,23,.10)]">
+                      {languageOptions.map((opt) => (
+                          <button
+                              key={opt.code}
+                              className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left font-extrabold transition-all duration-200 ${
+                                  language === opt.code
+                                      ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700"
+                                      : "text-slate-900 hover:bg-indigo-50 hover:text-indigo-700"
+                              }`}
+                              onClick={() => {
+                                setLanguage(opt.code as Language);
+                                setLangOpen(false);
+                              }}
+                          >
+                            <span className={`fi ${opt.flag} mr-2`} style={{ width: 20, height: 15 }} />
+                            {opt.label}
+                          </button>
+                      ))}
+                    </div>
                 )}
               </div>
-            ) : (
-              <>
-                {/* Login */}
-                <button
-                  type="button"
-                  onClick={() => openAuth("login")}
-                  className="hidden rounded-full border border-slate-200 bg-white px-4 py-2 font-black text-slate-900 transition-all duration-200 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md hover:scale-[1.02] sm:inline-flex"
-                >
-                  {cms.loginButtonText}
-                </button>
 
-                {/* Register */}
-                <button
-                  type="button"
-                  onClick={() => openAuth("register")}
-                  className="hidden rounded-full px-4 py-2 font-black text-slate-900 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] hover:brightness-110 sm:inline-flex"
-                  style={{
-                    background: "linear-gradient(135deg,var(--aya-accent-1),var(--aya-accent-2))",
-                    border: "1px solid rgba(17,24,39,.10)",
-                  }}
-                >
-                  {cms.registerButtonText}
-                </button>
-              </>
-            )}
-
-            {/* Mobile burger */}
-            <button
-              type="button"
-              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white transition-all duration-200 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md hover:scale-110 lg:hidden"
-              aria-label="Open menu"
-              aria-expanded={drawerOpen}
-              onClick={() => setDrawerOpen((v) => !v)}
-            >
-              ☰
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Drawer */}
-        {drawerOpen && (
-          <div
-            className="fixed inset-0 z-[90] bg-slate-950/55 p-4 animate-in fade-in duration-200"
-            onMouseDown={(e) => {
-              if (e.target === e.currentTarget) setDrawerOpen(false);
-            }}
-          >
-            <div className="mx-auto max-w-[560px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(2,6,23,.25)] animate-in slide-in-from-top-4 duration-300">
-              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-                <div className="font-black text-slate-900">Menu</div>
-                <button
-                  type="button"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white transition-all duration-200 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:rotate-90 hover:shadow-md"
-                  aria-label="Close menu"
-                  onClick={() => setDrawerOpen(false)}
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="grid gap-2 p-4">
-
-                <details className="overflow-hidden rounded-2xl border border-slate-200">
-                  <summary className="cursor-pointer bg-slate-50 px-4 py-3 font-black transition-colors hover:bg-indigo-50 hover:text-indigo-700">
-                    {cms.pricingDropdownLabel}
-                  </summary>
-                  <div className="grid">
-                    {cms.pricingDropdownItems
-                      .filter((item): item is { label: string; to: string } => !("separator" in item))
-                      .map((it) => (
-                        <Link
-                          key={it.to}
-                          to={it.to}
-                          className={`border-t border-slate-200 px-4 py-3 font-extrabold transition-all duration-200 ${
-                            isActiveLink(it.to)
-                              ? "bg-indigo-50 text-indigo-700"
-                              : "text-slate-900 hover:bg-indigo-50 hover:text-indigo-700 hover:translate-x-1"
-                          }`}
-                          onClick={() => setDrawerOpen(false)}
-                        >
-                          {it.label}
-                        </Link>
-                      ))}
-                  </div>
-                </details>
-
-                {cms.navLinks.map((link) => (
-                  <Link
-                    key={link.to}
-                    to={link.to}
-                    className={`rounded-2xl border border-slate-200 px-4 py-3 font-black transition-all duration-200 ${
-                      isActiveLink(link.to)
-                        ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                        : "bg-slate-50 text-slate-900 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 hover:shadow-md hover:translate-x-1"
-                    }`}
-                    onClick={() => setDrawerOpen(false)}
+              {isAuthenticated ? (
+                  <div
+                      className="relative hidden sm:block"
+                      onMouseEnter={() => setUserMenuOpen("desktop")}
+                      onMouseLeave={() => setUserMenuOpen(null)}
                   >
-                    {link.label}
-                  </Link>
-                ))}
-
-                <div className="mt-2 grid grid-cols-3 gap-2 border-t border-slate-200 pt-2">
-                  {languageOptions.map((opt) => (
                     <button
-                      key={opt.code}
-                      className={`flex items-center justify-center gap-1 rounded-xl px-2 py-2 font-bold transition-all duration-200 ${
-                        language === opt.code
-                          ? "bg-indigo-50 text-indigo-700"
-                          : "bg-slate-50 text-slate-900 hover:bg-indigo-50 hover:text-indigo-700"
-                      }`}
-                      onClick={() => {
-                        setLanguage(opt.code as Language);
-                        setDrawerOpen(false);
-                      }}
+                        type="button"
+                        className="inline-flex gap-2 items-center rounded-full border border-slate-200 bg-white px-4 py-2 font-black text-slate-900 transition-all duration-200 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md"
                     >
-                      <span className={`fi ${opt.flag}`} style={{ width: 20, height: 15 }} />
-                      {opt.code.toUpperCase()}
+                      <i className="fa-solid fa-circle-user text-xl"></i> {cms.accountButtonText}
                     </button>
-                  ))}
-                </div>
 
-                <div className="mt-2 grid gap-2">
-                  {isAuthenticated ? (
-                    <>
-                      <Link
-                        to="/account-center"
-                        className="w-full rounded-full border border-slate-200 bg-white px-4 py-3 text-center font-black text-slate-900 transition-all duration-200 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
-                        onClick={() => setDrawerOpen(false)}
-                      >
-                        Quản lý tài khoản
-                      </Link>
-                      <button
+                    {userMenuOpen === "desktop" && (
+                        <div className="absolute right-0 top-full z-[60] min-w-[250px] animate-in fade-in slide-in-from-top-2 duration-200 rounded-2xl border border-slate-200/70 bg-white p-2 shadow-[0_18px_40px_rgba(2,6,23,.10)]">
+                          <Link
+                              to="/account-center"
+                              className="block rounded-xl px-3 py-2 font-extrabold text-slate-900 transition-all duration-200 hover:bg-indigo-50 hover:text-indigo-700"
+                              onClick={() => setUserMenuOpen(null)}
+                          >
+                            <i className="fa-solid fa-address-book"></i> {cms.accountCenterText}
+                          </Link>
+                          <button
+                              type="button"
+                              className="mt-1 block w-full rounded-xl px-3 py-2 text-left font-extrabold text-slate-900 transition-all duration-200 hover:bg-indigo-50 hover:text-indigo-700"
+                              onClick={handleGoToPermissionApp}
+                          >
+                            <i className="fa-solid fa-arrow-up-right-from-square"></i> {goToPermissionLabel}
+                          </button>
+                          <button
+                              type="button"
+                              className="mt-1 block w-full rounded-xl px-3 py-2 text-left font-extrabold text-slate-900 transition-all duration-200 hover:bg-rose-50 hover:text-rose-700"
+                              onClick={handleLogout}
+                          >
+                            <i className="fa-solid fa-person-walking-dashed-line-arrow-right"></i> {cms.logoutButtonText}
+                          </button>
+                        </div>
+                    )}
+                  </div>
+              ) : (
+                  <>
+                    {/* Login */}
+                    <button
                         type="button"
-                        onClick={handleGoToPermissionApp}
-                        className="w-full rounded-full border border-indigo-200 bg-indigo-50 px-4 py-3 font-black text-indigo-700 transition-all duration-200 hover:bg-indigo-100"
-                      >
-                        {goToPermissionLabel}
-                      </button>
-                      <button
+                        onClick={() => openAuth("login")}
+                        className="hidden rounded-full border border-slate-200 bg-white px-4 py-2 font-black text-slate-900 transition-all duration-200 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md hover:scale-[1.02] sm:inline-flex"
+                    >
+                      {cms.loginButtonText}
+                    </button>
+
+                    {/* Register */}
+                    <button
                         type="button"
-                        onClick={handleLogout}
-                        className="w-full rounded-full border border-rose-200 bg-rose-50 px-4 py-3 font-black text-rose-700 transition-all duration-200 hover:bg-rose-100"
-                      >
-                        Đăng xuất
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDrawerOpen(false);
-                          openAuth("login");
-                        }}
-                        className="w-full rounded-full border border-slate-200 bg-white px-4 py-3 font-black text-slate-900 transition-all duration-200 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md hover:scale-[1.02]"
-                      >
-                        {cms.loginButtonText}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDrawerOpen(false);
-                          openAuth("register");
-                        }}
-                        className="w-full rounded-full px-4 py-3 font-black text-slate-900 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] hover:brightness-110"
+                        onClick={() => openAuth("register")}
+                        className="hidden rounded-full px-4 py-2 font-black text-slate-900 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] hover:brightness-110 sm:inline-flex"
                         style={{
                           background: "linear-gradient(135deg,var(--aya-accent-1),var(--aya-accent-2))",
                           border: "1px solid rgba(17,24,39,.10)",
                         }}
-                      >
-                        {cms.registerButtonText}
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
+                    >
+                      {cms.registerButtonText}
+                    </button>
+                  </>
+              )}
+
+              {/* Mobile burger */}
+              <button
+                  type="button"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white transition-all duration-200 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md hover:scale-110 lg:hidden"
+                  aria-label={cms.mobileMenuButtonAriaLabel}
+                  aria-expanded={drawerOpen}
+                  onClick={() => setDrawerOpen((v) => !v)}
+              >
+                ☰
+              </button>
             </div>
           </div>
-        )}
-      </div>
 
-      {/* ✅ CHỈ TRUYỀN CMS XUỐNG */}
-      <AuthModal
-        open={authOpen}
-        tab={authTab}
-        onClose={() => setAuthOpen(false)}
-        onSwitchTab={setAuthTab}
-        onLoginSuccess={handleLoginSuccess}
-        onRegisterSuccess={handleRegisterSuccess}
-        cmsData={cmsAuth}
-      />
+          {/* Mobile Drawer */}
+          {drawerOpen && (
+              <div
+                  className="fixed inset-0 z-[90] bg-slate-950/55 p-4 animate-in fade-in duration-200"
+                  onMouseDown={(e) => {
+                    if (e.target === e.currentTarget) setDrawerOpen(false);
+                  }}
+              >
+                <div className="mx-auto max-w-[560px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(2,6,23,.25)] animate-in slide-in-from-top-4 duration-300">
+                  <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+                    <div className="font-black text-slate-900">{cms.mobileMenuTitle}</div>
+                    <button
+                        type="button"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white transition-all duration-200 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:rotate-90 hover:shadow-md"
+                        aria-label={cms.mobileMenuCloseButtonAriaLabel}
+                        onClick={() => setDrawerOpen(false)}
+                    >
+                      ✕
+                    </button>
+                  </div>
 
-      <SuccessModal
-        open={success.open}
-        message={""}
-        onClose={() => setSuccess({ open: false, message: "" })}
-        cmsData={cmsSuccess}
-      />
+                  <div className="grid gap-2 p-4">
 
-    </>
+                    <details className="overflow-hidden rounded-2xl border border-slate-200">
+                      <summary className="cursor-pointer bg-slate-50 px-4 py-3 font-black transition-colors hover:bg-indigo-50 hover:text-indigo-700">
+                        {cms.pricingDropdownLabel}
+                      </summary>
+                      <div className="grid">
+                        {cms.pricingDropdownItems
+                            .filter((item): item is { label: string; to: string } => !("separator" in item))
+                            .map((it) => (
+                                <Link
+                                    key={it.to}
+                                    to={it.to}
+                                    className={`border-t border-slate-200 px-4 py-3 font-extrabold transition-all duration-200 ${
+                                        isActiveLink(it.to)
+                                            ? "bg-indigo-50 text-indigo-700"
+                                            : "text-slate-900 hover:bg-indigo-50 hover:text-indigo-700 hover:translate-x-1"
+                                    }`}
+                                    onClick={() => setDrawerOpen(false)}
+                                >
+                                  {it.label}
+                                </Link>
+                            ))}
+                      </div>
+                    </details>
+
+                    {cms.navLinks.map((link) => (
+                        <Link
+                            key={link.to}
+                            to={link.to}
+                            className={`rounded-2xl border border-slate-200 px-4 py-3 font-black transition-all duration-200 ${
+                                isActiveLink(link.to)
+                                    ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                    : "bg-slate-50 text-slate-900 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 hover:shadow-md hover:translate-x-1"
+                            }`}
+                            onClick={() => setDrawerOpen(false)}
+                        >
+                          {link.label}
+                        </Link>
+                    ))}
+
+                    <div className="mt-2 grid grid-cols-3 gap-2 border-t border-slate-200 pt-2">
+                      {languageOptions.map((opt) => (
+                          <button
+                              key={opt.code}
+                              className={`flex items-center justify-center gap-1 rounded-xl px-2 py-2 font-bold transition-all duration-200 ${
+                                  language === opt.code
+                                      ? "bg-indigo-50 text-indigo-700"
+                                      : "bg-slate-50 text-slate-900 hover:bg-indigo-50 hover:text-indigo-700"
+                              }`}
+                              onClick={() => {
+                                setLanguage(opt.code as Language);
+                                setDrawerOpen(false);
+                              }}
+                          >
+                            <span className={`fi ${opt.flag}`} style={{ width: 20, height: 15 }} />
+                            {opt.code.toUpperCase()}
+                          </button>
+                      ))}
+                    </div>
+
+                    <div className="mt-2 grid gap-2">
+                      {isAuthenticated ? (
+                          <>
+                            <Link
+                                to="/account-center"
+                                className="w-full rounded-full border border-slate-200 bg-white px-4 py-3 text-center font-black text-slate-900 transition-all duration-200 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+                                onClick={() => setDrawerOpen(false)}
+                            >
+                              {cms.accountCenterText}
+                            </Link>
+                            <button
+                                type="button"
+                                onClick={handleGoToPermissionApp}
+                                className="w-full rounded-full border border-indigo-200 bg-indigo-50 px-4 py-3 font-black text-indigo-700 transition-all duration-200 hover:bg-indigo-100"
+                            >
+                              {goToPermissionLabel}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleLogout}
+                                className="w-full rounded-full border border-rose-200 bg-rose-50 px-4 py-3 font-black text-rose-700 transition-all duration-200 hover:bg-rose-100"
+                            >
+                              {cms.logoutButtonText}
+                            </button>
+                          </>
+                      ) : (
+                          <>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                  setDrawerOpen(false);
+                                  openAuth("login");
+                                }}
+                                className="w-full rounded-full border border-slate-200 bg-white px-4 py-3 font-black text-slate-900 transition-all duration-200 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md hover:scale-[1.02]"
+                            >
+                              {cms.loginButtonText}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                  setDrawerOpen(false);
+                                  openAuth("register");
+                                }}
+                                className="w-full rounded-full px-4 py-3 font-black text-slate-900 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] hover:brightness-110"
+                                style={{
+                                  background: "linear-gradient(135deg,var(--aya-accent-1),var(--aya-accent-2))",
+                                  border: "1px solid rgba(17,24,39,.10)",
+                                }}
+                            >
+                              {cms.registerButtonText}
+                            </button>
+                          </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+          )}
+        </div>
+
+        {/* ✅ CHỈ TRUYỀN CMS XUỐNG */}
+        <AuthModal
+            open={authOpen}
+            tab={authTab}
+            onClose={() => setAuthOpen(false)}
+            onSwitchTab={setAuthTab}
+            onLoginSuccess={handleLoginSuccess}
+            onRegisterSuccess={handleRegisterSuccess}
+            cmsData={cmsAuth}
+        />
+
+        <SuccessModal
+            open={success.open}
+            message={success.message}
+            onClose={() => setSuccess({ open: false, message: "" })}
+            cmsData={cmsSuccess}
+        />
+
+      </>
   );
 }

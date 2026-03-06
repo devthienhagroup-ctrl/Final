@@ -14,6 +14,7 @@ import { BlogAdminPage } from "../admin/pages/BlogAdminPage";
 import { ProductAdminListPage } from "../admin/pages/ProductAdminListPage";
 import { ProductAdminDetailPage } from "../admin/pages/ProductAdminDetailPage";
 import { AdminUserManagementPage } from '../pages/admin/AdminUserManagementPage'
+import { CoursePlansAdminPage } from '../pages/admin/CoursePlansAdminPage'
 import { ErrorStatusPage } from '../pages/ErrorStatusPage';
 
 
@@ -68,23 +69,24 @@ export function AppRoutes() {
             <Route path="/login" element={<LoginPage />} />
 
             <Route element={<RequireAuth />}>
-                <Route path="/admin/orders" element={<RequirePermission permission="orders.read"><OrderAdminPage /></RequirePermission>} />
+                <Route path="/admin/orders" element={<RequirePermission permission="orders.write"><OrderAdminPage /></RequirePermission>} />
                 <Route
                     path="/admin/rbac"
                     element={
-                        <RequirePermission permission="role.read">
+                        <RequirePermission permission="role.write">
                             <Navigate to="/admin/rbac/rbac" replace />
                         </RequirePermission>
                     }
                 />
-                <Route path="/admin/rbac/:tab" element={<RequirePermission permission="role.read"><AdminRbacPage /></RequirePermission>} />
-                <Route path="/admin/services" element={<RequirePermission permission="spa_services.read"><AdminSpaPage /></RequirePermission>} />
+                <Route path="/admin/rbac/:tab" element={<RequirePermission permission="role.write"><AdminRbacPage /></RequirePermission>} />
+                <Route path="/admin/services" element={<RequirePermission permission="spa_services.write"><AdminSpaPage /></RequirePermission>} />
                 <Route path="/admin/courses" element={<RequirePermission permission="courses.read"><AdminCoursesPage /></RequirePermission>} />
-                <Route path="/admin/reviews" element={<RequirePermission permission="reviews.read"><ReviewsAdminPage /></RequirePermission>} />
-                <Route path="/admin/blog" element={<RequirePermission permission="blogs.read"><BlogAdminPage /></RequirePermission>} />
-                <Route path="/admin/product" element={<RequirePermission permission="products.read"><ProductAdminListPage /></RequirePermission>} />
-                <Route path="/admin/product/:productId" element={<RequirePermission permission="products.read"><ProductAdminDetailPage /></RequirePermission>} />
-                <Route path="/admin/users" element={<RequirePermission permission="role.read"><AdminUserManagementPage /></RequirePermission>} />
+                <Route path="/admin/reviews" element={<RequirePermission permission="reviews.write"><ReviewsAdminPage /></RequirePermission>} />
+                <Route path="/admin/blog" element={<RequirePermission permission="blogs.write"><BlogAdminPage /></RequirePermission>} />
+                <Route path="/admin/product" element={<RequirePermission permission="products.write"><ProductAdminListPage /></RequirePermission>} />
+                <Route path="/admin/product/:productId" element={<RequirePermission permission="products.write"><ProductAdminDetailPage /></RequirePermission>} />
+                <Route path="/admin/users" element={<RequirePermission permission="role.write"><AdminUserManagementPage /></RequirePermission>} />
+                <Route path="/admin/course-plans" element={<RequirePermission permission="packages.read"><CoursePlansAdminPage /></RequirePermission>} />
                 <Route path="/admin/dashboard" element={<RequirePermission permission="dashboard.admin"><AdminDashboardPage /></RequirePermission>} />
                 <Route
                     path="/admin/cms"
@@ -101,3 +103,4 @@ export function AppRoutes() {
     );
 
 }
+

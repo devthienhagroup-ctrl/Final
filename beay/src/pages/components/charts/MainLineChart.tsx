@@ -6,11 +6,20 @@ export type MainChartMode = "revenue" | "orders";
 type MainLineChartProps = {
   mode: MainChartMode;
   labels: string[];
-  revenueData: number[];
+  courseRevenueData: number[];
+  productRevenueData: number[];
+  packageRevenueData: number[];
   orderData: number[];
 };
 
-export function MainLineChart({ mode, labels, revenueData, orderData }: MainLineChartProps) {
+export function MainLineChart({
+  mode,
+  labels,
+  courseRevenueData,
+  productRevenueData,
+  packageRevenueData,
+  orderData,
+}: MainLineChartProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartRef = useRef<Chart | null>(null);
 
@@ -21,24 +30,65 @@ export function MainLineChart({ mode, labels, revenueData, orderData }: MainLine
     chartRef.current?.destroy();
     chartRef.current = null;
 
+    const datasets =
+      mode === "revenue"
+        ? [
+            {
+              label: "Khóa học",
+              data: courseRevenueData,
+              borderColor: "#2563eb",
+              backgroundColor: "rgba(37, 99, 235, 0.12)",
+              borderWidth: 2,
+              tension: 0.35,
+              pointRadius: 2,
+              fill: false,
+            },
+            {
+              label: "Sản phẩm thành công",
+              data: productRevenueData,
+              borderColor: "#16a34a",
+              backgroundColor: "rgba(22, 163, 74, 0.12)",
+              borderWidth: 2,
+              tension: 0.35,
+              pointRadius: 2,
+              fill: false,
+            },
+            {
+              label: "Gói dịch vụ",
+              data: packageRevenueData,
+              borderColor: "#f59e0b",
+              backgroundColor: "rgba(245, 158, 11, 0.12)",
+              borderWidth: 2,
+              tension: 0.35,
+              pointRadius: 2,
+              fill: false,
+            },
+          ]
+        : [
+            {
+              label: "Đơn hàng",
+              data: orderData,
+              borderWidth: 2,
+              tension: 0.35,
+              pointRadius: 2,
+              fill: true,
+            },
+          ];
+
     const cfg: ChartConfiguration<"line"> = {
       type: "line",
       data: {
         labels,
-        datasets: [
-          {
-            label: mode === "revenue" ? "Doanh thu" : "Đơn hàng",
-            data: mode === "revenue" ? revenueData : orderData,
-            borderWidth: 2,
-            tension: 0.35,
-            pointRadius: 2,
-            fill: true,
-          },
-        ],
+        datasets,
       },
       options: {
         responsive: true,
-        plugins: { legend: { display: false } },
+        plugins: {
+          legend: {
+            display: mode === "revenue",
+            position: "bottom",
+          },
+        },
         scales: {
           y: {
             ticks: {
@@ -62,7 +112,7 @@ export function MainLineChart({ mode, labels, revenueData, orderData }: MainLine
       chartRef.current?.destroy();
       chartRef.current = null;
     };
-  }, [labels, mode, orderData, revenueData]);
+  }, [courseRevenueData, labels, mode, orderData, packageRevenueData, productRevenueData]);
 
   return <canvas ref={canvasRef} height={120} />;
 }

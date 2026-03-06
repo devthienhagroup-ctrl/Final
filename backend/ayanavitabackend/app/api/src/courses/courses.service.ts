@@ -46,6 +46,13 @@ export class CoursesService {
     updatedAt: true,
     creatorId: true,
     creator: { select: { id: true, name: true, email: true } },
+    tagLinks: {
+      select: {
+        tagId: true,
+        tag: { select: { id: true, code: true, name: true } },
+      },
+      orderBy: { tagId: 'asc' },
+    },
     _count: { select: { lessons: true } },
   } as const
 
@@ -125,6 +132,32 @@ export class CoursesService {
     }
   }
 
+  private async buildActiveEnrollmentCountMap(courseIds: number[]) {
+    if (!courseIds.length) return new Map<number, number>()
+
+    const now = new Date()
+    const rows = await this.prisma.$queryRaw<Array<{ courseId: number; enrollmentCount: bigint | number }>>(
+      Prisma.sql`
+        SELECT active.courseId as courseId, COUNT(*) as enrollmentCount
+        FROM (
+          SELECT ca.courseId, ca.userId
+          FROM CourseAccess ca
+          WHERE ca.status = ${CourseAccessStatus.ACTIVE}
+            AND ca.courseId IN (${Prisma.join(courseIds)})
+          UNION
+          SELECT ce.courseId, ce.userId
+          FROM CourseEntitlement ce
+          WHERE ce.courseId IN (${Prisma.join(courseIds)})
+            AND ce.accessStartAt <= ${now}
+            AND (ce.accessEndAt IS NULL OR ce.accessEndAt > ${now})
+        ) active
+        GROUP BY active.courseId
+      `,
+    )
+
+    return new Map(rows.map((row) => [Number(row.courseId), Number(row.enrollmentCount)]))
+  }
+
   async lessonsOutline(user: JwtUser, courseId: number, lang?: string) {
     const lessonLocale = this.resolveCourseLocale(lang)
     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, published: true } })
@@ -184,14 +217,17 @@ export class CoursesService {
     ])
     const courseIds = rows.map((r) => r.id)
     if (!courseIds.length) return { items: [], total, page, pageSize }
-    const videoRows = await this.prisma.$queryRaw<Array<{ courseId: number; videoCount: bigint | number }>>`SELECT l.courseId as courseId, COUNT(v.id) as videoCount FROM LessonVideo v INNER JOIN LessonModule m ON m.id = v.moduleId INNER JOIN Lesson l ON l.id = m.lessonId WHERE l.courseId IN (${Prisma.join(courseIds)}) GROUP BY l.courseId`
+    const [videoRows, enrollmentCountMap] = await Promise.all([
+      this.prisma.$queryRaw<Array<{ courseId: number; videoCount: bigint | number }>>`SELECT l.courseId as courseId, COUNT(v.id) as videoCount FROM LessonVideo v INNER JOIN LessonModule m ON m.id = v.moduleId INNER JOIN Lesson l ON l.id = m.lessonId WHERE l.courseId IN (${Prisma.join(courseIds)}) GROUP BY l.courseId`,
+      this.buildActiveEnrollmentCountMap(courseIds),
+    ])
     const videoCountMap = new Map(videoRows.map((r) => [Number(r.courseId), Number(r.videoCount)]))
     const items = rows.map((row: any) => {
       const tr = row.translations?.find((x: any) => x.locale === courseLocale) || row.translations?.find((x: any) => x.locale === 'vi')
       const ct = row.translations?.find((x: any) => x.locale === courseLocale) || row.translations?.find((x: any) => x.locale === 'vi')
       const legacyCt = row.contentTranslations?.find((x: any) => x.locale === courseLocale) || row.contentTranslations?.find((x: any) => x.locale === 'vi')
       const tt = row.topic?.translations?.find((x: any) => x.locale === topicLocale) || row.topic?.translations?.find((x: any) => x.locale === 'vi')
-      return { ...row, title: tr?.title || row.title, shortDescription: tr?.shortDescription || row.shortDescription, description: tr?.description || row.description, objectives: ct?.objectives || legacyCt?.objectives || row.objectives, targetAudience: ct?.targetAudience || legacyCt?.targetAudience || row.targetAudience, benefits: ct?.benefits || legacyCt?.benefits || row.benefits, topic: row.topic ? { id: row.topic.id, name: tt?.name || row.topic.name } : null, videoCount: videoCountMap.get(row.id) || 0 }
+      return { ...row, title: tr?.title || row.title, shortDescription: tr?.shortDescription || row.shortDescription, description: tr?.description || row.description, objectives: ct?.objectives || legacyCt?.objectives || row.objectives, targetAudience: ct?.targetAudience || legacyCt?.targetAudience || row.targetAudience, benefits: ct?.benefits || legacyCt?.benefits || row.benefits, topic: row.topic ? { id: row.topic.id, name: tt?.name || row.topic.name } : null, videoCount: videoCountMap.get(row.id) || 0, enrollmentCount: enrollmentCountMap.get(row.id) || 0 }
     })
     return { items, total, page, pageSize }
   }
@@ -249,13 +285,16 @@ export class CoursesService {
     const legacyCt = (c as any).contentTranslations?.find((x: any) => x.locale === courseLocale) || (c as any).contentTranslations?.find((x: any) => x.locale === 'vi')
     const tt = (c as any).topic?.translations?.find((x: any) => x.locale === courseLocale) || (c as any).topic?.translations?.find((x: any) => x.locale === 'vi')
 
-    const videoRows = await this.prisma.$queryRaw<Array<{ videoCount: bigint | number }>>`
-      SELECT COUNT(v.id) as videoCount
-      FROM LessonVideo v
-      INNER JOIN LessonModule m ON m.id = v.moduleId
-      INNER JOIN Lesson l ON l.id = m.lessonId
-      WHERE l.courseId = ${id}
-    `
+    const [videoRows, enrollmentCountMap] = await Promise.all([
+      this.prisma.$queryRaw<Array<{ videoCount: bigint | number }>>`
+        SELECT COUNT(v.id) as videoCount
+        FROM LessonVideo v
+        INNER JOIN LessonModule m ON m.id = v.moduleId
+        INNER JOIN Lesson l ON l.id = m.lessonId
+        WHERE l.courseId = ${id}
+      `,
+      this.buildActiveEnrollmentCountMap([id]),
+    ])
 
     return {
       ...c,
@@ -266,6 +305,7 @@ export class CoursesService {
       targetAudience: ct?.targetAudience || legacyCt?.targetAudience || c.targetAudience,
       benefits: ct?.benefits || legacyCt?.benefits || c.benefits,
       topic: (c as any).topic ? { id: (c as any).topic.id, name: tt?.name || (c as any).topic.name } : null,
+      enrollmentCount: enrollmentCountMap.get(id) || 0,
       videoCount: Number(videoRows[0]?.videoCount || 0),
     }
   }
@@ -343,14 +383,17 @@ export class CoursesService {
     ])
     const courseIds = rows.map((r) => r.id)
     if (!courseIds.length) return { items: [], total, page, pageSize }
-    const videoRows = await this.prisma.$queryRaw<Array<{ courseId: number; videoCount: bigint | number }>>`SELECT l.courseId as courseId, COUNT(v.id) as videoCount FROM LessonVideo v INNER JOIN LessonModule m ON m.id = v.moduleId INNER JOIN Lesson l ON l.id = m.lessonId WHERE l.courseId IN (${Prisma.join(courseIds)}) GROUP BY l.courseId`
+    const [videoRows, enrollmentCountMap] = await Promise.all([
+      this.prisma.$queryRaw<Array<{ courseId: number; videoCount: bigint | number }>>`SELECT l.courseId as courseId, COUNT(v.id) as videoCount FROM LessonVideo v INNER JOIN LessonModule m ON m.id = v.moduleId INNER JOIN Lesson l ON l.id = m.lessonId WHERE l.courseId IN (${Prisma.join(courseIds)}) GROUP BY l.courseId`,
+      this.buildActiveEnrollmentCountMap(courseIds),
+    ])
     const videoCountMap = new Map(videoRows.map((r) => [Number(r.courseId), Number(r.videoCount)]))
     const items = rows.map((row: any) => {
       const tr = row.translations?.find((x: any) => x.locale === courseLocale) || row.translations?.find((x: any) => x.locale === 'vi')
       const ct = row.translations?.find((x: any) => x.locale === courseLocale) || row.translations?.find((x: any) => x.locale === 'vi')
       const legacyCt = row.contentTranslations?.find((x: any) => x.locale === courseLocale) || row.contentTranslations?.find((x: any) => x.locale === 'vi')
       const tt = row.topic?.translations?.find((x: any) => x.locale === topicLocale) || row.topic?.translations?.find((x: any) => x.locale === 'vi')
-      return { ...row, title: tr?.title || row.title, shortDescription: tr?.shortDescription || row.shortDescription, description: tr?.description || row.description, objectives: ct?.objectives || legacyCt?.objectives || row.objectives, targetAudience: ct?.targetAudience || legacyCt?.targetAudience || row.targetAudience, benefits: ct?.benefits || legacyCt?.benefits || row.benefits, topic: row.topic ? { id: row.topic.id, name: tt?.name || row.topic.name } : null, videoCount: videoCountMap.get(row.id) || 0 }
+      return { ...row, title: tr?.title || row.title, shortDescription: tr?.shortDescription || row.shortDescription, description: tr?.description || row.description, objectives: ct?.objectives || legacyCt?.objectives || row.objectives, targetAudience: ct?.targetAudience || legacyCt?.targetAudience || row.targetAudience, benefits: ct?.benefits || legacyCt?.benefits || row.benefits, topic: row.topic ? { id: row.topic.id, name: tt?.name || row.topic.name } : null, videoCount: videoCountMap.get(row.id) || 0, enrollmentCount: enrollmentCountMap.get(row.id) || 0 }
     })
     return { items, total, page, pageSize }
   }
@@ -414,7 +457,7 @@ export class CoursesService {
       comment: row.comment,
       userName: row.user?.name || null,
       email: row.user?.email || null,
-      customerName: row.customerName || row.user?.name || row.user?.email || 'Học viên',
+      customerName: row.customerName || row.user?.name || row.user?.email || 'H\u1ecdc vi\u00ean',
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     }))
@@ -462,20 +505,61 @@ export class CoursesService {
     })
     if (!course) throw new NotFoundException('Course not found')
 
-    const accesses = await this.prisma.courseAccess.findMany({
-      where: { courseId, status: CourseAccessStatus.ACTIVE },
-      select: {
-        id: true,
-        userId: true,
-        grantedAt: true,
-        user: { select: { name: true, email: true, phone: true } },
-      },
-      orderBy: { grantedAt: 'desc' },
-    })
+    const now = new Date()
+    const [accesses, entitlements] = await Promise.all([
+      this.prisma.courseAccess.findMany({
+        where: { courseId, status: CourseAccessStatus.ACTIVE },
+        select: {
+          id: true,
+          userId: true,
+          grantedAt: true,
+          user: { select: { name: true, email: true, phone: true } },
+        },
+        orderBy: { grantedAt: 'desc' },
+      }),
+      this.prisma.courseEntitlement.findMany({
+        where: {
+          courseId,
+          accessStartAt: { lte: now },
+          OR: [{ accessEndAt: null }, { accessEndAt: { gt: now } }],
+        },
+        select: {
+          id: true,
+          userId: true,
+          accessStartAt: true,
+          user: { select: { name: true, email: true, phone: true } },
+        },
+        orderBy: { accessStartAt: 'desc' },
+      }),
+    ])
 
-    if (!accesses.length) return []
+    const merged = new Map<number, { id: number; userId: number; grantedAt: Date; user: { name: string | null; email: string | null; phone: string | null } | null }>()
 
-    const userIds = accesses.map((item) => item.userId)
+    for (const item of accesses) {
+      merged.set(item.userId, {
+        id: item.id,
+        userId: item.userId,
+        grantedAt: item.grantedAt,
+        user: item.user,
+      })
+    }
+
+    for (const item of entitlements) {
+      const existing = merged.get(item.userId)
+      if (!existing || existing.grantedAt < item.accessStartAt) {
+        merged.set(item.userId, {
+          id: item.id,
+          userId: item.userId,
+          grantedAt: item.accessStartAt,
+          user: item.user,
+        })
+      }
+    }
+
+    const studentRows = Array.from(merged.values()).sort((a, b) => b.grantedAt.getTime() - a.grantedAt.getTime())
+    if (!studentRows.length) return []
+
+    const userIds = studentRows.map((item) => item.userId)
     const totalLessons = await this.prisma.lesson.count({ where: { courseId, published: true } })
 
     const progressRows = await this.prisma.lessonProgress.findMany({
@@ -492,7 +576,7 @@ export class CoursesService {
       completedByUser.set(row.userId, (completedByUser.get(row.userId) || 0) + 1)
     }
 
-    return accesses.map((item) => {
+    return studentRows.map((item) => {
       const completedLessons = completedByUser.get(item.userId) || 0
       const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0
       return {
@@ -520,7 +604,7 @@ export class CoursesService {
       select: { name: true, email: true },
     })
 
-    const customerName = dto.customerName?.trim() || profile?.name || profile?.email || 'Học viên'
+    const customerName = dto.customerName?.trim() || profile?.name || profile?.email || 'H\u1ecdc vi\u00ean'
     const comment = dto.comment?.trim() || null
 
     const existing = await this.prisma.courseReview.findFirst({
@@ -528,17 +612,13 @@ export class CoursesService {
       select: { id: true },
     })
 
+    if (existing) throw new ConflictException('You can only review this course once')
+
     return this.prisma.$transaction(async (tx) => {
-      const review = existing
-        ? await tx.courseReview.update({
-            where: { id: existing.id },
-            data: { stars: dto.stars, comment, customerName },
-            select: { id: true, stars: true, comment: true, customerName: true, createdAt: true, updatedAt: true },
-          })
-        : await tx.courseReview.create({
-            data: { courseId, userId: user.sub, stars: dto.stars, comment, customerName },
-            select: { id: true, stars: true, comment: true, customerName: true, createdAt: true, updatedAt: true },
-          })
+      const review = await tx.courseReview.create({
+        data: { courseId, userId: user.sub, stars: dto.stars, comment, customerName },
+        select: { id: true, stars: true, comment: true, customerName: true, createdAt: true, updatedAt: true },
+      })
 
       const aggregate = await tx.courseReview.aggregate({
         where: { courseId },
@@ -619,3 +699,5 @@ export class CoursesService {
   }
 
 }
+
+

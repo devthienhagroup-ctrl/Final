@@ -62,10 +62,10 @@ export function AdminTopbar(props: Props) {
           </select>
 
 
-          <button onClick={props.onOpenNotif} className="btn hidden md:inline-flex items-center gap-2">
-            <i className="fa-regular fa-bell" />
-            Thông báo
-          </button>
+          {/*<button onClick={props.onOpenNotif} className="btn hidden md:inline-flex items-center gap-2">*/}
+          {/*  <i className="fa-regular fa-bell" />*/}
+          {/*  Thông báo*/}
+          {/*</button>*/}
 
           {can("courses.write") ? (
             <Link to="/admin/courses" className="btn btn-primary inline-flex items-center gap-2">

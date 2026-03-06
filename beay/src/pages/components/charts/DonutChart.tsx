@@ -20,7 +20,7 @@ export function DonutChart({ labels, values }: DonutChartProps) {
       type: "doughnut",
       data: {
         labels,
-        datasets: [{ data: values, borderWidth: 1 }],
+        datasets: [{ data: values, borderWidth: 0.5  }],
       },
       options: { plugins: { legend: { position: "bottom" } }, responsive: true },
     };

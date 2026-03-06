@@ -1,3 +1,4 @@
+import {Link} from "react-router-dom";
 
 export type TopCourse = {
   name: string;
@@ -31,7 +32,7 @@ export function TopCoursesCard(props: {
           <div className="text-lg font-extrabold">Bán chạy</div>
           <div className="mt-1 text-sm text-slate-600">Theo doanh thu trong kỳ.</div>
         </div>
-        <button className="btn" onClick={props.onManage}>Quản lý</button>
+        <Link className="btn" to="/admin/courses">Quản lý</Link>
       </div>
 
       <div className="mt-5 space-y-4">

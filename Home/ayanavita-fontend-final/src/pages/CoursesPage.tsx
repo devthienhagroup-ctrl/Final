@@ -15,6 +15,12 @@ import {
   clearCourseCart,
 } from "../services/courseCart.utils";
 
+type SwalIcon = "success" | "error" | "warning" | "info" | "question";
+type SwalLike = {
+  fire: (options: Record<string, unknown>) => Promise<{ isConfirmed?: boolean }>;
+  mixin: (options: Record<string, unknown>) => SwalLike;
+};
+
 type ApiTopicOption = { id: number; name: string };
 
 type SepayOrderResponse = {
@@ -31,11 +37,30 @@ type SepayOrderResponse = {
   };
 };
 
+type MyCoursePass = {
+  id: number;
+  endAt: string;
+  graceUntil: string;
+  remainingUnlocks: number;
+  computedStatus?: "ACTIVE" | "GRACE" | "EXPIRED" | "CANCELED";
+  plan?: { code?: string; name?: string };
+};
+
+type UnlockCourseResponse = {
+  unlocked?: boolean;
+  alreadyEntitled?: boolean;
+  alreadyUnlocked?: boolean;
+  pass?: {
+    remainingUnlocks?: number;
+    plan?: { code?: string; name?: string };
+  };
+};
+
 export type CoursesPageCmsData = {
   // HERO
   heroImageSrc: string;
   heroImageAlt: string;
-  heroChips: { iconClass: string; text: string }[]; // icons can be customized from CMS (colors remain in code)
+  heroChips: { iconClass: string; text: string }[];
   heroTitle: string;
   heroTitleHighlight: string;
   heroCartBtn: string;
@@ -44,14 +69,15 @@ export type CoursesPageCmsData = {
   // FILTER
   filterKicker: string;
   filterTitle: string;
-  filterFoundText: string; // use {count}
+  filterFoundText: string;
   filterResetBtn: string;
   filterOpenCartBtn: string;
-  filterOpenCartBtnSuffix: string; // use {count}
+  filterOpenCartBtnSuffix: string;
   keywordLabel: string;
   keywordPlaceholder: string;
   topicLabel: string;
   topicAllLabel: string;
+  pageSizeLabel: string;
   prototypeNote: string;
 
   // LIST
@@ -60,16 +86,21 @@ export type CoursesPageCmsData = {
   listDesc: string;
   scrollTopBtn: string;
   listCartBtn: string;
-  listCartBtnSuffix: string; // use {count}
+  listCartBtnSuffix: string;
   viewDetailBtn: string;
-  addBtn: string;
+  registerBtn: string;
+  registerLoadingBtn: string;
+  courseHourSuffix: string;
+  paginationPrevBtn: string;
+  paginationInfoText: string;
+  paginationNextBtn: string;
 
   // EMPTY
   emptyTitle: string;
   emptyDesc: string;
   emptyResetBtn: string;
 
-  // COURSE DETAIL MODAL
+  // DETAIL MODAL
   detailModalKicker: string;
   detailAddBtn: string;
   detailCloseAria: string;
@@ -87,65 +118,152 @@ export type CoursesPageCmsData = {
   cartCheckoutBtn: string;
   cartContinueBtn: string;
 
-  // CONFIRM/ALERT
-  alertAddedToCart: string; // use {id}
-  confirmClearCart: string;
+  // QR MODAL
+  qrModalTitle: string;
+  qrModalImageAlt: string;
+  qrModalBankLabel: string;
+  qrModalAccountNumberLabel: string;
+  qrModalAccountNameLabel: string;
+  qrModalAmountLabel: string;
+  qrModalTransferContentLabel: string;
+
+  // DIALOG / TOAST
+  notifyTitle: string;
+  notifyCloseBtn: string;
+  confirmTitle: string;
+  confirmOkBtn: string;
+  confirmCancelBtn: string;
+  successTitle: string;
+  errorTitle: string;
+  qrErrorTitle: string;
+  registerFailedTitle: string;
+  filterResetAria: string;
+  clearCartConfirmTitle: string;
+  clearCartConfirmOkBtn: string;
+  clearCartConfirmCancelBtn: string;
+
+  // ALERT
+  alertAddedToCart: string;
   alertCheckout: string;
+  alertCartCleared: string;
+  alertRegisterSuccess: string;
+  alertQrMissingInfo: string;
+  alertAlreadyEntitled: string;
+  alertAlreadyUnlockedWithQuota: string;
+  alertAlreadyUnlocked: string;
+  alertUnlockSuccessWithQuota: string;
+  alertUnlockSuccess: string;
+  alertHavePassConfirm: string;
+  alertHavePassTitle: string;
+  alertHavePassConfirmBtn: string;
+  alertHavePassCancelBtn: string;
+  alertRegisterFailed: string;
+  confirmClearCart: string;
+  passLabelFallback: string;
 };
 
 export const defaultCmsData: CoursesPageCmsData = {
   heroImageSrc:
       "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?auto=format&fit=crop&w=2400&q=80",
-  heroImageAlt: "Courses hero",
+  heroImageAlt: "Ảnh bìa khóa học",
   heroChips: [
-    { iconClass: "fa-solid fa-graduation-cap", text: "Academy" },
+    { iconClass: "fa-solid fa-graduation-cap", text: "Học viện" },
     { iconClass: "fa-solid fa-certificate", text: "Chứng chỉ" },
     { iconClass: "fa-solid fa-video", text: "Video + tài liệu" },
   ],
-  heroTitle: "Khoá học AYANAVITA chuẩn spa & vận hành",
+  heroTitle: "Khóa học AYANAVITA chuẩn spa & vận hành",
   heroTitleHighlight: "chuẩn spa & vận hành",
-  heroPrimaryBtn: "Xem khoá học",
-  heroSecondaryBtn: "Khóa học của tôi",
+  heroCartBtn: "Xem giỏ khóa học",
+  heroProductCartLink: "/cart",
 
   filterKicker: "Bộ lọc",
-  filterTitle: "Tìm & sắp xếp khoá học",
-  filterFoundText: "Tìm thấy {count} khoá",
+  filterTitle: "Tìm & sắp xếp khóa học",
+  filterFoundText: "Tìm thấy {count} khóa",
   filterResetBtn: "Đặt lại",
-  keywordLabel: "Từ khoá",
+  filterOpenCartBtn: "Mở giỏ",
+  filterOpenCartBtnSuffix: "({count})",
+  keywordLabel: "Từ khóa",
   keywordPlaceholder: "VD: skincare, vận hành, tư vấn...",
   topicLabel: "Chủ đề",
   topicAllLabel: "Tất cả",
-  prototypeNote: "Prototype: “Chi tiết” mở modal, “Đăng ký” chuyển sang trang thanh toán.",
+  pageSizeLabel: "Mỗi trang",
+  prototypeNote: "Prototype: Chi tiết mở trang detail, đăng ký mở QR hoặc mở khóa bằng gói.",
 
   listKicker: "Danh sách",
-  listTitle: "Khoá học nổi bật",
-  listDesc: "Chọn khoá để xem chi tiết hoặc đăng ký ngay.",
+  listTitle: "Khóa học nổi bật",
+  listDesc: "Chọn khóa để xem chi tiết hoặc đăng ký ngay.",
   scrollTopBtn: "Lên đầu",
+  listCartBtn: "Giỏ khóa học",
+  listCartBtnSuffix: "({count})",
   viewDetailBtn: "Chi tiết",
   registerBtn: "Đăng ký",
+  registerLoadingBtn: "Đang tạo QR...",
+  courseHourSuffix: "giờ",
+  paginationPrevBtn: "Trước",
+  paginationInfoText: "Trang {page}/{totalPages}",
+  paginationNextBtn: "Sau",
 
-  emptyTitle: "Không có khoá học phù hợp",
-  emptyDesc: "Thử đổi từ khoá/chủ đề khác.",
+  emptyTitle: "Không có khóa học phù hợp",
+  emptyDesc: "Thử đổi từ khóa/chủ đề khác.",
   emptyResetBtn: "Đặt lại",
 
-  detailModalKicker: "Khoá học",
-  detailRegisterBtn: "Đăng ký ngay",
+  detailModalKicker: "Khóa học",
+  detailAddBtn: "Thêm vào giỏ",
   detailCloseAria: "Đóng",
   detailStudentsSuffix: "HV",
   detailPriceNote: "Giá niêm yết (có thể áp voucher nếu có)",
 
-  checkoutModalKicker: "Thanh toán",
-  checkoutModalTitle: "Xác nhận đăng ký khoá học",
-  checkoutCloseAria: "Đóng",
-  checkoutEmptyTitle: "Chưa chọn khoá học",
-  checkoutEmptyDesc: "Vui lòng chọn khoá học để tiếp tục.",
-  checkoutSubtotalLabel: "Tổng thanh toán",
-  checkoutConfirmBtn: "Xác nhận & Thanh toán",
-  checkoutContinueBtn: "Tiếp tục xem khoá học",
+  cartModalKicker: "Thanh toán",
+  cartModalTitle: "Xác nhận đăng ký khóa học",
+  cartClearBtn: "Xóa tất cả",
+  cartCloseAria: "Đóng",
+  cartEmptyTitle: "Chưa chọn khóa học",
+  cartEmptyDesc: "Vui lòng chọn khóa học để tiếp tục.",
+  cartSubtotalLabel: "Tổng thanh toán",
+  cartCheckoutBtn: "Xác nhận & Thanh toán",
+  cartContinueBtn: "Tiếp tục xem khóa học",
 
-  alertRegistered: "Bạn đã đăng ký thành công khoá học: {title}",
-  confirmCancelRegistration: "Bạn có chắc muốn huỷ đăng ký khoá học này?",
+  qrModalTitle: "Quét QR để thanh toán",
+  qrModalImageAlt: "Mã QR thanh toán SePay",
+  qrModalBankLabel: "Ngân hàng:",
+  qrModalAccountNumberLabel: "Số tài khoản:",
+  qrModalAccountNameLabel: "Chủ tài khoản:",
+  qrModalAmountLabel: "Số tiền:",
+  qrModalTransferContentLabel: "Nội dung CK:",
+
+  notifyTitle: "Thông báo",
+  notifyCloseBtn: "Đóng",
+  confirmTitle: "Xác nhận",
+  confirmOkBtn: "Đồng ý",
+  confirmCancelBtn: "Hủy",
+  successTitle: "Thành công",
+  errorTitle: "Lỗi",
+  qrErrorTitle: "Không thể tạo QR",
+  registerFailedTitle: "Đăng ký thất bại",
+  filterResetAria: "Đặt lại bộ lọc",
+  clearCartConfirmTitle: "Xác nhận xóa giỏ",
+  clearCartConfirmOkBtn: "Xóa tất cả",
+  clearCartConfirmCancelBtn: "Hủy",
+
+  alertAddedToCart: "Đã thêm khóa vào giỏ: {id}",
   alertCheckout: "Đang chuyển sang trang thanh toán...",
+  alertCartCleared: "Đã xóa toàn bộ khóa học trong giỏ.",
+  alertRegisterSuccess: "Đăng ký thành công. Khóa học miễn phí đã được kích hoạt.",
+  alertQrMissingInfo: "Không lấy được thông tin chuyển khoản từ hệ thống.",
+  alertAlreadyEntitled: "Bạn đã có quyền học khóa học này.",
+  alertAlreadyUnlockedWithQuota: "Khóa học đã được mở khóa trước đó. Quota còn lại: {remaining}.",
+  alertAlreadyUnlocked: "Khóa học đã được mở khóa trước đó.",
+  alertUnlockSuccessWithQuota: "Mở khóa thành công bằng {planName}. Quota còn lại: {remaining}.",
+  alertUnlockSuccess: "Mở khóa thành công bằng gói đăng ký.",
+  alertHavePassConfirm: `Bạn đang có {passLabel} (còn {passQuota} lượt, hết hạn {passExpire}).
+  Chọn "Mở khóa bằng gói" để trừ 1 quota.
+      Chọn "Thanh toán QR" để mua trực tiếp.`,
+  alertHavePassTitle: "Phát hiện gói đăng ký",
+  alertHavePassConfirmBtn: "Mở khóa bằng gói",
+  alertHavePassCancelBtn: "Thanh toán QR",
+  alertRegisterFailed: "Không thể đăng ký khóa học. Vui lòng thử lại.",
+  confirmClearCart: "Bạn có chắc muốn xóa toàn bộ khóa học đã chọn?",
+  passLabelFallback: "gói đăng ký",
 };
 const HERO_CHIP_COLOR_BY_INDEX = ["text-amber-600", "text-emerald-600", "text-indigo-600"] as const;
 
@@ -162,6 +280,107 @@ const buildQrUrl = (bankCode: string, accountNumber: string, amount: number, con
   });
   return `https://img.vietqr.io/image/${encodeURIComponent(bankCode)}-${encodeURIComponent(accountNumber)}-compact2.png?${qs.toString()}`;
 };
+
+
+const SWEET_ALERT_DIALOG_CLASS = {
+  popup: "!rounded-3xl !border !border-slate-200 !bg-white !shadow-2xl !p-0 !overflow-hidden",
+  title: "!px-6 !pt-6 !pb-2 !m-0 !text-xl !font-extrabold !text-slate-900",
+  htmlContainer: "!px-6 !pb-2 !m-0 !text-sm !leading-relaxed !text-slate-600 !whitespace-pre-line",
+  actions: "!w-full !m-0 !px-6 !pb-6 !pt-2 !gap-2",
+  confirmButton: "btn btn-primary hover:text-purple-800 !m-0",
+  cancelButton: "btn !m-0",
+  denyButton: "btn !m-0",
+} as const;
+
+const SWEET_ALERT_TOAST_CLASS = {
+  popup: "!rounded-2xl !border !border-slate-200 !bg-white !text-slate-900 !shadow-xl",
+  title: "!text-sm !font-extrabold !m-0",
+  timerProgressBar: "!bg-indigo-500",
+} as const;
+
+const getSwal = (): SwalLike | null => {
+  const maybeSwal = (window as any)?.Swal;
+  if (!maybeSwal || typeof maybeSwal.fire !== "function" || typeof maybeSwal.mixin !== "function") {
+    return null;
+  }
+  return maybeSwal as SwalLike;
+};
+
+const getDialogSwal = () => {
+  const swal = getSwal();
+  if (!swal) return null;
+  return swal.mixin({
+    buttonsStyling: false,
+    customClass: SWEET_ALERT_DIALOG_CLASS,
+  });
+};
+
+const getToastSwal = () => {
+  const swal = getSwal();
+  if (!swal) return null;
+  return swal.mixin({
+    toast: true,
+    position: "top-end",
+    showConfirmButton: false,
+    timer: 2200,
+    timerProgressBar: true,
+    customClass: SWEET_ALERT_TOAST_CLASS,
+  });
+};
+
+async function showNotify(message: string, icon: SwalIcon = "info", title = defaultCmsData.notifyTitle) {
+  const dialog = getDialogSwal();
+  if (!dialog) {
+    window.alert(message);
+    return;
+  }
+
+  await dialog.fire({
+    icon,
+    title,
+    text: message,
+    confirmButtonText: defaultCmsData.notifyCloseBtn,
+  });
+}
+
+async function showToast(message: string, icon: SwalIcon = "success") {
+  const toast = getToastSwal();
+  if (!toast) {
+    window.alert(message);
+    return;
+  }
+
+  await toast.fire({
+    icon,
+    title: message,
+  });
+}
+
+async function askConfirm(
+    message: string,
+    options?: {
+      title?: string;
+      icon?: SwalIcon;
+      confirmText?: string;
+      cancelText?: string;
+    },
+) {
+  const dialog = getDialogSwal();
+  if (!dialog) return window.confirm(message);
+
+  const result = await dialog.fire({
+    title: options?.title || defaultCmsData.confirmTitle,
+    text: message,
+    icon: options?.icon || "question",
+    showCancelButton: true,
+    reverseButtons: true,
+    focusCancel: true,
+    confirmButtonText: options?.confirmText || defaultCmsData.confirmOkBtn,
+    cancelButtonText: options?.cancelText || defaultCmsData.confirmCancelBtn,
+  });
+
+  return Boolean(result?.isConfirmed);
+}
 
 function tpl(text: string, vars: Record<string, string | number>) {
   let out = text;
@@ -238,7 +457,7 @@ function CourseDetailModal({
             </span>
               <span className="chip">
               <i className="fa-solid fa-clock text-amber-600" />
-                {`${course.time || course.hours || "-"} Hour`}
+                {`${course.time || course.hours || "-"} ${cms.courseHourSuffix}`}
             </span>
               <span className="chip">
               <i className="fa-solid fa-users text-emerald-600" />
@@ -356,7 +575,9 @@ function CourseCartModal({
               <button
                   className="btn btn-primary flex-1"
                   type="button"
-                  onClick={() => window.alert(cms.alertCheckout)}
+                  onClick={() => {
+                    void showToast(cms.alertCheckout, "info");
+                  }}
                   disabled={!items.length}
               >
                 <i className="fa-solid fa-credit-card" /> {cms.cartCheckoutBtn}
@@ -464,8 +685,8 @@ export default function CoursesPage({
         const topicList: ApiTopicOption[] = Array.isArray(topicsRes.data) ? topicsRes.data : [];
         const topicNameById = new Map(topicList.map((t) => [Number(t.id), t.name]));
         const items = Array.isArray(coursesRes.data?.items)
-          ? coursesRes.data.items.filter((item: any) => item?.published !== false)
-          : [];
+            ? coursesRes.data.items.filter((item: any) => item?.published !== false)
+            : [];
         const mapped: Course[] = items.map((item: any) => {
           const rawTopic = item.courseTopic || item.topic || null;
           const topicId = rawTopic?.id ?? item.topicId ?? null;
@@ -518,7 +739,7 @@ export default function CoursesPage({
   function addToCart(id: string) {
     const next = addCourseToCart(id);
     setCartIds(next);
-    window.alert(tpl(cms.alertAddedToCart, { id }));
+    void showToast(tpl(cms.alertAddedToCart, { id }), "success");
   }
 
   function removeFromCart(id: string) {
@@ -526,16 +747,99 @@ export default function CoursesPage({
     setCartIds(next);
   }
 
-  function clearCart() {
-    if (!window.confirm(cms.confirmClearCart)) return;
+  async function clearCart() {
+    const accepted = await askConfirm(cms.confirmClearCart, {
+      title: cms.clearCartConfirmTitle,
+      icon: "warning",
+      confirmText: cms.clearCartConfirmOkBtn,
+      cancelText: cms.clearCartConfirmCancelBtn,
+    });
+    if (!accepted) return;
     const next = clearCourseCart();
     setCartIds(next);
+    await showToast(cms.alertCartCleared, "success");
   }
 
   function reset() {
     setQ("");
     setTopic("all");
     setPage(1);
+  }
+
+  function pickPassToSpend(passes: MyCoursePass[]) {
+    return [...passes].sort((a, b) => {
+      const aGrace = new Date(a.graceUntil).getTime();
+      const bGrace = new Date(b.graceUntil).getTime();
+      if (aGrace !== bGrace) return aGrace - bGrace;
+
+      const aEnd = new Date(a.endAt).getTime();
+      const bEnd = new Date(b.endAt).getTime();
+      if (aEnd !== bEnd) return aEnd - bEnd;
+
+      return a.id - b.id;
+    })[0];
+  }
+
+  async function listUnlockablePasses() {
+    const { data } = await http.get<MyCoursePass[]>("/me/course-passes");
+    const rows = Array.isArray(data) ? data : [];
+    return rows.filter((row) => {
+      const status = row.computedStatus || "EXPIRED";
+      return (status === "ACTIVE" || status === "GRACE") && Number(row.remainingUnlocks || 0) > 0;
+    });
+  }
+
+  async function registerDirectPurchase(c: Course) {
+    const res = await http.post<SepayOrderResponse>(`/courses/${c.id}/order`);
+    const payload = res.data || {};
+
+    if (payload.mode === "FREE" || payload.enrolled) {
+      await showNotify(cms.alertRegisterSuccess, "success", cms.successTitle);
+      return;
+    }
+
+    const bankCode = payload.payment?.bank?.gateway || "BIDV";
+    const accountNumber = payload.payment?.bank?.accountNumber || "8810091561";
+    const accountName = payload.payment?.bank?.accountName || "LE MINH HIEU";
+    const content = payload.payment?.transferContent || "";
+    const amount = Number(payload.total || c.price || 0);
+
+    if (!content) {
+      await showNotify(cms.alertQrMissingInfo, "error", cms.qrErrorTitle);
+      return;
+    }
+
+    setQrData({ bankCode, accountNumber, accountName, content, amount });
+    setQrOpen(true);
+  }
+
+  async function unlockWithPass(c: Course) {
+    const { data } = await http.post<UnlockCourseResponse>(`/me/courses/${c.id}/unlock`, {});
+    const payload = data || {};
+
+    if (payload.alreadyEntitled) {
+      await showNotify(cms.alertAlreadyEntitled, "info");
+      return;
+    }
+
+    const planName = payload.pass?.plan?.name || payload.pass?.plan?.code || cms.passLabelFallback;
+    const remaining = payload.pass?.remainingUnlocks;
+
+    if (payload.alreadyUnlocked) {
+      if (typeof remaining === "number") {
+        await showNotify(tpl(cms.alertAlreadyUnlockedWithQuota, { remaining }), "info");
+      } else {
+        await showNotify(cms.alertAlreadyUnlocked, "info");
+      }
+      return;
+    }
+
+    if (typeof remaining === "number") {
+      await showNotify(tpl(cms.alertUnlockSuccessWithQuota, { planName, remaining }), "success", cms.successTitle);
+      return;
+    }
+
+    await showNotify(cms.alertUnlockSuccess, "success", cms.successTitle);
   }
 
   async function registerCourse(c: Course) {
@@ -547,33 +851,76 @@ export default function CoursesPage({
 
     try {
       setOrderingId(c.id);
-      const res = await http.post<SepayOrderResponse>(`/courses/${c.id}/order`);
-      const payload = res.data || {};
 
-      if (payload.mode === "FREE" || payload.enrolled) {
-        window.alert("Đăng ký thành công. Khóa học miễn phí đã được kích hoạt.");
+      let unlockablePasses: MyCoursePass[] = [];
+      try {
+        unlockablePasses = await listUnlockablePasses();
+      } catch {
+        unlockablePasses = [];
+      }
+
+      if (unlockablePasses.length > 0) {
+        const selectedPass = pickPassToSpend(unlockablePasses);
+        const passLabel = selectedPass?.plan?.name || selectedPass?.plan?.code || cms.passLabelFallback;
+        const passExpire = selectedPass?.graceUntil
+            ? new Date(selectedPass.graceUntil).toLocaleDateString("vi-VN")
+            : "-";
+        const passQuota = Number(selectedPass?.remainingUnlocks || 0);
+
+        const dialog = getDialogSwal();
+
+        if (dialog) {
+          const decision = await dialog.fire({
+            title: cms.alertHavePassTitle,
+            text: tpl(cms.alertHavePassConfirm, { passLabel, passQuota, passExpire }),
+            icon: "question",
+            // showCancelButton: true,
+            showDenyButton: true,
+            reverseButtons: true,
+            focusCancel: true,
+            confirmButtonText: cms.alertHavePassConfirmBtn,
+            denyButtonText: cms.alertHavePassCancelBtn,
+            cancelButtonText: cms.notifyCloseBtn,
+            denyButtonClassName: "btn",
+          });
+
+          if (decision.isConfirmed) {
+            await unlockWithPass(c);
+            return;
+          }
+
+          if (decision.isDenied) {
+            await registerDirectPurchase(c);
+          }
+
+          return;
+        }
+
+        const usePlanUnlock = await askConfirm(
+            tpl(cms.alertHavePassConfirm, { passLabel, passQuota, passExpire }),
+            {
+              title: cms.alertHavePassTitle,
+              icon: "question",
+              confirmText: cms.alertHavePassConfirmBtn,
+              cancelText: cms.alertHavePassCancelBtn,
+            },
+        );
+
+        if (usePlanUnlock) {
+          await unlockWithPass(c);
+          return;
+        }
+
         return;
       }
 
-      const bankCode = payload.payment?.bank?.gateway || "BIDV";
-      const accountNumber = payload.payment?.bank?.accountNumber || "8810091561";
-      const accountName = payload.payment?.bank?.accountName || "LE MINH HIEU";
-      const content = payload.payment?.transferContent || "";
-      const amount = Number(payload.total || c.price || 0);
-
-      if (!content) {
-        window.alert("Không lấy được thông tin chuyển khoản từ hệ thống.");
-        return;
-      }
-
-      setQrData({ bankCode, accountNumber, accountName, content, amount });
-      setQrOpen(true);
+      await registerDirectPurchase(c);
     } catch (error: any) {
       if (error?.response?.status === 401) {
         navigate(toRegisterUrl((c as any).slug || c.id, currentLanguage));
         return;
       }
-      window.alert(error?.response?.data?.message || "Không thể tạo đơn đăng ký. Vui lòng thử lại.");
+      await showNotify(error?.response?.data?.message || cms.alertRegisterFailed, "error", cms.registerFailedTitle);
     } finally {
       setOrderingId(null);
     }
@@ -625,7 +972,7 @@ export default function CoursesPage({
                   </div>
 
                   <div className="flex gap-2 flex-wrap">
-                    <button className="btn" type="button" onClick={reset} aria-label="reset">
+                    <button className="btn" type="button" onClick={reset} aria-label={cms.filterResetAria}>
                       <i className="fa-solid fa-rotate-left" /> {cms.filterResetBtn}
                     </button>                  </div>
                 </div>
@@ -655,13 +1002,13 @@ export default function CoursesPage({
                     }}>
                       <option value="all">{cms.topicAllLabel}</option>
                       {topicOptions.map((item) => (
-                        <option key={item.id} value={item.id}>{item.name}</option>
+                          <option key={item.id} value={item.id}>{item.name}</option>
                       ))}
                     </select>
                   </div>
 
                   <div className="md:col-span-3">
-                    <label className="text-sm font-extrabold text-slate-700">Mỗi trang</label>
+                    <label className="text-sm font-extrabold text-slate-700">{cms.pageSizeLabel}</label>
                     <select className="field mt-2" value={pageSize} onChange={(e) => {
                       setPageSize(Number(e.target.value));
                       setPage(1);
@@ -699,48 +1046,48 @@ export default function CoursesPage({
 
               <div className="mt-5">
                 {courses.length ? (
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    {courses.map((c) => (
-                      <article key={c.id} className="card overflow-hidden">
-                        <img
-                          src={c.img}
-                          alt={c.title}
-                          className="h-48 w-full object-cover"
-                        />
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                      {courses.map((c) => (
+                          <article key={c.id} className="card overflow-hidden">
+                            <img
+                                src={c.img}
+                                alt={c.title}
+                                className="h-48 w-full object-cover"
+                            />
 
-                        <div className="p-4">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="chip">{c.topicName || "-"}</span>
-                            <span className="text-sm font-bold text-slate-600">{`${c.time || c.hours || "-"} Hour`}</span>
-                          </div>
+                            <div className="p-4">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="chip">{c.topicName || "-"}</span>
+                                <span className="text-sm font-bold text-slate-600">{`${c.time || c.hours || "-"} ${cms.courseHourSuffix}`}</span>
+                              </div>
 
-                          <h3 className="mt-3 text-lg font-extrabold line-clamp-1">
-                            {c.title}
-                          </h3>
+                              <h3 className="mt-3 text-lg font-extrabold line-clamp-1">
+                                {c.title}
+                              </h3>
 
-                          <p className="mt-2 text-sm text-slate-600 line-clamp-2">
-                            {c.desc}
-                          </p>
+                              <p className="mt-2 text-sm text-slate-600 line-clamp-2">
+                                {c.desc}
+                              </p>
 
-                          <div className="mt-3 flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 text-slate-600 text-sm">
-                              <Stars rating={c.rating} /> <b>{c.rating.toFixed(1)}</b>
+                              <div className="mt-3 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 text-slate-600 text-sm">
+                                  <Stars rating={c.rating} /> <b>{c.rating.toFixed(1)}</b>
+                                </div>
+                                <div className="font-extrabold text-indigo-700">{money(c.price)}</div>
+                              </div>
+
+                              <div className="mt-4 grid grid-cols-2 gap-2">
+                                <button className="btn text-sm" type="button" onClick={() => navigate(`/courses/${encodeURIComponent((c as any).slug || c.id)}`)}>
+                                  <i className="fa-solid fa-eye" /> {cms.viewDetailBtn}
+                                </button>
+                                <button className="btn btn-primary text-sm hover:text-purple-800" type="button" onClick={() => registerCourse(c)} disabled={orderingId === c.id}>
+                                  <i className="fa-solid fa-user-plus" /> {orderingId === c.id ? cms.registerLoadingBtn : cms.registerBtn}
+                                </button>
+                              </div>
                             </div>
-                            <div className="font-extrabold text-indigo-700">{money(c.price)}</div>
-                          </div>
-
-                          <div className="mt-4 grid grid-cols-2 gap-2">
-                            <button className="btn text-sm" type="button" onClick={() => navigate(`/courses/${encodeURIComponent((c as any).slug || c.id)}`)}>
-                              <i className="fa-solid fa-eye" /> {cms.viewDetailBtn}
-                            </button>
-                            <button className="btn btn-primary text-sm hover:text-purple-800" type="button" onClick={() => registerCourse(c)} disabled={orderingId === c.id}>
-                              <i className="fa-solid fa-user-plus" /> {orderingId === c.id ? "Đang tạo QR..." : cms.registerBtn}
-                            </button>
-                          </div>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
+                          </article>
+                      ))}
+                    </div>
                 ) : (
                     <div className="card p-8 text-center text-slate-600">
                       <div className="text-4xl">
@@ -755,9 +1102,9 @@ export default function CoursesPage({
                 )}
 
                 <div className="mt-4 flex items-center justify-end gap-2">
-                  <button className="btn" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Trước</button>
-                  <span className="text-sm text-slate-600">Trang {page}/{totalPages}</span>
-                  <button className="btn" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Sau</button>
+                  <button className="btn" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>{cms.paginationPrevBtn}</button>
+                  <span className="text-sm text-slate-600">{tpl(cms.paginationInfoText, { page, totalPages })}</span>
+                  <button className="btn" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>{cms.paginationNextBtn}</button>
                 </div>
               </div>
             </div>
@@ -777,28 +1124,28 @@ export default function CoursesPage({
         />
 
         {qrOpen && qrData ? (
-          <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4" onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setQrOpen(false);
-          }}>
-            <div className="card w-full max-w-md p-5">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-lg font-extrabold">Quét QR để thanh toán</h3>
-                <button className="btn h-9 w-9 p-0" onClick={() => setQrOpen(false)} type="button">✕</button>
-              </div>
-              <img
-                className="mt-4 w-full rounded-2xl ring-1 ring-slate-200"
-                src={buildQrUrl(qrData.bankCode, qrData.accountNumber, qrData.amount, qrData.content, qrData.accountName)}
-                alt="SePay QR"
-              />
-              <div className="mt-4 space-y-2 text-sm">
-                <p><b>Ngân hàng:</b> {qrData.bankCode}</p>
-                <p><b>Số tài khoản:</b> {qrData.accountNumber}</p>
-                <p><b>Chủ tài khoản:</b> {qrData.accountName}</p>
-                <p><b>Số tiền:</b> {money(qrData.amount)}</p>
-                <p><b>Nội dung CK:</b> <span className="font-mono">{qrData.content}</span></p>
+            <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4" onMouseDown={(e) => {
+              if (e.target === e.currentTarget) setQrOpen(false);
+            }}>
+              <div className="card w-full max-w-md p-5">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-lg font-extrabold">{cms.qrModalTitle}</h3>
+                  <button className="btn h-9 w-9 p-0" onClick={() => setQrOpen(false)} type="button">✕</button>
+                </div>
+                <img
+                    className="mt-4 w-full rounded-2xl ring-1 ring-slate-200"
+                    src={buildQrUrl(qrData.bankCode, qrData.accountNumber, qrData.amount, qrData.content, qrData.accountName)}
+                    alt={cms.qrModalImageAlt}
+                />
+                <div className="mt-4 space-y-2 text-sm">
+                  <p><b>{cms.qrModalBankLabel}</b> {qrData.bankCode}</p>
+                  <p><b>{cms.qrModalAccountNumberLabel}</b> {qrData.accountNumber}</p>
+                  <p><b>{cms.qrModalAccountNameLabel}</b> {qrData.accountName}</p>
+                  <p><b>{cms.qrModalAmountLabel}</b> {money(qrData.amount)}</p>
+                  <p><b>{cms.qrModalTransferContentLabel}</b> <span className="font-mono">{qrData.content}</span></p>
+                </div>
               </div>
             </div>
-          </div>
         ) : null}
       </div>
   );

@@ -338,14 +338,22 @@ export class AuthService {
   }
 
   async refreshTokens(userId: number, refreshToken: string) {
+    this.logger.log(`Refresh token verification started for userId=${userId}`)
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: { roleRef: { include: { permissions: { include: { permission: true } } } } },
     })
-    if (!user || !user.hashedRefreshToken) throw new ForbiddenException('Access denied')
+    if (!user || !user.hashedRefreshToken) {
+      this.logger.warn(`Refresh token rejected (missing user/hash) for userId=${userId}`)
+      throw new ForbiddenException('Access denied')
+    }
 
     const ok = await bcrypt.compare(refreshToken, user.hashedRefreshToken)
-    if (!ok) throw new ForbiddenException('Access denied')
+    if (!ok) {
+      this.logger.warn(`Refresh token rejected (hash mismatch) for userId=${userId}`)
+      throw new ForbiddenException('Access denied')
+    }
 
     const role = user.roleRef?.code ?? user.role
     const scopeType = user.roleRef?.scopeType ?? null
@@ -353,6 +361,7 @@ export class AuthService {
 
     const tokens = await this.issueTokens(user.id, user.email, role, scopeType, permissions)
     await this.setRefreshTokenHash(user.id, tokens.refreshToken)
+    this.logger.log(`Refresh token accepted, new tokens issued for userId=${userId}`)
 
     return tokens
   }
@@ -535,10 +544,12 @@ export class AuthService {
 
   private issueTokens(userId: number, email: string, role: string, scopeType: string | null, permissions: string[]) {
     const payload: AuthJwtPayload = { sub: userId, email, role, scopeType, permissions }
+    // Demo setting: 30s. To restore previous behavior, change fallback below back to 15 * 60.
+    const accessTokenTtlSeconds = Number(process.env.JWT_ACCESS_EXPIRES_SECONDS ?? 15 * 60)
 
     const accessToken = this.jwt.sign(payload, {
       secret: process.env.JWT_ACCESS_SECRET,
-      expiresIn: 15 * 60,
+      expiresIn: accessTokenTtlSeconds,
     })
 
     const refreshToken = this.jwt.sign(payload, {
@@ -557,3 +568,4 @@ export class AuthService {
     })
   }
 }
+

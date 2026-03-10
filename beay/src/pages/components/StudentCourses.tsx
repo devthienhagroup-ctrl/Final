@@ -10,9 +10,9 @@ type Props = {
 };
 
 export function StudentCourses(props: Props) {
-  const activeCount = props.courses.filter((c) => c.active).length;
-  const avgProgress = props.courses.length ? Math.round(props.courses.reduce((sum, c) => sum + c.progress, 0) / props.courses.length) : 0;
-  const finishedCount = props.courses.filter((c) => c.progress >= 100).length;
+  // const activeCount = props.courses.filter((c) => c.active).length;
+  // const avgProgress = props.courses.length ? Math.round(props.courses.reduce((sum, c) => sum + c.progress, 0) / props.courses.length) : 0;
+  // const finishedCount = props.courses.filter((c) => c.progress >= 100).length;
 
   return (
     <div className="rounded-[18px] border border-slate-200/70 bg-white shadow-[0_10px_30px_rgba(2,6,23,0.06)] p-6 lg:col-span-2">

@@ -13,6 +13,7 @@ import { ProgressModule } from './progress/progress.module';
 
 import { OrdersModule } from './orders/orders.module';
 import { BookingModule } from './booking/booking.module';
+import { StripeModule } from './stripe/stripe.module';
 
 import { CmsModule } from './cms/cms.module';
 import { CatalogModule } from './catalog/catalog.module';
@@ -40,6 +41,7 @@ import { CoursePlansModule } from './course-plans/course-plans.module';
 
     OrdersModule,
     BookingModule,
+    StripeModule,
 
     CmsModule,
     CatalogModule,
@@ -54,3 +56,4 @@ import { CoursePlansModule } from './course-plans/course-plans.module';
   ],
 })
 export class AppModule {}
+

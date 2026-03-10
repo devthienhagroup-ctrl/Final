@@ -8,12 +8,14 @@ import {
   type CoursePass,
   type CoursePassStatus,
   type CoursePlan,
+  type CoursePlanCheckoutMethod,
   type CoursePlanPayment,
   type CoursePlanPaymentStatus,
 } from "../api/coursePlans.api";
 
 type ToastKind = "success" | "error" | "info";
 type ActiveSection = "profile" | "changePassword" | "forgotPassword" | "myOrders" | "subscriptions";
+type PassRenewalState = "AUTO_RENEW_ACTIVE" | "AUTO_RENEW_CANCELED" | "NONE";
 
 type OrderStatus =
     | "PENDING"
@@ -365,6 +367,10 @@ type CmsData = {
       renewOrBuyMore: string;
       subscribe: string;
       openPaymentQr: string;
+      renewNow: string;
+      registerAutoRenewal: string;
+      cancelAutoRenewal: string;
+      cancelAutoRenewalConfirmMessage: string;
     };
     statuses: {
       pass: Record<CoursePassStatus, string>;
@@ -388,6 +394,12 @@ type CmsData = {
       checkoutFailed: { title: string; message: string };
       paymentSuccess: { title: string; message: string };
       paymentExpired: { title: string; message: string };
+      cancelAutoRenewalSuccess: { title: string; message: string };
+      cancelAutoRenewalAlready: { title: string; message: string };
+      cancelAutoRenewalFailed: { title: string; message: string };
+      resumeAutoRenewalSuccess: { title: string; message: string };
+      resumeAutoRenewalAlready: { title: string; message: string };
+      resumeAutoRenewalFailed: { title: string; message: string };
     };
   };
 
@@ -702,6 +714,11 @@ const defaultCmsData: CmsData = {
       renewOrBuyMore: "Gia hạn / mua tiếp",
       subscribe: "Đăng ký gói",
       openPaymentQr: "Mở QR thanh toán",
+      renewNow: "Gia h\u1ea1n",
+      registerAutoRenewal: "\u0110\u0103ng k\u00fd t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n",
+      cancelAutoRenewal: "H\u1ee7y t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n",
+      cancelAutoRenewalConfirmMessage:
+        "G\u00f3i hi\u1ec7n t\u1ea1i v\u1eabn d\u00f9ng \u0111\u1ebfn h\u1ebft chu k\u1ef3, nh\u01b0ng s\u1ebd kh\u00f4ng t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n k\u1ef3 ti\u1ebfp theo. B\u1ea1n c\u00f3 ch\u1eafc ch\u1eafn h\u1ee7y kh\u00f4ng?",
     },
     statuses: {
       pass: {
@@ -735,6 +752,12 @@ const defaultCmsData: CmsData = {
       checkoutFailed: { title: "Gói đăng ký", message: "Không thể tạo thanh toán cho gói này." },
       paymentSuccess: { title: "Gói đăng ký", message: "Thanh toán gói thành công. Quota đã được cập nhật." },
       paymentExpired: { title: "Gói đăng ký", message: "Phiên thanh toán gói đã hết hạn hoặc thất bại." },
+      cancelAutoRenewalSuccess: { title: "G\u00f3i \u0111\u0103ng k\u00fd", message: "\u0110\u00e3 h\u1ee7y t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n th\u00e0nh c\u00f4ng." },
+      cancelAutoRenewalAlready: { title: "G\u00f3i \u0111\u0103ng k\u00fd", message: "G\u00f3i n\u00e0y \u0111\u00e3 \u1edf tr\u1ea1ng th\u00e1i kh\u00f4ng t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n." },
+      cancelAutoRenewalFailed: { title: "G\u00f3i \u0111\u0103ng k\u00fd", message: "Kh\u00f4ng th\u1ec3 h\u1ee7y t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n." },
+      resumeAutoRenewalSuccess: { title: "G\u00f3i \u0111\u0103ng k\u00fd", message: "\u0110\u00e3 b\u1eadt l\u1ea1i t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n th\u00e0nh c\u00f4ng." },
+      resumeAutoRenewalAlready: { title: "G\u00f3i \u0111\u0103ng k\u00fd", message: "G\u00f3i n\u00e0y \u0111\u00e3 b\u1eadt t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n." },
+      resumeAutoRenewalFailed: { title: "G\u00f3i \u0111\u0103ng k\u00fd", message: "Kh\u00f4ng th\u1ec3 b\u1eadt l\u1ea1i t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n." },
     },
   },
 
@@ -1171,6 +1194,32 @@ export default function AccountCenter() {
     return [...myPlanPayments].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [myPlanPayments]);
 
+  const latestSubscriptionPaymentForCurrentPass = useMemo(() => {
+    if (!currentPass) return null;
+    const subscriptionPayments = myPlanPayments
+      .filter((payment) => payment.planId === currentPass.planId && (payment.stripeSubscriptionId || payment.subscription))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return subscriptionPayments[0] || null;
+  }, [currentPass, myPlanPayments]);
+
+  const currentPassRenewalState = useMemo<PassRenewalState>(() => {
+    const latest = latestSubscriptionPaymentForCurrentPass;
+    if (!latest) return "NONE";
+
+    const status = String(latest.subscriptionStatus ?? latest.subscription?.status ?? "").toLowerCase();
+    const cancelAtPeriodEnd = Boolean(latest.cancelAtPeriodEnd ?? latest.subscription?.cancelAtPeriodEnd);
+
+    if (cancelAtPeriodEnd || status === "canceled") {
+      return "AUTO_RENEW_CANCELED";
+    }
+
+    if (["active", "trialing", "past_due", "unpaid", "incomplete"].includes(status)) {
+      return "AUTO_RENEW_ACTIVE";
+    }
+
+    return "NONE";
+  }, [latestSubscriptionPaymentForCurrentPass]);
+
   useEffect(() => {
     const tab = searchParams.get("tab");
     if (tab === "subscriptions") {
@@ -1309,38 +1358,128 @@ export default function AccountCenter() {
     }
   }, [cms]);
 
-  const onStartPlanCheckout = useCallback(async (plan: CoursePlan) => {
+  const onStartPlanCheckout = useCallback(async (plan: CoursePlan, method?: CoursePlanCheckoutMethod) => {
     try {
       setSubscriptionActionPlanId(plan.id);
-      const res = await coursePlansApi.purchasePlan(plan.id);
+      const res = await coursePlansApi.purchasePlan(plan.id, method ? { method } : undefined);
 
       if (res.mode === "FREE") {
         pushToast(
-            "success",
-            cms.subscriptions.toasts.registerSuccess.title,
-            cms.subscriptions.toasts.registerSuccess.message,
+          "success",
+          cms.subscriptions.toasts.registerSuccess.title,
+          cms.subscriptions.toasts.registerSuccess.message,
         );
         await fetchSubscriptionData(false);
+        return;
+      }
+
+      if (res.mode === "STRIPE") {
+        if (!res.checkoutUrl) {
+          throw new Error("Kh\u00f4ng nh\u1eadn \u0111\u01b0\u1ee3c li\u00ean k\u1ebft thanh to\u00e1n Stripe.");
+        }
+        window.location.href = res.checkoutUrl;
         return;
       }
 
       setPlanPaymentModal(res.payment);
       setPlanQrTick(Date.now());
       pushToast(
-          "info",
-          cms.subscriptions.toasts.qrCreated.title,
-          cms.subscriptions.toasts.qrCreated.message,
+        "info",
+        cms.subscriptions.toasts.qrCreated.title,
+        cms.subscriptions.toasts.qrCreated.message,
       );
     } catch (e: any) {
       pushToast(
-          "error",
-          cms.subscriptions.toasts.checkoutFailed.title,
-          e?.response?.data?.message || cms.subscriptions.toasts.checkoutFailed.message,
+        "error",
+        cms.subscriptions.toasts.checkoutFailed.title,
+        e?.response?.data?.message || e?.message || cms.subscriptions.toasts.checkoutFailed.message,
       );
     } finally {
       setSubscriptionActionPlanId(null);
     }
   }, [fetchSubscriptionData, cms]);
+
+  const onCancelAutoRenewal = useCallback(async (pass: CoursePass) => {
+    const confirmMessage = cms.subscriptions.actions.cancelAutoRenewalConfirmMessage;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      setSubscriptionActionPlanId(pass.plan.id);
+      const result = await coursePlansApi.cancelAutoRenewal({ passId: pass.id, planId: pass.plan.id });
+      pushToast(
+        "success",
+        cms.subscriptions.toasts.cancelAutoRenewalSuccess.title,
+        result?.alreadyCanceled
+          ? cms.subscriptions.toasts.cancelAutoRenewalAlready.message
+          : cms.subscriptions.toasts.cancelAutoRenewalSuccess.message,
+      );
+      await fetchSubscriptionData(false);
+    } catch (e: any) {
+      pushToast(
+        "error",
+        cms.subscriptions.toasts.cancelAutoRenewalFailed.title,
+        e?.response?.data?.message || cms.subscriptions.toasts.cancelAutoRenewalFailed.message,
+      );
+    } finally {
+      setSubscriptionActionPlanId(null);
+    }
+  }, [fetchSubscriptionData, cms]);
+
+  const onResumeAutoRenewal = useCallback(async (pass: CoursePass) => {
+    try {
+      setSubscriptionActionPlanId(pass.plan.id);
+      const result = await coursePlansApi.resumeAutoRenewal({ passId: pass.id, planId: pass.plan.id });
+      pushToast(
+        "success",
+        cms.subscriptions.toasts.resumeAutoRenewalSuccess.title,
+        result?.alreadyResumed
+          ? cms.subscriptions.toasts.resumeAutoRenewalAlready.message
+          : cms.subscriptions.toasts.resumeAutoRenewalSuccess.message,
+      );
+      await fetchSubscriptionData(false);
+      return true;
+    } catch (e: any) {
+      const message = String(e?.response?.data?.message || e?.message || "");
+      const normalized = message.toLowerCase();
+      const shouldFallbackCheckout =
+        normalized.includes("not found") ||
+        normalized.includes("kh\u00f4ng t\u00ecm th\u1ea5y") ||
+        normalized.includes("ended") ||
+        normalized.includes("expired") ||
+        normalized.includes("h\u1ebft h\u1ea1n");
+
+      if (shouldFallbackCheckout) {
+        return false;
+      }
+
+      pushToast(
+        "error",
+        cms.subscriptions.toasts.resumeAutoRenewalFailed.title,
+        message || cms.subscriptions.toasts.resumeAutoRenewalFailed.message,
+      );
+      return true;
+    } finally {
+      setSubscriptionActionPlanId(null);
+    }
+  }, [fetchSubscriptionData, cms]);
+
+  const onRenewCurrentPass = useCallback(async (pass: CoursePass) => {
+    await onStartPlanCheckout(pass.plan, "STRIPE_ONE_TIME");
+  }, [onStartPlanCheckout]);
+
+  const onRegisterAutoRenewCurrentPass = useCallback(async (pass: CoursePass) => {
+    if (currentPassRenewalState === "AUTO_RENEW_CANCELED") {
+      const resumed = await onResumeAutoRenewal(pass);
+      if (resumed) {
+        return;
+      }
+    }
+
+    await onStartPlanCheckout(pass.plan, "STRIPE_SUBSCRIPTION");
+  }, [currentPassRenewalState, onResumeAutoRenewal, onStartPlanCheckout]);
 
   const openPlanPaymentModal = useCallback((payment: CoursePlanPayment) => {
     setPlanPaymentModal(payment);
@@ -2138,6 +2277,37 @@ export default function AccountCenter() {
                                       </p>
                                     </div>
                                   </div>
+                                  <div className="mt-4 flex flex-wrap gap-2">
+                                    {currentPassRenewalState === "AUTO_RENEW_ACTIVE" ? (
+                                      <button
+                                        type="button"
+                                        className="inline-flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-extrabold text-rose-700 hover:bg-rose-100 disabled:opacity-60"
+                                        disabled={subscriptionActionPlanId === currentPass.plan.id}
+                                        onClick={() => void onCancelAutoRenewal(currentPass)}
+                                      >
+                                        {cms.subscriptions.actions.cancelAutoRenewal}
+                                      </button>
+                                    ) : (
+                                      <>
+                                        <button
+                                          type="button"
+                                          className="inline-flex items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-extrabold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
+                                          disabled={subscriptionActionPlanId === currentPass.plan.id}
+                                          onClick={() => void onRenewCurrentPass(currentPass)}
+                                        >
+                                          {cms.subscriptions.actions.renewNow}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-extrabold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
+                                          disabled={subscriptionActionPlanId === currentPass.plan.id}
+                                          onClick={() => void onRegisterAutoRenewCurrentPass(currentPass)}
+                                        >
+                                          {cms.subscriptions.actions.registerAutoRenewal}
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
                             ) : (
                                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
@@ -2806,3 +2976,4 @@ export default function AccountCenter() {
 
 // Export CMS mặc định (để update DB / tái sử dụng)
 export { defaultCmsData as cmsData, defaultCmsData, deepMerge };
+

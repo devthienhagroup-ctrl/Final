@@ -17,6 +17,7 @@ model User {
   birthDate          DateTime?
   gender             Gender?
   address            String?  @db.VarChar(500)
+  stripeCustomerId   String?  @unique @db.VarChar(64)
   role               String   @default("USER") @db.VarChar(32)
   roleId             Int?
   roleRef            RbacRole? @relation("UserRbacRole", fields: [roleId], references: [id], onDelete: SetNull)
@@ -30,6 +31,7 @@ model User {
   courseAccesses CourseAccess[]
   coursePasses   UserCoursePass[]
   coursePlanPayments CoursePlanPayment[]
+  planSubscriptions  UserPlanSubscription[]
   courseEntitlements CourseEntitlement[]
   planUnlockLogs PlanUnlockLog[]
   lessonProgress LessonProgress[]
@@ -416,21 +418,27 @@ model CourseTagLink {
 }
 
 model CoursePlan {
-  id             Int      @id @default(autoincrement())
-  code           String   @unique @db.VarChar(40)
-  name           String   @db.VarChar(120)
-  price          Int      @default(0)
-  durationDays   Int      @default(30)
-  graceDays      Int      @default(14)
-  maxUnlocks     Int      @default(50)
-  maxCoursePrice Int?
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                   Int                       @id @default(autoincrement())
+  code                 String                    @unique @db.VarChar(40)
+  name                 String                    @db.VarChar(120)
+  price                Int                       @default(0)
+  currency             String                    @default("vnd") @db.VarChar(8)
+  billingInterval      CoursePlanBillingInterval @default(month)
+  stripeProductId      String?                   @db.VarChar(64)
+  currentStripePriceId String?                   @db.VarChar(64)
+  durationDays         Int                       @default(30)
+  graceDays            Int                       @default(14)
+  maxUnlocks           Int                       @default(50)
+  maxCoursePrice       Int?
+  isActive             Boolean                   @default(true)
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
 
-  excludedTags CoursePlanExcludedTag[]
-  passes       UserCoursePass[]
-  payments     CoursePlanPayment[]
+  excludedTags  CoursePlanExcludedTag[]
+  passes        UserCoursePass[]
+  payments      CoursePlanPayment[]
+  priceVersions CoursePlanPriceVersion[]
+  subscriptions UserPlanSubscription[]
 }
 
 model CoursePlanExcludedTag {
@@ -469,19 +477,27 @@ model UserCoursePass {
 }
 
 model CoursePlanPayment {
-  id              Int                     @id @default(autoincrement())
-  userId          Int
-  planId          Int
-  provider        String                  @default("SEPAY") @db.VarChar(32)
-  status          CoursePlanPaymentStatus @default(PENDING)
-  amount          Int
-  transferCode    String                  @db.VarChar(64)
-  transferContent String                  @unique @db.VarChar(128)
-  paidAt          DateTime?
-  expiredAt       DateTime?
-  rawResponse     Json?
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
+  id                      Int                     @id @default(autoincrement())
+  userId                  Int
+  planId                  Int
+  provider                String                  @default("SEPAY") @db.VarChar(32)
+  status                  CoursePlanPaymentStatus @default(PENDING)
+  amount                  Int
+  transferCode            String                  @db.VarChar(64)
+  transferContent         String                  @unique @db.VarChar(128)
+  stripeCheckoutSessionId String?                 @unique @db.VarChar(128)
+  stripePaymentIntentId   String?                 @db.VarChar(128)
+  stripeInvoiceId         String?                 @unique @db.VarChar(128)
+  stripeSubscriptionId    String?                 @db.VarChar(128)
+  failureReason           String?                 @db.VarChar(255)
+  reminderSentAt          DateTime?
+  successEmailSentAt      DateTime?
+  failureEmailSentAt      DateTime?
+  paidAt                  DateTime?
+  expiredAt               DateTime?
+  rawResponse             Json?
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
 
   user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   plan CoursePlan @relation(fields: [planId], references: [id], onDelete: Restrict)
@@ -489,7 +505,60 @@ model CoursePlanPayment {
   @@index([userId, createdAt])
   @@index([planId, createdAt])
   @@index([status, expiredAt])
+  @@index([stripeSubscriptionId])
 }
+
+model CoursePlanPriceVersion {
+  id              Int                       @id @default(autoincrement())
+  planId          Int
+  stripeProductId String                    @db.VarChar(64)
+  stripePriceId   String                    @unique @db.VarChar(64)
+  amount          Int
+  currency        String                    @db.VarChar(8)
+  billingInterval CoursePlanBillingInterval
+  isCurrent       Boolean                   @default(false)
+  createdAt       DateTime                  @default(now())
+
+  plan CoursePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId, createdAt])
+  @@index([planId, isCurrent])
+}
+
+model UserPlanSubscription {
+  id                   Int      @id @default(autoincrement())
+  userId               Int
+  planId               Int
+  stripeCustomerId     String   @db.VarChar(64)
+  stripeSubscriptionId String   @unique @db.VarChar(128)
+  stripePriceId        String?  @db.VarChar(128)
+  status               String   @default("incomplete") @db.VarChar(32)
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean  @default(false)
+  canceledAt           DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan CoursePlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([userId, status])
+  @@index([planId, status])
+}
+
+model StripeWebhookEventLog {
+  id            Int      @id @default(autoincrement())
+  stripeEventId String   @unique @db.VarChar(128)
+  type          String   @db.VarChar(120)
+  handled       Boolean  @default(false)
+  payload       Json?
+  createdAt     DateTime @default(now())
+  handledAt     DateTime?
+
+  @@index([type, createdAt])
+}
+
 model CourseEntitlement {
   id            Int                         @id @default(autoincrement())
   userId        Int
@@ -905,6 +974,12 @@ enum CoursePlanPaymentStatus {
   FAILED
   EXPIRED
 }
+
+enum CoursePlanBillingInterval {
+  month
+  year
+}
+
 enum CourseEntitlementSourceType {
   SINGLE_PURCHASE
   PLAN_PASS

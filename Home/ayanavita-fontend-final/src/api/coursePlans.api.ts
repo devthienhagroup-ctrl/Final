@@ -1,4 +1,4 @@
-import { http } from './http'
+﻿import { http } from './http'
 
 export type CoursePlanTag = {
   id: number
@@ -11,6 +11,10 @@ export type CoursePlan = {
   code: string
   name: string
   price: number
+  currency?: 'vnd' | 'usd'
+  billingInterval?: 'month' | 'year'
+  stripeProductId?: string | null
+  currentStripePriceId?: string | null
   durationDays: number
   graceDays: number
   maxUnlocks: number
@@ -43,6 +47,15 @@ export type CoursePass = {
 
 export type CoursePlanPaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'EXPIRED'
 
+export type CoursePlanSubscriptionSnapshot = {
+  stripeSubscriptionId: string
+  status: string
+  cancelAtPeriodEnd: boolean
+  currentPeriodStart?: string | null
+  currentPeriodEnd?: string | null
+  canceledAt?: string | null
+}
+
 export type CoursePlanPayment = {
   id: number
   userId: number
@@ -53,6 +66,17 @@ export type CoursePlanPayment = {
   amount: number
   transferCode: string
   transferContent: string
+  stripeCheckoutSessionId?: string | null
+  stripePaymentIntentId?: string | null
+  stripeInvoiceId?: string | null
+  stripeSubscriptionId?: string | null
+  subscriptionStatus?: string | null
+  cancelAtPeriodEnd?: boolean
+  subscriptionCurrentPeriodStart?: string | null
+  subscriptionCurrentPeriodEnd?: string | null
+  subscriptionCanceledAt?: string | null
+  subscription?: CoursePlanSubscriptionSnapshot | null
+  failureReason?: string | null
   paidAt?: string | null
   expiredAt?: string | null
   createdAt: string
@@ -84,6 +108,8 @@ export type CoursePlanPayment = {
   } | null
 }
 
+export type CoursePlanCheckoutMethod = 'SEPAY' | 'STRIPE_ONE_TIME' | 'STRIPE_SUBSCRIPTION'
+
 export type CoursePlanCheckoutResponse =
   | {
       mode: 'FREE'
@@ -93,6 +119,20 @@ export type CoursePlanCheckoutResponse =
       mode: 'SEPAY'
       payment: CoursePlanPayment
     }
+  | {
+      mode: 'STRIPE'
+      stripeMode: 'ONE_TIME' | 'SUBSCRIPTION'
+      checkoutUrl: string
+      payment: CoursePlanPayment
+    }
+
+export type CoursePlanSubscriptionActionResponse = {
+  ok: boolean
+  alreadyCanceled?: boolean
+  alreadyResumed?: boolean
+  planId: number
+  subscription?: CoursePlanSubscriptionSnapshot | null
+}
 
 export const coursePlansApi = {
   listPublicPlans: async () => {
@@ -100,8 +140,15 @@ export const coursePlansApi = {
     return data
   },
 
-  purchasePlan: async (planId: number) => {
-    const { data } = await http.post<CoursePlanCheckoutResponse>(`/course-plans/${planId}/purchase`, {})
+  purchasePlan: async (
+    planId: number,
+    options?: {
+      method?: CoursePlanCheckoutMethod
+      successUrl?: string
+      cancelUrl?: string
+    },
+  ) => {
+    const { data } = await http.post<CoursePlanCheckoutResponse>(`/course-plans/${planId}/purchase`, options || {})
     return data
   },
 
@@ -114,5 +161,20 @@ export const coursePlansApi = {
     const { data } = await http.get<CoursePlanPayment[]>('/me/course-plan-payments')
     return data
   },
-}
 
+  cancelAutoRenewal: async (payload?: { passId?: number; planId?: number }) => {
+    const { data } = await http.post<CoursePlanSubscriptionActionResponse>(
+      '/me/course-plan-subscriptions/cancel-renewal',
+      payload || {},
+    )
+    return data
+  },
+
+  resumeAutoRenewal: async (payload?: { passId?: number; planId?: number }) => {
+    const { data } = await http.post<CoursePlanSubscriptionActionResponse>(
+      '/me/course-plan-subscriptions/resume-renewal',
+      payload || {},
+    )
+    return data
+  },
+}

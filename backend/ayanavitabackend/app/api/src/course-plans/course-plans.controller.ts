@@ -4,6 +4,7 @@ import { AccessTokenGuard } from '../auth/guards/access-token.guard'
 import { CoursePlansService } from './course-plans.service'
 import { CoursePlanPaymentsService } from './course-plan-payments.service'
 import { PurchasePlanDto } from './dto/purchase-plan.dto'
+import { ManageAutoRenewDto } from './dto/manage-auto-renew.dto'
 import { UnlockCourseDto } from './dto/unlock-course.dto'
 
 @Controller()
@@ -33,7 +34,7 @@ export class CoursePlansController {
     if (dto.purchaseId) {
       return this.plans.purchasePlan(user.sub, id, dto)
     }
-    return this.payments.createCheckout(user.sub, id)
+    return this.payments.createCheckout(user.sub, id, dto)
   }
 
   @UseGuards(AccessTokenGuard)
@@ -45,6 +46,24 @@ export class CoursePlansController {
   @Get('me/course-plan-payments')
   myCoursePlanPayments(@CurrentUser() user: JwtUser) {
     return this.payments.listMyPayments(user.sub)
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @Post('me/course-plan-subscriptions/cancel-renewal')
+  cancelRenewal(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: ManageAutoRenewDto,
+  ) {
+    return this.payments.cancelAutoRenewal(user.sub, dto)
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @Post('me/course-plan-subscriptions/resume-renewal')
+  resumeRenewal(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: ManageAutoRenewDto,
+  ) {
+    return this.payments.resumeAutoRenewal(user.sub, dto)
   }
 
   @UseGuards(AccessTokenGuard)

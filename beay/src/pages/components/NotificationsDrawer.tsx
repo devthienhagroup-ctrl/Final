@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import  { useMemo } from "react";
 
 type Notif = { title: string; desc: string; time: string; tone: "emerald" | "amber" | "indigo" };
 

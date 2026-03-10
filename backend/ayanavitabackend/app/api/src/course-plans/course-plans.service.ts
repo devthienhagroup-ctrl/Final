@@ -134,6 +134,10 @@ export class CoursePlansService {
       code: plan.code,
       name: plan.name,
       price: plan.price,
+      currency: plan.currency,
+      billingInterval: plan.billingInterval,
+      stripeProductId: plan.stripeProductId,
+      currentStripePriceId: plan.currentStripePriceId,
       durationDays: plan.durationDays,
       graceDays: plan.graceDays,
       maxUnlocks: plan.maxUnlocks,
@@ -390,6 +394,12 @@ export class CoursePlansService {
         code: dto.code.trim().toUpperCase(),
         name: dto.name.trim(),
         price: dto.price,
+        currency: (dto.currency ?? 'vnd').toLowerCase(),
+        billingInterval: dto.billingInterval ?? 'month',
+        ...(dto.stripeProductId !== undefined ? { stripeProductId: dto.stripeProductId.trim() || null } : {}),
+        ...(dto.currentStripePriceId !== undefined
+          ? { currentStripePriceId: dto.currentStripePriceId.trim() || null }
+          : {}),
         durationDays: dto.durationDays,
         graceDays: dto.graceDays,
         maxUnlocks: dto.maxUnlocks,
@@ -423,6 +433,12 @@ export class CoursePlansService {
       ...(dto.code !== undefined ? { code: dto.code.trim().toUpperCase() } : {}),
       ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
       ...(dto.price !== undefined ? { price: dto.price } : {}),
+      ...(dto.currency !== undefined ? { currency: dto.currency.toLowerCase() } : {}),
+      ...(dto.billingInterval !== undefined ? { billingInterval: dto.billingInterval } : {}),
+      ...(dto.stripeProductId !== undefined ? { stripeProductId: dto.stripeProductId.trim() || null } : {}),
+      ...(dto.currentStripePriceId !== undefined
+        ? { currentStripePriceId: dto.currentStripePriceId.trim() || null }
+        : {}),
       ...(dto.durationDays !== undefined ? { durationDays: dto.durationDays } : {}),
       ...(dto.graceDays !== undefined ? { graceDays: dto.graceDays } : {}),
       ...(dto.maxUnlocks !== undefined ? { maxUnlocks: dto.maxUnlocks } : {}),
@@ -987,3 +1003,4 @@ export class CoursePlansService {
     })
   }
 }
+

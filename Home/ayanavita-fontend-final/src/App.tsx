@@ -23,12 +23,18 @@ import LessonDetailPage from "./pages/LessonDetailPage";
 import ReviewsCenterPage from "./pages/ReviewsCenterPage";
 import AccountCenter from "./pages/AccountCenter";
 import LoginPage from "./pages/LoginPage";
+import DemoCheckoutPage from "./pages/PaymentStripeDemo";
+import PaymentSuccessPage from "./pages/PaymentSuccessPage";
+import PaymentCancelPage from "./pages/PaymentCancelPage";
 // ví dụ
 
 
 export default function App() {
     return (
         <Routes>
+                    <Route path="/payment/demo" element={<DemoCheckoutPage />} />
+        <Route path="/payment/success" element={<PaymentSuccessPage />} />
+        <Route path="/payment/cancel" element={<PaymentCancelPage />} />
             <Route path="/login" element={<LoginPage/>} />
 
             <Route element={<Layout/>}>

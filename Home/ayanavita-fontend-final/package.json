@@ -16,7 +16,8 @@
     "react-dom": "^19.2.4",
     "react-router-dom": "^6.30.3",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "sweetalert2": "^11.26.22"
   },
   "devDependencies": {
     "@types/node": "^25.2.2",

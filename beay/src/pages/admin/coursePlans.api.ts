@@ -17,6 +17,10 @@ export type CoursePlan = {
   code: string
   name: string
   price: number
+  currency?: 'vnd' | 'usd'
+  billingInterval?: 'month' | 'year'
+  stripeProductId?: string | null
+  currentStripePriceId?: string | null
   durationDays: number
   graceDays: number
   maxUnlocks: number
@@ -86,6 +90,9 @@ export const coursePlansApi = {
     code: string
     name: string
     price: number
+    currency?: 'vnd' | 'usd'
+    billingInterval?: 'month' | 'year'
+    stripeProductId?: string
     durationDays: number
     graceDays: number
     maxUnlocks: number
@@ -97,6 +104,9 @@ export const coursePlansApi = {
     code: string
     name: string
     price: number
+    currency: 'vnd' | 'usd'
+    billingInterval: 'month' | 'year'
+    stripeProductId: string
     durationDays: number
     graceDays: number
     maxUnlocks: number

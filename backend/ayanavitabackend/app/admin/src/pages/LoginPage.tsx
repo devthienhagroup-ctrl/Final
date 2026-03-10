@@ -9,8 +9,8 @@ export function LoginPage() {
   const nav = useNavigate();
   const loc = useLocation() as any;
 
-  const [email, setEmail] = useState("admin@ayanavita.vn");
-  const [password, setPassword] = useState("123456");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [remember, setRemember] = useState(true);
 

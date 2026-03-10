@@ -22,6 +22,9 @@ type PlanFormState = {
   code: string
   name: string
   price: string
+  currency: 'vnd' | 'usd'
+  billingInterval: 'month' | 'year'
+  stripeProductId: string
   durationDays: string
   graceDays: string
   maxUnlocks: string
@@ -77,6 +80,9 @@ const emptyPlanForm: PlanFormState = {
   code: '',
   name: '',
   price: '0',
+  currency: 'vnd',
+  billingInterval: 'month',
+  stripeProductId: 'prod_U6SCR9yPsztFRz',
   durationDays: '30',
   graceDays: '14',
   maxUnlocks: '50',
@@ -105,6 +111,9 @@ function toPlanForm(plan: CoursePlan): PlanFormState {
     code: plan.code,
     name: plan.name,
     price: String(plan.price),
+    currency: plan.currency || 'vnd',
+    billingInterval: plan.billingInterval || 'month',
+    stripeProductId: plan.stripeProductId || 'prod_U6SCR9yPsztFRz',
     durationDays: String(plan.durationDays),
     graceDays: String(plan.graceDays),
     maxUnlocks: String(plan.maxUnlocks),
@@ -583,6 +592,9 @@ export function CoursePlansAdminPage() {
       code: planForm.code.trim().toUpperCase(),
       name: planForm.name.trim(),
       price,
+      currency: planForm.currency,
+      billingInterval: planForm.billingInterval,
+      stripeProductId: planForm.stripeProductId.trim() || 'prod_U6SCR9yPsztFRz',
       durationDays,
       graceDays,
       maxUnlocks,
@@ -1299,7 +1311,7 @@ export function CoursePlansAdminPage() {
                             <td>
                               <div className="admin-row">
                                 <button type="button" className="admin-btn admin-btn-ghost" onClick={() => void onRenewPass(pass)}>
-                                  <i className="fa-solid fa-rotate-right" /> Gia háº¡n
+                                  <i className="fa-solid fa-rotate-right" /> Gia hạn
                                 </button>
                                 <button
                                     type="button"
@@ -1680,3 +1692,4 @@ export function CoursePlansAdminPage() {
       </main>
   )
 }
+

@@ -77,7 +77,7 @@ function resolveDefaultRoute(permissions: string[], scopeType: ScopeType | null)
     return "/login";
 }
 
-function resolveLoginTarget(from: string, permissions: string[], scopeType: ScopeType | null) {
+function resolveLoginTarget(_from: string, permissions: string[], scopeType: ScopeType | null) {
 
     // admin
     if (permissions.includes("dashboard.admin")) return "/admin/dashboard";
@@ -139,8 +139,8 @@ export function LoginPage() {
     const loc = useLocation();
     const state = (loc.state as LocationState | null) ?? null;
 
-    const [email, setEmail] = useState("admin@ayanavita.vn");
-    const [password, setPassword] = useState("123456");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
     const [remember, setRemember] = useState(true);
     const [err, setErr] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);

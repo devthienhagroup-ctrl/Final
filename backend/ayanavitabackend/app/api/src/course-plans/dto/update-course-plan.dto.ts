@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer'
-import { ArrayUnique, IsArray, IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from 'class-validator'
+import { ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from 'class-validator'
 
 export class UpdateCoursePlanDto {
   @IsOptional()
@@ -19,6 +19,26 @@ export class UpdateCoursePlanDto {
   @IsInt()
   @Min(0)
   price?: number
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['vnd', 'usd'])
+  currency?: string
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['month', 'year'])
+  billingInterval?: 'month' | 'year'
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  stripeProductId?: string
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  currentStripePriceId?: string
 
   @IsOptional()
   @Type(() => Number)
@@ -57,3 +77,4 @@ export class UpdateCoursePlanDto {
   @Min(1, { each: true })
   excludedTagIds?: number[]
 }
+

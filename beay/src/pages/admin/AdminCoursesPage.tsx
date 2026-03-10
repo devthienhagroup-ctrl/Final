@@ -297,7 +297,7 @@ export default function AdminCoursesPage() {
       const topicItems = await adminCoursesApi.listTopics();
       setTopics(topicItems);
     } catch (e: any) {
-      AlertJs.error(e?.message || t.loadFailed);
+      AlertJs.error(t.errorTitle ,e?.message || t.loadFailed);
     } finally {
       setLoading(false);
     }
@@ -315,7 +315,7 @@ export default function AdminCoursesPage() {
       setCourses(courseResp.items);
       setCoursesTotal(courseResp.total);
     } catch (e: any) {
-      AlertJs.error(e?.message || t.loadFailed);
+      AlertJs.error(t.errorTitle, e?.message || t.loadFailed);
     }
   };
 
@@ -380,7 +380,7 @@ export default function AdminCoursesPage() {
     const fallbackName =
       topicForm.vi.name || topicForm["en"].name || topicForm.de.name;
     if (!fallbackName.trim()) {
-      AlertJs.error(t.validateName);
+      AlertJs.error(t.validateName, "");
       return;
     }
 
@@ -420,7 +420,7 @@ export default function AdminCoursesPage() {
       resetForm();
       await loadTopics();
     } catch (e: any) {
-      AlertJs.error(e?.message || t.saveFailed);
+      AlertJs.error(t.errorTitle, e?.message || t.saveFailed);
     }
   };
 
@@ -430,7 +430,7 @@ export default function AdminCoursesPage() {
       AlertJs.success(t.deleteSuccess);
       await loadTopics();
     } catch (e: any) {
-      AlertJs.error(e?.message || t.deleteFailed);
+      AlertJs.error(t.errorTitle, e?.message || t.deleteFailed);
     }
   };
 

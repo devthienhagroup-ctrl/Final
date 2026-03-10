@@ -12,6 +12,11 @@ import {
   type CoursePlanPayment,
   type CoursePlanPaymentStatus,
 } from "../api/coursePlans.api";
+import ProfileTab from "./account-center/components/ProfileTab";
+import ChangePasswordTab from "./account-center/components/ChangePasswordTab";
+import ForgotPasswordTab from "./account-center/components/ForgotPasswordTab";
+import MyOrdersTab from "./account-center/components/MyOrdersTab";
+import SubscriptionsTab from "./account-center/components/SubscriptionsTab";
 
 type ToastKind = "success" | "error" | "info";
 type ActiveSection = "profile" | "changePassword" | "forgotPassword" | "myOrders" | "subscriptions";
@@ -752,12 +757,13 @@ const defaultCmsData: CmsData = {
       checkoutFailed: { title: "Gói đăng ký", message: "Không thể tạo thanh toán cho gói này." },
       paymentSuccess: { title: "Gói đăng ký", message: "Thanh toán gói thành công. Quota đã được cập nhật." },
       paymentExpired: { title: "Gói đăng ký", message: "Phiên thanh toán gói đã hết hạn hoặc thất bại." },
-      cancelAutoRenewalSuccess: { title: "G\u00f3i \u0111\u0103ng k\u00fd", message: "\u0110\u00e3 h\u1ee7y t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n th\u00e0nh c\u00f4ng." },
-      cancelAutoRenewalAlready: { title: "G\u00f3i \u0111\u0103ng k\u00fd", message: "G\u00f3i n\u00e0y \u0111\u00e3 \u1edf tr\u1ea1ng th\u00e1i kh\u00f4ng t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n." },
-      cancelAutoRenewalFailed: { title: "G\u00f3i \u0111\u0103ng k\u00fd", message: "Kh\u00f4ng th\u1ec3 h\u1ee7y t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n." },
-      resumeAutoRenewalSuccess: { title: "G\u00f3i \u0111\u0103ng k\u00fd", message: "\u0110\u00e3 b\u1eadt l\u1ea1i t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n th\u00e0nh c\u00f4ng." },
-      resumeAutoRenewalAlready: { title: "G\u00f3i \u0111\u0103ng k\u00fd", message: "G\u00f3i n\u00e0y \u0111\u00e3 b\u1eadt t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n." },
-      resumeAutoRenewalFailed: { title: "G\u00f3i \u0111\u0103ng k\u00fd", message: "Kh\u00f4ng th\u1ec3 b\u1eadt l\u1ea1i t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n." },
+      cancelAutoRenewalSuccess: { title: "Gói đăng ký", message: "Đã hủy tự động gia hạn thành công." },
+      cancelAutoRenewalAlready: { title: "Gói đăng ký", message: "Gói này đã ở trạng thái không tự động gia hạn." },
+      cancelAutoRenewalFailed: { title: "Gói đăng ký", message: "Không thể hủy tự động gia hạn." },
+
+      resumeAutoRenewalSuccess: { title: "Gói đăng ký", message: "Đã bật lại tự động gia hạn thành công." },
+      resumeAutoRenewalAlready: { title: "Gói đăng ký", message: "Gói này đã bật tự động gia hạn." },
+      resumeAutoRenewalFailed: { title: "Gói đăng ký", message: "Không thể bật lại tự động gia hạn." },
     },
   },
 
@@ -842,29 +848,6 @@ function ToastStack({
             </div>
         ))}
       </div>
-  );
-}
-
-function Field({
-                 label,
-                 iconClass,
-                 children,
-                 helper,
-               }: {
-  label: string;
-  iconClass: string;
-  children: React.ReactNode;
-  helper?: string;
-}) {
-  return (
-      <label className="block">
-      <span className="mb-1 flex items-center gap-2 text-sm font-semibold text-slate-700">
-        <i className={classNames(iconClass, "text-slate-400")} />
-        {label}
-      </span>
-        {children}
-        {helper ? <p className="mt-1 text-xs text-slate-500">{helper}</p> : null}
-      </label>
   );
 }
 
@@ -1543,6 +1526,10 @@ export default function AccountCenter() {
     }
   }, [fetchMyOrders, cms]);
 
+  const onViewOrder = useCallback(async (order: MyOrder) => {
+    setSelectedOrder(order);
+  }, []);
+
 
   // ✅ Poll server để check trạng thái thanh toán -> tự đóng modal QR + cập nhật trạng thái đơn hàng
   useEffect(() => {
@@ -1831,6 +1818,114 @@ export default function AccountCenter() {
                   : active === "subscriptions"
                       ? cms.subscriptions.cardDesc
                       : cms.myOrders.cardDesc;
+  const cmsForTabs = useMemo(() => ({ tabs: cms, common: cms.common }), [cms]);
+
+  const renderActiveSection = () => {
+    if (active === "profile") {
+      return (
+        <ProfileTab
+          cms={cmsForTabs}
+          profile={profile}
+          setProfile={setProfile}
+          loading={loading}
+          onSubmit={onProfileSubmit}
+        />
+      );
+    }
+
+    if (active === "changePassword") {
+      return (
+        <ChangePasswordTab
+          cms={cmsForTabs}
+          passwordStep={passwordStep}
+          setPasswordStep={setPasswordStep}
+          passwordForm={passwordForm}
+          setPasswordForm={setPasswordForm}
+          loading={loading}
+          onVerifyCurrentPassword={onVerifyCurrentPassword}
+          onChangePassword={onChangePassword}
+        />
+      );
+    }
+
+    if (active === "forgotPassword") {
+      return (
+        <ForgotPasswordTab
+          cms={cmsForTabs}
+          forgotStep={forgotStep}
+          setForgotStep={setForgotStep}
+          forgotForm={forgotForm}
+          setForgotForm={setForgotForm}
+          profileEmail={profile.email}
+          loading={loading}
+          onSendForgotOtp={onSendForgotOtp}
+          onVerifyForgotOtp={onVerifyForgotOtp}
+          onForgotPassword={onForgotPassword}
+        />
+      );
+    }
+
+    if (active === "subscriptions") {
+      return (
+        <SubscriptionsTab
+          cms={cmsForTabs}
+          subscriptionLoading={subscriptionLoading}
+          subscriptionError={subscriptionError}
+          currentPass={currentPass}
+          publicPlans={publicPlans}
+          focusedPlanId={focusedPlanId}
+          subscriptionActionPlanId={subscriptionActionPlanId}
+          passHistory={passHistory}
+          paymentHistory={paymentHistory}
+          planPaymentModal={planPaymentModal}
+          planQrCountdown={planQrCountdown}
+          planQrExpiresAt={planQrExpiresAt}
+          setPlanPaymentModal={setPlanPaymentModal}
+          onStartPlanCheckout={onStartPlanCheckout}
+          openPlanPaymentModal={openPlanPaymentModal}
+          onCancelAutoRenewal={onCancelAutoRenewal}
+          onResumeAutoRenewal={onResumeAutoRenewal}
+          formatDate={formatDate}
+          formatDateTime={formatDateTime}
+          formatMoney={formatMoney}
+          formatDurationDays={formatDurationDays}
+          getPassStatusLabel={getPassStatusLabel}
+          getPaymentStatusLabel={getPaymentStatusLabel}
+          passStatusStyles={PASS_STATUS_STYLES}
+          planPaymentStatusStyles={PLAN_PAYMENT_STATUS_STYLES}
+        />
+      );
+    }
+
+    return (
+      <MyOrdersTab
+        cms={cmsForTabs}
+        orderKeyword={orderKeyword}
+        setOrderKeyword={setOrderKeyword}
+        orderStatusFilter={orderStatusFilter}
+        setOrderStatusFilter={setOrderStatusFilter}
+        ordersLoading={ordersLoading}
+        filteredOrders={filteredOrders}
+        payingOrderId={payingOrderId}
+        selectedOrder={selectedOrder}
+        setSelectedOrder={setSelectedOrder}
+        qrModalOrder={qrModalOrder}
+        setQrModalOrder={setQrModalOrder}
+        qrPayload={qrPayload}
+        setQrPayload={setQrPayload}
+        qrCountdown={qrCountdown}
+        qrExpiresAt={qrExpiresAt}
+        cancelRequestingOrderId={cancelRequestingOrderId}
+        onPayPendingOrder={onPayPendingOrder}
+        onRequestCancelOrder={onRequestCancelOrder}
+        onViewOrder={onViewOrder}
+        formatDate={formatDate}
+        formatDateTime={formatDateTime}
+        formatMoney={formatMoney}
+        orderStatusStyles={ORDER_STATUS_STYLES}
+      />
+    );
+  };
   return (
       <div className="min-h-[calc(100vh-0px)] bg-slate-50">
         <ToastStack toasts={toasts} onClose={closeToast} closeLabel={cms.common.aria.closeToast} />
@@ -1936,1036 +2031,7 @@ export default function AccountCenter() {
                   </div>
                 </div>
 
-                {/* PROFILE */}
-                {active === "profile" && (
-                    <form className="grid gap-4 md:grid-cols-2" onSubmit={onProfileSubmit}>
-                      <Field label={cms.profile.fields.fullName.label} iconClass={cms.profile.fields.fullName.iconClass}>
-                        <input
-                            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                            placeholder={cms.profile.fields.fullName.placeholder}
-                            value={profile.fullName}
-                            onChange={(e) => setProfile((prev) => ({ ...prev, fullName: e.target.value }))}
-                        />
-                      </Field>
-
-                      <Field label={cms.profile.fields.phone.label} iconClass={cms.profile.fields.phone.iconClass}>
-                        <input
-                            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                            placeholder={cms.profile.fields.phone.placeholder}
-                            value={profile.phone}
-                            onChange={(e) => setProfile((prev) => ({ ...prev, phone: e.target.value }))}
-                        />
-                      </Field>
-
-                      <Field label={cms.profile.fields.email.label} iconClass={cms.profile.fields.email.iconClass} helper={cms.profile.fields.email.helper}>
-                        <input
-                            className="w-full cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"
-                            type="text"
-                            placeholder={cms.profile.fields.email.placeholder}
-                            value={profile.email}
-                            readOnly
-                        />
-                      </Field>
-
-                      <Field label={cms.profile.fields.birthDate.label} iconClass={cms.profile.fields.birthDate.iconClass}>
-                        <input
-                            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                            type="date"
-                            value={profile.birthDate}
-                            onChange={(e) => setProfile((prev) => ({ ...prev, birthDate: e.target.value }))}
-                        />
-                      </Field>
-
-                      <Field label={cms.profile.fields.gender.label} iconClass={cms.profile.fields.gender.iconClass}>
-                        <select
-                            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                            value={profile.gender}
-                            onChange={(e) => setProfile((prev) => ({ ...prev, gender: e.target.value }))}
-                        >
-                          <option value="MALE">{cms.profile.fields.gender.options.male}</option>
-                          <option value="FEMALE">{cms.profile.fields.gender.options.female}</option>
-                          <option value="OTHER">{cms.profile.fields.gender.options.other}</option>
-                        </select>
-                      </Field>
-
-                      <div className="md:col-span-2">
-                        <Field label={cms.profile.fields.address.label} iconClass={cms.profile.fields.address.iconClass}>
-                          <input
-                              className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                              placeholder={cms.profile.fields.address.placeholder}
-                              value={profile.address}
-                              onChange={(e) => setProfile((prev) => ({ ...prev, address: e.target.value }))}
-                          />
-                        </Field>
-                      </div>
-
-                      <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-3 pt-2">
-                        <div className="text-xs text-slate-500">
-                          <i className="fa-solid fa-circle-exclamation mr-2 text-slate-400" />
-                          {cms.profile.fields.email.helper}
-                        </div>
-                        <button
-                            type="submit"
-                            className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-60"
-                            disabled={loading}
-                        >
-                          <i className="fa-regular fa-floppy-disk" />
-                          {cms.common.actions.save}
-                        </button>
-                      </div>
-                    </form>
-                )}
-
-                {/* CHANGE PASSWORD */}
-                {active === "changePassword" && (
-                    <div className="space-y-4">
-                      {passwordStep === "verifyCurrent" ? (
-                          <form className="grid gap-4 md:grid-cols-2" onSubmit={onVerifyCurrentPassword}>
-                            <div className="md:col-span-2">
-                              <Field
-                                  label={cms.changePassword.steps.verifyCurrent.currentPassword.label}
-                                  iconClass={cms.changePassword.steps.verifyCurrent.currentPassword.iconClass}
-                              >
-                                <input
-                                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                                    type="password"
-                                    placeholder={cms.changePassword.steps.verifyCurrent.currentPassword.placeholder}
-                                    value={passwordForm.currentPassword}
-                                    onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
-                                />
-                              </Field>
-                            </div>
-
-                            <div className="md:col-span-2 flex justify-end">
-                              <button
-                                  type="submit"
-                                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-extrabold text-white hover:bg-slate-800 disabled:opacity-60"
-                                  disabled={loading}
-                              >
-                                <i className="fa-solid fa-magnifying-glass" />
-                                {cms.changePassword.steps.verifyCurrent.buttonText}
-                              </button>
-                            </div>
-                          </form>
-                      ) : (
-                          <form className="grid gap-4 md:grid-cols-2" onSubmit={onChangePassword}>
-                            <Field label={cms.changePassword.steps.setNew.newPassword.label} iconClass={cms.changePassword.steps.setNew.newPassword.iconClass}>
-                              <input
-                                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                                  type="password"
-                                  placeholder={cms.changePassword.steps.setNew.newPassword.placeholder}
-                                  value={passwordForm.newPassword}
-                                  onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
-                              />
-                            </Field>
-
-                            <Field
-                                label={cms.changePassword.steps.setNew.confirmPassword.label}
-                                iconClass={cms.changePassword.steps.setNew.confirmPassword.iconClass}
-                            >
-                              <input
-                                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                                  type="password"
-                                  placeholder={cms.changePassword.steps.setNew.confirmPassword.placeholder}
-                                  value={passwordForm.confirmPassword}
-                                  onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
-                              />
-                            </Field>
-
-                            <div className="md:col-span-2 flex flex-wrap justify-end gap-2 pt-2">
-                              <button
-                                  type="button"
-                                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-extrabold text-slate-700 hover:bg-slate-50"
-                                  onClick={() => setPasswordStep("verifyCurrent")}
-                                  disabled={loading}
-                              >
-                                <i className="fa-solid fa-arrow-left" />
-                                {cms.common.actions.back}
-                              </button>
-
-                              <button
-                                  type="submit"
-                                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-extrabold text-white hover:bg-slate-800 disabled:opacity-60"
-                                  disabled={loading}
-                              >
-                                <i className="fa-solid fa-key" />
-                                {cms.common.actions.updatePassword}
-                              </button>
-                            </div>
-                          </form>
-                      )}
-                    </div>
-                )}
-
-                {/* FORGOT PASSWORD */}
-                {active === "forgotPassword" && (
-                    <div className="space-y-4">
-                      {/* Step: email */}
-                      {forgotStep === "email" && (
-                          <form className="space-y-4" onSubmit={onSendForgotOtp}>
-                            <Field label={cms.forgotPassword.steps.email.email.label} iconClass={cms.forgotPassword.steps.email.email.iconClass}>
-                              <input
-                                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                                  type="email"
-                                  placeholder={cms.forgotPassword.steps.email.email.placeholder}
-                                  value={forgotForm.email}
-                                  onChange={(e) => setForgotForm((prev) => ({ ...prev, email: e.target.value }))}
-                              />
-                            </Field>
-
-                            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                              <i className="fa-regular fa-envelope mr-2 text-slate-500" />
-                              {cms.forgotPassword.noteRegisteredEmail}:{" "}
-                              <span className="font-extrabold">{profile.email || cms.common.labels.noEmail}</span>
-                            </div>
-
-                            <div className="flex justify-end">
-                              <button
-                                  type="submit"
-                                  className="inline-flex items-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-3 text-sm font-extrabold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
-                                  disabled={loading}
-                              >
-                                <i className="fa-solid fa-paper-plane" />
-                                {cms.common.actions.sendOtp}
-                              </button>
-                            </div>
-                          </form>
-                      )}
-
-                      {/* Step: otp */}
-                      {forgotStep === "otp" && (
-                          <form className="flex flex-col gap-3 md:flex-row md:items-end" onSubmit={onVerifyForgotOtp}>
-                            <div className="flex-1">
-                              <Field label={cms.forgotPassword.steps.otp.otp.label} iconClass={cms.forgotPassword.steps.otp.otp.iconClass}>
-                                <input
-                                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                                    type="text"
-                                    placeholder={cms.forgotPassword.steps.otp.otp.placeholder}
-                                    value={forgotForm.otp}
-                                    onChange={(e) => setForgotForm((prev) => ({ ...prev, otp: e.target.value }))}
-                                />
-                              </Field>
-                            </div>
-
-                            <div className="flex gap-2">
-                              <button
-                                  type="button"
-                                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-extrabold text-slate-700 hover:bg-slate-50"
-                                  onClick={() => setForgotStep("email")}
-                                  disabled={loading}
-                              >
-                                <i className="fa-solid fa-arrow-left" />
-                                {cms.common.actions.back}
-                              </button>
-
-                              <button
-                                  type="submit"
-                                  className="inline-flex items-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-3 text-sm font-extrabold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
-                                  disabled={loading}
-                              >
-                                <i className="fa-solid fa-badge-check" />
-                                {cms.common.actions.verifyOtp}
-                              </button>
-                            </div>
-                          </form>
-                      )}
-
-                      {/* Step: new password */}
-                      {forgotStep === "newPassword" && (
-                          <form className="grid gap-4 md:grid-cols-2" onSubmit={onForgotPassword}>
-                            <Field
-                                label={cms.forgotPassword.steps.newPassword.newPassword.label}
-                                iconClass={cms.forgotPassword.steps.newPassword.newPassword.iconClass}
-                            >
-                              <input
-                                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                                  type="password"
-                                  placeholder={cms.forgotPassword.steps.newPassword.newPassword.placeholder}
-                                  value={forgotForm.newPassword}
-                                  onChange={(e) => setForgotForm((prev) => ({ ...prev, newPassword: e.target.value }))}
-                              />
-                            </Field>
-
-                            <Field
-                                label={cms.forgotPassword.steps.newPassword.confirmPassword.label}
-                                iconClass={cms.forgotPassword.steps.newPassword.confirmPassword.iconClass}
-                            >
-                              <input
-                                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                                  type="password"
-                                  placeholder={cms.forgotPassword.steps.newPassword.confirmPassword.placeholder}
-                                  value={forgotForm.confirmPassword}
-                                  onChange={(e) => setForgotForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
-                              />
-                            </Field>
-
-                            <div className="md:col-span-2 flex flex-wrap justify-end gap-2 pt-2">
-                              <button
-                                  type="button"
-                                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-extrabold text-slate-700 hover:bg-slate-50"
-                                  onClick={() => setForgotStep("otp")}
-                                  disabled={loading}
-                              >
-                                <i className="fa-solid fa-arrow-left" />
-                                {cms.common.actions.back}
-                              </button>
-
-                              <button
-                                  type="submit"
-                                  className="inline-flex items-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-3 text-sm font-extrabold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
-                                  disabled={loading}
-                              >
-                                <i className="fa-solid fa-rotate" />
-                                {cms.common.actions.resetPassword}
-                              </button>
-                            </div>
-                          </form>
-                      )}
-                    </div>
-                )}
-                {active === "subscriptions" && (
-                    <div className="space-y-4">
-                      {subscriptionLoading ? (
-                          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
-                            {cms.common.loadingText}
-                          </div>
-                      ) : null}
-
-                      {subscriptionError ? (
-                          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                            {subscriptionError}
-                          </div>
-                      ) : null}
-
-                      {!subscriptionLoading ? (
-                          <>
-                            {currentPass ? (
-                                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
-                                  <div className="flex flex-wrap items-start justify-between gap-3">
-                                    <div>
-                                      <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">{cms.subscriptions.summary.currentPlanTitle}</p>
-                                      <p className="mt-1 text-lg font-extrabold text-slate-900">{currentPass.plan.name}</p>
-                                      <p className="mt-1 text-sm text-slate-700">
-                                        {cms.subscriptions.summary.cycleLabel}: {formatDate(currentPass.startAt)} - {formatDate(currentPass.endAt)} | {cms.subscriptions.summary.graceUntilLabel} {formatDate(currentPass.graceUntil)}
-                                      </p>
-                                    </div>
-                                    <span
-                                        className={classNames(
-                                            "inline-flex rounded-full border px-3 py-1 text-xs font-bold",
-                                            PASS_STATUS_STYLES[currentPass.computedStatus],
-                                        )}
-                                    >
-                              {getPassStatusLabel(currentPass.computedStatus, cms.subscriptions.statuses.pass)}
-                            </span>
-                                  </div>
-
-                                  <div className="mt-3 grid gap-3 md:grid-cols-3">
-                                    <div className="rounded-xl border border-white/60 bg-white px-3 py-3">
-                                      <p className="text-xs text-slate-500">{cms.subscriptions.summary.remainingQuota}</p>
-                                      <p className="mt-1 text-xl font-extrabold text-slate-900">{currentPass.remainingUnlocks}</p>
-                                    </div>
-                                    <div className="rounded-xl border border-white/60 bg-white px-3 py-3">
-                                      <p className="text-xs text-slate-500">{cms.subscriptions.summary.unlockedCount}</p>
-                                      <p className="mt-1 text-xl font-extrabold text-slate-900">{currentPass.unlockCount}</p>
-                                    </div>
-                                    <div className="rounded-xl border border-white/60 bg-white px-3 py-3">
-                                      <p className="text-xs text-slate-500">{cms.subscriptions.summary.unlockNew}</p>
-                                      <p className="mt-1 text-xl font-extrabold text-slate-900">
-                                        {(currentPass.computedStatus === "ACTIVE" || currentPass.computedStatus === "GRACE") && currentPass.remainingUnlocks > 0
-                                            ? cms.subscriptions.summary.canUnlockYes
-                                            : cms.subscriptions.summary.canUnlockNo}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div className="mt-4 flex flex-wrap gap-2">
-                                    {currentPassRenewalState === "AUTO_RENEW_ACTIVE" ? (
-                                      <button
-                                        type="button"
-                                        className="inline-flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-extrabold text-rose-700 hover:bg-rose-100 disabled:opacity-60"
-                                        disabled={subscriptionActionPlanId === currentPass.plan.id}
-                                        onClick={() => void onCancelAutoRenewal(currentPass)}
-                                      >
-                                        {cms.subscriptions.actions.cancelAutoRenewal}
-                                      </button>
-                                    ) : (
-                                      <>
-                                        <button
-                                          type="button"
-                                          className="inline-flex items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-extrabold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
-                                          disabled={subscriptionActionPlanId === currentPass.plan.id}
-                                          onClick={() => void onRenewCurrentPass(currentPass)}
-                                        >
-                                          {cms.subscriptions.actions.renewNow}
-                                        </button>
-                                        <button
-                                          type="button"
-                                          className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-extrabold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
-                                          disabled={subscriptionActionPlanId === currentPass.plan.id}
-                                          onClick={() => void onRegisterAutoRenewCurrentPass(currentPass)}
-                                        >
-                                          {cms.subscriptions.actions.registerAutoRenewal}
-                                        </button>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                            ) : (
-                                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                                  {cms.subscriptions.summary.noActivePass}
-                                </div>
-                            )}
-
-                            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                              <p className="text-sm font-bold text-slate-700">{cms.subscriptions.planList.title}</p>
-                            </div>
-
-                            {publicPlans.length === 0 ? (
-                                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
-                                  {cms.subscriptions.planList.emptyText}
-                                </div>
-                            ) : (
-                                <div className="grid gap-3 md:grid-cols-2">
-                                  {publicPlans.map((plan) => {
-                                    const highlighted = focusedPlanId === plan.id;
-                                    return (
-                                        <div
-                                            key={plan.id}
-                                            className={classNames(
-                                                "rounded-2xl border bg-white p-4",
-                                                highlighted ? "border-indigo-300 ring-2 ring-indigo-100" : "border-slate-200",
-                                            )}
-                                        >
-                                          <div className="flex items-start justify-between gap-3">
-                                            <div>
-                                              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{plan.code}</p>
-                                              <p className="mt-1 text-base font-extrabold text-slate-900">{plan.name}</p>
-                                            </div>
-                                            <p className="text-sm font-semibold text-slate-700">{formatMoney(plan.price)}</p>
-                                          </div>
-
-                                          <div className="mt-2 space-y-1 text-xs text-slate-600">
-                                            <p>- {cms.subscriptions.planCard.quotaLabel}: {plan.maxUnlocks} {cms.subscriptions.planCard.perCycleLabel}</p>
-                                            <p>- {cms.subscriptions.planCard.durationLabel}: {formatDurationDays(plan.durationDays, cms.subscriptions.planCard.durationUnits)} + {cms.subscriptions.planCard.graceLabel} {plan.graceDays} {cms.subscriptions.planCard.durationUnits.day}</p>
-                                            <p>- {cms.subscriptions.planCard.maxCoursePriceLabel}: {plan.maxCoursePrice != null ? formatMoney(plan.maxCoursePrice) : cms.subscriptions.planCard.unlimited}</p>
-                                            <p>
-                                              - {cms.subscriptions.planCard.blockedTagsLabel}: {plan.excludedTags.length > 0 ? plan.excludedTags.map((tag) => tag.code).join(", ") : cms.subscriptions.planCard.noBlockedTags}
-                                            </p>
-                                          </div>
-
-                                          <button
-                                              type="button"
-                                              className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-extrabold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
-                                              disabled={subscriptionActionPlanId === plan.id}
-                                              onClick={() => {
-                                                if (!localStorage.getItem("aya_access_token")) {
-                                                  window.location.href = "/login";
-                                                  return;
-                                                }
-                                                void onStartPlanCheckout(plan);
-                                              }}
-                                          >
-                                            {subscriptionActionPlanId === plan.id
-                                                ? cms.subscriptions.actions.processing
-                                                : currentPass
-                                                    ? cms.subscriptions.actions.renewOrBuyMore
-                                                    : cms.subscriptions.actions.subscribe}
-                                          </button>
-                                        </div>
-                                    );
-                                  })}
-                                </div>
-                            )}
-
-                            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                              <p className="text-sm font-bold text-slate-700">{cms.subscriptions.history.passTitle}</p>
-                            </div>
-
-                            {passHistory.length === 0 ? (
-                                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
-                                  {cms.subscriptions.history.passEmptyText}
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                  {passHistory.map((pass) => (
-                                      <article key={pass.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                                        <div className="flex flex-wrap items-start justify-between gap-2">
-                                          <div>
-                                            <p className="text-sm font-extrabold text-slate-900">{pass.plan.name}</p>
-                                            <p className="mt-1 text-xs text-slate-600">
-                                              {formatDate(pass.startAt)} - {formatDate(pass.endAt)} | {cms.subscriptions.summary.graceUntilLabel} {formatDate(pass.graceUntil)}
-                                            </p>
-                                          </div>
-                                          <span
-                                              className={classNames(
-                                                  "inline-flex rounded-full border px-3 py-1 text-xs font-bold",
-                                                  PASS_STATUS_STYLES[pass.computedStatus],
-                                              )}
-                                          >
-                                  {getPassStatusLabel(pass.computedStatus, cms.subscriptions.statuses.pass)}
-                                </span>
-                                        </div>
-                                        <div className="mt-2 grid gap-2 text-xs text-slate-600 md:grid-cols-3">
-                                          <p>{cms.subscriptions.history.remainingQuota}: <span className="font-bold text-slate-800">{pass.remainingUnlocks}</span></p>
-                                          <p>{cms.subscriptions.history.unlockCount}: <span className="font-bold text-slate-800">{pass.unlockCount}</span></p>
-                                          <p>{cms.subscriptions.history.paymentCode}: <span className="font-bold text-slate-800">{pass.purchaseId || cms.common.emptyValue}</span></p>
-                                        </div>
-                                      </article>
-                                  ))}
-                                </div>
-                            )}
-
-                            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                              <p className="text-sm font-bold text-slate-700">{cms.subscriptions.history.paymentTitle}</p>
-                            </div>
-
-                            {paymentHistory.length === 0 ? (
-                                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
-                                  {cms.subscriptions.history.paymentEmptyText}
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                  {paymentHistory.map((payment) => (
-                                      <article key={payment.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                                        <div className="flex flex-wrap items-start justify-between gap-2">
-                                          <div>
-                                            <p className="text-sm font-extrabold text-slate-900">{payment.plan.name}</p>
-                                            <p className="mt-1 text-xs text-slate-600">
-                                              {cms.subscriptions.history.amount}: {formatMoney(payment.amount)} | {cms.subscriptions.history.createdAt} {formatDateTime(payment.createdAt)}
-                                            </p>
-                                          </div>
-                                          <span
-                                              className={classNames(
-                                                  "inline-flex rounded-full border px-3 py-1 text-xs font-bold",
-                                                  PLAN_PAYMENT_STATUS_STYLES[payment.computedStatus],
-                                              )}
-                                          >
-                                  {getPaymentStatusLabel(payment.computedStatus, cms.subscriptions.statuses.payment)}
-                                </span>
-                                        </div>
-
-                                        <div className="mt-2 grid gap-2 text-xs text-slate-600 md:grid-cols-2">
-                                          <p>{cms.subscriptions.history.transferContent}: <span className="font-bold text-slate-800">{payment.transferContent}</span></p>
-                                          <p>{cms.subscriptions.history.paidAt}: <span className="font-bold text-slate-800">{formatDateTime(payment.paidAt)}</span></p>
-                                        </div>
-
-                                        {payment.computedStatus === "PENDING" && payment.sepay ? (
-                                            <div className="mt-3">
-                                              <button
-                                                  type="button"
-                                                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-extrabold text-emerald-700 hover:bg-emerald-100"
-                                                  onClick={() => openPlanPaymentModal(payment)}
-                                              >
-                                                <i className="fa-solid fa-qrcode" />
-                                                {cms.subscriptions.actions.openPaymentQr}
-                                              </button>
-                                            </div>
-                                        ) : null}
-                                      </article>
-                                  ))}
-                                </div>
-                            )}
-                          </>
-                      ) : null}
-
-                      {planPaymentModal?.sepay ? (
-                          <div
-                              className="fixed inset-0 z-[135] flex items-center justify-center bg-black/60 px-4"
-                              onClick={() => setPlanPaymentModal(null)}
-                          >
-                            <div
-                                className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                              <div className="flex items-center justify-between gap-3">
-                                <h3 className="text-lg font-bold text-slate-900">{cms.subscriptions.qrModal.title}</h3>
-                                <button
-                                    type="button"
-                                    onClick={() => setPlanPaymentModal(null)}
-                                    className="rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
-                                >
-                                  {cms.common.actions.close}
-                                </button>
-                              </div>
-
-                              <p className="mt-1 text-xs text-slate-500">{cms.subscriptions.qrModal.planLabel}: {planPaymentModal.plan.name}</p>
-
-                              <div className="relative mx-auto mt-4 h-64 w-64">
-                                <img
-                                    src={planPaymentModal.sepay.qrUrl}
-                                    alt={cms.subscriptions.qrModal.qrAlt}
-                                    className={
-                                        "h-64 w-64 rounded-xl border border-slate-200 transition " +
-                                        (planQrCountdown.expired ? "opacity-40 blur-[2px]" : "")
-                                    }
-                                />
-                              </div>
-
-                              <div className="mt-4 space-y-1 text-sm text-slate-700">
-                                <p><span className="font-semibold">{cms.subscriptions.qrModal.amount}:</span> {formatMoney(Number(planPaymentModal.sepay.amount || 0))}</p>
-                                <p><span className="font-semibold">{cms.subscriptions.qrModal.transferContent}:</span> {planPaymentModal.sepay.transferContent}</p>
-                                <p><span className="font-semibold">{cms.subscriptions.qrModal.timeLeft}:</span> {planQrCountdown.text}</p>
-                                <p><span className="font-semibold">{cms.subscriptions.qrModal.expiresAt}:</span> {formatDateTime(planQrExpiresAt)}</p>
-                              </div>
-
-                              {planQrCountdown.expired ? (
-                                  <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                                    {cms.subscriptions.qrModal.expiredMessage}
-                                  </div>
-                              ) : (
-                                  <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                                    {cms.subscriptions.qrModal.waitingMessage}
-                                  </div>
-                              )}
-                            </div>
-                          </div>
-                      ) : null}
-                    </div>
-                )}
-                {/* MY ORDERS */}
-                {active === "myOrders" && (
-                    <div className="space-y-4">
-                      {/* Bộ lọc */}
-                      <div className="grid gap-3 md:grid-cols-[1fr_220px]">
-                        <Field label={cms.myOrders.filters.keyword.label} iconClass={cms.myOrders.filters.keyword.iconClass}>
-                          <input
-                              className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                              type="text"
-                              placeholder={cms.myOrders.filters.keyword.placeholder}
-                              value={orderKeyword}
-                              onChange={(e) => setOrderKeyword(e.target.value)}
-                          />
-                        </Field>
-
-                        <Field label={cms.myOrders.filters.status.label} iconClass={cms.myOrders.filters.status.iconClass}>
-                          <select
-                              className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                              value={orderStatusFilter}
-                              onChange={(e) => setOrderStatusFilter(e.target.value as "all" | OrderStatus)}
-                          >
-                            <option value="all">{cms.myOrders.filters.status.all}</option>
-                            <option value="PENDING">{cms.myOrders.statuses.PENDING}</option>
-                            <option value="PENDING_PAYMENT">{cms.myOrders.statuses.PENDING_PAYMENT}</option>
-                            <option value="CANCEL_REQUESTED">{cms.myOrders.statuses.CANCEL_REQUESTED}</option>
-                            <option value="PAID">{cms.myOrders.statuses.PAID}</option>
-                            <option value="SHIPPING">{cms.myOrders.statuses.SHIPPING}</option>
-                            <option value="SUCCESS">{cms.myOrders.statuses.SUCCESS}</option>
-                            <option value="CANCELLED">{cms.myOrders.statuses.CANCELLED}</option>
-                            <option value="EXPIRED">{cms.myOrders.statuses.EXPIRED}</option>
-                          </select>
-                        </Field>
-                      </div>
-
-                      {/* Tiêu đề danh sách */}
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                        <p className="text-sm font-bold text-slate-700">{cms.myOrders.list.title}</p>
-                      </div>
-
-                      {/* Trạng thái tải / rỗng */}
-                      {ordersLoading ? (
-                          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
-                            {cms.common.loadingText}
-                          </div>
-                      ) : filteredOrders.length === 0 ? (
-                          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
-                            {cms.myOrders.emptyText}
-                          </div>
-                      ) : (
-                          /* Danh sách đơn hàng */
-                          <div className="space-y-3">
-                            {filteredOrders.map((order) => {
-                              const firstItem = order.items[0]; // lấy ảnh đầu tiên
-                              return (
-                                  <article
-                                      key={order.id}
-                                      className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-4"
-                                  >
-                                    {/* Ảnh đại diện */}
-                                    <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-                                      {firstItem ? (
-                                          <img
-                                              src={firstItem.image}
-                                              alt={firstItem.name}
-                                              className="h-full w-full object-cover"
-                                          />
-                                      ) : (
-                                          <div className="flex h-full items-center justify-center text-slate-400">
-                                            <i className="fa-solid fa-box-open text-2xl" />
-                                          </div>
-                                      )}
-                                    </div>
-
-                                    {/* Thông tin */}
-                                    <div className="min-w-0 flex-1">
-                                      <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <h3 className="truncate text-sm font-semibold text-slate-900">
-                                          {order.code}
-                                        </h3>
-                                        <span
-                                            className={classNames(
-                                                "inline-flex shrink-0 rounded-full border px-3 py-1 text-xs font-bold",
-                                                ORDER_STATUS_STYLES[order.status]
-                                            )}
-                                        >
-                                  {cms.myOrders.statuses[order.status]}
-                                </span>
-                                      </div>
-
-                                      <p className="mt-1 text-xs text-slate-500">
-                                        {formatDate(order.createdAt)} • {order.payment.method}
-                                      </p>
-
-                                      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-                                        <p className="text-lg font-extrabold text-slate-900">
-                                          {formatMoney(order.pricing.total)}
-                                        </p>
-                                        <div className="flex flex-wrap items-center gap-2">
-                                          {order.status === "PENDING_PAYMENT" && (
-                                              <button
-                                                  type="button"
-                                                  onClick={() => void onPayPendingOrder(order)}
-                                                  disabled={payingOrderId === order.id}
-                                                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-extrabold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                              >
-                                                <i className="fa-solid fa-qrcode" />
-                                                {payingOrderId === order.id ? cms.myOrders.list.generatingQr : cms.myOrders.list.pay}
-                                              </button>
-                                          )}
-                                          <button
-                                              type="button"
-                                              onClick={async () => {
-                                                try {
-                                                  const res = await http.get<ApiProductOrder>(`/api/product-orders/${order.id}`);
-                                                  setSelectedOrder(toMyOrder(res.data, cms));
-                                                } catch {
-                                                  setSelectedOrder(order);
-                                                }
-                                              }}
-                                              className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-extrabold text-indigo-700 hover:bg-indigo-100"
-                                          >
-                                            <i className="fa-regular fa-eye" />
-                                            {cms.myOrders.list.seeDetail}
-                                          </button>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </article>
-                              );
-                            })}
-                          </div>
-                      )}
-
-                      {/* Modal chi tiết đơn hàng */}
-                      {selectedOrder && (
-                          <div
-                              className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/50 px-4 py-6"
-                              onClick={() => setSelectedOrder(null)}
-                          >
-                            <div
-                                className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl md:p-6"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                              {/* Header modal */}
-                              <div className="mb-5 flex items-start justify-between gap-3 border-b border-slate-200 pb-4">
-                                <div>
-                                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                    {cms.myOrders.detailTitle}
-                                  </p>
-                                  <h3 className="text-xl font-extrabold text-slate-900">{selectedOrder.code}</h3>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedOrder(null)}
-                                    className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
-                                >
-                                  <i className="fa-solid fa-xmark" />
-                                </button>
-                              </div>
-
-                              {/* Nội dung modal chia thành các khối */}
-                              <div className="space-y-5">
-                                {/* Khối thông tin chung */}
-                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                  <h4 className="mb-3 text-sm font-extrabold text-slate-900">
-                                    <i className="fa-regular fa-clipboard mr-2 text-slate-500" />
-                                    {cms.myOrders.sections.general}
-                                  </h4>
-                                  <div className="grid gap-2 text-sm text-slate-700 md:grid-cols-2">
-                                    <p>
-                                      <span className="font-semibold">{cms.myOrders.fields.createdAt}:</span>{' '}
-                                      {formatDate(selectedOrder.createdAt)}
-                                    </p>
-                                    <p>
-                                      <span className="font-semibold">{cms.myOrders.fields.branch}:</span>{' '}
-                                      {selectedOrder.branch}
-                                    </p>
-                                    <p>
-                                      <span className="font-semibold">{cms.myOrders.fields.status}:</span>{' '}
-                                      <span
-                                          className={classNames(
-                                              'inline-flex rounded-full border px-2 py-0.5 text-xs font-bold',
-                                              ORDER_STATUS_STYLES[selectedOrder.status]
-                                          )}
-                                      >
-                                  {cms.myOrders.statuses[selectedOrder.status]}
-                                </span>
-                                    </p>
-                                  </div>
-                                </div>
-
-                                {/* Khối thanh toán */}
-                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                  <h4 className="mb-3 text-sm font-extrabold text-slate-900">
-                                    <i className="fa-regular fa-credit-card mr-2 text-slate-500" />
-                                    {cms.myOrders.sections.payment}
-                                  </h4>
-                                  <div className="grid gap-2 text-sm text-slate-700 md:grid-cols-2">
-                                    <p>
-                                      <span className="font-semibold">{cms.myOrders.fields.paymentMethod}:</span>{' '}
-                                      {selectedOrder.payment.method}
-                                    </p>
-                                    <p>
-                                      <span className="font-semibold">{cms.myOrders.fields.paymentRef}:</span>{' '}
-                                      {selectedOrder.payment.ref || cms.common.emptyValue}
-                                    </p>
-                                    <p>
-                                      <span className="font-semibold">{cms.myOrders.fields.paidAt}:</span>{' '}
-                                      {formatDate(selectedOrder.payment.paidAt)}
-                                    </p>
-                                  </div>
-                                  {selectedOrder.status === "PENDING" && (
-                                      <div className="mt-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => onRequestCancelOrder(selectedOrder)}
-                                            disabled={cancelRequestingOrderId === selectedOrder.id}
-                                            className="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                        >
-                                          {cancelRequestingOrderId === selectedOrder.id
-                                              ? cms.myOrders.actions.requestingCancel
-                                              : cms.myOrders.actions.requestCancel}
-                                        </button>
-                                      </div>
-                                  )}
-                                  {selectedOrder.status === "PENDING_PAYMENT" && (
-                                      <div className="mt-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => void onPayPendingOrder(selectedOrder)}
-                                            disabled={payingOrderId === selectedOrder.id}
-                                            className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-extrabold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                        >
-                                          <i className="fa-solid fa-qrcode" />
-                                          {payingOrderId === selectedOrder.id
-                                              ? cms.myOrders.list.generatingQr
-                                              : cms.myOrders.actions.payThisOrder}
-                                        </button>
-                                      </div>
-                                  )}
-                                </div>
-
-                                {/* Khối giao hàng */}
-                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                  <h4 className="mb-3 text-sm font-extrabold text-slate-900">
-                                    <i className="fa-solid fa-truck mr-2 text-slate-500" />
-                                    {cms.myOrders.sections.shipping}
-                                  </h4>
-                                  <div className="grid gap-2 text-sm text-slate-700 md:grid-cols-2">
-                                    <p>
-                                      <span className="font-semibold">{cms.myOrders.fields.receiver}:</span>{' '}
-                                      {selectedOrder.shippingInfo.receiverName}
-                                    </p>
-                                    <p>
-                                      <span className="font-semibold">{cms.myOrders.fields.phone}:</span>{' '}
-                                      {selectedOrder.shippingInfo.phone}
-                                    </p>
-                                    <p className="md:col-span-2">
-                                      <span className="font-semibold">{cms.myOrders.fields.address}:</span>{' '}
-                                      {`${selectedOrder.shippingInfo.addressLine}, ${selectedOrder.shippingInfo.district}, ${selectedOrder.shippingInfo.city}`}
-                                    </p>
-                                    <p>
-                                      <span className="font-semibold">{cms.myOrders.fields.carrier}:</span>{' '}
-                                      {selectedOrder.shippingInfo.carrier}
-                                    </p>
-                                    <p>
-                                      <span className="font-semibold">{cms.myOrders.fields.trackingCode}:</span>{' '}
-                                      {selectedOrder.shippingInfo.trackingCode || cms.common.emptyValue}
-                                    </p>
-                                    <p>
-                                      <span className="font-semibold">{cms.myOrders.fields.expectedDelivery}:</span>{' '}
-                                      {formatDate(selectedOrder.shippingInfo.expectedDelivery)}
-                                    </p>
-                                    <p className="md:col-span-2">
-                                      <span className="font-semibold">{cms.myOrders.fields.shippingNote}:</span>{' '}
-                                      {selectedOrder.shippingInfo.note}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                {/* Khối sản phẩm */}
-                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                  <h4 className="mb-3 text-sm font-extrabold text-slate-900">
-                                    <i className="fa-solid fa-boxes-stacked mr-2 text-slate-500" />
-                                    {cms.myOrders.productsTitle}
-                                  </h4>
-                                  <div className="space-y-3">
-                                    {selectedOrder.items.map((item) => (
-                                        <div
-                                            key={item.sku}
-                                            className="grid items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 md:grid-cols-[64px_1fr_auto]"
-                                        >
-                                          <img
-                                              src={item.image}
-                                              alt={item.name}
-                                              className="h-16 w-16 rounded-xl object-cover"
-                                          />
-                                          <div>
-                                            <p className="font-bold text-slate-900">{item.name}</p>
-                                            <p className="text-xs text-slate-500">
-                                              {cms.myOrders.fields.sku}: {item.sku}
-                                            </p>
-                                          </div>
-                                          <div className="text-right text-sm text-slate-700">
-                                            <p>
-                                              {cms.myOrders.fields.quantity}: x{item.qty}
-                                            </p>
-                                            <p className="font-bold text-slate-900">{formatMoney(item.price)}</p>
-                                          </div>
-                                        </div>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                {/* Khối tổng kết */}
-                                <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                                  <h4 className="mb-3 text-sm font-extrabold text-slate-900">
-                                    <i className="fa-solid fa-receipt mr-2 text-slate-500" />
-                                    {cms.myOrders.sections.summary}
-                                  </h4>
-                                  <div className="grid gap-2 text-sm text-slate-700 md:grid-cols-2">
-                                    <p>
-                                      <span className="font-semibold">{cms.myOrders.fields.subtotal}:</span>{' '}
-                                      {formatMoney(selectedOrder.pricing.subtotal)}
-                                    </p>
-                                    <p>
-                                      <span className="font-semibold">{cms.myOrders.fields.shipping}:</span>{' '}
-                                      {formatMoney(selectedOrder.pricing.shipping)}
-                                    </p>
-                                    <p>
-                                      <span className="font-semibold">{cms.myOrders.fields.discount}:</span> -
-                                      {formatMoney(selectedOrder.pricing.discount)}
-                                    </p>
-                                    <p className="font-extrabold text-slate-900">
-                                      <span>{cms.myOrders.fields.total}:</span>{' '}
-                                      {formatMoney(selectedOrder.pricing.total)}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                {/* Ghi chú đơn hàng nếu có */}
-                                {selectedOrder.note && selectedOrder.note !== cms.common.emptyValue && (
-                                    <div className="rounded-2xl border border-slate-200 bg-amber-50/50 p-4">
-                                      <p className="text-sm font-semibold text-slate-700">
-                                        <i className="fa-regular fa-note-sticky mr-2 text-slate-500" />
-                                        {cms.myOrders.fields.orderNote}:
-                                      </p>
-                                      <p className="mt-1 text-sm text-slate-600">{selectedOrder.note}</p>
-                                    </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                      )}
-
-                      {qrModalOrder && qrPayload && (
-                          <div
-                              className="fixed inset-0 z-[130] flex items-center justify-center bg-black/60 px-4"
-                              onClick={() => {
-                                setQrModalOrder(null);
-                                setQrPayload(null);
-                              }}
-                          >
-                            <div
-                                className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                              <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-bold text-slate-900">{cms.myOrders.qrModal.title}</h3>
-                                <div className="flex items-center gap-2">
-                            <span
-                                className={
-                                    "rounded-full px-2 py-1 text-[11px] font-semibold " +
-                                    (qrCountdown.expired
-                                        ? "bg-slate-100 text-slate-500"
-                                        : "bg-emerald-50 text-emerald-700")
-                                }
-                                title={qrExpiresAt ? `${cms.myOrders.qrModal.expiresAtTitle}: ${formatDateTime(qrExpiresAt)}` : undefined}
-                            >
-                              <i className="fa-regular fa-clock mr-1" />
-                              {qrCountdown.text}
-                            </span>
-                                  <button
-                                      type="button"
-                                      onClick={() => {
-                                        setQrModalOrder(null);
-                                        setQrPayload(null);
-                                      }}
-                                      className="rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
-                                  >
-                                    {cms.common.actions.close}
-                                  </button>
-                                </div>
-                              </div>
-
-                              <p className="mt-1 text-xs text-slate-500">{cms.myOrders.fields.orderCode}: {qrModalOrder.code}</p>
-
-                              <div className="relative mx-auto mt-4 h-64 w-64">
-                                <img
-                                    src={qrPayload.qrUrl}
-                                    alt={cms.myOrders.qrModal.qrAlt}
-                                    className={
-                                        "h-64 w-64 rounded-xl border border-slate-200 transition " +
-                                        (qrCountdown.expired ? "opacity-40 blur-[2px]" : "")
-                                    }
-                                />
-
-                                {qrCountdown.expired && (
-                                    <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/40">
-                                      <div className="rounded-xl bg-white/90 px-4 py-3 text-center shadow">
-                                        <p className="text-sm font-bold text-slate-900">{cms.myOrders.qrModal.expiredTitle}</p>
-                                        <p className="mt-1 text-xs text-slate-600">
-                                          {cms.myOrders.qrModal.expiredSubtitle}
-                                        </p>
-                                      </div>
-                                    </div>
-                                )}
-                              </div>
-
-                              <div className="mt-4 space-y-1 text-sm text-slate-700">
-                                <p><span className="font-semibold">{cms.myOrders.fields.amount}:</span> {formatMoney(Number(qrPayload.amount || 0))}</p>
-                                <p><span className="font-semibold">{cms.myOrders.fields.transferContent}:</span> {qrPayload.transferContent || cms.common.emptyValue}</p>
-                              </div>
-
-                              {!qrCountdown.expired ? (
-                                  <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                                    {cms.myOrders.qrModal.activeHint}<br />
-                                    {cms.myOrders.fields.timeLeft}: <span className="font-semibold">{qrCountdown.text}</span>. {cms.myOrders.fields.expiresAt}:{" "}
-                                    <span className="font-semibold">{formatDateTime(qrExpiresAt)}</span>.
-                                  </div>
-                              ) : (
-                                  <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                                    <div className="font-semibold">{cms.myOrders.qrModal.expiredBoxTitle}</div>
-                                    <div className="mt-1">{cms.myOrders.qrModal.expiredBoxSubtitle}</div>
-                                  </div>
-                              )}
-
-                              <p className="mt-3 text-xs text-slate-500">
-                                {cms.myOrders.qrModal.autoUpdateNote}
-                              </p>
-                            </div>
-                          </div>
-                      )}
-                    </div>
-                )}
+                {renderActiveSection()}
               </div>
             </main>
           </div>
@@ -2976,4 +2042,3 @@ export default function AccountCenter() {
 
 // Export CMS mặc định (để update DB / tái sử dụng)
 export { defaultCmsData as cmsData, defaultCmsData, deepMerge };
-

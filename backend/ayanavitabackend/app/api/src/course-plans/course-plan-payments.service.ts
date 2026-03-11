@@ -1250,6 +1250,7 @@ export class CoursePlanPaymentsService {
 
     const customerId = await this.ensureStripeCustomer(userId)
     const now = new Date()
+    const trialEnd = await this.resolveSubscriptionTrialEndForActiveOneTimePass(userId, plan.id, now)
 
     const existingScheduled = await this.prisma.userCoursePass.findFirst({
       where: {
@@ -1293,6 +1294,7 @@ export class CoursePlanPaymentsService {
         planId: String(plan.id),
       },
       subscription_data: {
+        ...(trialEnd ? { trial_end: trialEnd } : {}),
         metadata: {
           source: 'COURSE_PLAN_SUBSCRIPTION',
           userId: String(userId),
@@ -1321,6 +1323,44 @@ export class CoursePlanPaymentsService {
       checkoutUrl: session.url,
       payment: this.mapPayment(updatedPayment, now),
     }
+  }
+
+  private async resolveSubscriptionTrialEndForActiveOneTimePass(userId: number, planId: number, now: Date) {
+    const activeOneTimePass = await this.prisma.userCoursePass.findFirst({
+      where: {
+        userId,
+        planId,
+        canceledAt: null,
+        startAt: { lte: now },
+        endAt: { gt: now },
+        purchaseId: { not: null },
+      },
+      select: {
+        id: true,
+        endAt: true,
+        purchaseId: true,
+      },
+      orderBy: [{ endAt: 'desc' }, { id: 'desc' }],
+    })
+
+    if (!activeOneTimePass?.purchaseId) return null
+
+    const purchase = await this.prisma.coursePlanPayment.findUnique({
+      where: { id: activeOneTimePass.purchaseId },
+      select: {
+        stripeSubscriptionId: true,
+      },
+    })
+
+    if (purchase?.stripeSubscriptionId) return null
+
+    const trialEndMs = activeOneTimePass.endAt.getTime()
+
+    // Stripe yêu cầu trial_end đủ xa trong tương lai
+    const minStripeTrialMs = now.getTime() + 48 * 60 * 60 * 1000
+    if (trialEndMs <= minStripeTrialMs) return null
+
+    return Math.floor(trialEndMs / 1000)
   }
 
   async createCheckout(userId: number, planId: number, dto?: PurchasePlanDto) {

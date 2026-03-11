@@ -1331,8 +1331,11 @@ export default function AccountCenter() {
     }
   }, [cms]);
 
-  const fetchSubscriptionData = useCallback(async (showErrorToast = true) => {
-    setSubscriptionLoading(true);
+  const fetchSubscriptionData = useCallback(async (showErrorToast = true, options?: { silent?: boolean }) => {
+    const silent = Boolean(options?.silent);
+    if (!silent) {
+      setSubscriptionLoading(true);
+    }
     setSubscriptionError(null);
 
     try {
@@ -1356,7 +1359,9 @@ export default function AccountCenter() {
       }
       return null;
     } finally {
-      setSubscriptionLoading(false);
+      if (!silent) {
+        setSubscriptionLoading(false);
+      }
     }
   }, [cms]);
 
@@ -1371,7 +1376,7 @@ export default function AccountCenter() {
           cms.subscriptions.toasts.registerSuccess.title,
           cms.subscriptions.toasts.registerSuccess.message,
         );
-        await fetchSubscriptionData(false);
+        await fetchSubscriptionData(false, { silent: true });
         return;
       }
 
@@ -1418,7 +1423,7 @@ export default function AccountCenter() {
           ? cms.subscriptions.toasts.cancelAutoRenewalAlready.message
           : cms.subscriptions.toasts.cancelAutoRenewalSuccess.message,
       );
-      await fetchSubscriptionData(false);
+      await fetchSubscriptionData(false, { silent: true });
     } catch (e: any) {
       pushToast(
         "error",
@@ -1441,7 +1446,7 @@ export default function AccountCenter() {
           ? cms.subscriptions.toasts.resumeAutoRenewalAlready.message
           : cms.subscriptions.toasts.resumeAutoRenewalSuccess.message,
       );
-      await fetchSubscriptionData(false);
+      await fetchSubscriptionData(false, { silent: true });
       return true;
     } catch (e: any) {
       const message = String(e?.response?.data?.message || e?.message || "");
@@ -1496,7 +1501,7 @@ export default function AccountCenter() {
 
   const onRealtimeSubscriptionPaymentUpdate = useCallback(async (_event: any) => {
     if (active !== "subscriptions") return;
-    await fetchSubscriptionData(false);
+    await fetchSubscriptionData(false, { silent: true });
   }, [active, fetchSubscriptionData]);
 
   useEffect(() => {
@@ -1511,7 +1516,7 @@ export default function AccountCenter() {
     let attempts = 0;
     const timer = window.setInterval(() => {
       attempts += 1;
-      void fetchSubscriptionData(false);
+      void fetchSubscriptionData(false, { silent: true });
       if (attempts >= 6) {
         window.clearInterval(timer);
       }

@@ -1,183 +1,407 @@
-diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202606070002_add_scheduled_pass_status/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202606070002_add_scheduled_pass_status/migration.sql
-new file mode 100644
-index 0000000000000000000000000000000000000000..dbb40c6a46d96fb3dc2c00c51cd28f7700eb1af6
---- /dev/null
-+++ b/backend/ayanavitabackend/app/api/prisma/migrations/202606070002_add_scheduled_pass_status/migration.sql
-@@ -0,0 +1,7 @@
-+ALTER TYPE "UserCoursePassStatus" ADD VALUE IF NOT EXISTS 'SCHEDULED';
-+
-+UPDATE "UserCoursePass"
-+SET "status" = 'SCHEDULED'::"UserCoursePassStatus"
-+WHERE "canceledAt" IS NULL
-+  AND "startAt" > NOW()
-+  AND "status" = 'EXPIRED'::"UserCoursePassStatus";
-diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-index 266f1dc898a3d8409c4b62c550722af8500159fc..f1df727f1a458f85e21a3ecde499bf8c0d2268d2 100644
---- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
-+++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
-@@ -940,50 +940,51 @@ model RoleAuditLog {
-   targetUserId Int?
-   roleId       Int?
-   metadata     Json?
-   createdAt    DateTime  @default(now())
+diff --git a/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx b/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
+index fcacd4012e9b43ea0956b2457f5e1c09e4856686..617a21bfcb0370dad005f47d444f7357cb8a5cbe 100644
+--- a/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
+@@ -1309,161 +1309,166 @@ export default function AccountCenter() {
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, []);
 
-   actorUser  User?     @relation("RoleAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
-   targetUser User?     @relation("RoleAuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
-   role       RbacRole? @relation(fields: [roleId], references: [id], onDelete: SetNull)
 
-   @@index([createdAt])
-   @@index([actorUserId])
-   @@index([targetUserId])
-   @@index([roleId])
- }
+   const fetchMyOrders = useCallback(async (showErrorToast = true) => {
+     setOrdersLoading(true);
+     try {
+       const res = await http.get<ApiProductOrder[]>("/api/product-orders/me");
+       const rows = Array.isArray(res.data) ? res.data.map((item) => toMyOrder(item, cms)) : [];
+       setMyOrders(rows);
+       return rows;
+     } catch (e: any) {
+       if (showErrorToast) {
+         pushToast(
+             "error",
+             cms.myOrders.toasts.loadFailed.title,
+             e?.response?.data?.message || cms.myOrders.toasts.loadFailed.message,
+         );
+       }
+       return [];
+     } finally {
+       setOrdersLoading(false);
+     }
+   }, [cms]);
 
- enum EnrollmentStatus {
-   ACTIVE
-   CANCELED
- }
+-  const fetchSubscriptionData = useCallback(async (showErrorToast = true) => {
+-    setSubscriptionLoading(true);
++  const fetchSubscriptionData = useCallback(async (showErrorToast = true, options?: { silent?: boolean }) => {
++    const silent = Boolean(options?.silent);
++    if (!silent) {
++      setSubscriptionLoading(true);
++    }
+     setSubscriptionError(null);
 
- enum CourseAccessStatus {
-   ACTIVE
-   CANCELED
- }
- enum UserCoursePassStatus {
-+  SCHEDULED
-   ACTIVE
-   GRACE
-   EXPIRED
-   CANCELED
- }
+     try {
+       const hasToken = Boolean(localStorage.getItem("aya_access_token"));
+       const [plans, passes, payments] = await Promise.all([
+         coursePlansApi.listPublicPlans(),
+         hasToken ? coursePlansApi.listMyPasses() : Promise.resolve([] as CoursePass[]),
+         hasToken ? coursePlansApi.listMyPayments() : Promise.resolve([] as CoursePlanPayment[]),
+       ]);
 
- enum CoursePlanPaymentStatus {
-   PENDING
-   PAID
-   FAILED
-   EXPIRED
- }
+       setPublicPlans((Array.isArray(plans) ? plans : []).filter((plan) => plan.isActive).sort((a, b) => a.price - b.price));
+       setMyPasses(Array.isArray(passes) ? passes : []);
+       setMyPlanPayments(Array.isArray(payments) ? payments : []);
 
- enum CoursePlanBillingInterval {
-   month
-   year
- }
+       return { plans, passes, payments };
+     } catch (e: any) {
+       const message = e?.response?.data?.message || cms.subscriptions.toasts.loadFailed.message;
+       setSubscriptionError(message);
+       if (showErrorToast) {
+         pushToast("error", cms.subscriptions.toasts.loadFailed.title, message);
+       }
+       return null;
+     } finally {
+-      setSubscriptionLoading(false);
++      if (!silent) {
++        setSubscriptionLoading(false);
++      }
+     }
+   }, [cms]);
 
- enum CourseEntitlementSourceType {
-   SINGLE_PURCHASE
-   PLAN_PASS
-   ADMIN_GRANT
- }
+   const onStartPlanCheckout = useCallback(async (plan: CoursePlan, method?: CoursePlanCheckoutMethod) => {
+     try {
+       setSubscriptionActionPlanId(plan.id);
+       const res = await coursePlansApi.purchasePlan(plan.id, method ? { method } : undefined);
 
- enum OrderStatus {
+       if (res.mode === "FREE") {
+         pushToast(
+           "success",
+           cms.subscriptions.toasts.registerSuccess.title,
+           cms.subscriptions.toasts.registerSuccess.message,
+         );
+-        await fetchSubscriptionData(false);
++        await fetchSubscriptionData(false, { silent: true });
+         return;
+       }
+
+       if (res.mode === "STRIPE") {
+         if (!res.checkoutUrl) {
+           throw new Error("Kh\u00f4ng nh\u1eadn \u0111\u01b0\u1ee3c li\u00ean k\u1ebft thanh to\u00e1n Stripe.");
+         }
+         window.location.href = res.checkoutUrl;
+         return;
+       }
+
+       setPlanPaymentModal(res.payment);
+       setPlanQrTick(Date.now());
+       pushToast(
+         "info",
+         cms.subscriptions.toasts.qrCreated.title,
+         cms.subscriptions.toasts.qrCreated.message,
+       );
+     } catch (e: any) {
+       pushToast(
+         "error",
+         cms.subscriptions.toasts.checkoutFailed.title,
+         e?.response?.data?.message || e?.message || cms.subscriptions.toasts.checkoutFailed.message,
+       );
+     } finally {
+       setSubscriptionActionPlanId(null);
+     }
+   }, [fetchSubscriptionData, cms]);
+
+   const onCancelAutoRenewal = useCallback(async (pass: CoursePass) => {
+     const confirmMessage = cms.subscriptions.actions.cancelAutoRenewalConfirmMessage;
+
+     // if (!window.confirm(confirmMessage)) {
+     //   return;
+     // }
+
+     try {
+       setSubscriptionActionPlanId(pass.plan.id);
+       const result = await coursePlansApi.cancelAutoRenewal({ passId: pass.id, planId: pass.plan.id });
+       pushToast(
+         "success",
+         cms.subscriptions.toasts.cancelAutoRenewalSuccess.title,
+         result?.alreadyCanceled
+           ? cms.subscriptions.toasts.cancelAutoRenewalAlready.message
+           : cms.subscriptions.toasts.cancelAutoRenewalSuccess.message,
+       );
+-      await fetchSubscriptionData(false);
++      await fetchSubscriptionData(false, { silent: true });
+     } catch (e: any) {
+       pushToast(
+         "error",
+         cms.subscriptions.toasts.cancelAutoRenewalFailed.title,
+         e?.response?.data?.message || cms.subscriptions.toasts.cancelAutoRenewalFailed.message,
+       );
+     } finally {
+       setSubscriptionActionPlanId(null);
+     }
+   }, [fetchSubscriptionData, cms]);
+
+   const onResumeAutoRenewal = useCallback(async (pass: CoursePass) => {
+     try {
+       setSubscriptionActionPlanId(pass.plan.id);
+       const result = await coursePlansApi.resumeAutoRenewal({ passId: pass.id, planId: pass.plan.id });
+       pushToast(
+         "success",
+         cms.subscriptions.toasts.resumeAutoRenewalSuccess.title,
+         result?.alreadyResumed
+           ? cms.subscriptions.toasts.resumeAutoRenewalAlready.message
+           : cms.subscriptions.toasts.resumeAutoRenewalSuccess.message,
+       );
+-      await fetchSubscriptionData(false);
++      await fetchSubscriptionData(false, { silent: true });
+       return true;
+     } catch (e: any) {
+       const message = String(e?.response?.data?.message || e?.message || "");
+       const normalized = message.toLowerCase();
+       const shouldFallbackCheckout =
+         normalized.includes("not found") ||
+         normalized.includes("kh\u00f4ng t\u00ecm th\u1ea5y") ||
+         normalized.includes("ended") ||
+         normalized.includes("expired") ||
+         normalized.includes("h\u1ebft h\u1ea1n");
+
+       if (shouldFallbackCheckout) {
+         return false;
+       }
+
+       pushToast(
+         "error",
+         cms.subscriptions.toasts.resumeAutoRenewalFailed.title,
+         message || cms.subscriptions.toasts.resumeAutoRenewalFailed.message,
+       );
+       return true;
+     } finally {
+       setSubscriptionActionPlanId(null);
+     }
+   }, [fetchSubscriptionData, cms]);
+@@ -1474,66 +1479,66 @@ export default function AccountCenter() {
+
+   const onRegisterAutoRenewCurrentPass = useCallback(async (pass: CoursePass) => {
+     if (currentPassRenewalState === "AUTO_RENEW_CANCELED") {
+       const resumed = await onResumeAutoRenewal(pass);
+       if (resumed) {
+         return;
+       }
+     }
+
+     await onStartPlanCheckout(pass.plan, "STRIPE_SUBSCRIPTION");
+   }, [currentPassRenewalState, onResumeAutoRenewal, onStartPlanCheckout]);
+
+   const openPlanPaymentModal = useCallback((payment: CoursePlanPayment) => {
+     setPlanPaymentModal(payment);
+     setPlanQrTick(Date.now());
+   }, []);
+
+   useEffect(() => {
+     if (!localStorage.getItem("aya_access_token")) return;
+     void fetchMyOrders();
+   }, [fetchMyOrders, cms]);
+
+
+   const onRealtimeSubscriptionPaymentUpdate = useCallback(async (_event: any) => {
+     if (active !== "subscriptions") return;
+-    await fetchSubscriptionData(false);
++    await fetchSubscriptionData(false, { silent: true });
+   }, [active, fetchSubscriptionData]);
+
+   useEffect(() => {
+     if (active !== "subscriptions") return;
+     void fetchSubscriptionData();
+   }, [active, fetchSubscriptionData]);
+
+   useEffect(() => {
+     if (active !== "subscriptions") return;
+     if (searchParams.get("stripe") !== "success") return;
+
+     let attempts = 0;
+     const timer = window.setInterval(() => {
+       attempts += 1;
+-      void fetchSubscriptionData(false);
++      void fetchSubscriptionData(false, { silent: true });
+       if (attempts >= 6) {
+         window.clearInterval(timer);
+       }
+     }, 3000);
+
+     return () => window.clearInterval(timer);
+   }, [active, fetchSubscriptionData, searchParams]);
+
+   const onPayPendingOrder = useCallback(async (order: MyOrder) => {
+     if (order.status !== "PENDING_PAYMENT") return;
+
+     try {
+       setPayingOrderId(order.id);
+       const res = await http.post<PaymentQrPayload>(`/api/product-orders/${order.id}/payment-qr`);
+       setQrPayload(res.data);
+       setQrModalOrder(order);
+       await fetchMyOrders(false);
+     } catch (e: any) {
+       pushToast(
+           "error",
+           cms.myOrders.toasts.qrFailed.title,
+           e?.response?.data?.message || cms.myOrders.toasts.qrFailed.message,
+       );
+     } finally {
+       setPayingOrderId(null);
 diff --git a/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts b/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
-index 31214a44740492aed72ffc62d46ff0c3cb5d752b..5e99ad7c0e97edd2cd7842352bf43b3c42b653dd 100644
+index 5e99ad7c0e97edd2cd7842352bf43b3c42b653dd..2a35887588ab7f43dde9ec3610aea1ff37ec046a 100644
 --- a/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
 +++ b/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
-@@ -89,51 +89,51 @@ export class CoursePlanPaymentsService {
+@@ -1228,123 +1228,156 @@ export class CoursePlanPaymentsService {
+         ...(expiresAt ? { expiredAt: expiresAt } : {}),
+         rawResponse: this.toJson(session),
+       },
+       include: PAYMENT_WITH_PLAN_INCLUDE,
+     })
 
-   private normalizeStatus(status: CoursePlanPaymentStatus, expiredAt: Date | null, now: Date): CoursePlanPaymentStatus {
-     if (status === CoursePlanPaymentStatus.PENDING && expiredAt && expiredAt <= now) {
-       return CoursePlanPaymentStatus.EXPIRED
+     return {
+       mode: 'STRIPE' as const,
+       stripeMode: 'ONE_TIME' as const,
+       checkoutUrl: session.url,
+       payment: this.mapPayment(updatedPayment, now),
      }
-     return status
    }
 
-   private addMinutes(base: Date, minutes: number) {
-     const out = new Date(base)
-     out.setTime(out.getTime() + minutes * 60_000)
-     return out
+   private async createStripeSubscriptionCheckout(userId: number, plan: CoursePlanWithTags, dto?: PurchasePlanDto) {
+     if (!process.env.STRIPE_SECRET_KEY) {
+       throw new BadRequestException('STRIPE_SECRET_KEY is missing in environment')
+     }
+
+     if (!plan.currentStripePriceId) {
+       throw new BadRequestException('Plan has no Stripe recurring price configured')
+     }
+
+     const customerId = await this.ensureStripeCustomer(userId)
+     const now = new Date()
++    const trialEnd = await this.resolveSubscriptionTrialEndForActiveOneTimePass(userId, plan.id, now)
+
+     const existingScheduled = await this.prisma.userCoursePass.findFirst({
+       where: {
+         userId,
+         canceledAt: null,
+         startAt: { gt: now },
+       },
+       select: { id: true },
+       orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
+     })
+
+     if (existingScheduled) {
+       throw new BadRequestException('You already have a scheduled pass for the next cycle')
+     }
+
+     const { successUrl, cancelUrl } = this.resolveStripeReturnUrls(dto)
+
+     const payment = await this.prisma.coursePlanPayment.create({
+       data: {
+         userId,
+         planId: plan.id,
+         provider: 'STRIPE',
+         status: CoursePlanPaymentStatus.PENDING,
+         amount: plan.price,
+         transferCode: this.genTransferCode(),
+         transferContent: `SUB_${Date.now()}_${Math.floor(Math.random() * 1000000)}`,
+       },
+       include: PAYMENT_WITH_PLAN_INCLUDE,
+     })
+
+     const session = await this.stripe.checkout.sessions.create({
+       mode: 'subscription',
+       customer: customerId,
+       success_url: successUrl,
+       cancel_url: cancelUrl,
+       line_items: [{ price: plan.currentStripePriceId, quantity: 1 }],
+       metadata: {
+         source: 'COURSE_PLAN_SUBSCRIPTION',
+         coursePlanPaymentId: String(payment.id),
+         userId: String(userId),
+         planId: String(plan.id),
+       },
+       subscription_data: {
++        ...(trialEnd ? { trial_end: trialEnd } : {}),
+         metadata: {
+           source: 'COURSE_PLAN_SUBSCRIPTION',
+           userId: String(userId),
+           planId: String(plan.id),
+           coursePlanPaymentId: String(payment.id),
+         },
+       },
+     })
+
+     if (!session.url) {
+       throw new BadRequestException('Stripe checkout session url is missing')
+     }
+
+     const updatedPayment = await this.prisma.coursePlanPayment.update({
+       where: { id: payment.id },
+       data: {
+         stripeCheckoutSessionId: session.id,
+         rawResponse: this.toJson(session),
+       },
+       include: PAYMENT_WITH_PLAN_INCLUDE,
+     })
+
+     return {
+       mode: 'STRIPE' as const,
+       stripeMode: 'SUBSCRIPTION' as const,
+       checkoutUrl: session.url,
+       payment: this.mapPayment(updatedPayment, now),
+     }
    }
 
-   private addDays(base: Date, days: number) {
-     const out = new Date(base)
-     out.setUTCDate(out.getUTCDate() + days)
-     return out
-   }
++  private async resolveSubscriptionTrialEndForActiveOneTimePass(userId: number, planId: number, now: Date) {
++    const activeOneTimePass = await this.prisma.userCoursePass.findFirst({
++      where: {
++        userId,
++        planId,
++        canceledAt: null,
++        startAt: { lte: now },
++        endAt: { gt: now },
++        purchaseId: { not: null },
++      },
++      select: {
++        endAt: true,
++        purchase: {
++          select: {
++            stripeSubscriptionId: true,
++          },
++        },
++      },
++      orderBy: [{ endAt: 'desc' }, { id: 'desc' }],
++    })
++
++    if (!activeOneTimePass) return null
++    if (activeOneTimePass.purchase?.stripeSubscriptionId) return null
++
++    const trialEndMs = activeOneTimePass.endAt.getTime()
++    const minStripeTrialMs = now.getTime() + 5 * 60_000
++    if (trialEndMs <= minStripeTrialMs) return null
++
++    return Math.floor(trialEndMs / 1000)
++  }
++
+   async createCheckout(userId: number, planId: number, dto?: PurchasePlanDto) {
+     await this.ensureUserExists(userId)
+     const plan = await this.getActivePlanOrThrow(planId)
 
-   private derivePassStatus(
-     pass: { startAt: Date; endAt: Date; graceUntil: Date; canceledAt: Date | null },
-     now: Date,
-   ): UserCoursePassStatus {
-     if (pass.canceledAt) return UserCoursePassStatus.CANCELED
--    if (now < pass.startAt) return UserCoursePassStatus.EXPIRED
-+    if (now < pass.startAt) return UserCoursePassStatus.SCHEDULED
-     if (now < pass.endAt) return UserCoursePassStatus.ACTIVE
-     if (now < pass.graceUntil) return UserCoursePassStatus.GRACE
-     return UserCoursePassStatus.EXPIRED
-   }
+     if ((plan.price ?? 0) <= 0) {
+       const pass = await this.plans.purchasePlan(userId, planId, {})
+       return {
+         mode: 'FREE' as const,
+         pass,
+       }
+     }
 
-   private genTransferCode() {
-     return `PLAN_${Math.random().toString(36).slice(2, 8).toUpperCase()}`
-   }
+     const method = dto?.method ?? PurchasePlanMethod.SEPAY
 
-   private buildTransferContent(paymentId: number) {
-     return `ID${paymentId}CoursePlanPayment`
-   }
+     const now = new Date()
+     const existingScheduled = await this.prisma.userCoursePass.findFirst({
+       where: {
+         userId,
+         canceledAt: null,
+         startAt: { gt: now },
+       },
+       select: { id: true },
+       orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
+     })
 
-   private toJson(value: unknown): Prisma.InputJsonValue {
-     return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue
-   }
-
-   private extractStripeId(value: string | { id: string } | null | undefined): string | null {
-     if (!value) return null
-     if (typeof value === 'string') return value
-     return typeof value.id === 'string' ? value.id : null
-   }
-
-   parseTransferContent(content?: string | null): number | null {
-     if (!content) return null
-diff --git a/backend/ayanavitabackend/app/api/src/course-plans/course-plans.service.ts b/backend/ayanavitabackend/app/api/src/course-plans/course-plans.service.ts
-index 3c0a904569bbeff057425e948dc932681460930d..155580a0e32382820abee5a31d468e5871d2fa71 100644
---- a/backend/ayanavitabackend/app/api/src/course-plans/course-plans.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/course-plans/course-plans.service.ts
-@@ -51,51 +51,51 @@ type UnlockableCourse = {
- export class CoursePlansService {
-   constructor(private readonly prisma: PrismaService) {}
-
-   private normalizeTagCode(code: string) {
-     return code.trim().toUpperCase().replace(/\s+/g, '_')
-   }
-
-   private parseDateInput(input?: string) {
-     if (!input) return null
-     const d = new Date(input)
-     if (Number.isNaN(d.getTime())) throw new BadRequestException('Invalid date format')
-     return d
-   }
-
-   private addDays(base: Date, days: number) {
-     const out = new Date(base)
-     out.setUTCDate(out.getUTCDate() + days)
-     return out
-   }
-
-   private derivePassStatus(
-     pass: { startAt: Date; endAt: Date; graceUntil: Date; canceledAt: Date | null },
-     now: Date,
-   ): UserCoursePassStatus {
-     if (pass.canceledAt) return UserCoursePassStatus.CANCELED
--    if (now < pass.startAt) return UserCoursePassStatus.EXPIRED
-+    if (now < pass.startAt) return UserCoursePassStatus.SCHEDULED
-     if (now < pass.endAt) return UserCoursePassStatus.ACTIVE
-     if (now < pass.graceUntil) return UserCoursePassStatus.GRACE
-     return UserCoursePassStatus.EXPIRED
-   }
-
-   private async ensureUserExists(userId: number) {
-     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } })
-     if (!user) throw new NotFoundException('User not found')
-   }
-
-   private async ensureCourseExists(courseId: number) {
-     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } })
-     if (!course) throw new NotFoundException('Course not found')
-   }
-
-   private async ensureTagsExist(tagIds: number[]) {
-     if (!tagIds.length) return
-     const found = await this.prisma.courseTag.count({ where: { id: { in: tagIds } } })
-     if (found !== tagIds.length) throw new NotFoundException('One or more tags do not exist')
-   }
-
-   private async findPlanOrThrow(planId: number, opts?: { mustBeActive?: boolean }) {
-     const plan = await this.prisma.coursePlan.findUnique({
-       where: { id: planId },
-       include: {

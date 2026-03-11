@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Swal from "sweetalert2";
 
 type Props = {
@@ -27,6 +27,7 @@ type Props = {
     getPaymentStatusLabel: (status: any, labels: any) => string;
     passStatusStyles: Record<string, string>;
     planPaymentStatusStyles: Record<string, string>;
+    onRealtimePaymentUpdate?: (event: any) => void;
 };
 
 function classNames(...xs: Array<string | false | null | undefined>) {
@@ -363,6 +364,7 @@ export default function SubscriptionsTab({
                                              getPaymentStatusLabel,
                                              passStatusStyles,
                                              planPaymentStatusStyles,
+                                             onRealtimePaymentUpdate,
                                          }: Props) {
     const effectiveCurrentPass = getCurrentEffectivePass(currentPass, passHistory);
     const scheduledPass = getScheduledPass(currentPass, passHistory);
@@ -371,6 +373,39 @@ export default function SubscriptionsTab({
     const currentPassRenewalState = effectiveCurrentPass ? getPassRenewalState(effectiveCurrentPass, paymentHistory) : "NONE";
     const renewalMode: RenewalMode = effectiveCurrentPass ? getRenewalMode(effectiveCurrentPass, paymentHistory) : "none";
     const currentPlanPrice = effectiveCurrentPass?.plan?.price != null ? Number(effectiveCurrentPass.plan.price) : null;
+
+
+    useEffect(() => {
+        if (typeof onRealtimePaymentUpdate !== "function") return;
+
+        const token = localStorage.getItem("aya_access_token") || "";
+        if (!token) return;
+
+        const apiBase = (import.meta.env.VITE_API_URL || "http://localhost:8090").replace(/\/$/, "");
+        const wsBase = apiBase.replace(/^http/i, "ws");
+        const socket = new WebSocket(`${wsBase}/ws/payments?token=${encodeURIComponent(token)}`);
+
+        socket.onmessage = (event) => {
+            try {
+                const payload = JSON.parse(event.data || "{}");
+                if (payload?.event === "payment.updated") {
+                    onRealtimePaymentUpdate(payload.data);
+                }
+            } catch (error) {
+                console.warn("[subscriptions][ws] Invalid message", error);
+            }
+        };
+
+        socket.onerror = (error) => {
+            console.warn("[subscriptions][ws] Connection error", error);
+        };
+
+        return () => {
+            if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+                socket.close();
+            }
+        };
+    }, [onRealtimePaymentUpdate]);
 
     async function ensureLoggedIn() {
         if (!localStorage.getItem("aya_access_token")) {

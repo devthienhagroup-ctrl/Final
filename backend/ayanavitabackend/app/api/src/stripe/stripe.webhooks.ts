@@ -2,6 +2,7 @@ import { Controller, Headers, HttpStatus, Post, RawBodyRequest, Req, Res } from 
 import { Request, Response } from 'express'
 import Stripe from 'stripe'
 import { CoursePlanPaymentsService } from '../course-plans/course-plan-payments.service'
+import { StripeRealtimeService } from './stripe-realtime.service'
 import { PaymentsService } from './stripe.service'
 
 @Controller('webhooks')
@@ -11,86 +12,114 @@ export class StripeWebhookController {
   })
 
   constructor(
-      private readonly paymentsService: PaymentsService,
-      private readonly coursePlanPayments: CoursePlanPaymentsService,
+    private readonly paymentsService: PaymentsService,
+    private readonly coursePlanPayments: CoursePlanPaymentsService,
+    private readonly stripeRealtime: StripeRealtimeService,
   ) {}
 
   @Post('stripe')
   async handleStripeWebhook(
-      @Req() req: RawBodyRequest<Request>,
-      @Res() res: Response,
-      @Headers('stripe-signature') signature?: string,
+    @Req() req: RawBodyRequest<Request>,
+    @Res() res: Response,
+    @Headers('stripe-signature') signature?: string,
   ) {
-    console.log("===== WEBHOOK STRIPE =====")
-    console.log("Đã nhận webhook từ Stripe")
+    console.log('===== WEBHOOK STRIPE =====')
+    console.log('Đã nhận webhook từ Stripe')
 
     if (!signature) {
-      console.log("❌ Thiếu header stripe-signature")
+      console.log('❌ Thiếu header stripe-signature')
       return res.status(HttpStatus.BAD_REQUEST).send('Missing stripe-signature header')
     }
 
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET
     if (!endpointSecret) {
-      console.log("❌ Chưa cấu hình STRIPE_WEBHOOK_SECRET")
+      console.log('❌ Chưa cấu hình STRIPE_WEBHOOK_SECRET')
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send('STRIPE_WEBHOOK_SECRET is missing')
     }
 
     const rawBody = Buffer.isBuffer(req.rawBody)
-        ? req.rawBody
-        : Buffer.isBuffer(req.body)
-            ? req.body
-            : typeof req.body === 'string'
-                ? Buffer.from(req.body, 'utf8')
-                : null
+      ? req.rawBody
+      : Buffer.isBuffer(req.body)
+        ? req.body
+        : typeof req.body === 'string'
+          ? Buffer.from(req.body, 'utf8')
+          : null
 
     if (!rawBody) {
-      console.log("❌ Không đọc được rawBody của webhook")
+      console.log('❌ Không đọc được rawBody của webhook')
       return res.status(HttpStatus.BAD_REQUEST).send('Invalid raw webhook body')
     }
 
-    console.log("✅ Đã qua kiểm tra signature, bắt đầu parse event")
+    console.log('✅ Đã qua kiểm tra signature, bắt đầu parse event')
 
     let event: Stripe.Event
 
     try {
       event = this.stripe.webhooks.constructEvent(rawBody, signature, endpointSecret)
-      console.log("📩 Stripe gửi event:", event.type)
+      console.log('📩 Stripe gửi event:', event.type)
     } catch (err: any) {
-      console.log("❌ Xác thực webhook thất bại:", err?.message)
+      console.log('❌ Xác thực webhook thất bại:', err?.message)
       return res.status(HttpStatus.BAD_REQUEST).send(`Webhook Error: ${err?.message || 'Invalid signature'}`)
     }
 
     try {
-
       if (event.type === 'checkout.session.completed') {
-        console.log("🧾 Event checkout.session.completed")
+        console.log('🧾 Event checkout.session.completed')
 
         const session = event.data.object as Stripe.Checkout.Session
 
-        console.log("Session ID:", session.id)
-        console.log("Metadata:", session.metadata)
+        console.log('Session ID:', session.id)
+        console.log('Metadata:', session.metadata)
 
         if (session.metadata?.orderId) {
-          console.log("➡️ Cập nhật trạng thái order:", session.metadata.orderId)
+          console.log('➡️ Cập nhật trạng thái order:', session.metadata.orderId)
           await this.paymentsService.markOrderPaidFromCheckoutSession(session)
-          console.log("✅ Order đã được cập nhật thành PAID")
+          console.log('✅ Order đã được cập nhật thành PAID')
         } else {
-          console.log("⚠️ Session không có metadata.orderId")
+          console.log('⚠️ Session không có metadata.orderId')
         }
       }
 
-      console.log("➡️ Chuyển event sang CoursePlanPaymentsService xử lý")
+      console.log('➡️ Chuyển event sang CoursePlanPaymentsService xử lý')
       await this.coursePlanPayments.handleStripeEvent(event)
-      console.log("✅ CoursePlanPaymentsService đã xử lý xong event")
+      console.log('✅ CoursePlanPaymentsService đã xử lý xong event')
 
+      const realtimeUserId = this.extractRealtimeUserId(event)
+      if (realtimeUserId) {
+        this.stripeRealtime.emitPaymentUpdate(realtimeUserId, {
+          source: 'STRIPE_WEBHOOK',
+          eventType: event.type,
+          at: new Date().toISOString(),
+        })
+      }
     } catch (err) {
-      console.log("❌ Lỗi khi xử lý webhook:", err)
+      console.log('❌ Lỗi khi xử lý webhook:', err)
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ received: false })
     }
 
-    console.log("✅ Webhook Stripe xử lý xong, trả về 200")
-    console.log("===========================")
+    console.log('✅ Webhook Stripe xử lý xong, trả về 200')
+    console.log('===========================')
 
     return res.status(HttpStatus.OK).json({ received: true })
+  }
+
+  private extractRealtimeUserId(event: Stripe.Event) {
+    const obj: any = event?.data?.object || {}
+    const candidates = [
+      obj?.metadata?.userId,
+      obj?.client_reference_id,
+      obj?.userId,
+      obj?.subscription_details?.metadata?.userId,
+      obj?.lines?.data?.[0]?.metadata?.userId,
+    ]
+
+    for (const candidate of candidates) {
+      const userId = Number(candidate)
+      if (Number.isInteger(userId) && userId > 0) {
+        return userId
+      }
+    }
+
+    return null
   }
 }

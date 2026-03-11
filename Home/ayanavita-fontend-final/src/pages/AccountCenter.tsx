@@ -1493,6 +1493,12 @@ export default function AccountCenter() {
     void fetchMyOrders();
   }, [fetchMyOrders, cms]);
 
+
+  const onRealtimeSubscriptionPaymentUpdate = useCallback(async (_event: any) => {
+    if (active !== "subscriptions") return;
+    await fetchSubscriptionData(false);
+  }, [active, fetchSubscriptionData]);
+
   useEffect(() => {
     if (active !== "subscriptions") return;
     void fetchSubscriptionData();
@@ -1928,6 +1934,7 @@ export default function AccountCenter() {
           getPaymentStatusLabel={getPaymentStatusLabel}
           passStatusStyles={PASS_STATUS_STYLES}
           planPaymentStatusStyles={PLAN_PAYMENT_STATUS_STYLES}
+          onRealtimePaymentUpdate={onRealtimeSubscriptionPaymentUpdate}
         />
       );
     }

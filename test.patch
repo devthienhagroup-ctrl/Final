@@ -1,227 +1,13 @@
 diff --git a/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx b/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
-index f2a3bb9902d7be6e3c0a47e421d91a69d7413622..343db59e6ca2d732645bb8da65ec15496d361d5f 100644
+index 91b113b58f29ce045bd3f106e9aabd3a947b673f..fcacd4012e9b43ea0956b2457f5e1c09e4856686 100644
 --- a/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
 +++ b/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
-@@ -1,48 +1,49 @@
- // AccountCenter.tsx
- import React, { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
- import { useSearchParams } from "react-router-dom";
- import { authApi } from "../api/auth.api";
- import { http } from "../api/http";
- import {
-   coursePlansApi,
-   type CoursePass,
-   type CoursePassStatus,
-   type CoursePlan,
-   type CoursePlanCheckoutMethod,
-   type CoursePlanPayment,
-   type CoursePlanPaymentStatus,
- } from "../api/coursePlans.api";
- import ProfileTab from "./account-center/components/ProfileTab";
- import ChangePasswordTab from "./account-center/components/ChangePasswordTab";
- import ForgotPasswordTab from "./account-center/components/ForgotPasswordTab";
- import MyOrdersTab from "./account-center/components/MyOrdersTab";
- import SubscriptionsTab from "./account-center/components/SubscriptionsTab";
+@@ -1471,50 +1471,56 @@ export default function AccountCenter() {
+   const onRenewCurrentPass = useCallback(async (pass: CoursePass) => {
+     await onStartPlanCheckout(pass.plan, "STRIPE_ONE_TIME");
+   }, [onStartPlanCheckout]);
 
- type ToastKind = "success" | "error" | "info";
- type ActiveSection = "profile" | "changePassword" | "forgotPassword" | "myOrders" | "subscriptions";
- type PassRenewalState = "AUTO_RENEW_ACTIVE" | "AUTO_RENEW_CANCELED" | "NONE";
-+type PassDisplayStatus = CoursePassStatus | "SCHEDULED";
-
- type OrderStatus =
-     | "PENDING"
-     | "PENDING_PAYMENT"
-     | "CANCEL_REQUESTED"
-     | "PAID"
-     | "SHIPPING"
-     | "SUCCESS"
-     | "CANCELLED"
-     | "EXPIRED";
-
- type MyOrderItem = {
-   name: string;
-   sku: string;
-   qty: number;
-   price: number;
-   image: string;
- };
-
- type PaymentQrPayload = {
-   amount: number;
-   expiresAt?: string | null;
-   accountName: string;
-   accountNumber: string;
-   bankName: string;
-@@ -841,94 +842,108 @@ function ToastStack({
-                     >
-                       <i className="fa-solid fa-xmark" />
-                     </button>
-                   </div>
-                   <p className="mt-1 text-sm opacity-90">{t.message}</p>
-                 </div>
-               </div>
-             </div>
-         ))}
-       </div>
-   );
- }
-
-
- const ORDER_STATUS_STYLES: Record<OrderStatus, string> = {
-   PENDING: "bg-amber-50 text-amber-700 border-amber-200",
-   PENDING_PAYMENT: "bg-orange-50 text-orange-700 border-orange-200",
-   CANCEL_REQUESTED: "bg-red-50 text-red-700 border-red-200",
-   PAID: "bg-emerald-50 text-emerald-700 border-emerald-200",
-   SHIPPING: "bg-sky-50 text-sky-700 border-sky-200",
-   SUCCESS: "bg-green-50 text-green-700 border-green-200",
-   CANCELLED: "bg-rose-50 text-rose-700 border-rose-200",
-   EXPIRED: "bg-slate-100 text-slate-700 border-slate-200",
- };
-
--const PASS_STATUS_STYLES: Record<CoursePassStatus, string> = {
-+const PASS_STATUS_STYLES: Record<PassDisplayStatus, string> = {
-   ACTIVE: "bg-emerald-50 text-emerald-700 border-emerald-200",
-   GRACE: "bg-amber-50 text-amber-700 border-amber-200",
-   EXPIRED: "bg-slate-100 text-slate-700 border-slate-200",
-   CANCELED: "bg-rose-50 text-rose-700 border-rose-200",
-+  SCHEDULED: "bg-indigo-50 text-indigo-700 border-indigo-200",
- };
-
- const PLAN_PAYMENT_STATUS_STYLES: Record<CoursePlanPaymentStatus, string> = {
-   PENDING: "bg-amber-50 text-amber-700 border-amber-200",
-   PAID: "bg-emerald-50 text-emerald-700 border-emerald-200",
-   FAILED: "bg-rose-50 text-rose-700 border-rose-200",
-   EXPIRED: "bg-slate-100 text-slate-700 border-slate-200",
- };
-
- function getPassStatusLabel(
--    status: CoursePassStatus,
-+    status: PassDisplayStatus,
-     labels: CmsData["subscriptions"]["statuses"]["pass"],
- ) {
--  return labels[status];
-+  if (status === "SCHEDULED") return "Đã lên lịch";
-+  return labels[status as CoursePassStatus];
- }
-
- function getPaymentStatusLabel(
-     status: CoursePlanPaymentStatus,
-     labels: CmsData["subscriptions"]["statuses"]["payment"],
- ) {
-   return labels[status];
- }
-
- function formatDurationDays(
-     days: number,
-     durationUnits: CmsData["subscriptions"]["planCard"]["durationUnits"],
- ) {
-   if (days % 30 === 0) {
-     const months = Math.floor(days / 30);
-     return `${months} ${durationUnits.month}`;
-   }
-   return `${days} ${durationUnits.day}`;
- }
-
- function toNum(v: number | string | null | undefined) {
-   const n = Number(v ?? 0);
-   return Number.isFinite(n) ? n : 0;
- }
-
-+function toTime(value: string | null | undefined) {
-+  if (!value) return null;
-+  const t = new Date(value).getTime();
-+  return Number.isNaN(t) ? null : t;
-+}
-+
-+function getPassDisplayStatus(pass: CoursePass, now = Date.now()): PassDisplayStatus {
-+  const start = toTime(pass.startAt);
-+  if (!pass.canceledAt && start != null && start > now) return "SCHEDULED";
-+  return pass.computedStatus;
-+}
-+
- function mapOrderStatus(status: string): OrderStatus {
-   const s = String(status || "").toUpperCase();
-
-   switch (s) {
-     case "PENDING":
-       return "PENDING";
-     case "PENDING_PAYMENT":
-       return "PENDING_PAYMENT";
-     case "PAID":
-       return "PAID";
-     case "CANCEL_REQUESTED":
-       return "CANCEL_REQUESTED";
-     case "SHIPPING":
-       return "SHIPPING";
-     case "SUCCESS":
-       return "SUCCESS";
-     case "CANCELLED":
-       return "CANCELLED";
-     case "EXPIRED":
-       return "EXPIRED";
-     default:
-       // fallback an toàn nếu backend gửi status lạ
-       return "PENDING";
-   }
- }
-@@ -1144,51 +1159,55 @@ export default function AccountCenter() {
-
-     return { expired, text: `${mm}:${ss}` };
-   }, [planQrExpiresAt, planQrTick]);
-
-
-   const filteredOrders = useMemo(() => {
-     const kw = orderKeyword.trim().toLowerCase();
-     return myOrders.filter((order) => {
-       if (orderStatusFilter !== "all" && order.status !== orderStatusFilter) return false;
-       if (!kw) return true;
-       const haystack = [
-         order.code,
-         order.branch,
-         order.note,
-         order.shippingInfo.receiverName,
-         order.shippingInfo.phone,
-         order.shippingInfo.trackingCode || "",
-       ]
-           .join(" ")
-           .toLowerCase();
-       return haystack.includes(kw);
-     });
-   }, [myOrders, orderKeyword, orderStatusFilter]);
-
-   const currentPass = useMemo(() => {
--    return myPasses.find((pass) => pass.computedStatus === "ACTIVE" || pass.computedStatus === "GRACE") || null;
-+    const now = Date.now();
-+    return myPasses.find((pass) => {
-+      const status = getPassDisplayStatus(pass, now);
-+      return status === "ACTIVE" || status === "GRACE" || status === "SCHEDULED";
-+    }) || null;
-   }, [myPasses]);
-
-   const passHistory = useMemo(() => {
-     return [...myPasses].sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime());
-   }, [myPasses]);
-
-   const paymentHistory = useMemo(() => {
-     return [...myPlanPayments].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-   }, [myPlanPayments]);
-
-   const latestSubscriptionPaymentForCurrentPass = useMemo(() => {
-     if (!currentPass) return null;
-     const subscriptionPayments = myPlanPayments
-       .filter((payment) => payment.planId === currentPass.planId && (payment.stripeSubscriptionId || payment.subscription))
-       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-     return subscriptionPayments[0] || null;
-   }, [currentPass, myPlanPayments]);
-
-   const currentPassRenewalState = useMemo<PassRenewalState>(() => {
-     const latest = latestSubscriptionPaymentForCurrentPass;
-     if (!latest) return "NONE";
-
-     const status = String(latest.subscriptionStatus ?? latest.subscription?.status ?? "").toLowerCase();
-     const cancelAtPeriodEnd = Boolean(latest.cancelAtPeriodEnd ?? latest.subscription?.cancelAtPeriodEnd);
-
-@@ -1457,50 +1476,66 @@ export default function AccountCenter() {
+   const onRegisterAutoRenewCurrentPass = useCallback(async (pass: CoursePass) => {
      if (currentPassRenewalState === "AUTO_RENEW_CANCELED") {
        const resumed = await onResumeAutoRenewal(pass);
        if (resumed) {
@@ -242,57 +28,126 @@ index f2a3bb9902d7be6e3c0a47e421d91a69d7413622..343db59e6ca2d732645bb8da65ec1549
      void fetchMyOrders();
    }, [fetchMyOrders, cms]);
 
++
++  const onRealtimeSubscriptionPaymentUpdate = useCallback(async (_event: any) => {
++    if (active !== "subscriptions") return;
++    await fetchSubscriptionData(false);
++  }, [active, fetchSubscriptionData]);
++
    useEffect(() => {
      if (active !== "subscriptions") return;
      void fetchSubscriptionData();
    }, [active, fetchSubscriptionData]);
 
-+  useEffect(() => {
-+    if (active !== "subscriptions") return;
-+    if (searchParams.get("stripe") !== "success") return;
-+
-+    let attempts = 0;
-+    const timer = window.setInterval(() => {
-+      attempts += 1;
-+      void fetchSubscriptionData(false);
-+      if (attempts >= 6) {
-+        window.clearInterval(timer);
-+      }
-+    }, 3000);
-+
-+    return () => window.clearInterval(timer);
-+  }, [active, fetchSubscriptionData, searchParams]);
-+
+   useEffect(() => {
+     if (active !== "subscriptions") return;
+     if (searchParams.get("stripe") !== "success") return;
+
+     let attempts = 0;
+     const timer = window.setInterval(() => {
+       attempts += 1;
+       void fetchSubscriptionData(false);
+       if (attempts >= 6) {
+         window.clearInterval(timer);
+       }
+     }, 3000);
+
+     return () => window.clearInterval(timer);
+   }, [active, fetchSubscriptionData, searchParams]);
+
    const onPayPendingOrder = useCallback(async (order: MyOrder) => {
      if (order.status !== "PENDING_PAYMENT") return;
 
      try {
-       setPayingOrderId(order.id);
-       const res = await http.post<PaymentQrPayload>(`/api/product-orders/${order.id}/payment-qr`);
-       setQrPayload(res.data);
-       setQrModalOrder(order);
-       await fetchMyOrders(false);
-     } catch (e: any) {
-       pushToast(
-           "error",
-           cms.myOrders.toasts.qrFailed.title,
-           e?.response?.data?.message || cms.myOrders.toasts.qrFailed.message,
+@@ -1906,50 +1912,51 @@ export default function AccountCenter() {
+           cms={cmsForTabs}
+           subscriptionLoading={subscriptionLoading}
+           subscriptionError={subscriptionError}
+           currentPass={currentPass}
+           publicPlans={publicPlans}
+           focusedPlanId={focusedPlanId}
+           subscriptionActionPlanId={subscriptionActionPlanId}
+           passHistory={passHistory}
+           paymentHistory={paymentHistory}
+           planPaymentModal={planPaymentModal}
+           planQrCountdown={planQrCountdown}
+           planQrExpiresAt={planQrExpiresAt}
+           setPlanPaymentModal={setPlanPaymentModal}
+           onStartPlanCheckout={onStartPlanCheckout}
+           openPlanPaymentModal={openPlanPaymentModal}
+           onCancelAutoRenewal={onCancelAutoRenewal}
+           onResumeAutoRenewal={onResumeAutoRenewal}
+           formatDate={formatDate}
+           formatDateTime={formatDateTime}
+           formatMoney={formatMoney}
+           formatDurationDays={formatDurationDays}
+           getPassStatusLabel={getPassStatusLabel}
+           getPaymentStatusLabel={getPaymentStatusLabel}
+           passStatusStyles={PASS_STATUS_STYLES}
+           planPaymentStatusStyles={PLAN_PAYMENT_STATUS_STYLES}
++          onRealtimePaymentUpdate={onRealtimeSubscriptionPaymentUpdate}
+         />
        );
-     } finally {
-       setPayingOrderId(null);
      }
-   }, [fetchMyOrders, cms]);
 
-   const onRequestCancelOrder = useCallback(async (order: MyOrder) => {
-     if (order.status !== "PENDING") return;
-
-     try {
-       setCancelRequestingOrderId(order.id);
+     return (
+       <MyOrdersTab
+         cms={cmsForTabs}
+         orderKeyword={orderKeyword}
+         setOrderKeyword={setOrderKeyword}
+         orderStatusFilter={orderStatusFilter}
+         setOrderStatusFilter={setOrderStatusFilter}
+         ordersLoading={ordersLoading}
+         filteredOrders={filteredOrders}
+         payingOrderId={payingOrderId}
+         selectedOrder={selectedOrder}
+         setSelectedOrder={setSelectedOrder}
+         qrModalOrder={qrModalOrder}
+         setQrModalOrder={setQrModalOrder}
+         qrPayload={qrPayload}
+         setQrPayload={setQrPayload}
+         qrCountdown={qrCountdown}
+         qrExpiresAt={qrExpiresAt}
+         cancelRequestingOrderId={cancelRequestingOrderId}
+         onPayPendingOrder={onPayPendingOrder}
+         onRequestCancelOrder={onRequestCancelOrder}
 diff --git a/Home/ayanavita-fontend-final/src/pages/account-center/components/SubscriptionsTab.tsx b/Home/ayanavita-fontend-final/src/pages/account-center/components/SubscriptionsTab.tsx
-index 2d8a7d9d43be3f5f587c184e745c9767dbe6b17c..10f43ce9403e017b37dba9f85d969411bd4f36a0 100644
+index 3c0e72130f5c0abc44009b2fd6b11d225f2f3834..75c45740a885c9d4b6b9190f94fdace337cf93c1 100644
 --- a/Home/ayanavita-fontend-final/src/pages/account-center/components/SubscriptionsTab.tsx
 +++ b/Home/ayanavita-fontend-final/src/pages/account-center/components/SubscriptionsTab.tsx
-@@ -31,50 +31,56 @@ type Props = {
+@@ -1,54 +1,55 @@
+-import React from "react";
++import React, { useEffect } from "react";
+ import Swal from "sweetalert2";
+
+ type Props = {
+     cms: any;
+     subscriptionLoading: boolean;
+     subscriptionError: string | null;
+     currentPass: any;
+     publicPlans: any[];
+     focusedPlanId: number | null;
+     subscriptionActionPlanId: number | null;
+     passHistory: any[];
+     paymentHistory: any[];
+     planPaymentModal: any;
+     planQrCountdown: { expired: boolean; text: string };
+     planQrExpiresAt: string | null;
+     setPlanPaymentModal: React.Dispatch<React.SetStateAction<any>>;
+     onStartPlanCheckout: (plan: any, method: any) => void | Promise<void>;
+     openPlanPaymentModal: (payment: any) => void;
+     onCancelAutoRenewal?: (pass: any) => void | Promise<void>;
+     onResumeAutoRenewal?: (pass: any) => boolean | void | Promise<boolean | void>;
+     formatDate: (date: string | null) => string;
+     formatDateTime: (date: string | null | undefined) => string;
+     formatMoney: (amount: number) => string;
+     formatDurationDays: (days: number, durationUnits: any) => string;
+     getPassStatusLabel: (status: any, labels: any) => string;
+     getPaymentStatusLabel: (status: any, labels: any) => string;
+     passStatusStyles: Record<string, string>;
+     planPaymentStatusStyles: Record<string, string>;
++    onRealtimePaymentUpdate?: (event: any) => void;
+ };
 
  function classNames(...xs: Array<string | false | null | undefined>) {
      return xs.filter(Boolean).join(" ");
@@ -317,321 +172,459 @@ index 2d8a7d9d43be3f5f587c184e745c9767dbe6b17c..10f43ce9403e017b37dba9f85d969411
 
      return now <= activeEnd;
  }
+@@ -341,59 +342,93 @@ export default function SubscriptionsTab({
+                                              cms,
+                                              subscriptionLoading,
+                                              subscriptionError,
+                                              currentPass,
+                                              publicPlans,
+                                              focusedPlanId,
+                                              subscriptionActionPlanId,
+                                              passHistory,
+                                              paymentHistory,
+                                              planPaymentModal,
+                                              planQrCountdown,
+                                              planQrExpiresAt,
+                                              setPlanPaymentModal,
+                                              onStartPlanCheckout,
+                                              openPlanPaymentModal,
+                                              onCancelAutoRenewal,
+                                              onResumeAutoRenewal,
+                                              formatDate,
+                                              formatDateTime,
+                                              formatMoney,
+                                              formatDurationDays,
+                                              getPassStatusLabel,
+                                              getPaymentStatusLabel,
+                                              passStatusStyles,
+                                              planPaymentStatusStyles,
++                                             onRealtimePaymentUpdate,
+                                          }: Props) {
+     const effectiveCurrentPass = getCurrentEffectivePass(currentPass, passHistory);
+     const scheduledPass = getScheduledPass(currentPass, passHistory);
+     const hasScheduledPass = Boolean(scheduledPass);
+     const currentPlanId = effectiveCurrentPass?.plan?.id ?? null;
+     const currentPassRenewalState = effectiveCurrentPass ? getPassRenewalState(effectiveCurrentPass, paymentHistory) : "NONE";
+     const renewalMode: RenewalMode = effectiveCurrentPass ? getRenewalMode(effectiveCurrentPass, paymentHistory) : "none";
+     const currentPlanPrice = effectiveCurrentPass?.plan?.price != null ? Number(effectiveCurrentPass.plan.price) : null;
 
-+function getDisplayPassStatus(pass: any, now = Date.now()) {
-+    const start = toTime(pass?.startAt);
-+    if (!pass?.canceledAt && start != null && start > now) return "SCHEDULED";
-+    return pass?.computedStatus;
++
++    useEffect(() => {
++        if (typeof onRealtimePaymentUpdate !== "function") return;
++
++        const token = localStorage.getItem("aya_access_token") || "";
++        if (!token) return;
++
++        const apiBase = (import.meta.env.VITE_API_URL || "http://localhost:8090").replace(/\/$/, "");
++        const wsBase = apiBase.replace(/^http/i, "ws");
++        const socket = new WebSocket(`${wsBase}/ws/payments?token=${encodeURIComponent(token)}`);
++
++        socket.onmessage = (event) => {
++            try {
++                const payload = JSON.parse(event.data || "{}");
++                if (payload?.event === "payment.updated") {
++                    onRealtimePaymentUpdate(payload.data);
++                }
++            } catch (error) {
++                console.warn("[subscriptions][ws] Invalid message", error);
++            }
++        };
++
++        socket.onerror = (error) => {
++            console.warn("[subscriptions][ws] Connection error", error);
++        };
++
++        return () => {
++            if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
++                socket.close();
++            }
++        };
++    }, [onRealtimePaymentUpdate]);
++
+     async function ensureLoggedIn() {
+         if (!localStorage.getItem("aya_access_token")) {
+             window.location.href = "/login";
+             return false;
+         }
+         return true;
+     }
+
+     async function openCheckoutMethodDialog(plan: any) {
+         const ok = await ensureLoggedIn();
+         if (!ok) return;
+
+         const title = cms?.tabs?.subscriptions?.actions?.choosePaymentMethodTitle || "Chọn phương thức thanh toán";
+         const oneTimeLabel = cms?.tabs?.subscriptions?.actions?.oneTimeLabel || "Đăng ký 1 lần";
+         const recurringLabel = cms?.tabs?.subscriptions?.actions?.recurringLabel || "Đăng ký gia hạn tự động";
+         const qrLabel = cms?.tabs?.subscriptions?.actions?.chooseQr || "QR code";
+         const cardLabel = cms?.tabs?.subscriptions?.actions?.chooseStripeOneTime || "Card";
+         const payBtnLabel = cms?.tabs?.subscriptions?.actions?.payNow || "Thanh toán ngay";
+         const cancelBtnLabel = cms?.common?.actions?.close || "Đóng";
+
+         const recurringInfoTitle =
+             cms?.tabs?.subscriptions?.actions?.recurringInfoTitle || "Đăng ký tự động gia hạn tiện lợi";
+         const recurringInfoItems: string[] =
+             cms?.tabs?.subscriptions?.actions?.recurringInfoItems || [
+                 "Thanh toán nhanh chóng bằng thẻ qua Stripe.",
+diff --git a/backend/ayanavitabackend/app/api/src/stripe/stripe-realtime.service.ts b/backend/ayanavitabackend/app/api/src/stripe/stripe-realtime.service.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..49770d7053d38e8a94562121c0195c1c3983fba5
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/stripe/stripe-realtime.service.ts
+@@ -0,0 +1,173 @@
++import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
++import { HttpAdapterHost } from '@nestjs/core'
++import { createHash } from 'crypto'
++import { IncomingMessage } from 'http'
++import { Socket } from 'net'
++
++type Client = {
++  socket: Socket
++  userId: number
 +}
 +
- function getCurrentEffectivePass(currentPass: any, passHistory: any[]) {
-     const now = Date.now();
-     const allPasses = [currentPass, ...(passHistory || [])].filter(Boolean);
-
-     const effective = allPasses
-         .filter((pass) => isPassEffectiveNow(pass, now))
-         .sort((a, b) => {
-             const aStart = toTime(a?.startAt) ?? 0;
-             const bStart = toTime(b?.startAt) ?? 0;
-             return bStart - aStart;
-         });
-
-     return effective[0] || null;
- }
-
- type PassRenewalState = "AUTO_RENEW_ACTIVE" | "AUTO_RENEW_CANCELED" | "NONE";
- type RenewalMode = "none" | "scheduled_cancel" | "auto_renew_on";
-
- function getScheduledPass(currentPass: any, passHistory: any[]) {
-     const now = Date.now();
-     const allPasses = [currentPass, ...(passHistory || [])].filter(Boolean);
-
-     const scheduled = allPasses
-         .filter((pass) => {
-             const start = toTime(pass?.startAt);
-@@ -650,54 +656,54 @@ export default function SubscriptionsTab({
-             ) : null}
-
-             {subscriptionError ? (
-                 <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{subscriptionError}</div>
-             ) : null}
-
-             {!subscriptionLoading ? (
-                 <>
-                     {effectiveCurrentPass ? (
-                         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
-                             <div className="flex flex-wrap items-start justify-between gap-3">
-                                 <div>
-                                     <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-                                         {cms.tabs.subscriptions.summary.currentPlanTitle}
-                                     </p>
-                                     <p className="mt-1 text-lg font-extrabold text-slate-900">{effectiveCurrentPass.plan.name}</p>
-                                     <p className="mt-1 text-sm text-slate-700">
-                                         {cms.tabs.subscriptions.summary.cycleLabel}: {formatDate(effectiveCurrentPass.startAt)} -{" "}
-                                         {formatDate(effectiveCurrentPass.endAt)} | {cms.tabs.subscriptions.summary.graceUntilLabel}{" "}
-                                         {formatDate(effectiveCurrentPass.graceUntil)}
-                                     </p>
-                                 </div>
-                                 <span
-                                     className={classNames(
-                                         "inline-flex rounded-full border px-3 py-1 text-xs font-bold",
--                                        passStatusStyles[effectiveCurrentPass.computedStatus],
-+                                        passStatusStyles[getDisplayPassStatus(effectiveCurrentPass)],
-                                     )}
-                                 >
--                  {getPassStatusLabel(effectiveCurrentPass.computedStatus, cms.tabs.subscriptions.statuses.pass)}
-+                  {getPassStatusLabel(getDisplayPassStatus(effectiveCurrentPass), cms.tabs.subscriptions.statuses.pass)}
-                 </span>
-                             </div>
-
-                             <div className="mt-3 grid gap-3 md:grid-cols-3">
-                                 <div className="rounded-xl border border-white/60 bg-white px-3 py-3">
-                                     <p className="text-xs text-slate-500">{cms.tabs.subscriptions.summary.remainingQuota}</p>
-                                     <p className="mt-1 text-xl font-extrabold text-slate-900">{effectiveCurrentPass.remainingUnlocks}</p>
-                                 </div>
-                                 <div className="rounded-xl border border-white/60 bg-white px-3 py-3">
-                                     <p className="text-xs text-slate-500">{cms.tabs.subscriptions.summary.unlockedCount}</p>
-                                     <p className="mt-1 text-xl font-extrabold text-slate-900">{effectiveCurrentPass.unlockCount}</p>
-                                 </div>
-                                 <div className="rounded-xl border border-white/60 bg-white px-3 py-3">
-                                     <p className="text-xs text-slate-500">{cms.tabs.subscriptions.summary.unlockNew}</p>
-                                     <p className="mt-1 text-xl font-extrabold text-slate-900">
-                                         {(effectiveCurrentPass.computedStatus === "ACTIVE" || effectiveCurrentPass.computedStatus === "GRACE") &&
-                                         effectiveCurrentPass.remainingUnlocks > 0
-                                             ? cms.tabs.subscriptions.summary.canUnlockYes
-                                             : cms.tabs.subscriptions.summary.canUnlockNo}
-                                     </p>
-                                 </div>
-                             </div>
-
-                             <div className="mt-4 flex flex-wrap gap-2">
-                                 <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700">
-@@ -836,54 +842,54 @@ export default function SubscriptionsTab({
-                     )}
-
-                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                         <p className="text-sm font-bold text-slate-700">{cms.tabs.subscriptions.history.passTitle}</p>
-                     </div>
-
-                     {passHistory.length === 0 ? (
-                         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
-                             {cms.tabs.subscriptions.history.passEmptyText}
-                         </div>
-                     ) : (
-                         <div className="space-y-3">
-                             {passHistory.map((pass) => (
-                                 <article key={pass.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                                     <div className="flex flex-wrap items-start justify-between gap-2">
-                                         <div>
-                                             <p className="text-sm font-extrabold text-slate-900">{pass.plan.name}</p>
-                                             <p className="mt-1 text-xs text-slate-600">
-                                                 {formatDate(pass.startAt)} - {formatDate(pass.endAt)} |{" "}
-                                                 {cms.tabs.subscriptions.summary.graceUntilLabel} {formatDate(pass.graceUntil)}
-                                             </p>
-                                         </div>
-                                         <span
-                                             className={classNames(
-                                                 "inline-flex rounded-full border px-3 py-1 text-xs font-bold",
--                                                passStatusStyles[pass.computedStatus],
-+                                                passStatusStyles[getDisplayPassStatus(pass)],
-                                             )}
-                                         >
--                      {getPassStatusLabel(pass.computedStatus, cms.tabs.subscriptions.statuses.pass)}
-+                      {getPassStatusLabel(getDisplayPassStatus(pass), cms.tabs.subscriptions.statuses.pass)}
-                     </span>
-                                     </div>
-                                     <div className="mt-2 grid gap-2 text-xs text-slate-600 md:grid-cols-3">
-                                         <p>
-                                             {cms.tabs.subscriptions.history.remainingQuota}:{" "}
-                                             <span className="font-bold text-slate-800">{pass.remainingUnlocks}</span>
-                                         </p>
-                                         <p>
-                                             {cms.tabs.subscriptions.history.unlockCount}:{" "}
-                                             <span className="font-bold text-slate-800">{pass.unlockCount}</span>
-                                         </p>
-                                         <p>
-                                             {cms.tabs.subscriptions.history.paymentCode}:{" "}
-                                             <span className="font-bold text-slate-800">{pass.purchaseId || cms.common.emptyValue}</span>
-                                         </p>
-                                     </div>
-                                 </article>
-                             ))}
-                         </div>
-                     )}
-
-                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                         <p className="text-sm font-bold text-slate-700">{cms.tabs.subscriptions.history.paymentTitle}</p>
-                     </div>
-
-diff --git a/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts b/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
-index 8fc1e622187c3df8d3bd751b4b932d764ac298c5..31214a44740492aed72ffc62d46ff0c3cb5d752b 100644
---- a/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
-@@ -312,50 +312,53 @@ export class CoursePlanPaymentsService {
-         purchaseId,
-       },
-       select: {
-         id: true,
-       },
-     })
-
-     if (existingPass) {
-       return existingPass.id
-     }
-
-     const plan = await this.prisma.coursePlan.findUnique({
-       where: { id: planId },
-       select: {
-         durationDays: true,
-         graceDays: true,
-         maxUnlocks: true,
-       },
-     })
-
-     if (!plan) {
-       throw new NotFoundException('Course plan not found')
-     }
-
-     const now = new Date()
++@Injectable()
++export class StripeRealtimeService implements OnModuleInit, OnModuleDestroy {
++  private readonly logger = new Logger(StripeRealtimeService.name)
++  private readonly clients = new Set<Client>()
 +
-+    await this.handleUpgradeBeforeCreatingPass(userId, planId, now)
++  constructor(private readonly httpAdapterHost: HttpAdapterHost) {}
 +
-     const existingScheduled = await this.prisma.userCoursePass.findFirst({
-       where: {
-         userId,
-         canceledAt: null,
-         startAt: { gt: now },
-       },
-       select: { id: true },
-       orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
-     })
-
-     if (existingScheduled) {
-       throw new BadRequestException('You already have a scheduled pass for the next cycle')
-     }
-
-     const latestPass = await this.prisma.userCoursePass.findFirst({
-       where: {
-         userId,
-         canceledAt: null,
-       },
-       select: {
-         endAt: true,
-         graceUntil: true,
-       },
-       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-     })
-@@ -370,50 +373,113 @@ export class CoursePlanPaymentsService {
-         planId,
-         purchaseId,
-         startAt,
-         endAt,
-         graceUntil,
-         remainingUnlocks: plan.maxUnlocks,
-         status: this.derivePassStatus(
-           {
-             startAt,
-             endAt,
-             graceUntil,
-             canceledAt: null,
-           },
-           now,
-         ),
-       },
-       select: {
-         id: true,
-       },
-     })
-
-     this.logger.debug('Đã tạo course pass thành công', JSON.stringify({ userId, planId, purchaseId, passId: pass.id }))
-     return pass.id
-   }
-
-+  private async handleUpgradeBeforeCreatingPass(userId: number, newPlanId: number, now: Date) {
-+    const activePass = await this.prisma.userCoursePass.findFirst({
-+      where: {
-+        userId,
-+        canceledAt: null,
-+        startAt: { lte: now },
-+        graceUntil: { gt: now },
-+      },
-+      select: {
-+        id: true,
-+        planId: true,
-+        purchaseId: true,
-+        plan: {
-+          select: {
-+            id: true,
-+            price: true,
-+          },
-+        },
-+      },
-+      orderBy: [{ startAt: 'desc' }, { id: 'desc' }],
++  onModuleInit() {
++    const server = this.httpAdapterHost.httpAdapter?.getHttpServer()
++    if (!server || typeof server.on !== 'function') {
++      this.logger.warn('HTTP server is not available to attach websocket upgrade handler')
++      return
++    }
++
++    server.on('upgrade', this.handleUpgrade)
++    this.logger.log('Realtime websocket endpoint mounted at /ws/payments')
++  }
++
++  onModuleDestroy() {
++    const server = this.httpAdapterHost.httpAdapter?.getHttpServer()
++    if (server && typeof server.off === 'function') {
++      server.off('upgrade', this.handleUpgrade)
++    }
++
++    for (const client of this.clients) {
++      client.socket.destroy()
++    }
++    this.clients.clear()
++  }
++
++  emitPaymentUpdate(userId: number, payload: Record<string, unknown>) {
++    if (!Number.isInteger(userId) || userId <= 0) return
++
++    const message = JSON.stringify({
++      event: 'payment.updated',
++      data: payload,
 +    })
 +
-+    if (!activePass || activePass.planId === newPlanId) return
-+
-+    const newPlan = await this.prisma.coursePlan.findUnique({
-+      where: { id: newPlanId },
-+      select: { id: true, price: true },
-+    })
-+
-+    if (!newPlan) throw new NotFoundException('Course plan not found')
-+
-+    if (Number(newPlan.price ?? 0) <= Number(activePass.plan?.price ?? 0)) return
-+
-+    await this.prisma.userCoursePass.update({
-+      where: { id: activePass.id },
-+      data: {
-+        endAt: now,
-+        graceUntil: now,
-+        status: UserCoursePassStatus.EXPIRED,
-+      },
-+    })
-+
-+    if (!activePass.purchaseId) return
-+
-+    const oldPayment = await this.prisma.coursePlanPayment.findUnique({
-+      where: { id: activePass.purchaseId },
-+      select: {
-+        stripeSubscriptionId: true,
-+      },
-+    })
-+
-+    if (!oldPayment?.stripeSubscriptionId) return
-+
-+    try {
-+      const canceledSubscription = await this.stripe.subscriptions.cancel(oldPayment.stripeSubscriptionId)
-+      await this.onStripeSubscriptionChanged(canceledSubscription)
-+    } catch (error: any) {
-+      this.logger.warn(
-+        `Failed to cancel old Stripe subscription ${oldPayment.stripeSubscriptionId} while upgrading userId=${userId}: ${error?.message || error}`,
-+      )
++    for (const client of this.clients) {
++      if (client.userId !== userId) continue
++      this.sendText(client.socket, message)
 +    }
 +  }
 +
-   private async reconcileMissingStripePasses(userId: number) {
-     const stripePaidPayments = await this.prisma.coursePlanPayment.findMany({
-       where: {
-         userId,
-         provider: 'STRIPE',
-         status: CoursePlanPaymentStatus.PAID,
-       },
-       orderBy: [{ id: 'desc' }],
-       take: 200,
-       select: {
-         id: true,
-         userId: true,
-         planId: true,
-       },
-     })
++  private handleUpgrade = (req: IncomingMessage, socket: Socket) => {
++    const host = req.headers.host || 'localhost'
++    const url = new URL(req.url || '/', `http://${host}`)
++
++    if (url.pathname !== '/ws/payments') return
++
++    const key = req.headers['sec-websocket-key']
++    const version = req.headers['sec-websocket-version']
++
++    if (!key || version !== '13') {
++      socket.write('HTTP/1.1 400 Bad Request\r\n\r\n')
++      socket.destroy()
++      return
++    }
++
++    const userId = this.resolveUserId(url)
++    if (!userId) {
++      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n')
++      socket.destroy()
++      return
++    }
++
++    const accept = createHash('sha1')
++      .update(String(key) + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')
++      .digest('base64')
++
++    socket.write(
++      [
++        'HTTP/1.1 101 Switching Protocols',
++        'Upgrade: websocket',
++        'Connection: Upgrade',
++        `Sec-WebSocket-Accept: ${accept}`,
++        '\r\n',
++      ].join('\r\n'),
++    )
++
++    const client: Client = { socket, userId }
++    this.clients.add(client)
++
++    socket.on('data', (chunk: Buffer) => this.handleIncomingFrame(client, chunk))
++    socket.on('end', () => this.clients.delete(client))
++    socket.on('close', () => this.clients.delete(client))
++    socket.on('error', () => this.clients.delete(client))
++
++    this.sendText(socket, JSON.stringify({ event: 'connected', data: { userId } }))
++  }
++
++  private handleIncomingFrame(client: Client, frame: Buffer) {
++    if (!frame.length) return
++
++    const opcode = frame[0] & 0x0f
++
++    if (opcode === 0x8) {
++      client.socket.end()
++      this.clients.delete(client)
++      return
++    }
++
++    if (opcode === 0x9) {
++      this.sendPong(client.socket)
++    }
++  }
++
++  private resolveUserId(url: URL) {
++    const token = url.searchParams.get('token') || ''
++    if (!token) return null
++
++    const parts = token.split('.')
++    if (parts.length < 2) return null
++
++    try {
++      const payload = JSON.parse(Buffer.from(this.base64UrlToBase64(parts[1]), 'base64').toString('utf8'))
++      const userId = Number(payload?.sub)
++      if (!Number.isInteger(userId) || userId <= 0) return null
++      return userId
++    } catch {
++      return null
++    }
++  }
++
++  private base64UrlToBase64(input: string) {
++    const normalized = input.replace(/-/g, '+').replace(/_/g, '/')
++    const pad = normalized.length % 4
++    if (pad === 0) return normalized
++    return normalized + '='.repeat(4 - pad)
++  }
++
++  private sendText(socket: Socket, text: string) {
++    const payload = Buffer.from(text, 'utf8')
++    this.sendFrame(socket, 0x1, payload)
++  }
++
++  private sendPong(socket: Socket) {
++    this.sendFrame(socket, 0xa, Buffer.alloc(0))
++  }
++
++  private sendFrame(socket: Socket, opcode: number, payload: Buffer) {
++    const payloadLength = payload.length
++
++    let header: Buffer
++
++    if (payloadLength < 126) {
++      header = Buffer.from([0x80 | opcode, payloadLength])
++    } else if (payloadLength < 65536) {
++      header = Buffer.alloc(4)
++      header[0] = 0x80 | opcode
++      header[1] = 126
++      header.writeUInt16BE(payloadLength, 2)
++    } else {
++      header = Buffer.alloc(10)
++      header[0] = 0x80 | opcode
++      header[1] = 127
++      header.writeBigUInt64BE(BigInt(payloadLength), 2)
++    }
++
++    socket.write(Buffer.concat([header, payload]))
++  }
++}
+diff --git a/backend/ayanavitabackend/app/api/src/stripe/stripe.module.ts b/backend/ayanavitabackend/app/api/src/stripe/stripe.module.ts
+index 0a09b4219b13cd1b11aef0ef0219326c2700baeb..6251fdf365383ce7754bb776ae935e4c805b6b72 100644
+--- a/backend/ayanavitabackend/app/api/src/stripe/stripe.module.ts
++++ b/backend/ayanavitabackend/app/api/src/stripe/stripe.module.ts
+@@ -1,12 +1,13 @@
+ import { Module } from '@nestjs/common'
+ import { CoursePlansModule } from '../course-plans/course-plans.module'
+ import { PaymentsController } from './stripe.controller'
+ import { PaymentsService } from './stripe.service'
++import { StripeRealtimeService } from './stripe-realtime.service'
+ import { StripeWebhookController } from './stripe.webhooks'
 
-     if (!stripePaidPayments.length) return
+ @Module({
+   imports: [CoursePlansModule],
+   controllers: [PaymentsController, StripeWebhookController],
+-  providers: [PaymentsService],
++  providers: [PaymentsService, StripeRealtimeService],
+ })
+ export class StripeModule {}
+diff --git a/backend/ayanavitabackend/app/api/src/stripe/stripe.webhooks.ts b/backend/ayanavitabackend/app/api/src/stripe/stripe.webhooks.ts
+index e10c6ab9cfb4aade96bfd18b813f256d760f8c8b..eba6bd241b0276b508cbb4764794945875383902 100644
+--- a/backend/ayanavitabackend/app/api/src/stripe/stripe.webhooks.ts
++++ b/backend/ayanavitabackend/app/api/src/stripe/stripe.webhooks.ts
+@@ -1,96 +1,125 @@
+ import { Controller, Headers, HttpStatus, Post, RawBodyRequest, Req, Res } from '@nestjs/common'
+ import { Request, Response } from 'express'
+ import Stripe from 'stripe'
+ import { CoursePlanPaymentsService } from '../course-plans/course-plan-payments.service'
++import { StripeRealtimeService } from './stripe-realtime.service'
+ import { PaymentsService } from './stripe.service'
 
-     const purchaseIds = stripePaidPayments.map((row) => row.id)
-     const existedPasses = await this.prisma.userCoursePass.findMany({
-       where: {
-         userId,
-         purchaseId: { in: purchaseIds },
-       },
-       select: { purchaseId: true },
+ @Controller('webhooks')
+ export class StripeWebhookController {
+   private readonly stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+     apiVersion: '2026-02-25.clover',
+   })
+
+   constructor(
+-      private readonly paymentsService: PaymentsService,
+-      private readonly coursePlanPayments: CoursePlanPaymentsService,
++    private readonly paymentsService: PaymentsService,
++    private readonly coursePlanPayments: CoursePlanPaymentsService,
++    private readonly stripeRealtime: StripeRealtimeService,
+   ) {}
+
+   @Post('stripe')
+   async handleStripeWebhook(
+-      @Req() req: RawBodyRequest<Request>,
+-      @Res() res: Response,
+-      @Headers('stripe-signature') signature?: string,
++    @Req() req: RawBodyRequest<Request>,
++    @Res() res: Response,
++    @Headers('stripe-signature') signature?: string,
+   ) {
+-    console.log("===== WEBHOOK STRIPE =====")
+-    console.log("Đã nhận webhook từ Stripe")
++    console.log('===== WEBHOOK STRIPE =====')
++    console.log('Đã nhận webhook từ Stripe')
+
+     if (!signature) {
+-      console.log("❌ Thiếu header stripe-signature")
++      console.log('❌ Thiếu header stripe-signature')
+       return res.status(HttpStatus.BAD_REQUEST).send('Missing stripe-signature header')
+     }
+
+     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET
+     if (!endpointSecret) {
+-      console.log("❌ Chưa cấu hình STRIPE_WEBHOOK_SECRET")
++      console.log('❌ Chưa cấu hình STRIPE_WEBHOOK_SECRET')
+       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send('STRIPE_WEBHOOK_SECRET is missing')
+     }
+
+     const rawBody = Buffer.isBuffer(req.rawBody)
+-        ? req.rawBody
+-        : Buffer.isBuffer(req.body)
+-            ? req.body
+-            : typeof req.body === 'string'
+-                ? Buffer.from(req.body, 'utf8')
+-                : null
++      ? req.rawBody
++      : Buffer.isBuffer(req.body)
++        ? req.body
++        : typeof req.body === 'string'
++          ? Buffer.from(req.body, 'utf8')
++          : null
+
+     if (!rawBody) {
+-      console.log("❌ Không đọc được rawBody của webhook")
++      console.log('❌ Không đọc được rawBody của webhook')
+       return res.status(HttpStatus.BAD_REQUEST).send('Invalid raw webhook body')
+     }
+
+-    console.log("✅ Đã qua kiểm tra signature, bắt đầu parse event")
++    console.log('✅ Đã qua kiểm tra signature, bắt đầu parse event')
+
+     let event: Stripe.Event
+
+     try {
+       event = this.stripe.webhooks.constructEvent(rawBody, signature, endpointSecret)
+-      console.log("📩 Stripe gửi event:", event.type)
++      console.log('📩 Stripe gửi event:', event.type)
+     } catch (err: any) {
+-      console.log("❌ Xác thực webhook thất bại:", err?.message)
++      console.log('❌ Xác thực webhook thất bại:', err?.message)
+       return res.status(HttpStatus.BAD_REQUEST).send(`Webhook Error: ${err?.message || 'Invalid signature'}`)
+     }
+
+     try {
+-
+       if (event.type === 'checkout.session.completed') {
+-        console.log("🧾 Event checkout.session.completed")
++        console.log('🧾 Event checkout.session.completed')
+
+         const session = event.data.object as Stripe.Checkout.Session
+
+-        console.log("Session ID:", session.id)
+-        console.log("Metadata:", session.metadata)
++        console.log('Session ID:', session.id)
++        console.log('Metadata:', session.metadata)
+
+         if (session.metadata?.orderId) {
+-          console.log("➡️ Cập nhật trạng thái order:", session.metadata.orderId)
++          console.log('➡️ Cập nhật trạng thái order:', session.metadata.orderId)
+           await this.paymentsService.markOrderPaidFromCheckoutSession(session)
+-          console.log("✅ Order đã được cập nhật thành PAID")
++          console.log('✅ Order đã được cập nhật thành PAID')
+         } else {
+-          console.log("⚠️ Session không có metadata.orderId")
++          console.log('⚠️ Session không có metadata.orderId')
+         }
+       }
+
+-      console.log("➡️ Chuyển event sang CoursePlanPaymentsService xử lý")
++      console.log('➡️ Chuyển event sang CoursePlanPaymentsService xử lý')
+       await this.coursePlanPayments.handleStripeEvent(event)
+-      console.log("✅ CoursePlanPaymentsService đã xử lý xong event")
+-
++      console.log('✅ CoursePlanPaymentsService đã xử lý xong event')
++
++      const realtimeUserId = this.extractRealtimeUserId(event)
++      if (realtimeUserId) {
++        this.stripeRealtime.emitPaymentUpdate(realtimeUserId, {
++          source: 'STRIPE_WEBHOOK',
++          eventType: event.type,
++          at: new Date().toISOString(),
++        })
++      }
+     } catch (err) {
+-      console.log("❌ Lỗi khi xử lý webhook:", err)
++      console.log('❌ Lỗi khi xử lý webhook:', err)
+       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ received: false })
+     }
+
+-    console.log("✅ Webhook Stripe xử lý xong, trả về 200")
+-    console.log("===========================")
++    console.log('✅ Webhook Stripe xử lý xong, trả về 200')
++    console.log('===========================')
+
+     return res.status(HttpStatus.OK).json({ received: true })
+   }
+-}
+\ No newline at end of file
++
++  private extractRealtimeUserId(event: Stripe.Event) {
++    const obj: any = event?.data?.object || {}
++    const candidates = [
++      obj?.metadata?.userId,
++      obj?.client_reference_id,
++      obj?.userId,
++      obj?.subscription_details?.metadata?.userId,
++      obj?.lines?.data?.[0]?.metadata?.userId,
++    ]
++
++    for (const candidate of candidates) {
++      const userId = Number(candidate)
++      if (Number.isInteger(userId) && userId > 0) {
++        return userId
++      }
++    }
++
++    return null
++  }
++}

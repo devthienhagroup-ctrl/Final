@@ -73,7 +73,7 @@ export class CoursePlansService {
     now: Date,
   ): UserCoursePassStatus {
     if (pass.canceledAt) return UserCoursePassStatus.CANCELED
-    if (now < pass.startAt) return UserCoursePassStatus.ACTIVE
+    if (now < pass.startAt) return UserCoursePassStatus.EXPIRED
     if (now < pass.endAt) return UserCoursePassStatus.ACTIVE
     if (now < pass.graceUntil) return UserCoursePassStatus.GRACE
     return UserCoursePassStatus.EXPIRED
@@ -597,8 +597,22 @@ export class CoursePlansService {
     await this.findPlanOrThrow(planId, { mustBeActive: true })
 
     const now = new Date()
+    const existingScheduled = await this.prisma.userCoursePass.findFirst({
+      where: {
+        userId,
+        canceledAt: null,
+        startAt: { gt: now },
+      },
+      select: { id: true },
+      orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
+    })
+
+    if (existingScheduled) {
+      throw new BadRequestException('You already have a scheduled pass for the next cycle')
+    }
+
     const latest = await this.prisma.userCoursePass.findFirst({
-      where: { userId, planId, canceledAt: null },
+      where: { userId, canceledAt: null },
       select: { endAt: true, graceUntil: true },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     })
@@ -1003,4 +1017,3 @@ export class CoursePlansService {
     })
   }
 }
-

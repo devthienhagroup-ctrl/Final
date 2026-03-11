@@ -1,1405 +1,1152 @@
-diff --git a/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx b/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
-index dee0fcfd07d94f19704eadff0c388944611fa0ae..8334496db8481aeb460186c51107cdd7c5ad43ad 100644
---- a/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
-+++ b/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
-@@ -1,39 +1,44 @@
- // AccountCenter.tsx
- import React, { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
- import { useSearchParams } from "react-router-dom";
- import { authApi } from "../api/auth.api";
- import { http } from "../api/http";
- import {
-   coursePlansApi,
-   type CoursePass,
-   type CoursePassStatus,
-   type CoursePlan,
-   type CoursePlanCheckoutMethod,
-   type CoursePlanPayment,
-   type CoursePlanPaymentStatus,
- } from "../api/coursePlans.api";
-+import ProfileTab from "./account-center/components/ProfileTab";
-+import ChangePasswordTab from "./account-center/components/ChangePasswordTab";
-+import ForgotPasswordTab from "./account-center/components/ForgotPasswordTab";
-+import MyOrdersTab from "./account-center/components/MyOrdersTab";
-+import SubscriptionsTab from "./account-center/components/SubscriptionsTab";
+diff --git a/Home/ayanavita-fontend-final/src/api/coursePlans.api.ts b/Home/ayanavita-fontend-final/src/api/coursePlans.api.ts
+index 84ce8cf020712c536a847bcf5f98c8cb4be8a52a..7a88d1b4077647c8628012957f5d4bf97d67add9 100644
+--- a/Home/ayanavita-fontend-final/src/api/coursePlans.api.ts
++++ b/Home/ayanavita-fontend-final/src/api/coursePlans.api.ts
+@@ -24,65 +24,67 @@ export type CoursePlan = {
+   excludedTagIds: number[]
+   createdAt?: string
+   updatedAt?: string
+ }
 
- type ToastKind = "success" | "error" | "info";
- type ActiveSection = "profile" | "changePassword" | "forgotPassword" | "myOrders" | "subscriptions";
+ export type CoursePassStatus = 'ACTIVE' | 'GRACE' | 'EXPIRED' | 'CANCELED'
+
+ export type CoursePass = {
+   id: number
+   userId: number
+   planId: number
+   purchaseId?: number | null
+   startAt: string
+   endAt: string
+   graceUntil: string
+   remainingUnlocks: number
+   status: CoursePassStatus
+   computedStatus: CoursePassStatus
+   canUnlockNew?: boolean
+   canceledAt?: string | null
+   unlockCount: number
+   plan: CoursePlan
+ }
+
+ export type CoursePlanPaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'EXPIRED'
++export type CoursePlanPaymentSource = 'SEPAY_QR' | 'STRIPE_ONE_TIME' | 'STRIPE_SUBSCRIPTION'
+
+ export type CoursePlanSubscriptionSnapshot = {
+   stripeSubscriptionId: string
+   status: string
+   cancelAtPeriodEnd: boolean
+   currentPeriodStart?: string | null
+   currentPeriodEnd?: string | null
+   canceledAt?: string | null
+ }
+
+ export type CoursePlanPayment = {
+   id: number
+   userId: number
+   planId: number
+   provider: string
++  paymentSource?: CoursePlanPaymentSource
+   status: CoursePlanPaymentStatus
+   computedStatus: CoursePlanPaymentStatus
+   amount: number
+   transferCode: string
+   transferContent: string
+   stripeCheckoutSessionId?: string | null
+   stripePaymentIntentId?: string | null
+   stripeInvoiceId?: string | null
+   stripeSubscriptionId?: string | null
+   subscriptionStatus?: string | null
+   cancelAtPeriodEnd?: boolean
+   subscriptionCurrentPeriodStart?: string | null
+   subscriptionCurrentPeriodEnd?: string | null
+   subscriptionCanceledAt?: string | null
+   subscription?: CoursePlanSubscriptionSnapshot | null
+   failureReason?: string | null
+   paidAt?: string | null
+   expiredAt?: string | null
+   createdAt: string
+   updatedAt: string
+   plan: CoursePlan
+   pass?: {
+     id: number
+     planId: number
+     purchaseId?: number | null
+diff --git a/Home/ayanavita-fontend-final/src/pages/account-center/components/SubscriptionsTab.tsx b/Home/ayanavita-fontend-final/src/pages/account-center/components/SubscriptionsTab.tsx
+index 324d5260191f33a6e7d5bd56f3716e62ba722cc4..2d8a7d9d43be3f5f587c184e745c9767dbe6b17c 100644
+--- a/Home/ayanavita-fontend-final/src/pages/account-center/components/SubscriptionsTab.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/account-center/components/SubscriptionsTab.tsx
+@@ -47,50 +47,65 @@ function isPassEffectiveNow(pass: any, now: number) {
+     if (start == null) return false;
+     if (now < start) return false;
+
+     const activeEnd = graceUntil ?? end;
+     if (activeEnd == null) return false;
+
+     return now <= activeEnd;
+ }
+
+ function getCurrentEffectivePass(currentPass: any, passHistory: any[]) {
+     const now = Date.now();
+     const allPasses = [currentPass, ...(passHistory || [])].filter(Boolean);
+
+     const effective = allPasses
+         .filter((pass) => isPassEffectiveNow(pass, now))
+         .sort((a, b) => {
+             const aStart = toTime(a?.startAt) ?? 0;
+             const bStart = toTime(b?.startAt) ?? 0;
+             return bStart - aStart;
+         });
+
+     return effective[0] || null;
+ }
+
  type PassRenewalState = "AUTO_RENEW_ACTIVE" | "AUTO_RENEW_CANCELED" | "NONE";
++type RenewalMode = "none" | "scheduled_cancel" | "auto_renew_on";
++
++function getScheduledPass(currentPass: any, passHistory: any[]) {
++    const now = Date.now();
++    const allPasses = [currentPass, ...(passHistory || [])].filter(Boolean);
++
++    const scheduled = allPasses
++        .filter((pass) => {
++            const start = toTime(pass?.startAt);
++            return start != null && start > now && !pass?.canceledAt;
++        })
++        .sort((a, b) => (toTime(a?.startAt) ?? 0) - (toTime(b?.startAt) ?? 0));
++
++    return scheduled[0] || null;
++}
 
- type OrderStatus =
-     | "PENDING"
-     | "PENDING_PAYMENT"
-     | "CANCEL_REQUESTED"
-     | "PAID"
-     | "SHIPPING"
-     | "SUCCESS"
-     | "CANCELLED"
-     | "EXPIRED";
+ function getRelatedPayments(pass: any, paymentHistory: any[]) {
+     return (paymentHistory || []).filter((payment) => {
+         if (!payment || !pass) return false;
 
- type MyOrderItem = {
-   name: string;
-   sku: string;
-   qty: number;
-   price: number;
-   image: string;
- };
+         if (pass.purchaseId && payment.id && String(pass.purchaseId) === String(payment.id)) return true;
+         if (pass.purchaseId && payment.code && String(pass.purchaseId) === String(payment.code)) return true;
+         if (pass.paymentId && payment.id && String(pass.paymentId) === String(payment.id)) return true;
 
- type PaymentQrPayload = {
-   amount: number;
-@@ -823,73 +828,50 @@ function ToastStack({
-                 role="status"
-             >
-               <div className="flex items-start gap-3">
-                 <i className={classNames(kindStyles[t.kind].icon, "mt-0.5")} />
-                 <div className="min-w-0 flex-1">
-                   <div className="flex items-center justify-between gap-2">
-                     <p className="truncate text-sm font-semibold">{t.title}</p>
-                     <button
-                         type="button"
-                         className="rounded-lg px-2 py-1 text-xs font-semibold opacity-80 hover:opacity-100"
-                         onClick={() => onClose(t.id)}
-                         aria-label={closeLabel}
-                     >
-                       <i className="fa-solid fa-xmark" />
-                     </button>
-                   </div>
-                   <p className="mt-1 text-sm opacity-90">{t.message}</p>
-                 </div>
-               </div>
-             </div>
-         ))}
-       </div>
-   );
+         return false;
+     });
  }
 
--function Field({
--                 label,
--                 iconClass,
--                 children,
--                 helper,
--               }: {
--  label: string;
--  iconClass: string;
--  children: React.ReactNode;
--  helper?: string;
--}) {
--  return (
--      <label className="block">
--      <span className="mb-1 flex items-center gap-2 text-sm font-semibold text-slate-700">
--        <i className={classNames(iconClass, "text-slate-400")} />
--        {label}
--      </span>
--        {children}
--        {helper ? <p className="mt-1 text-xs text-slate-500">{helper}</p> : null}
--      </label>
--  );
--}
--
+ function getPassRenewalState(pass: any, paymentHistory: any[]): PassRenewalState {
+     const relatedPayments = getRelatedPayments(pass, paymentHistory)
+         .slice()
+         .sort((a, b) => {
+             const aTime = toTime(a?.paidAt) ?? toTime(a?.createdAt) ?? 0;
+             const bTime = toTime(b?.paidAt) ?? toTime(b?.createdAt) ?? 0;
+             return bTime - aTime;
+         });
 
- const ORDER_STATUS_STYLES: Record<OrderStatus, string> = {
-   PENDING: "bg-amber-50 text-amber-700 border-amber-200",
-   PENDING_PAYMENT: "bg-orange-50 text-orange-700 border-orange-200",
-   CANCEL_REQUESTED: "bg-red-50 text-red-700 border-red-200",
-   PAID: "bg-emerald-50 text-emerald-700 border-emerald-200",
-   SHIPPING: "bg-sky-50 text-sky-700 border-sky-200",
-   SUCCESS: "bg-green-50 text-green-700 border-green-200",
-   CANCELLED: "bg-rose-50 text-rose-700 border-rose-200",
-   EXPIRED: "bg-slate-100 text-slate-700 border-slate-200",
- };
+     const latestSubscriptionPayment = relatedPayments.find(
+         (payment) => Boolean(payment?.stripeSubscriptionId || payment?.subscriptionId),
+     );
+@@ -116,80 +131,90 @@ function getPassRenewalState(pass: any, paymentHistory: any[]): PassRenewalState
+             x?.paymentMethod,
+             x?.method,
+             x?.paymentType,
+             x?.checkoutMethod,
+             x?.provider,
+             x?.purpose,
+             x?.stripeMode,
+             x?.source,
+             x?.channel,
+             x?.kind,
+             x?.type,
+             x?.stripeSubscriptionId ? "STRIPE_SUBSCRIPTION" : null,
+             x?.subscriptionId ? "STRIPE_SUBSCRIPTION" : null,
+             x?.sepay ? "SEPAY" : null,
+         ])
+         .filter(Boolean)
+         .map((x) => String(x).toUpperCase());
 
- const PASS_STATUS_STYLES: Record<CoursePassStatus, string> = {
-   ACTIVE: "bg-emerald-50 text-emerald-700 border-emerald-200",
-   GRACE: "bg-amber-50 text-amber-700 border-amber-200",
-   EXPIRED: "bg-slate-100 text-slate-700 border-slate-200",
-   CANCELED: "bg-rose-50 text-rose-700 border-rose-200",
- };
-
- const PLAN_PAYMENT_STATUS_STYLES: Record<CoursePlanPaymentStatus, string> = {
-   PENDING: "bg-amber-50 text-amber-700 border-amber-200",
-   PAID: "bg-emerald-50 text-emerald-700 border-emerald-200",
-   FAILED: "bg-rose-50 text-rose-700 border-rose-200",
-   EXPIRED: "bg-slate-100 text-slate-700 border-slate-200",
- };
-@@ -1521,50 +1503,54 @@ export default function AccountCenter() {
-
-     try {
-       setCancelRequestingOrderId(order.id);
-       await http.post(`/api/product-orders/${order.id}/request-cancel`);
-       const nextOrders = await fetchMyOrders(false);
-       const updatedOrder = nextOrders.find((x) => x.id === order.id) ?? null;
-       if (updatedOrder) {
-         setSelectedOrder((cur) => (cur && cur.id === updatedOrder.id ? updatedOrder : cur));
-       }
-       pushToast(
-           "success",
-           cms.myOrders.toasts.cancelRequestSuccess.title,
-           cms.myOrders.toasts.cancelRequestSuccess.message,
-       );
-     } catch (e: any) {
-       pushToast(
-           "error",
-           cms.myOrders.toasts.cancelRequestFailed.title,
-           e?.response?.data?.message || cms.myOrders.toasts.cancelRequestFailed.message,
-       );
-     } finally {
-       setCancelRequestingOrderId(null);
+     if (source.some((x) => x.includes("SUBSCRIPTION") || x.includes("RECURRING"))) {
+         return "AUTO_RENEW_ACTIVE";
      }
-   }, [fetchMyOrders, cms]);
 
-+  const onViewOrder = useCallback(async (order: MyOrder) => {
-+    setSelectedOrder(order);
-+  }, []);
+     return "NONE";
+ }
+
++function getRenewalMode(pass: any, paymentHistory: any[]): RenewalMode {
++    const state = getPassRenewalState(pass, paymentHistory);
++    if (state === "AUTO_RENEW_ACTIVE") return "auto_renew_on";
++    if (state === "AUTO_RENEW_CANCELED") return "scheduled_cancel";
++    return "none";
++}
 +
+ export default function SubscriptionsTab({
+                                              cms,
+                                              subscriptionLoading,
+                                              subscriptionError,
+                                              currentPass,
+                                              publicPlans,
+                                              focusedPlanId,
+                                              subscriptionActionPlanId,
+                                              passHistory,
+                                              paymentHistory,
+                                              planPaymentModal,
+                                              planQrCountdown,
+                                              planQrExpiresAt,
+                                              setPlanPaymentModal,
+                                              onStartPlanCheckout,
+                                              openPlanPaymentModal,
+                                              onCancelAutoRenewal,
+                                              onResumeAutoRenewal,
+                                              formatDate,
+                                              formatDateTime,
+                                              formatMoney,
+                                              formatDurationDays,
+                                              getPassStatusLabel,
+                                              getPaymentStatusLabel,
+                                              passStatusStyles,
+                                              planPaymentStatusStyles,
+                                          }: Props) {
+     const effectiveCurrentPass = getCurrentEffectivePass(currentPass, passHistory);
++    const scheduledPass = getScheduledPass(currentPass, passHistory);
++    const hasScheduledPass = Boolean(scheduledPass);
+     const currentPlanId = effectiveCurrentPass?.plan?.id ?? null;
+     const currentPassRenewalState = effectiveCurrentPass ? getPassRenewalState(effectiveCurrentPass, paymentHistory) : "NONE";
++    const renewalMode: RenewalMode = effectiveCurrentPass ? getRenewalMode(effectiveCurrentPass, paymentHistory) : "none";
+     const currentPlanPrice = effectiveCurrentPass?.plan?.price != null ? Number(effectiveCurrentPass.plan.price) : null;
 
-   // ✅ Poll server để check trạng thái thanh toán -> tự đóng modal QR + cập nhật trạng thái đơn hàng
-   useEffect(() => {
-     if (!qrModalOrder?.id) return;
-
-     const orderId = qrModalOrder.id;
-     const timer = window.setInterval(async () => {
-       try {
-         const res = await http.get<ApiProductOrder>(`/api/product-orders/${orderId}`);
-         const next = res?.data ? toMyOrder(res.data, cms) : null;
-         if (!next) return;
-
-         // Cập nhật list + order đang xem (nếu trùng)
-         setMyOrders((prev) => prev.map((o) => (o.id === next.id ? next : o)));
-         setSelectedOrder((cur) => (cur && cur.id === next.id ? next : cur));
-         setQrModalOrder((cur) => (cur && cur.id === next.id ? next : cur));
-
-         if (next.status === "PAID") {
-           pushToast(
-               "success",
-               cms.myOrders.toasts.paymentSuccess.title,
-               cms.myOrders.toasts.paymentSuccess.message,
-           );
-           setQrModalOrder(null);
-           setQrPayload(null);
-@@ -1809,50 +1795,158 @@ export default function AccountCenter() {
-     } finally {
-       setLoading(false);
+     async function ensureLoggedIn() {
+         if (!localStorage.getItem("aya_access_token")) {
+             window.location.href = "/login";
+             return false;
+         }
+         return true;
      }
-   };
-   const activeTitle =
-       active === "profile"
-           ? cms.profile.cardTitle
-           : active === "changePassword"
-               ? cms.changePassword.cardTitle
-               : active === "forgotPassword"
-                   ? cms.forgotPassword.cardTitle
-                   : active === "subscriptions"
-                       ? cms.subscriptions.cardTitle
-                       : cms.myOrders.cardTitle;
 
-   const activeDescription =
-       active === "profile"
-           ? cms.profile.cardDesc
-           : active === "changePassword"
-               ? cms.changePassword.cardDesc
-               : active === "forgotPassword"
-                   ? cms.forgotPassword.cardDesc
-                   : active === "subscriptions"
-                       ? cms.subscriptions.cardDesc
-                       : cms.myOrders.cardDesc;
-+  const cmsForTabs = useMemo(() => ({ tabs: cms, common: cms.common }), [cms]);
+     async function openCheckoutMethodDialog(plan: any) {
+         const ok = await ensureLoggedIn();
+         if (!ok) return;
+
+         const title = cms?.tabs?.subscriptions?.actions?.choosePaymentMethodTitle || "Chọn phương thức thanh toán";
+         const oneTimeLabel = cms?.tabs?.subscriptions?.actions?.oneTimeLabel || "Đăng ký 1 lần";
+         const recurringLabel = cms?.tabs?.subscriptions?.actions?.recurringLabel || "Đăng ký gia hạn tự động";
+         const qrLabel = cms?.tabs?.subscriptions?.actions?.chooseQr || "QR code";
+         const cardLabel = cms?.tabs?.subscriptions?.actions?.chooseStripeOneTime || "Card";
+         const payBtnLabel = cms?.tabs?.subscriptions?.actions?.payNow || "Thanh toán ngay";
+         const cancelBtnLabel = cms?.common?.actions?.close || "Đóng";
+
+         const recurringInfoTitle =
+             cms?.tabs?.subscriptions?.actions?.recurringInfoTitle || "Đăng ký tự động gia hạn tiện lợi";
+         const recurringInfoItems: string[] =
+@@ -506,63 +531,109 @@ export default function SubscriptionsTab({
+                 (window as any).__ayaCheckoutSelection = {
+                     getMode: () => selectedMode,
+                     getMethod: () => selectedOneTimeMethod,
+                 };
+             },
+             willClose: () => {
+                 delete (window as any).__ayaCheckoutSelection;
+             },
+             preConfirm: async () => {
+                 const selection = (window as any).__ayaCheckoutSelection;
+                 const mode = selection?.getMode?.() || "SUBSCRIPTION";
+                 const oneTimeMethod = selection?.getMethod?.() || "SEPAY";
+
+                 const checkoutMethod = mode === "SUBSCRIPTION" ? "STRIPE_SUBSCRIPTION" : oneTimeMethod;
+
+                 await onStartPlanCheckout(plan, checkoutMethod);
+                 return checkoutMethod;
+             },
+         });
+
+         return result;
+     }
+
+     async function handleRenewCurrentPass() {
+         if (!effectiveCurrentPass?.plan) return;
+-        await openCheckoutMethodDialog(effectiveCurrentPass.plan);
++        if (hasScheduledPass) {
++            await Swal.fire({
++                icon: "info",
++                title: "Đã có gói chờ kỳ sau",
++                text: "Bạn đã có pass scheduled cho kỳ tiếp theo, nên chưa thể gia hạn thêm.",
++            });
++            return;
++        }
 +
-+  const renderActiveSection = () => {
-+    if (active === "profile") {
-+      return (
-+        <ProfileTab
-+          cms={cmsForTabs}
-+          profile={profile}
-+          setProfile={setProfile}
-+          loading={loading}
-+          onSubmit={onProfileSubmit}
-+        />
-+      );
-+    }
++        const result = await Swal.fire({
++            title: "Gia hạn 1 lần",
++            text: "Chọn phương thức thanh toán cho lần gia hạn này.",
++            showCancelButton: true,
++            showDenyButton: true,
++            confirmButtonText: "Sepay QR",
++            denyButtonText: "Stripe one-time",
++            cancelButtonText: cms?.common?.actions?.close || "Đóng",
++        });
 +
-+    if (active === "changePassword") {
-+      return (
-+        <ChangePasswordTab
-+          cms={cmsForTabs}
-+          passwordStep={passwordStep}
-+          setPasswordStep={setPasswordStep}
-+          passwordForm={passwordForm}
-+          setPasswordForm={setPasswordForm}
-+          loading={loading}
-+          onVerifyCurrentPassword={onVerifyCurrentPassword}
-+          onChangePassword={onChangePassword}
-+        />
-+      );
-+    }
++        if (result.isConfirmed) {
++            await onStartPlanCheckout(effectiveCurrentPass.plan, "SEPAY");
++            return;
++        }
 +
-+    if (active === "forgotPassword") {
-+      return (
-+        <ForgotPasswordTab
-+          cms={cmsForTabs}
-+          forgotStep={forgotStep}
-+          setForgotStep={setForgotStep}
-+          forgotForm={forgotForm}
-+          setForgotForm={setForgotForm}
-+          profileEmail={profile.email}
-+          loading={loading}
-+          onSendForgotOtp={onSendForgotOtp}
-+          onVerifyForgotOtp={onVerifyForgotOtp}
-+          onForgotPassword={onForgotPassword}
-+        />
-+      );
-+    }
++        if (result.isDenied) {
++            await onStartPlanCheckout(effectiveCurrentPass.plan, "STRIPE_ONE_TIME");
++        }
+     }
+
+     async function handleSubscribeRecurringCurrentPass() {
+         if (!effectiveCurrentPass?.plan) return;
+         const ok = await ensureLoggedIn();
+         if (!ok) return;
+
++        if (hasScheduledPass) {
++            await Swal.fire({
++                icon: "info",
++                title: "Đã có gói chờ kỳ sau",
++                text: "Bạn đã có pass scheduled cho kỳ tiếp theo, chưa thể đăng ký thêm tự động gia hạn.",
++            });
++            return;
++        }
 +
-+    if (active === "subscriptions") {
-+      return (
-+        <SubscriptionsTab
-+          cms={cmsForTabs}
-+          subscriptionLoading={subscriptionLoading}
-+          subscriptionError={subscriptionError}
-+          currentPass={currentPass}
-+          publicPlans={publicPlans}
-+          focusedPlanId={focusedPlanId}
-+          subscriptionActionPlanId={subscriptionActionPlanId}
-+          passHistory={passHistory}
-+          paymentHistory={paymentHistory}
-+          planPaymentModal={planPaymentModal}
-+          planQrCountdown={planQrCountdown}
-+          planQrExpiresAt={planQrExpiresAt}
-+          setPlanPaymentModal={setPlanPaymentModal}
-+          onStartPlanCheckout={onStartPlanCheckout}
-+          openPlanPaymentModal={openPlanPaymentModal}
-+          onCancelAutoRenewal={onCancelAutoRenewal}
-+          onResumeAutoRenewal={onResumeAutoRenewal}
-+          formatDate={formatDate}
-+          formatDateTime={formatDateTime}
-+          formatMoney={formatMoney}
-+          formatDurationDays={formatDurationDays}
-+          getPassStatusLabel={getPassStatusLabel}
-+          getPaymentStatusLabel={getPaymentStatusLabel}
-+          passStatusStyles={PASS_STATUS_STYLES}
-+          planPaymentStatusStyles={PLAN_PAYMENT_STATUS_STYLES}
-+        />
-+      );
-+    }
+         if (currentPassRenewalState === "AUTO_RENEW_CANCELED" && onResumeAutoRenewal) {
+             const resumed = await onResumeAutoRenewal(effectiveCurrentPass);
+             if (resumed) return;
+         }
+
++        const confirm = await Swal.fire({
++            icon: "question",
++            title: "Đăng ký tự động gia hạn",
++            text: "Bạn sẽ thanh toán trước 1 gói cho kỳ tiếp theo. Từ các kỳ sau hệ thống sẽ tự động gia hạn hàng tháng.",
++            showCancelButton: true,
++            confirmButtonText: "Tiếp tục",
++            cancelButtonText: cms?.common?.actions?.close || "Đóng",
++        });
 +
-+    return (
-+      <MyOrdersTab
-+        cms={cmsForTabs}
-+        orderKeyword={orderKeyword}
-+        setOrderKeyword={setOrderKeyword}
-+        orderStatusFilter={orderStatusFilter}
-+        setOrderStatusFilter={setOrderStatusFilter}
-+        ordersLoading={ordersLoading}
-+        filteredOrders={filteredOrders}
-+        payingOrderId={payingOrderId}
-+        selectedOrder={selectedOrder}
-+        setSelectedOrder={setSelectedOrder}
-+        qrModalOrder={qrModalOrder}
-+        setQrModalOrder={setQrModalOrder}
-+        qrPayload={qrPayload}
-+        setQrPayload={setQrPayload}
-+        qrCountdown={qrCountdown}
-+        qrExpiresAt={qrExpiresAt}
-+        cancelRequestingOrderId={cancelRequestingOrderId}
-+        onPayPendingOrder={onPayPendingOrder}
-+        onRequestCancelOrder={onRequestCancelOrder}
-+        onViewOrder={onViewOrder}
-+        formatDate={formatDate}
-+        formatDateTime={formatDateTime}
-+        formatMoney={formatMoney}
-+        orderStatusStyles={ORDER_STATUS_STYLES}
-+      />
-+    );
-+  };
-   return (
-       <div className="min-h-[calc(100vh-0px)] bg-slate-50">
-         <ToastStack toasts={toasts} onClose={closeToast} closeLabel={cms.common.aria.closeToast} />
++        if (!confirm.isConfirmed) return;
++
+         await onStartPlanCheckout(effectiveCurrentPass.plan, "STRIPE_SUBSCRIPTION");
+     }
 
-         <div className="mx-auto max-w-6xl px-4 py-6 md:px-6">
-           {/* Page header */}
-           <div className="mb-6 flex flex-col gap-2 rounded-3xl border border-slate-200 bg-white px-6 py-5">
-             <div className="flex items-start justify-between gap-3">
-               <div>
-                 <h1 className="flex items-center gap-3 text-2xl font-extrabold text-slate-900">
-                   <i className={classNames(cms.page.icons.page, "text-slate-700")} />
-                   {cms.page.title}
-                 </h1>
-                 {cms.page.subtitle ? <p className="mt-1 text-sm text-slate-600">{cms.page.subtitle}</p> : null}
-               </div>
+     async function handleCancelAutoRenewal() {
+         if (!effectiveCurrentPass || !onCancelAutoRenewal) return;
 
-               <div className="hidden items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 md:flex">
-                 <i className={classNames(cms.ui.badges.secure.iconClass, "text-slate-500")} />
-                 {cms.ui.badges.secure.text}
-               </div>
-             </div>
+         const result = await Swal.fire({
+             icon: "warning",
+             title: cms?.tabs?.subscriptions?.actions?.cancelAutoRenewalConfirmTitle || "Xác nhận hủy tự động gia hạn?",
+             text:
+                 cms?.tabs?.subscriptions?.actions?.cancelAutoRenewalConfirmMessage ||
+                 "Gói của bạn vẫn được sử dụng đến hết chu kỳ hiện tại, nhưng sẽ không tự động gia hạn ở kỳ tiếp theo.",
+             showCancelButton: true,
+             confirmButtonText:
+                 cms?.tabs?.subscriptions?.actions?.cancelAutoRenewalConfirmButton ||
+                 cms?.tabs?.subscriptions?.actions?.cancelAutoRenewal ||
+                 "Hủy tự động gia hạn",
+             cancelButtonText: cms?.common?.actions?.close || "Đóng",
+             reverseButtons: false,
+         });
 
-             {loading ? (
-                 <div className="mt-2 flex items-center gap-2 text-sm text-slate-500">
-                   <i className="fa-solid fa-spinner animate-spin" />
-@@ -1914,1066 +2008,36 @@ export default function AccountCenter() {
-                   </div>
-               ) : null}
-             </aside>
+         if (!result.isConfirmed) return;
+         await onCancelAutoRenewal(effectiveCurrentPass);
+     }
 
-             {/* Main */}
-             <main className="space-y-6">
-               <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-6">
-                 <div className="mb-4 flex items-start justify-between gap-3">
-                   <div>
-                     <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{activeMeta?.label}</p>
-                     <h2 className="mt-1 text-xl font-extrabold text-slate-900">
-                       {activeTitle}
-                     </h2>
+@@ -607,88 +678,97 @@ export default function SubscriptionsTab({
+                   {getPassStatusLabel(effectiveCurrentPass.computedStatus, cms.tabs.subscriptions.statuses.pass)}
+                 </span>
+                             </div>
 
-                     <p className="mt-1 text-sm text-slate-600">
-                       {activeDescription}
-                     </p>
-                   </div>
+                             <div className="mt-3 grid gap-3 md:grid-cols-3">
+                                 <div className="rounded-xl border border-white/60 bg-white px-3 py-3">
+                                     <p className="text-xs text-slate-500">{cms.tabs.subscriptions.summary.remainingQuota}</p>
+                                     <p className="mt-1 text-xl font-extrabold text-slate-900">{effectiveCurrentPass.remainingUnlocks}</p>
+                                 </div>
+                                 <div className="rounded-xl border border-white/60 bg-white px-3 py-3">
+                                     <p className="text-xs text-slate-500">{cms.tabs.subscriptions.summary.unlockedCount}</p>
+                                     <p className="mt-1 text-xl font-extrabold text-slate-900">{effectiveCurrentPass.unlockCount}</p>
+                                 </div>
+                                 <div className="rounded-xl border border-white/60 bg-white px-3 py-3">
+                                     <p className="text-xs text-slate-500">{cms.tabs.subscriptions.summary.unlockNew}</p>
+                                     <p className="mt-1 text-xl font-extrabold text-slate-900">
+                                         {(effectiveCurrentPass.computedStatus === "ACTIVE" || effectiveCurrentPass.computedStatus === "GRACE") &&
+                                         effectiveCurrentPass.remainingUnlocks > 0
+                                             ? cms.tabs.subscriptions.summary.canUnlockYes
+                                             : cms.tabs.subscriptions.summary.canUnlockNo}
+                                     </p>
+                                 </div>
+                             </div>
 
-                   <div className="hidden items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 md:flex">
-                     <i className={classNames(activeMeta?.iconClass || "fa-regular fa-circle", "text-slate-500")} />
-                     {activeMeta?.label}
-                   </div>
+                             <div className="mt-4 flex flex-wrap gap-2">
++                                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700">
++                                    Renewal mode: {renewalMode}
++                                </span>
+                                 {currentPassRenewalState === "AUTO_RENEW_ACTIVE" ? (
+                                     <button
+                                         type="button"
+                                         className="inline-flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-extrabold text-rose-700 hover:bg-rose-100 disabled:opacity-60"
+                                         disabled={!onCancelAutoRenewal || subscriptionActionPlanId === effectiveCurrentPass.plan.id}
+                                         onClick={() => void handleCancelAutoRenewal()}
+                                     >
+                                         {cms?.tabs?.subscriptions?.actions?.cancelAutoRenewal || "Hủy tự động gia hạn"}
+                                     </button>
+                                 ) : (
+                                     <>
+                                         <button
+                                             type="button"
+                                             className="inline-flex items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-extrabold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
+-                                            disabled={subscriptionActionPlanId === effectiveCurrentPass.plan.id}
++                                            disabled={hasScheduledPass || subscriptionActionPlanId === effectiveCurrentPass.plan.id}
+                                             onClick={() => void handleRenewCurrentPass()}
+                                         >
+                                             {subscriptionActionPlanId === effectiveCurrentPass.plan.id
+                                                 ? cms.tabs.subscriptions.actions.processing
+                                                 : cms?.tabs?.subscriptions?.actions?.renewNow || "Gia hạn"}
+                                         </button>
+
+                                         <button
+                                             type="button"
+                                             className="inline-flex items-center justify-center rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-extrabold text-violet-700 hover:bg-violet-100 disabled:opacity-60"
+-                                            disabled={subscriptionActionPlanId === effectiveCurrentPass.plan.id || !effectiveCurrentPass.plan.currentStripePriceId}
++                                            disabled={hasScheduledPass || subscriptionActionPlanId === effectiveCurrentPass.plan.id || !effectiveCurrentPass.plan.currentStripePriceId}
+                                             title={
+                                                 !effectiveCurrentPass.plan.currentStripePriceId
+                                                     ? cms.tabs.subscriptions.actions.stripeRecurringUnavailableTitle
+                                                     : undefined
+                                             }
+                                             onClick={() => void handleSubscribeRecurringCurrentPass()}
+                                         >
+                                             {cms?.tabs?.subscriptions?.actions?.registerAutoRenewal || "Đăng ký tự động gia hạn"}
+                                         </button>
+                                     </>
+                                 )}
+                             </div>
++
++                            {hasScheduledPass ? (
++                                <p className="mt-3 text-xs font-semibold text-amber-700">
++                                    Bạn đã có pass scheduled từ {formatDate(scheduledPass?.startAt)}. Hệ thống tạm khóa gia hạn thêm để tránh tạo dư pass.
++                                </p>
++                            ) : null}
+                         </div>
+                     ) : (
+                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                             {cms.tabs.subscriptions.summary.noActivePass}
+                         </div>
+                     )}
+
+                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                         <p className="text-sm font-bold text-slate-700">{cms.tabs.subscriptions.planList.title}</p>
+                     </div>
+
+                     {publicPlans.length === 0 ? (
+                         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+                             {cms.tabs.subscriptions.planList.emptyText}
+                         </div>
+                     ) : (
+                         <div className="grid gap-3 md:grid-cols-2">
+                             {publicPlans.map((plan) => {
+                                 const highlighted = focusedPlanId === plan.id;
+                                 const isCurrentPlan = currentPlanId != null && currentPlanId === plan.id;
+                                 const planPrice = Number(plan?.price || 0);
+                                 const isLowerThanCurrentPlan = currentPlanPrice != null && planPrice < currentPlanPrice;
+
+                                 return (
+                                     <div
+@@ -718,51 +798,51 @@ export default function SubscriptionsTab({
+                                                 {cms.tabs.subscriptions.planCard.durationUnits.day}
+                                             </p>
+                                             <p>
+                                                 - {cms.tabs.subscriptions.planCard.maxCoursePriceLabel}:{" "}
+                                                 {plan.maxCoursePrice != null
+                                                     ? formatMoney(plan.maxCoursePrice)
+                                                     : cms.tabs.subscriptions.planCard.unlimited}
+                                             </p>
+                                             <p>
+                                                 - {cms.tabs.subscriptions.planCard.blockedTagsLabel}:{" "}
+                                                 {plan.excludedTags.length > 0
+                                                     ? plan.excludedTags.map((tag: any) => tag.code).join(", ")
+                                                     : cms.tabs.subscriptions.planCard.noBlockedTags}
+                                             </p>
+                                         </div>
+
+                                         <div className="mt-3">
+                                             {isCurrentPlan ? (
+                                                 <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">
+                           {cms?.tabs?.subscriptions?.planCard?.currentPlanBadge || "Gói hiện tại của bạn"}
+                         </span>
+                                             ) : !isLowerThanCurrentPlan ? (
+                                                 <button
+                                                     type="button"
+                                                     className="inline-flex w-full items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-extrabold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
+-                                                    disabled={subscriptionActionPlanId === plan.id}
++                                                    disabled={hasScheduledPass || subscriptionActionPlanId === plan.id}
+                                                     onClick={() => void handleUpgradePlan(plan)}
+                                                 >
+                                                     {subscriptionActionPlanId === plan.id
+                                                         ? cms.tabs.subscriptions.actions.processing
+                                                         : cms?.tabs?.subscriptions?.actions?.upgrade || "Nâng cấp"}
+                                                 </button>
+                                             ) : null}
+                                         </div>
+                                     </div>
+                                 );
+                             })}
+                         </div>
+                     )}
+
+                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                         <p className="text-sm font-bold text-slate-700">{cms.tabs.subscriptions.history.passTitle}</p>
+                     </div>
+
+                     {passHistory.length === 0 ? (
+                         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+                             {cms.tabs.subscriptions.history.passEmptyText}
+                         </div>
+                     ) : (
+                         <div className="space-y-3">
+                             {passHistory.map((pass) => (
+@@ -816,50 +896,54 @@ export default function SubscriptionsTab({
+                             {paymentHistory.map((payment) => (
+                                 <article key={payment.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                                     <div className="flex flex-wrap items-start justify-between gap-2">
+                                         <div>
+                                             <p className="text-sm font-extrabold text-slate-900">{payment.plan.name}</p>
+                                             <p className="mt-1 text-xs text-slate-600">
+                                                 {cms.tabs.subscriptions.history.amount}: {formatMoney(payment.amount)} |{" "}
+                                                 {cms.tabs.subscriptions.history.createdAt} {formatDateTime(payment.createdAt)}
+                                             </p>
+                                         </div>
+                                         <span
+                                             className={classNames(
+                                                 "inline-flex rounded-full border px-3 py-1 text-xs font-bold",
+                                                 planPaymentStatusStyles[payment.computedStatus],
+                                             )}
+                                         >
+                       {getPaymentStatusLabel(payment.computedStatus, cms.tabs.subscriptions.statuses.payment)}
+                     </span>
+                                     </div>
+
+                                     <div className="mt-2 grid gap-2 text-xs text-slate-600 md:grid-cols-2">
+                                         <p>
+                                             {cms.tabs.subscriptions.history.transferContent}:{" "}
+                                             <span className="font-bold text-slate-800">{payment.transferContent}</span>
+                                         </p>
++                                        <p>
++                                            Payment source:{" "}
++                                            <span className="font-bold text-slate-800">{payment.paymentSource || payment.provider || "-"}</span>
++                                        </p>
+                                         <p>
+                                             {cms.tabs.subscriptions.history.paidAt}:{" "}
+                                             <span className="font-bold text-slate-800">{formatDateTime(payment.paidAt)}</span>
+                                         </p>
+                                     </div>
+
+                                     {payment.computedStatus === "PENDING" && payment.sepay ? (
+                                         <div className="mt-3">
+                                             <button
+                                                 type="button"
+                                                 className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-extrabold text-emerald-700 hover:bg-emerald-100"
+                                                 onClick={() => openPlanPaymentModal(payment)}
+                                             >
+                                                 <i className="fa-solid fa-qrcode" />
+                                                 {cms.tabs.subscriptions.actions.openPaymentQr}
+                                             </button>
+                                         </div>
+                                     ) : null}
+                                 </article>
+                             ))}
+                         </div>
+                     )}
+                 </>
+             ) : null}
+
+@@ -899,26 +983,26 @@ export default function SubscriptionsTab({
+                                 {planPaymentModal.sepay.transferContent}
+                             </p>
+                             <p>
+                                 <span className="font-semibold">{cms.tabs.subscriptions.qrModal.timeLeft}:</span> {planQrCountdown.text}
+                             </p>
+                             <p>
+                                 <span className="font-semibold">{cms.tabs.subscriptions.qrModal.expiresAt}:</span>{" "}
+                                 {formatDateTime(planQrExpiresAt)}
+                             </p>
+                         </div>
+
+                         {planQrCountdown.expired ? (
+                             <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                                 {cms.tabs.subscriptions.qrModal.expiredMessage}
+                             </div>
+                         ) : (
+                             <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                                 {cms.tabs.subscriptions.qrModal.waitingMessage}
+                             </div>
+                         )}
+                     </div>
                  </div>
-
--                {/* PROFILE */}
--                {active === "profile" && (
--                    <form className="grid gap-4 md:grid-cols-2" onSubmit={onProfileSubmit}>
--                      <Field label={cms.profile.fields.fullName.label} iconClass={cms.profile.fields.fullName.iconClass}>
--                        <input
--                            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
--                            placeholder={cms.profile.fields.fullName.placeholder}
--                            value={profile.fullName}
--                            onChange={(e) => setProfile((prev) => ({ ...prev, fullName: e.target.value }))}
--                        />
--                      </Field>
--
--                      <Field label={cms.profile.fields.phone.label} iconClass={cms.profile.fields.phone.iconClass}>
--                        <input
--                            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
--                            placeholder={cms.profile.fields.phone.placeholder}
--                            value={profile.phone}
--                            onChange={(e) => setProfile((prev) => ({ ...prev, phone: e.target.value }))}
--                        />
--                      </Field>
--
--                      <Field label={cms.profile.fields.email.label} iconClass={cms.profile.fields.email.iconClass} helper={cms.profile.fields.email.helper}>
--                        <input
--                            className="w-full cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"
--                            type="text"
--                            placeholder={cms.profile.fields.email.placeholder}
--                            value={profile.email}
--                            readOnly
--                        />
--                      </Field>
--
--                      <Field label={cms.profile.fields.birthDate.label} iconClass={cms.profile.fields.birthDate.iconClass}>
--                        <input
--                            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
--                            type="date"
--                            value={profile.birthDate}
--                            onChange={(e) => setProfile((prev) => ({ ...prev, birthDate: e.target.value }))}
--                        />
--                      </Field>
--
--                      <Field label={cms.profile.fields.gender.label} iconClass={cms.profile.fields.gender.iconClass}>
--                        <select
--                            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
--                            value={profile.gender}
--                            onChange={(e) => setProfile((prev) => ({ ...prev, gender: e.target.value }))}
--                        >
--                          <option value="MALE">{cms.profile.fields.gender.options.male}</option>
--                          <option value="FEMALE">{cms.profile.fields.gender.options.female}</option>
--                          <option value="OTHER">{cms.profile.fields.gender.options.other}</option>
--                        </select>
--                      </Field>
--
--                      <div className="md:col-span-2">
--                        <Field label={cms.profile.fields.address.label} iconClass={cms.profile.fields.address.iconClass}>
--                          <input
--                              className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
--                              placeholder={cms.profile.fields.address.placeholder}
--                              value={profile.address}
--                              onChange={(e) => setProfile((prev) => ({ ...prev, address: e.target.value }))}
--                          />
--                        </Field>
--                      </div>
--
--                      <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-3 pt-2">
--                        <div className="text-xs text-slate-500">
--                          <i className="fa-solid fa-circle-exclamation mr-2 text-slate-400" />
--                          {cms.profile.fields.email.helper}
--                        </div>
--                        <button
--                            type="submit"
--                            className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-extrabold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-60"
--                            disabled={loading}
--                        >
--                          <i className="fa-regular fa-floppy-disk" />
--                          {cms.common.actions.save}
--                        </button>
--                      </div>
--                    </form>
--                )}
--
--                {/* CHANGE PASSWORD */}
--                {active === "changePassword" && (
--                    <div className="space-y-4">
--                      {passwordStep === "verifyCurrent" ? (
--                          <form className="grid gap-4 md:grid-cols-2" onSubmit={onVerifyCurrentPassword}>
--                            <div className="md:col-span-2">
--                              <Field
--                                  label={cms.changePassword.steps.verifyCurrent.currentPassword.label}
--                                  iconClass={cms.changePassword.steps.verifyCurrent.currentPassword.iconClass}
--                              >
--                                <input
--                                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
--                                    type="password"
--                                    placeholder={cms.changePassword.steps.verifyCurrent.currentPassword.placeholder}
--                                    value={passwordForm.currentPassword}
--                                    onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
--                                />
--                              </Field>
--                            </div>
--
--                            <div className="md:col-span-2 flex justify-end">
--                              <button
--                                  type="submit"
--                                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-extrabold text-white hover:bg-slate-800 disabled:opacity-60"
--                                  disabled={loading}
--                              >
--                                <i className="fa-solid fa-magnifying-glass" />
--                                {cms.changePassword.steps.verifyCurrent.buttonText}
--                              </button>
--                            </div>
--                          </form>
--                      ) : (
--                          <form className="grid gap-4 md:grid-cols-2" onSubmit={onChangePassword}>
--                            <Field label={cms.changePassword.steps.setNew.newPassword.label} iconClass={cms.changePassword.steps.setNew.newPassword.iconClass}>
--                              <input
--                                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
--                                  type="password"
--                                  placeholder={cms.changePassword.steps.setNew.newPassword.placeholder}
--                                  value={passwordForm.newPassword}
--                                  onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
--                              />
--                            </Field>
--
--                            <Field
--                                label={cms.changePassword.steps.setNew.confirmPassword.label}
--                                iconClass={cms.changePassword.steps.setNew.confirmPassword.iconClass}
--                            >
--                              <input
--                                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
--                                  type="password"
--                                  placeholder={cms.changePassword.steps.setNew.confirmPassword.placeholder}
--                                  value={passwordForm.confirmPassword}
--                                  onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
--                              />
--                            </Field>
--
--                            <div className="md:col-span-2 flex flex-wrap justify-end gap-2 pt-2">
--                              <button
--                                  type="button"
--                                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-extrabold text-slate-700 hover:bg-slate-50"
--                                  onClick={() => setPasswordStep("verifyCurrent")}
--                                  disabled={loading}
--                              >
--                                <i className="fa-solid fa-arrow-left" />
--                                {cms.common.actions.back}
--                              </button>
--
--                              <button
--                                  type="submit"
--                                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-extrabold text-white hover:bg-slate-800 disabled:opacity-60"
--                                  disabled={loading}
--                              >
--                                <i className="fa-solid fa-key" />
--                                {cms.common.actions.updatePassword}
--                              </button>
--                            </div>
--                          </form>
--                      )}
--                    </div>
--                )}
--
--                {/* FORGOT PASSWORD */}
--                {active === "forgotPassword" && (
--                    <div className="space-y-4">
--                      {/* Step: email */}
--                      {forgotStep === "email" && (
--                          <form className="space-y-4" onSubmit={onSendForgotOtp}>
--                            <Field label={cms.forgotPassword.steps.email.email.label} iconClass={cms.forgotPassword.steps.email.email.iconClass}>
--                              <input
--                                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
--                                  type="email"
--                                  placeholder={cms.forgotPassword.steps.email.email.placeholder}
--                                  value={forgotForm.email}
--                                  onChange={(e) => setForgotForm((prev) => ({ ...prev, email: e.target.value }))}
--                              />
--                            </Field>
--
--                            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
--                              <i className="fa-regular fa-envelope mr-2 text-slate-500" />
--                              {cms.forgotPassword.noteRegisteredEmail}:{" "}
--                              <span className="font-extrabold">{profile.email || cms.common.labels.noEmail}</span>
--                            </div>
--
--                            <div className="flex justify-end">
--                              <button
--                                  type="submit"
--                                  className="inline-flex items-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-3 text-sm font-extrabold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
--                                  disabled={loading}
--                              >
--                                <i className="fa-solid fa-paper-plane" />
--                                {cms.common.actions.sendOtp}
--                              </button>
--                            </div>
--                          </form>
--                      )}
--
--                      {/* Step: otp */}
--                      {forgotStep === "otp" && (
--                          <form className="flex flex-col gap-3 md:flex-row md:items-end" onSubmit={onVerifyForgotOtp}>
--                            <div className="flex-1">
--                              <Field label={cms.forgotPassword.steps.otp.otp.label} iconClass={cms.forgotPassword.steps.otp.otp.iconClass}>
--                                <input
--                                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
--                                    type="text"
--                                    placeholder={cms.forgotPassword.steps.otp.otp.placeholder}
--                                    value={forgotForm.otp}
--                                    onChange={(e) => setForgotForm((prev) => ({ ...prev, otp: e.target.value }))}
--                                />
--                              </Field>
--                            </div>
--
--                            <div className="flex gap-2">
--                              <button
--                                  type="button"
--                                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-extrabold text-slate-700 hover:bg-slate-50"
--                                  onClick={() => setForgotStep("email")}
--                                  disabled={loading}
--                              >
--                                <i className="fa-solid fa-arrow-left" />
--                                {cms.common.actions.back}
--                              </button>
--
--                              <button
--                                  type="submit"
--                                  className="inline-flex items-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-3 text-sm font-extrabold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
--                                  disabled={loading}
--                              >
--                                <i className="fa-solid fa-badge-check" />
--                                {cms.common.actions.verifyOtp}
--                              </button>
--                            </div>
--                          </form>
--                      )}
--
--                      {/* Step: new password */}
--                      {forgotStep === "newPassword" && (
--                          <form className="grid gap-4 md:grid-cols-2" onSubmit={onForgotPassword}>
--                            <Field
--                                label={cms.forgotPassword.steps.newPassword.newPassword.label}
--                                iconClass={cms.forgotPassword.steps.newPassword.newPassword.iconClass}
--                            >
--                              <input
--                                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
--                                  type="password"
--                                  placeholder={cms.forgotPassword.steps.newPassword.newPassword.placeholder}
--                                  value={forgotForm.newPassword}
--                                  onChange={(e) => setForgotForm((prev) => ({ ...prev, newPassword: e.target.value }))}
--                              />
--                            </Field>
--
--                            <Field
--                                label={cms.forgotPassword.steps.newPassword.confirmPassword.label}
--                                iconClass={cms.forgotPassword.steps.newPassword.confirmPassword.iconClass}
--                            >
--                              <input
--                                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
--                                  type="password"
--                                  placeholder={cms.forgotPassword.steps.newPassword.confirmPassword.placeholder}
--                                  value={forgotForm.confirmPassword}
--                                  onChange={(e) => setForgotForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
--                              />
--                            </Field>
--
--                            <div className="md:col-span-2 flex flex-wrap justify-end gap-2 pt-2">
--                              <button
--                                  type="button"
--                                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-extrabold text-slate-700 hover:bg-slate-50"
--                                  onClick={() => setForgotStep("otp")}
--                                  disabled={loading}
--                              >
--                                <i className="fa-solid fa-arrow-left" />
--                                {cms.common.actions.back}
--                              </button>
--
--                              <button
--                                  type="submit"
--                                  className="inline-flex items-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-3 text-sm font-extrabold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
--                                  disabled={loading}
--                              >
--                                <i className="fa-solid fa-rotate" />
--                                {cms.common.actions.resetPassword}
--                              </button>
--                            </div>
--                          </form>
--                      )}
--                    </div>
--                )}
--                {active === "subscriptions" && (
--                    <div className="space-y-4">
--                      {subscriptionLoading ? (
--                          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
--                            {cms.common.loadingText}
--                          </div>
--                      ) : null}
--
--                      {subscriptionError ? (
--                          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
--                            {subscriptionError}
--                          </div>
--                      ) : null}
--
--                      {!subscriptionLoading ? (
--                          <>
--                            {currentPass ? (
--                                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
--                                  <div className="flex flex-wrap items-start justify-between gap-3">
--                                    <div>
--                                      <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">{cms.subscriptions.summary.currentPlanTitle}</p>
--                                      <p className="mt-1 text-lg font-extrabold text-slate-900">{currentPass.plan.name}</p>
--                                      <p className="mt-1 text-sm text-slate-700">
--                                        {cms.subscriptions.summary.cycleLabel}: {formatDate(currentPass.startAt)} - {formatDate(currentPass.endAt)} | {cms.subscriptions.summary.graceUntilLabel} {formatDate(currentPass.graceUntil)}
--                                      </p>
--                                    </div>
--                                    <span
--                                        className={classNames(
--                                            "inline-flex rounded-full border px-3 py-1 text-xs font-bold",
--                                            PASS_STATUS_STYLES[currentPass.computedStatus],
--                                        )}
--                                    >
--                              {getPassStatusLabel(currentPass.computedStatus, cms.subscriptions.statuses.pass)}
--                            </span>
--                                  </div>
--
--                                  <div className="mt-3 grid gap-3 md:grid-cols-3">
--                                    <div className="rounded-xl border border-white/60 bg-white px-3 py-3">
--                                      <p className="text-xs text-slate-500">{cms.subscriptions.summary.remainingQuota}</p>
--                                      <p className="mt-1 text-xl font-extrabold text-slate-900">{currentPass.remainingUnlocks}</p>
--                                    </div>
--                                    <div className="rounded-xl border border-white/60 bg-white px-3 py-3">
--                                      <p className="text-xs text-slate-500">{cms.subscriptions.summary.unlockedCount}</p>
--                                      <p className="mt-1 text-xl font-extrabold text-slate-900">{currentPass.unlockCount}</p>
--                                    </div>
--                                    <div className="rounded-xl border border-white/60 bg-white px-3 py-3">
--                                      <p className="text-xs text-slate-500">{cms.subscriptions.summary.unlockNew}</p>
--                                      <p className="mt-1 text-xl font-extrabold text-slate-900">
--                                        {(currentPass.computedStatus === "ACTIVE" || currentPass.computedStatus === "GRACE") && currentPass.remainingUnlocks > 0
--                                            ? cms.subscriptions.summary.canUnlockYes
--                                            : cms.subscriptions.summary.canUnlockNo}
--                                      </p>
--                                    </div>
--                                  </div>
--                                  <div className="mt-4 flex flex-wrap gap-2">
--                                    {currentPassRenewalState === "AUTO_RENEW_ACTIVE" ? (
--                                      <button
--                                        type="button"
--                                        className="inline-flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-extrabold text-rose-700 hover:bg-rose-100 disabled:opacity-60"
--                                        disabled={subscriptionActionPlanId === currentPass.plan.id}
--                                        onClick={() => void onCancelAutoRenewal(currentPass)}
--                                      >
--                                        {cms.subscriptions.actions.cancelAutoRenewal}
--                                      </button>
--                                    ) : (
--                                      <>
--                                        <button
--                                          type="button"
--                                          className="inline-flex items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-extrabold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
--                                          disabled={subscriptionActionPlanId === currentPass.plan.id}
--                                          onClick={() => void onRenewCurrentPass(currentPass)}
--                                        >
--                                          {cms.subscriptions.actions.renewNow}
--                                        </button>
--                                        <button
--                                          type="button"
--                                          className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-extrabold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
--                                          disabled={subscriptionActionPlanId === currentPass.plan.id}
--                                          onClick={() => void onRegisterAutoRenewCurrentPass(currentPass)}
--                                        >
--                                          {cms.subscriptions.actions.registerAutoRenewal}
--                                        </button>
--                                      </>
--                                    )}
--                                  </div>
--                                </div>
--                            ) : (
--                                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
--                                  {cms.subscriptions.summary.noActivePass}
--                                </div>
--                            )}
--
--                            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
--                              <p className="text-sm font-bold text-slate-700">{cms.subscriptions.planList.title}</p>
--                            </div>
--
--                            {publicPlans.length === 0 ? (
--                                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
--                                  {cms.subscriptions.planList.emptyText}
--                                </div>
--                            ) : (
--                                <div className="grid gap-3 md:grid-cols-2">
--                                  {publicPlans.map((plan) => {
--                                    const highlighted = focusedPlanId === plan.id;
--                                    return (
--                                        <div
--                                            key={plan.id}
--                                            className={classNames(
--                                                "rounded-2xl border bg-white p-4",
--                                                highlighted ? "border-indigo-300 ring-2 ring-indigo-100" : "border-slate-200",
--                                            )}
--                                        >
--                                          <div className="flex items-start justify-between gap-3">
--                                            <div>
--                                              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{plan.code}</p>
--                                              <p className="mt-1 text-base font-extrabold text-slate-900">{plan.name}</p>
--                                            </div>
--                                            <p className="text-sm font-semibold text-slate-700">{formatMoney(plan.price)}</p>
--                                          </div>
--
--                                          <div className="mt-2 space-y-1 text-xs text-slate-600">
--                                            <p>- {cms.subscriptions.planCard.quotaLabel}: {plan.maxUnlocks} {cms.subscriptions.planCard.perCycleLabel}</p>
--                                            <p>- {cms.subscriptions.planCard.durationLabel}: {formatDurationDays(plan.durationDays, cms.subscriptions.planCard.durationUnits)} + {cms.subscriptions.planCard.graceLabel} {plan.graceDays} {cms.subscriptions.planCard.durationUnits.day}</p>
--                                            <p>- {cms.subscriptions.planCard.maxCoursePriceLabel}: {plan.maxCoursePrice != null ? formatMoney(plan.maxCoursePrice) : cms.subscriptions.planCard.unlimited}</p>
--                                            <p>
--                                              - {cms.subscriptions.planCard.blockedTagsLabel}: {plan.excludedTags.length > 0 ? plan.excludedTags.map((tag) => tag.code).join(", ") : cms.subscriptions.planCard.noBlockedTags}
--                                            </p>
--                                          </div>
--
--                                          <button
--                                              type="button"
--                                              className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-extrabold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
--                                              disabled={subscriptionActionPlanId === plan.id}
--                                              onClick={() => {
--                                                if (!localStorage.getItem("aya_access_token")) {
--                                                  window.location.href = "/login";
--                                                  return;
--                                                }
--                                                void onStartPlanCheckout(plan);
--                                              }}
--                                          >
--                                            {subscriptionActionPlanId === plan.id
--                                                ? cms.subscriptions.actions.processing
--                                                : currentPass
--                                                    ? cms.subscriptions.actions.renewOrBuyMore
--                                                    : cms.subscriptions.actions.subscribe}
--                                          </button>
--                                        </div>
--                                    );
--                                  })}
--                                </div>
--                            )}
--
--                            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
--                              <p className="text-sm font-bold text-slate-700">{cms.subscriptions.history.passTitle}</p>
--                            </div>
--
--                            {passHistory.length === 0 ? (
--                                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
--                                  {cms.subscriptions.history.passEmptyText}
--                                </div>
--                            ) : (
--                                <div className="space-y-3">
--                                  {passHistory.map((pass) => (
--                                      <article key={pass.id} className="rounded-2xl border border-slate-200 bg-white p-4">
--                                        <div className="flex flex-wrap items-start justify-between gap-2">
--                                          <div>
--                                            <p className="text-sm font-extrabold text-slate-900">{pass.plan.name}</p>
--                                            <p className="mt-1 text-xs text-slate-600">
--                                              {formatDate(pass.startAt)} - {formatDate(pass.endAt)} | {cms.subscriptions.summary.graceUntilLabel} {formatDate(pass.graceUntil)}
--                                            </p>
--                                          </div>
--                                          <span
--                                              className={classNames(
--                                                  "inline-flex rounded-full border px-3 py-1 text-xs font-bold",
--                                                  PASS_STATUS_STYLES[pass.computedStatus],
--                                              )}
--                                          >
--                                  {getPassStatusLabel(pass.computedStatus, cms.subscriptions.statuses.pass)}
--                                </span>
--                                        </div>
--                                        <div className="mt-2 grid gap-2 text-xs text-slate-600 md:grid-cols-3">
--                                          <p>{cms.subscriptions.history.remainingQuota}: <span className="font-bold text-slate-800">{pass.remainingUnlocks}</span></p>
--                                          <p>{cms.subscriptions.history.unlockCount}: <span className="font-bold text-slate-800">{pass.unlockCount}</span></p>
--                                          <p>{cms.subscriptions.history.paymentCode}: <span className="font-bold text-slate-800">{pass.purchaseId || cms.common.emptyValue}</span></p>
--                                        </div>
--                                      </article>
--                                  ))}
--                                </div>
--                            )}
--
--                            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
--                              <p className="text-sm font-bold text-slate-700">{cms.subscriptions.history.paymentTitle}</p>
--                            </div>
--
--                            {paymentHistory.length === 0 ? (
--                                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
--                                  {cms.subscriptions.history.paymentEmptyText}
--                                </div>
--                            ) : (
--                                <div className="space-y-3">
--                                  {paymentHistory.map((payment) => (
--                                      <article key={payment.id} className="rounded-2xl border border-slate-200 bg-white p-4">
--                                        <div className="flex flex-wrap items-start justify-between gap-2">
--                                          <div>
--                                            <p className="text-sm font-extrabold text-slate-900">{payment.plan.name}</p>
--                                            <p className="mt-1 text-xs text-slate-600">
--                                              {cms.subscriptions.history.amount}: {formatMoney(payment.amount)} | {cms.subscriptions.history.createdAt} {formatDateTime(payment.createdAt)}
--                                            </p>
--                                          </div>
--                                          <span
--                                              className={classNames(
--                                                  "inline-flex rounded-full border px-3 py-1 text-xs font-bold",
--                                                  PLAN_PAYMENT_STATUS_STYLES[payment.computedStatus],
--                                              )}
--                                          >
--                                  {getPaymentStatusLabel(payment.computedStatus, cms.subscriptions.statuses.payment)}
--                                </span>
--                                        </div>
--
--                                        <div className="mt-2 grid gap-2 text-xs text-slate-600 md:grid-cols-2">
--                                          <p>{cms.subscriptions.history.transferContent}: <span className="font-bold text-slate-800">{payment.transferContent}</span></p>
--                                          <p>{cms.subscriptions.history.paidAt}: <span className="font-bold text-slate-800">{formatDateTime(payment.paidAt)}</span></p>
--                                        </div>
--
--                                        {payment.computedStatus === "PENDING" && payment.sepay ? (
--                                            <div className="mt-3">
--                                              <button
--                                                  type="button"
--                                                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-extrabold text-emerald-700 hover:bg-emerald-100"
--                                                  onClick={() => openPlanPaymentModal(payment)}
--                                              >
--                                                <i className="fa-solid fa-qrcode" />
--                                                {cms.subscriptions.actions.openPaymentQr}
--                                              </button>
--                                            </div>
--                                        ) : null}
--                                      </article>
--                                  ))}
--                                </div>
--                            )}
--                          </>
--                      ) : null}
--
--                      {planPaymentModal?.sepay ? (
--                          <div
--                              className="fixed inset-0 z-[135] flex items-center justify-center bg-black/60 px-4"
--                              onClick={() => setPlanPaymentModal(null)}
--                          >
--                            <div
--                                className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
--                                onClick={(e) => e.stopPropagation()}
--                            >
--                              <div className="flex items-center justify-between gap-3">
--                                <h3 className="text-lg font-bold text-slate-900">{cms.subscriptions.qrModal.title}</h3>
--                                <button
--                                    type="button"
--                                    onClick={() => setPlanPaymentModal(null)}
--                                    className="rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
--                                >
--                                  {cms.common.actions.close}
--                                </button>
--                              </div>
--
--                              <p className="mt-1 text-xs text-slate-500">{cms.subscriptions.qrModal.planLabel}: {planPaymentModal.plan.name}</p>
--
--                              <div className="relative mx-auto mt-4 h-64 w-64">
--                                <img
--                                    src={planPaymentModal.sepay.qrUrl}
--                                    alt={cms.subscriptions.qrModal.qrAlt}
--                                    className={
--                                        "h-64 w-64 rounded-xl border border-slate-200 transition " +
--                                        (planQrCountdown.expired ? "opacity-40 blur-[2px]" : "")
--                                    }
--                                />
--                              </div>
--
--                              <div className="mt-4 space-y-1 text-sm text-slate-700">
--                                <p><span className="font-semibold">{cms.subscriptions.qrModal.amount}:</span> {formatMoney(Number(planPaymentModal.sepay.amount || 0))}</p>
--                                <p><span className="font-semibold">{cms.subscriptions.qrModal.transferContent}:</span> {planPaymentModal.sepay.transferContent}</p>
--                                <p><span className="font-semibold">{cms.subscriptions.qrModal.timeLeft}:</span> {planQrCountdown.text}</p>
--                                <p><span className="font-semibold">{cms.subscriptions.qrModal.expiresAt}:</span> {formatDateTime(planQrExpiresAt)}</p>
--                              </div>
--
--                              {planQrCountdown.expired ? (
--                                  <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
--                                    {cms.subscriptions.qrModal.expiredMessage}
--                                  </div>
--                              ) : (
--                                  <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
--                                    {cms.subscriptions.qrModal.waitingMessage}
--                                  </div>
--                              )}
--                            </div>
--                          </div>
--                      ) : null}
--                    </div>
--                )}
--                {/* MY ORDERS */}
--                {active === "myOrders" && (
--                    <div className="space-y-4">
--                      {/* Bộ lọc */}
--                      <div className="grid gap-3 md:grid-cols-[1fr_220px]">
--                        <Field label={cms.myOrders.filters.keyword.label} iconClass={cms.myOrders.filters.keyword.iconClass}>
--                          <input
--                              className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
--                              type="text"
--                              placeholder={cms.myOrders.filters.keyword.placeholder}
--                              value={orderKeyword}
--                              onChange={(e) => setOrderKeyword(e.target.value)}
--                          />
--                        </Field>
--
--                        <Field label={cms.myOrders.filters.status.label} iconClass={cms.myOrders.filters.status.iconClass}>
--                          <select
--                              className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
--                              value={orderStatusFilter}
--                              onChange={(e) => setOrderStatusFilter(e.target.value as "all" | OrderStatus)}
--                          >
--                            <option value="all">{cms.myOrders.filters.status.all}</option>
--                            <option value="PENDING">{cms.myOrders.statuses.PENDING}</option>
--                            <option value="PENDING_PAYMENT">{cms.myOrders.statuses.PENDING_PAYMENT}</option>
--                            <option value="CANCEL_REQUESTED">{cms.myOrders.statuses.CANCEL_REQUESTED}</option>
--                            <option value="PAID">{cms.myOrders.statuses.PAID}</option>
--                            <option value="SHIPPING">{cms.myOrders.statuses.SHIPPING}</option>
--                            <option value="SUCCESS">{cms.myOrders.statuses.SUCCESS}</option>
--                            <option value="CANCELLED">{cms.myOrders.statuses.CANCELLED}</option>
--                            <option value="EXPIRED">{cms.myOrders.statuses.EXPIRED}</option>
--                          </select>
--                        </Field>
--                      </div>
--
--                      {/* Tiêu đề danh sách */}
--                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
--                        <p className="text-sm font-bold text-slate-700">{cms.myOrders.list.title}</p>
--                      </div>
--
--                      {/* Trạng thái tải / rỗng */}
--                      {ordersLoading ? (
--                          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
--                            {cms.common.loadingText}
--                          </div>
--                      ) : filteredOrders.length === 0 ? (
--                          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
--                            {cms.myOrders.emptyText}
--                          </div>
--                      ) : (
--                          /* Danh sách đơn hàng */
--                          <div className="space-y-3">
--                            {filteredOrders.map((order) => {
--                              const firstItem = order.items[0]; // lấy ảnh đầu tiên
--                              return (
--                                  <article
--                                      key={order.id}
--                                      className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-4"
--                                  >
--                                    {/* Ảnh đại diện */}
--                                    <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
--                                      {firstItem ? (
--                                          <img
--                                              src={firstItem.image}
--                                              alt={firstItem.name}
--                                              className="h-full w-full object-cover"
--                                          />
--                                      ) : (
--                                          <div className="flex h-full items-center justify-center text-slate-400">
--                                            <i className="fa-solid fa-box-open text-2xl" />
--                                          </div>
--                                      )}
--                                    </div>
--
--                                    {/* Thông tin */}
--                                    <div className="min-w-0 flex-1">
--                                      <div className="flex flex-wrap items-center justify-between gap-2">
--                                        <h3 className="truncate text-sm font-semibold text-slate-900">
--                                          {order.code}
--                                        </h3>
--                                        <span
--                                            className={classNames(
--                                                "inline-flex shrink-0 rounded-full border px-3 py-1 text-xs font-bold",
--                                                ORDER_STATUS_STYLES[order.status]
--                                            )}
--                                        >
--                                  {cms.myOrders.statuses[order.status]}
--                                </span>
--                                      </div>
--
--                                      <p className="mt-1 text-xs text-slate-500">
--                                        {formatDate(order.createdAt)} • {order.payment.method}
--                                      </p>
--
--                                      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
--                                        <p className="text-lg font-extrabold text-slate-900">
--                                          {formatMoney(order.pricing.total)}
--                                        </p>
--                                        <div className="flex flex-wrap items-center gap-2">
--                                          {order.status === "PENDING_PAYMENT" && (
--                                              <button
--                                                  type="button"
--                                                  onClick={() => void onPayPendingOrder(order)}
--                                                  disabled={payingOrderId === order.id}
--                                                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-extrabold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
--                                              >
--                                                <i className="fa-solid fa-qrcode" />
--                                                {payingOrderId === order.id ? cms.myOrders.list.generatingQr : cms.myOrders.list.pay}
--                                              </button>
--                                          )}
--                                          <button
--                                              type="button"
--                                              onClick={async () => {
--                                                try {
--                                                  const res = await http.get<ApiProductOrder>(`/api/product-orders/${order.id}`);
--                                                  setSelectedOrder(toMyOrder(res.data, cms));
--                                                } catch {
--                                                  setSelectedOrder(order);
--                                                }
--                                              }}
--                                              className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-extrabold text-indigo-700 hover:bg-indigo-100"
--                                          >
--                                            <i className="fa-regular fa-eye" />
--                                            {cms.myOrders.list.seeDetail}
--                                          </button>
--                                        </div>
--                                      </div>
--                                    </div>
--                                  </article>
--                              );
--                            })}
--                          </div>
--                      )}
--
--                      {/* Modal chi tiết đơn hàng */}
--                      {selectedOrder && (
--                          <div
--                              className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/50 px-4 py-6"
--                              onClick={() => setSelectedOrder(null)}
--                          >
--                            <div
--                                className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl md:p-6"
--                                onClick={(e) => e.stopPropagation()}
--                            >
--                              {/* Header modal */}
--                              <div className="mb-5 flex items-start justify-between gap-3 border-b border-slate-200 pb-4">
--                                <div>
--                                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
--                                    {cms.myOrders.detailTitle}
--                                  </p>
--                                  <h3 className="text-xl font-extrabold text-slate-900">{selectedOrder.code}</h3>
--                                </div>
--                                <button
--                                    type="button"
--                                    onClick={() => setSelectedOrder(null)}
--                                    className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
--                                >
--                                  <i className="fa-solid fa-xmark" />
--                                </button>
--                              </div>
--
--                              {/* Nội dung modal chia thành các khối */}
--                              <div className="space-y-5">
--                                {/* Khối thông tin chung */}
--                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
--                                  <h4 className="mb-3 text-sm font-extrabold text-slate-900">
--                                    <i className="fa-regular fa-clipboard mr-2 text-slate-500" />
--                                    {cms.myOrders.sections.general}
--                                  </h4>
--                                  <div className="grid gap-2 text-sm text-slate-700 md:grid-cols-2">
--                                    <p>
--                                      <span className="font-semibold">{cms.myOrders.fields.createdAt}:</span>{' '}
--                                      {formatDate(selectedOrder.createdAt)}
--                                    </p>
--                                    <p>
--                                      <span className="font-semibold">{cms.myOrders.fields.branch}:</span>{' '}
--                                      {selectedOrder.branch}
--                                    </p>
--                                    <p>
--                                      <span className="font-semibold">{cms.myOrders.fields.status}:</span>{' '}
--                                      <span
--                                          className={classNames(
--                                              'inline-flex rounded-full border px-2 py-0.5 text-xs font-bold',
--                                              ORDER_STATUS_STYLES[selectedOrder.status]
--                                          )}
--                                      >
--                                  {cms.myOrders.statuses[selectedOrder.status]}
--                                </span>
--                                    </p>
--                                  </div>
--                                </div>
--
--                                {/* Khối thanh toán */}
--                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
--                                  <h4 className="mb-3 text-sm font-extrabold text-slate-900">
--                                    <i className="fa-regular fa-credit-card mr-2 text-slate-500" />
--                                    {cms.myOrders.sections.payment}
--                                  </h4>
--                                  <div className="grid gap-2 text-sm text-slate-700 md:grid-cols-2">
--                                    <p>
--                                      <span className="font-semibold">{cms.myOrders.fields.paymentMethod}:</span>{' '}
--                                      {selectedOrder.payment.method}
--                                    </p>
--                                    <p>
--                                      <span className="font-semibold">{cms.myOrders.fields.paymentRef}:</span>{' '}
--                                      {selectedOrder.payment.ref || cms.common.emptyValue}
--                                    </p>
--                                    <p>
--                                      <span className="font-semibold">{cms.myOrders.fields.paidAt}:</span>{' '}
--                                      {formatDate(selectedOrder.payment.paidAt)}
--                                    </p>
--                                  </div>
--                                  {selectedOrder.status === "PENDING" && (
--                                      <div className="mt-3">
--                                        <button
--                                            type="button"
--                                            onClick={() => onRequestCancelOrder(selectedOrder)}
--                                            disabled={cancelRequestingOrderId === selectedOrder.id}
--                                            className="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
--                                        >
--                                          {cancelRequestingOrderId === selectedOrder.id
--                                              ? cms.myOrders.actions.requestingCancel
--                                              : cms.myOrders.actions.requestCancel}
--                                        </button>
--                                      </div>
--                                  )}
--                                  {selectedOrder.status === "PENDING_PAYMENT" && (
--                                      <div className="mt-3">
--                                        <button
--                                            type="button"
--                                            onClick={() => void onPayPendingOrder(selectedOrder)}
--                                            disabled={payingOrderId === selectedOrder.id}
--                                            className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-extrabold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
--                                        >
--                                          <i className="fa-solid fa-qrcode" />
--                                          {payingOrderId === selectedOrder.id
--                                              ? cms.myOrders.list.generatingQr
--                                              : cms.myOrders.actions.payThisOrder}
--                                        </button>
--                                      </div>
--                                  )}
--                                </div>
--
--                                {/* Khối giao hàng */}
--                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
--                                  <h4 className="mb-3 text-sm font-extrabold text-slate-900">
--                                    <i className="fa-solid fa-truck mr-2 text-slate-500" />
--                                    {cms.myOrders.sections.shipping}
--                                  </h4>
--                                  <div className="grid gap-2 text-sm text-slate-700 md:grid-cols-2">
--                                    <p>
--                                      <span className="font-semibold">{cms.myOrders.fields.receiver}:</span>{' '}
--                                      {selectedOrder.shippingInfo.receiverName}
--                                    </p>
--                                    <p>
--                                      <span className="font-semibold">{cms.myOrders.fields.phone}:</span>{' '}
--                                      {selectedOrder.shippingInfo.phone}
--                                    </p>
--                                    <p className="md:col-span-2">
--                                      <span className="font-semibold">{cms.myOrders.fields.address}:</span>{' '}
--                                      {`${selectedOrder.shippingInfo.addressLine}, ${selectedOrder.shippingInfo.district}, ${selectedOrder.shippingInfo.city}`}
--                                    </p>
--                                    <p>
--                                      <span className="font-semibold">{cms.myOrders.fields.carrier}:</span>{' '}
--                                      {selectedOrder.shippingInfo.carrier}
--                                    </p>
--                                    <p>
--                                      <span className="font-semibold">{cms.myOrders.fields.trackingCode}:</span>{' '}
--                                      {selectedOrder.shippingInfo.trackingCode || cms.common.emptyValue}
--                                    </p>
--                                    <p>
--                                      <span className="font-semibold">{cms.myOrders.fields.expectedDelivery}:</span>{' '}
--                                      {formatDate(selectedOrder.shippingInfo.expectedDelivery)}
--                                    </p>
--                                    <p className="md:col-span-2">
--                                      <span className="font-semibold">{cms.myOrders.fields.shippingNote}:</span>{' '}
--                                      {selectedOrder.shippingInfo.note}
--                                    </p>
--                                  </div>
--                                </div>
--
--                                {/* Khối sản phẩm */}
--                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
--                                  <h4 className="mb-3 text-sm font-extrabold text-slate-900">
--                                    <i className="fa-solid fa-boxes-stacked mr-2 text-slate-500" />
--                                    {cms.myOrders.productsTitle}
--                                  </h4>
--                                  <div className="space-y-3">
--                                    {selectedOrder.items.map((item) => (
--                                        <div
--                                            key={item.sku}
--                                            className="grid items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 md:grid-cols-[64px_1fr_auto]"
--                                        >
--                                          <img
--                                              src={item.image}
--                                              alt={item.name}
--                                              className="h-16 w-16 rounded-xl object-cover"
--                                          />
--                                          <div>
--                                            <p className="font-bold text-slate-900">{item.name}</p>
--                                            <p className="text-xs text-slate-500">
--                                              {cms.myOrders.fields.sku}: {item.sku}
--                                            </p>
--                                          </div>
--                                          <div className="text-right text-sm text-slate-700">
--                                            <p>
--                                              {cms.myOrders.fields.quantity}: x{item.qty}
--                                            </p>
--                                            <p className="font-bold text-slate-900">{formatMoney(item.price)}</p>
--                                          </div>
--                                        </div>
--                                    ))}
--                                  </div>
--                                </div>
--
--                                {/* Khối tổng kết */}
--                                <div className="rounded-2xl border border-slate-200 bg-white p-4">
--                                  <h4 className="mb-3 text-sm font-extrabold text-slate-900">
--                                    <i className="fa-solid fa-receipt mr-2 text-slate-500" />
--                                    {cms.myOrders.sections.summary}
--                                  </h4>
--                                  <div className="grid gap-2 text-sm text-slate-700 md:grid-cols-2">
--                                    <p>
--                                      <span className="font-semibold">{cms.myOrders.fields.subtotal}:</span>{' '}
--                                      {formatMoney(selectedOrder.pricing.subtotal)}
--                                    </p>
--                                    <p>
--                                      <span className="font-semibold">{cms.myOrders.fields.shipping}:</span>{' '}
--                                      {formatMoney(selectedOrder.pricing.shipping)}
--                                    </p>
--                                    <p>
--                                      <span className="font-semibold">{cms.myOrders.fields.discount}:</span> -
--                                      {formatMoney(selectedOrder.pricing.discount)}
--                                    </p>
--                                    <p className="font-extrabold text-slate-900">
--                                      <span>{cms.myOrders.fields.total}:</span>{' '}
--                                      {formatMoney(selectedOrder.pricing.total)}
--                                    </p>
--                                  </div>
--                                </div>
--
--                                {/* Ghi chú đơn hàng nếu có */}
--                                {selectedOrder.note && selectedOrder.note !== cms.common.emptyValue && (
--                                    <div className="rounded-2xl border border-slate-200 bg-amber-50/50 p-4">
--                                      <p className="text-sm font-semibold text-slate-700">
--                                        <i className="fa-regular fa-note-sticky mr-2 text-slate-500" />
--                                        {cms.myOrders.fields.orderNote}:
--                                      </p>
--                                      <p className="mt-1 text-sm text-slate-600">{selectedOrder.note}</p>
--                                    </div>
--                                )}
--                              </div>
--                            </div>
--                          </div>
--                      )}
--
--                      {qrModalOrder && qrPayload && (
--                          <div
--                              className="fixed inset-0 z-[130] flex items-center justify-center bg-black/60 px-4"
--                              onClick={() => {
--                                setQrModalOrder(null);
--                                setQrPayload(null);
--                              }}
--                          >
--                            <div
--                                className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
--                                onClick={(e) => e.stopPropagation()}
--                            >
--                              <div className="flex items-center justify-between">
--                                <h3 className="text-lg font-bold text-slate-900">{cms.myOrders.qrModal.title}</h3>
--                                <div className="flex items-center gap-2">
--                            <span
--                                className={
--                                    "rounded-full px-2 py-1 text-[11px] font-semibold " +
--                                    (qrCountdown.expired
--                                        ? "bg-slate-100 text-slate-500"
--                                        : "bg-emerald-50 text-emerald-700")
--                                }
--                                title={qrExpiresAt ? `${cms.myOrders.qrModal.expiresAtTitle}: ${formatDateTime(qrExpiresAt)}` : undefined}
--                            >
--                              <i className="fa-regular fa-clock mr-1" />
--                              {qrCountdown.text}
--                            </span>
--                                  <button
--                                      type="button"
--                                      onClick={() => {
--                                        setQrModalOrder(null);
--                                        setQrPayload(null);
--                                      }}
--                                      className="rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
--                                  >
--                                    {cms.common.actions.close}
--                                  </button>
--                                </div>
--                              </div>
--
--                              <p className="mt-1 text-xs text-slate-500">{cms.myOrders.fields.orderCode}: {qrModalOrder.code}</p>
--
--                              <div className="relative mx-auto mt-4 h-64 w-64">
--                                <img
--                                    src={qrPayload.qrUrl}
--                                    alt={cms.myOrders.qrModal.qrAlt}
--                                    className={
--                                        "h-64 w-64 rounded-xl border border-slate-200 transition " +
--                                        (qrCountdown.expired ? "opacity-40 blur-[2px]" : "")
--                                    }
--                                />
--
--                                {qrCountdown.expired && (
--                                    <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/40">
--                                      <div className="rounded-xl bg-white/90 px-4 py-3 text-center shadow">
--                                        <p className="text-sm font-bold text-slate-900">{cms.myOrders.qrModal.expiredTitle}</p>
--                                        <p className="mt-1 text-xs text-slate-600">
--                                          {cms.myOrders.qrModal.expiredSubtitle}
--                                        </p>
--                                      </div>
--                                    </div>
--                                )}
--                              </div>
--
--                              <div className="mt-4 space-y-1 text-sm text-slate-700">
--                                <p><span className="font-semibold">{cms.myOrders.fields.amount}:</span> {formatMoney(Number(qrPayload.amount || 0))}</p>
--                                <p><span className="font-semibold">{cms.myOrders.fields.transferContent}:</span> {qrPayload.transferContent || cms.common.emptyValue}</p>
--                              </div>
--
--                              {!qrCountdown.expired ? (
--                                  <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
--                                    {cms.myOrders.qrModal.activeHint}<br />
--                                    {cms.myOrders.fields.timeLeft}: <span className="font-semibold">{qrCountdown.text}</span>. {cms.myOrders.fields.expiresAt}:{" "}
--                                    <span className="font-semibold">{formatDateTime(qrExpiresAt)}</span>.
--                                  </div>
--                              ) : (
--                                  <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
--                                    <div className="font-semibold">{cms.myOrders.qrModal.expiredBoxTitle}</div>
--                                    <div className="mt-1">{cms.myOrders.qrModal.expiredBoxSubtitle}</div>
--                                  </div>
--                              )}
--
--                              <p className="mt-3 text-xs text-slate-500">
--                                {cms.myOrders.qrModal.autoUpdateNote}
--                              </p>
--                            </div>
--                          </div>
--                      )}
--                    </div>
--                )}
-+                {renderActiveSection()}
-               </div>
-             </main>
-           </div>
+             ) : null}
          </div>
-       </div>
-   );
- }
+     );
+-}
+\ No newline at end of file
++}
+diff --git a/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts b/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
+index 4dc0ab2daddd4031bb528314ad26fb53ea086b70..8fc1e622187c3df8d3bd751b4b932d764ac298c5 100644
+--- a/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
++++ b/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
+@@ -89,51 +89,51 @@ export class CoursePlanPaymentsService {
 
- // Export CMS mặc định (để update DB / tái sử dụng)
- export { defaultCmsData as cmsData, defaultCmsData, deepMerge };
+   private normalizeStatus(status: CoursePlanPaymentStatus, expiredAt: Date | null, now: Date): CoursePlanPaymentStatus {
+     if (status === CoursePlanPaymentStatus.PENDING && expiredAt && expiredAt <= now) {
+       return CoursePlanPaymentStatus.EXPIRED
+     }
+     return status
+   }
+
+   private addMinutes(base: Date, minutes: number) {
+     const out = new Date(base)
+     out.setTime(out.getTime() + minutes * 60_000)
+     return out
+   }
+
+   private addDays(base: Date, days: number) {
+     const out = new Date(base)
+     out.setUTCDate(out.getUTCDate() + days)
+     return out
+   }
+
+   private derivePassStatus(
+     pass: { startAt: Date; endAt: Date; graceUntil: Date; canceledAt: Date | null },
+     now: Date,
+   ): UserCoursePassStatus {
+     if (pass.canceledAt) return UserCoursePassStatus.CANCELED
+-    if (now < pass.startAt) return UserCoursePassStatus.ACTIVE
++    if (now < pass.startAt) return UserCoursePassStatus.EXPIRED
+     if (now < pass.endAt) return UserCoursePassStatus.ACTIVE
+     if (now < pass.graceUntil) return UserCoursePassStatus.GRACE
+     return UserCoursePassStatus.EXPIRED
+   }
+
+   private genTransferCode() {
+     return `PLAN_${Math.random().toString(36).slice(2, 8).toUpperCase()}`
+   }
+
+   private buildTransferContent(paymentId: number) {
+     return `ID${paymentId}CoursePlanPayment`
+   }
+
+   private toJson(value: unknown): Prisma.InputJsonValue {
+     return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue
+   }
+
+   private extractStripeId(value: string | { id: string } | null | undefined): string | null {
+     if (!value) return null
+     if (typeof value === 'string') return value
+     return typeof value.id === 'string' ? value.id : null
+   }
+
+   parseTransferContent(content?: string | null): number | null {
+     if (!content) return null
+@@ -225,55 +225,64 @@ export class CoursePlanPaymentsService {
+
+   private mapPayment(
+     payment: CoursePlanPaymentWithPlan,
+     now: Date,
+     pass?: PassSummary,
+     subscription?: UserPlanSubscriptionSummary | null,
+   ) {
+     const status = this.normalizeStatus(payment.status, payment.expiredAt, now)
+     const mappedSubscription = this.mapSubscriptionSummary(subscription)
+
+     const sepay =
+       status === CoursePlanPaymentStatus.PENDING && payment.provider === 'SEPAY'
+         ? {
+             webhookUrl: '/hooks/sepay-payment',
+             amount: payment.amount,
+             accountName: this.bankInfo.accountName,
+             accountNumber: this.bankInfo.accountNumber,
+             bankName: this.bankInfo.gateway,
+             bankCode: this.bankInfo.gateway,
+             transferContent: payment.transferContent,
+             qrUrl: `https://qr.sepay.vn/img?acc=${this.bankInfo.accountNumber}&bank=${this.bankInfo.gateway}&des=${payment.transferContent}&amount=${payment.amount}`,
+             expiresAt: payment.expiredAt,
+           }
+         : null
+
++    const rawResponseMode = String((payment.rawResponse as any)?.mode || '').toLowerCase()
++    const paymentSource =
++      payment.provider === 'SEPAY'
++        ? 'SEPAY_QR'
++        : payment.stripeSubscriptionId || rawResponseMode === 'subscription'
++          ? 'STRIPE_SUBSCRIPTION'
++          : 'STRIPE_ONE_TIME'
++
+     return {
+       id: payment.id,
+       userId: payment.userId,
+       planId: payment.planId,
+       provider: payment.provider,
++      paymentSource,
+       status: payment.status,
+       computedStatus: status,
+       amount: payment.amount,
+       transferCode: payment.transferCode,
+       transferContent: payment.transferContent,
+       stripeCheckoutSessionId: payment.stripeCheckoutSessionId,
+       stripePaymentIntentId: payment.stripePaymentIntentId,
+       stripeInvoiceId: payment.stripeInvoiceId,
+       stripeSubscriptionId: payment.stripeSubscriptionId,
+       subscriptionStatus: mappedSubscription?.status ?? null,
+       cancelAtPeriodEnd: mappedSubscription?.cancelAtPeriodEnd ?? false,
+       subscriptionCurrentPeriodStart: mappedSubscription?.currentPeriodStart ?? null,
+       subscriptionCurrentPeriodEnd: mappedSubscription?.currentPeriodEnd ?? null,
+       subscriptionCanceledAt: mappedSubscription?.canceledAt ?? null,
+       failureReason: payment.failureReason,
+       paidAt: payment.paidAt,
+       expiredAt: payment.expiredAt,
+       createdAt: payment.createdAt,
+       updatedAt: payment.updatedAt,
+       plan: this.mapPlan(payment.plan),
+       pass: this.mapPassSummary(pass),
+       subscription: mappedSubscription,
+       sepay,
+     }
+   }
+@@ -303,54 +312,67 @@ export class CoursePlanPaymentsService {
+         purchaseId,
+       },
+       select: {
+         id: true,
+       },
+     })
+
+     if (existingPass) {
+       return existingPass.id
+     }
+
+     const plan = await this.prisma.coursePlan.findUnique({
+       where: { id: planId },
+       select: {
+         durationDays: true,
+         graceDays: true,
+         maxUnlocks: true,
+       },
+     })
+
+     if (!plan) {
+       throw new NotFoundException('Course plan not found')
+     }
+
+     const now = new Date()
++    const existingScheduled = await this.prisma.userCoursePass.findFirst({
++      where: {
++        userId,
++        canceledAt: null,
++        startAt: { gt: now },
++      },
++      select: { id: true },
++      orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
++    })
++
++    if (existingScheduled) {
++      throw new BadRequestException('You already have a scheduled pass for the next cycle')
++    }
++
+     const latestPass = await this.prisma.userCoursePass.findFirst({
+       where: {
+         userId,
+-        planId,
+         canceledAt: null,
+       },
+       select: {
+         endAt: true,
+         graceUntil: true,
+       },
+       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+     })
+
+     const startAt = latestPass && now < latestPass.graceUntil ? latestPass.endAt : now
+     const endAt = this.addDays(startAt, plan.durationDays)
+     const graceUntil = this.addDays(endAt, plan.graceDays)
+
+     const pass = await this.prisma.userCoursePass.create({
+       data: {
+         userId,
+         planId,
+         purchaseId,
+         startAt,
+         endAt,
+         graceUntil,
+         remainingUnlocks: plan.maxUnlocks,
+         status: this.derivePassStatus(
+           {
+             startAt,
+@@ -1140,50 +1162,65 @@ export class CoursePlanPaymentsService {
+         ...(expiresAt ? { expiredAt: expiresAt } : {}),
+         rawResponse: this.toJson(session),
+       },
+       include: PAYMENT_WITH_PLAN_INCLUDE,
+     })
+
+     return {
+       mode: 'STRIPE' as const,
+       stripeMode: 'ONE_TIME' as const,
+       checkoutUrl: session.url,
+       payment: this.mapPayment(updatedPayment, now),
+     }
+   }
+
+   private async createStripeSubscriptionCheckout(userId: number, plan: CoursePlanWithTags, dto?: PurchasePlanDto) {
+     if (!process.env.STRIPE_SECRET_KEY) {
+       throw new BadRequestException('STRIPE_SECRET_KEY is missing in environment')
+     }
+
+     if (!plan.currentStripePriceId) {
+       throw new BadRequestException('Plan has no Stripe recurring price configured')
+     }
+
+     const customerId = await this.ensureStripeCustomer(userId)
+     const now = new Date()
++
++    const existingScheduled = await this.prisma.userCoursePass.findFirst({
++      where: {
++        userId,
++        canceledAt: null,
++        startAt: { gt: now },
++      },
++      select: { id: true },
++      orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
++    })
++
++    if (existingScheduled) {
++      throw new BadRequestException('You already have a scheduled pass for the next cycle')
++    }
++
+     const { successUrl, cancelUrl } = this.resolveStripeReturnUrls(dto)
+
+     const payment = await this.prisma.coursePlanPayment.create({
+       data: {
+         userId,
+         planId: plan.id,
+         provider: 'STRIPE',
+         status: CoursePlanPaymentStatus.PENDING,
+         amount: plan.price,
+         transferCode: this.genTransferCode(),
+         transferContent: `SUB_${Date.now()}_${Math.floor(Math.random() * 1000000)}`,
+       },
+       include: PAYMENT_WITH_PLAN_INCLUDE,
+     })
+
+     const session = await this.stripe.checkout.sessions.create({
+       mode: 'subscription',
+       customer: customerId,
+       success_url: successUrl,
+       cancel_url: cancelUrl,
+       line_items: [{ price: plan.currentStripePriceId, quantity: 1 }],
+       metadata: {
+         source: 'COURSE_PLAN_SUBSCRIPTION',
+         coursePlanPaymentId: String(payment.id),
+         userId: String(userId),
+@@ -1212,62 +1249,75 @@ export class CoursePlanPaymentsService {
+       include: PAYMENT_WITH_PLAN_INCLUDE,
+     })
+
+     return {
+       mode: 'STRIPE' as const,
+       stripeMode: 'SUBSCRIPTION' as const,
+       checkoutUrl: session.url,
+       payment: this.mapPayment(updatedPayment, now),
+     }
+   }
+
+   async createCheckout(userId: number, planId: number, dto?: PurchasePlanDto) {
+     await this.ensureUserExists(userId)
+     const plan = await this.getActivePlanOrThrow(planId)
+
+     if ((plan.price ?? 0) <= 0) {
+       const pass = await this.plans.purchasePlan(userId, planId, {})
+       return {
+         mode: 'FREE' as const,
+         pass,
+       }
+     }
+
+     const method = dto?.method ?? PurchasePlanMethod.SEPAY
+
++    const now = new Date()
++    const existingScheduled = await this.prisma.userCoursePass.findFirst({
++      where: {
++        userId,
++        canceledAt: null,
++        startAt: { gt: now },
++      },
++      select: { id: true },
++      orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
++    })
++
++    if (existingScheduled) {
++      throw new BadRequestException('You already have a scheduled pass for the next cycle')
++    }
++
+     if (method === PurchasePlanMethod.STRIPE_ONE_TIME) {
+       return this.createStripeOneTimeCheckout(userId, plan, dto)
+     }
+
+     if (method === PurchasePlanMethod.STRIPE_SUBSCRIPTION) {
+       return this.createStripeSubscriptionCheckout(userId, plan, dto)
+     }
+
+     await this.markExpiredPendingPayments(userId, planId)
+
+-    const now = new Date()
+-
+     const existingPending = await this.prisma.coursePlanPayment.findFirst({
+       where: {
+         userId,
+         planId,
+         provider: 'SEPAY',
+         status: CoursePlanPaymentStatus.PENDING,
+         OR: [{ expiredAt: null }, { expiredAt: { gt: now } }],
+       },
+       include: PAYMENT_WITH_PLAN_INCLUDE,
+       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+     })
+
+     if (existingPending) {
+       return {
+         mode: 'SEPAY' as const,
+         payment: this.mapPayment(existingPending, now),
+       }
+     }
+
+     const created = await this.prisma.$transaction(async (tx) => {
+       const payment = await tx.coursePlanPayment.create({
+         data: {
+           userId,
+           planId,
+           provider: 'SEPAY',
+@@ -1466,51 +1516,50 @@ export class CoursePlanPaymentsService {
+           alreadyPaid: true,
+         }
+       }
+
+       const existingPass = await tx.userCoursePass.findFirst({
+         where: {
+           userId: payment.userId,
+           planId: payment.planId,
+           purchaseId: payment.id,
+         },
+         select: {
+           id: true,
+         },
+       })
+
+       if (existingPass) {
+         return {
+           alreadyPaid: false,
+           passId: existingPass.id,
+         }
+       }
+
+       const latest = await tx.userCoursePass.findFirst({
+         where: {
+           userId: payment.userId,
+-          planId: payment.planId,
+           canceledAt: null,
+         },
+         select: {
+           endAt: true,
+           graceUntil: true,
+         },
+         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+       })
+
+       const startAt = latest && now < latest.graceUntil ? latest.endAt : now
+       const endAt = this.addDays(startAt, payment.plan.durationDays)
+       const graceUntil = this.addDays(endAt, payment.plan.graceDays)
+
+       const createdPass = await tx.userCoursePass.create({
+         data: {
+           userId: payment.userId,
+           planId: payment.planId,
+           purchaseId: payment.id,
+           startAt,
+           endAt,
+           graceUntil,
+           remainingUnlocks: payment.plan.maxUnlocks,
+           status: this.derivePassStatus(
+             {
+               startAt,
+@@ -2210,31 +2259,25 @@ export class CoursePlanPaymentsService {
+           stripePaymentIntentId: paymentIntentId,
+           rawResponse: this.toJson(invoice),
+         },
+       })
+       return
+     }
+
+     await this.prisma.coursePlanPayment.create({
+       data: {
+         userId: mapped.userId,
+         planId: mapped.planId,
+         provider: 'STRIPE',
+         status: CoursePlanPaymentStatus.FAILED,
+         amount: Number(invoice.amount_due || 0),
+         transferCode: this.genTransferCode(),
+         transferContent: `INV_FAIL_${invoiceId}`,
+         stripeInvoiceId: invoiceId,
+         stripeSubscriptionId: subscriptionId,
+         stripePaymentIntentId: paymentIntentId,
+         failureReason: reason,
+         rawResponse: this.toJson(invoice),
+       },
+     })
+   }
+ }
+-
+-
+-
+-
+-
+-
+diff --git a/backend/ayanavitabackend/app/api/src/course-plans/course-plans.service.ts b/backend/ayanavitabackend/app/api/src/course-plans/course-plans.service.ts
+index 9a9b1f86af8502c86978d2b30b2909a11a1cd6c6..3c0a904569bbeff057425e948dc932681460930d 100644
+--- a/backend/ayanavitabackend/app/api/src/course-plans/course-plans.service.ts
++++ b/backend/ayanavitabackend/app/api/src/course-plans/course-plans.service.ts
+@@ -51,51 +51,51 @@ type UnlockableCourse = {
+ export class CoursePlansService {
+   constructor(private readonly prisma: PrismaService) {}
+
+   private normalizeTagCode(code: string) {
+     return code.trim().toUpperCase().replace(/\s+/g, '_')
+   }
+
+   private parseDateInput(input?: string) {
+     if (!input) return null
+     const d = new Date(input)
+     if (Number.isNaN(d.getTime())) throw new BadRequestException('Invalid date format')
+     return d
+   }
+
+   private addDays(base: Date, days: number) {
+     const out = new Date(base)
+     out.setUTCDate(out.getUTCDate() + days)
+     return out
+   }
+
+   private derivePassStatus(
+     pass: { startAt: Date; endAt: Date; graceUntil: Date; canceledAt: Date | null },
+     now: Date,
+   ): UserCoursePassStatus {
+     if (pass.canceledAt) return UserCoursePassStatus.CANCELED
+-    if (now < pass.startAt) return UserCoursePassStatus.ACTIVE
++    if (now < pass.startAt) return UserCoursePassStatus.EXPIRED
+     if (now < pass.endAt) return UserCoursePassStatus.ACTIVE
+     if (now < pass.graceUntil) return UserCoursePassStatus.GRACE
+     return UserCoursePassStatus.EXPIRED
+   }
+
+   private async ensureUserExists(userId: number) {
+     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } })
+     if (!user) throw new NotFoundException('User not found')
+   }
+
+   private async ensureCourseExists(courseId: number) {
+     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } })
+     if (!course) throw new NotFoundException('Course not found')
+   }
+
+   private async ensureTagsExist(tagIds: number[]) {
+     if (!tagIds.length) return
+     const found = await this.prisma.courseTag.count({ where: { id: { in: tagIds } } })
+     if (found !== tagIds.length) throw new NotFoundException('One or more tags do not exist')
+   }
+
+   private async findPlanOrThrow(planId: number, opts?: { mustBeActive?: boolean }) {
+     const plan = await this.prisma.coursePlan.findUnique({
+       where: { id: planId },
+       include: {
+@@ -575,52 +575,66 @@ export class CoursePlansService {
+
+   async cancelPass(passId: number) {
+     const pass = await this.prisma.userCoursePass.findUnique({ where: { id: passId }, select: { id: true } })
+     if (!pass) throw new NotFoundException('Pass not found')
+
+     return this.prisma.userCoursePass.update({
+       where: { id: passId },
+       data: {
+         canceledAt: new Date(),
+         status: UserCoursePassStatus.CANCELED,
+       },
+       select: {
+         id: true,
+         canceledAt: true,
+         status: true,
+         updatedAt: true,
+       },
+     })
+   }
+
+   async purchasePlan(userId: number, planId: number, dto: PurchasePlanDto) {
+     await this.ensureUserExists(userId)
+     await this.findPlanOrThrow(planId, { mustBeActive: true })
+
+     const now = new Date()
++    const existingScheduled = await this.prisma.userCoursePass.findFirst({
++      where: {
++        userId,
++        canceledAt: null,
++        startAt: { gt: now },
++      },
++      select: { id: true },
++      orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
++    })
++
++    if (existingScheduled) {
++      throw new BadRequestException('You already have a scheduled pass for the next cycle')
++    }
++
+     const latest = await this.prisma.userCoursePass.findFirst({
+-      where: { userId, planId, canceledAt: null },
++      where: { userId, canceledAt: null },
+       select: { endAt: true, graceUntil: true },
+       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+     })
+
+     const startAt = latest && now < latest.graceUntil ? latest.endAt : now
+
+     const created = await this.createPassInstance({
+       userId,
+       planId,
+       purchaseId: dto.purchaseId,
+       startAt,
+     })
+
+     return this.mapPass(created, now)
+   }
+
+   async listMyPasses(userId: number) {
+     const now = new Date()
+     const rows = await this.prisma.userCoursePass.findMany({
+       where: { userId },
+       include: {
+         plan: {
+           include: {
+             excludedTags: {
+               include: {
+@@ -981,26 +995,25 @@ export class CoursePlansService {
+
+     return this.prisma.courseEntitlement.upsert({
+       where: {
+         userId_courseId_sourceType_sourceId: {
+           userId: dto.userId,
+           courseId: dto.courseId,
+           sourceType: CourseEntitlementSourceType.ADMIN_GRANT,
+           sourceId,
+         },
+       },
+       update: {
+         accessStartAt: new Date(),
+         accessEndAt,
+       },
+       create: {
+         userId: dto.userId,
+         courseId: dto.courseId,
+         sourceType: CourseEntitlementSourceType.ADMIN_GRANT,
+         sourceId,
+         accessStartAt: new Date(),
+         accessEndAt,
+       },
+     })
+   }
+ }
 -

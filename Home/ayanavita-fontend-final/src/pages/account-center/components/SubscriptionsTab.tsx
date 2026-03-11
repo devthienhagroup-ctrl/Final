@@ -69,6 +69,21 @@ function getCurrentEffectivePass(currentPass: any, passHistory: any[]) {
 }
 
 type PassRenewalState = "AUTO_RENEW_ACTIVE" | "AUTO_RENEW_CANCELED" | "NONE";
+type RenewalMode = "none" | "scheduled_cancel" | "auto_renew_on";
+
+function getScheduledPass(currentPass: any, passHistory: any[]) {
+    const now = Date.now();
+    const allPasses = [currentPass, ...(passHistory || [])].filter(Boolean);
+
+    const scheduled = allPasses
+        .filter((pass) => {
+            const start = toTime(pass?.startAt);
+            return start != null && start > now && !pass?.canceledAt;
+        })
+        .sort((a, b) => (toTime(a?.startAt) ?? 0) - (toTime(b?.startAt) ?? 0));
+
+    return scheduled[0] || null;
+}
 
 function getRelatedPayments(pass: any, paymentHistory: any[]) {
     return (paymentHistory || []).filter((payment) => {
@@ -138,6 +153,13 @@ function getPassRenewalState(pass: any, paymentHistory: any[]): PassRenewalState
     return "NONE";
 }
 
+function getRenewalMode(pass: any, paymentHistory: any[]): RenewalMode {
+    const state = getPassRenewalState(pass, paymentHistory);
+    if (state === "AUTO_RENEW_ACTIVE") return "auto_renew_on";
+    if (state === "AUTO_RENEW_CANCELED") return "scheduled_cancel";
+    return "none";
+}
+
 export default function SubscriptionsTab({
                                              cms,
                                              subscriptionLoading,
@@ -166,8 +188,11 @@ export default function SubscriptionsTab({
                                              planPaymentStatusStyles,
                                          }: Props) {
     const effectiveCurrentPass = getCurrentEffectivePass(currentPass, passHistory);
+    const scheduledPass = getScheduledPass(currentPass, passHistory);
+    const hasScheduledPass = Boolean(scheduledPass);
     const currentPlanId = effectiveCurrentPass?.plan?.id ?? null;
     const currentPassRenewalState = effectiveCurrentPass ? getPassRenewalState(effectiveCurrentPass, paymentHistory) : "NONE";
+    const renewalMode: RenewalMode = effectiveCurrentPass ? getRenewalMode(effectiveCurrentPass, paymentHistory) : "none";
     const currentPlanPrice = effectiveCurrentPass?.plan?.price != null ? Number(effectiveCurrentPass.plan.price) : null;
 
     async function ensureLoggedIn() {
@@ -528,7 +553,33 @@ export default function SubscriptionsTab({
 
     async function handleRenewCurrentPass() {
         if (!effectiveCurrentPass?.plan) return;
-        await openCheckoutMethodDialog(effectiveCurrentPass.plan);
+        if (hasScheduledPass) {
+            await Swal.fire({
+                icon: "info",
+                title: "Đã có gói chờ kỳ sau",
+                text: "Bạn đã có pass scheduled cho kỳ tiếp theo, nên chưa thể gia hạn thêm.",
+            });
+            return;
+        }
+
+        const result = await Swal.fire({
+            title: "Gia hạn 1 lần",
+            text: "Chọn phương thức thanh toán cho lần gia hạn này.",
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: "Sepay QR",
+            denyButtonText: "Stripe one-time",
+            cancelButtonText: cms?.common?.actions?.close || "Đóng",
+        });
+
+        if (result.isConfirmed) {
+            await onStartPlanCheckout(effectiveCurrentPass.plan, "SEPAY");
+            return;
+        }
+
+        if (result.isDenied) {
+            await onStartPlanCheckout(effectiveCurrentPass.plan, "STRIPE_ONE_TIME");
+        }
     }
 
     async function handleSubscribeRecurringCurrentPass() {
@@ -536,10 +587,30 @@ export default function SubscriptionsTab({
         const ok = await ensureLoggedIn();
         if (!ok) return;
 
+        if (hasScheduledPass) {
+            await Swal.fire({
+                icon: "info",
+                title: "Đã có gói chờ kỳ sau",
+                text: "Bạn đã có pass scheduled cho kỳ tiếp theo, chưa thể đăng ký thêm tự động gia hạn.",
+            });
+            return;
+        }
+
         if (currentPassRenewalState === "AUTO_RENEW_CANCELED" && onResumeAutoRenewal) {
             const resumed = await onResumeAutoRenewal(effectiveCurrentPass);
             if (resumed) return;
         }
+
+        const confirm = await Swal.fire({
+            icon: "question",
+            title: "Đăng ký tự động gia hạn",
+            text: "Bạn sẽ thanh toán trước 1 gói cho kỳ tiếp theo. Từ các kỳ sau hệ thống sẽ tự động gia hạn hàng tháng.",
+            showCancelButton: true,
+            confirmButtonText: "Tiếp tục",
+            cancelButtonText: cms?.common?.actions?.close || "Đóng",
+        });
+
+        if (!confirm.isConfirmed) return;
 
         await onStartPlanCheckout(effectiveCurrentPass.plan, "STRIPE_SUBSCRIPTION");
     }
@@ -629,6 +700,9 @@ export default function SubscriptionsTab({
                             </div>
 
                             <div className="mt-4 flex flex-wrap gap-2">
+                                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700">
+                                    Renewal mode: {renewalMode}
+                                </span>
                                 {currentPassRenewalState === "AUTO_RENEW_ACTIVE" ? (
                                     <button
                                         type="button"
@@ -643,7 +717,7 @@ export default function SubscriptionsTab({
                                         <button
                                             type="button"
                                             className="inline-flex items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-extrabold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
-                                            disabled={subscriptionActionPlanId === effectiveCurrentPass.plan.id}
+                                            disabled={hasScheduledPass || subscriptionActionPlanId === effectiveCurrentPass.plan.id}
                                             onClick={() => void handleRenewCurrentPass()}
                                         >
                                             {subscriptionActionPlanId === effectiveCurrentPass.plan.id
@@ -654,7 +728,7 @@ export default function SubscriptionsTab({
                                         <button
                                             type="button"
                                             className="inline-flex items-center justify-center rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-extrabold text-violet-700 hover:bg-violet-100 disabled:opacity-60"
-                                            disabled={subscriptionActionPlanId === effectiveCurrentPass.plan.id || !effectiveCurrentPass.plan.currentStripePriceId}
+                                            disabled={hasScheduledPass || subscriptionActionPlanId === effectiveCurrentPass.plan.id || !effectiveCurrentPass.plan.currentStripePriceId}
                                             title={
                                                 !effectiveCurrentPass.plan.currentStripePriceId
                                                     ? cms.tabs.subscriptions.actions.stripeRecurringUnavailableTitle
@@ -667,6 +741,12 @@ export default function SubscriptionsTab({
                                     </>
                                 )}
                             </div>
+
+                            {hasScheduledPass ? (
+                                <p className="mt-3 text-xs font-semibold text-amber-700">
+                                    Bạn đã có pass scheduled từ {formatDate(scheduledPass?.startAt)}. Hệ thống tạm khóa gia hạn thêm để tránh tạo dư pass.
+                                </p>
+                            ) : null}
                         </div>
                     ) : (
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
@@ -740,7 +820,7 @@ export default function SubscriptionsTab({
                                                 <button
                                                     type="button"
                                                     className="inline-flex w-full items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-extrabold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
-                                                    disabled={subscriptionActionPlanId === plan.id}
+                                                    disabled={hasScheduledPass || subscriptionActionPlanId === plan.id}
                                                     onClick={() => void handleUpgradePlan(plan)}
                                                 >
                                                     {subscriptionActionPlanId === plan.id
@@ -837,6 +917,10 @@ export default function SubscriptionsTab({
                                         <p>
                                             {cms.tabs.subscriptions.history.transferContent}:{" "}
                                             <span className="font-bold text-slate-800">{payment.transferContent}</span>
+                                        </p>
+                                        <p>
+                                            Payment source:{" "}
+                                            <span className="font-bold text-slate-800">{payment.paymentSource || payment.provider || "-"}</span>
                                         </p>
                                         <p>
                                             {cms.tabs.subscriptions.history.paidAt}:{" "}

@@ -111,7 +111,7 @@ export class CoursePlanPaymentsService {
     now: Date,
   ): UserCoursePassStatus {
     if (pass.canceledAt) return UserCoursePassStatus.CANCELED
-    if (now < pass.startAt) return UserCoursePassStatus.ACTIVE
+    if (now < pass.startAt) return UserCoursePassStatus.EXPIRED
     if (now < pass.endAt) return UserCoursePassStatus.ACTIVE
     if (now < pass.graceUntil) return UserCoursePassStatus.GRACE
     return UserCoursePassStatus.EXPIRED
@@ -247,11 +247,20 @@ export class CoursePlanPaymentsService {
           }
         : null
 
+    const rawResponseMode = String((payment.rawResponse as any)?.mode || '').toLowerCase()
+    const paymentSource =
+      payment.provider === 'SEPAY'
+        ? 'SEPAY_QR'
+        : payment.stripeSubscriptionId || rawResponseMode === 'subscription'
+          ? 'STRIPE_SUBSCRIPTION'
+          : 'STRIPE_ONE_TIME'
+
     return {
       id: payment.id,
       userId: payment.userId,
       planId: payment.planId,
       provider: payment.provider,
+      paymentSource,
       status: payment.status,
       computedStatus: status,
       amount: payment.amount,
@@ -325,10 +334,23 @@ export class CoursePlanPaymentsService {
     }
 
     const now = new Date()
+    const existingScheduled = await this.prisma.userCoursePass.findFirst({
+      where: {
+        userId,
+        canceledAt: null,
+        startAt: { gt: now },
+      },
+      select: { id: true },
+      orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
+    })
+
+    if (existingScheduled) {
+      throw new BadRequestException('You already have a scheduled pass for the next cycle')
+    }
+
     const latestPass = await this.prisma.userCoursePass.findFirst({
       where: {
         userId,
-        planId,
         canceledAt: null,
       },
       select: {
@@ -1162,6 +1184,21 @@ export class CoursePlanPaymentsService {
 
     const customerId = await this.ensureStripeCustomer(userId)
     const now = new Date()
+
+    const existingScheduled = await this.prisma.userCoursePass.findFirst({
+      where: {
+        userId,
+        canceledAt: null,
+        startAt: { gt: now },
+      },
+      select: { id: true },
+      orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
+    })
+
+    if (existingScheduled) {
+      throw new BadRequestException('You already have a scheduled pass for the next cycle')
+    }
+
     const { successUrl, cancelUrl } = this.resolveStripeReturnUrls(dto)
 
     const payment = await this.prisma.coursePlanPayment.create({
@@ -1234,6 +1271,21 @@ export class CoursePlanPaymentsService {
 
     const method = dto?.method ?? PurchasePlanMethod.SEPAY
 
+    const now = new Date()
+    const existingScheduled = await this.prisma.userCoursePass.findFirst({
+      where: {
+        userId,
+        canceledAt: null,
+        startAt: { gt: now },
+      },
+      select: { id: true },
+      orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
+    })
+
+    if (existingScheduled) {
+      throw new BadRequestException('You already have a scheduled pass for the next cycle')
+    }
+
     if (method === PurchasePlanMethod.STRIPE_ONE_TIME) {
       return this.createStripeOneTimeCheckout(userId, plan, dto)
     }
@@ -1243,8 +1295,6 @@ export class CoursePlanPaymentsService {
     }
 
     await this.markExpiredPendingPayments(userId, planId)
-
-    const now = new Date()
 
     const existingPending = await this.prisma.coursePlanPayment.findFirst({
       where: {
@@ -1488,7 +1538,6 @@ export class CoursePlanPaymentsService {
       const latest = await tx.userCoursePass.findFirst({
         where: {
           userId: payment.userId,
-          planId: payment.planId,
           canceledAt: null,
         },
         select: {
@@ -2232,9 +2281,3 @@ export class CoursePlanPaymentsService {
     })
   }
 }
-
-
-
-
-
-

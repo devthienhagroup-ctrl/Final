@@ -46,6 +46,7 @@ export type CoursePass = {
 }
 
 export type CoursePlanPaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'EXPIRED'
+export type CoursePlanPaymentSource = 'SEPAY_QR' | 'STRIPE_ONE_TIME' | 'STRIPE_SUBSCRIPTION'
 
 export type CoursePlanSubscriptionSnapshot = {
   stripeSubscriptionId: string
@@ -61,6 +62,7 @@ export type CoursePlanPayment = {
   userId: number
   planId: number
   provider: string
+  paymentSource?: CoursePlanPaymentSource
   status: CoursePlanPaymentStatus
   computedStatus: CoursePlanPaymentStatus
   amount: number

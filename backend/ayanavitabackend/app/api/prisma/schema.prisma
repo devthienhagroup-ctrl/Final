@@ -962,6 +962,7 @@ enum CourseAccessStatus {
   CANCELED
 }
 enum UserCoursePassStatus {
+  SCHEDULED
   ACTIVE
   GRACE
   EXPIRED

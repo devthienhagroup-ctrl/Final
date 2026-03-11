@@ -111,7 +111,7 @@ export class CoursePlanPaymentsService {
     now: Date,
   ): UserCoursePassStatus {
     if (pass.canceledAt) return UserCoursePassStatus.CANCELED
-    if (now < pass.startAt) return UserCoursePassStatus.EXPIRED
+    if (now < pass.startAt) return UserCoursePassStatus.SCHEDULED
     if (now < pass.endAt) return UserCoursePassStatus.ACTIVE
     if (now < pass.graceUntil) return UserCoursePassStatus.GRACE
     return UserCoursePassStatus.EXPIRED

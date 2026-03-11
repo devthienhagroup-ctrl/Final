@@ -1,630 +1,183 @@
-diff --git a/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx b/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
-index 91b113b58f29ce045bd3f106e9aabd3a947b673f..fcacd4012e9b43ea0956b2457f5e1c09e4856686 100644
---- a/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
-+++ b/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
-@@ -1471,50 +1471,56 @@ export default function AccountCenter() {
-   const onRenewCurrentPass = useCallback(async (pass: CoursePass) => {
-     await onStartPlanCheckout(pass.plan, "STRIPE_ONE_TIME");
-   }, [onStartPlanCheckout]);
-
-   const onRegisterAutoRenewCurrentPass = useCallback(async (pass: CoursePass) => {
-     if (currentPassRenewalState === "AUTO_RENEW_CANCELED") {
-       const resumed = await onResumeAutoRenewal(pass);
-       if (resumed) {
-         return;
-       }
-     }
-
-     await onStartPlanCheckout(pass.plan, "STRIPE_SUBSCRIPTION");
-   }, [currentPassRenewalState, onResumeAutoRenewal, onStartPlanCheckout]);
-
-   const openPlanPaymentModal = useCallback((payment: CoursePlanPayment) => {
-     setPlanPaymentModal(payment);
-     setPlanQrTick(Date.now());
-   }, []);
-
-   useEffect(() => {
-     if (!localStorage.getItem("aya_access_token")) return;
-     void fetchMyOrders();
-   }, [fetchMyOrders, cms]);
-
-+
-+  const onRealtimeSubscriptionPaymentUpdate = useCallback(async (_event: any) => {
-+    if (active !== "subscriptions") return;
-+    await fetchSubscriptionData(false);
-+  }, [active, fetchSubscriptionData]);
-+
-   useEffect(() => {
-     if (active !== "subscriptions") return;
-     void fetchSubscriptionData();
-   }, [active, fetchSubscriptionData]);
-
-   useEffect(() => {
-     if (active !== "subscriptions") return;
-     if (searchParams.get("stripe") !== "success") return;
-
-     let attempts = 0;
-     const timer = window.setInterval(() => {
-       attempts += 1;
-       void fetchSubscriptionData(false);
-       if (attempts >= 6) {
-         window.clearInterval(timer);
-       }
-     }, 3000);
-
-     return () => window.clearInterval(timer);
-   }, [active, fetchSubscriptionData, searchParams]);
-
-   const onPayPendingOrder = useCallback(async (order: MyOrder) => {
-     if (order.status !== "PENDING_PAYMENT") return;
-
-     try {
-@@ -1906,50 +1912,51 @@ export default function AccountCenter() {
-           cms={cmsForTabs}
-           subscriptionLoading={subscriptionLoading}
-           subscriptionError={subscriptionError}
-           currentPass={currentPass}
-           publicPlans={publicPlans}
-           focusedPlanId={focusedPlanId}
-           subscriptionActionPlanId={subscriptionActionPlanId}
-           passHistory={passHistory}
-           paymentHistory={paymentHistory}
-           planPaymentModal={planPaymentModal}
-           planQrCountdown={planQrCountdown}
-           planQrExpiresAt={planQrExpiresAt}
-           setPlanPaymentModal={setPlanPaymentModal}
-           onStartPlanCheckout={onStartPlanCheckout}
-           openPlanPaymentModal={openPlanPaymentModal}
-           onCancelAutoRenewal={onCancelAutoRenewal}
-           onResumeAutoRenewal={onResumeAutoRenewal}
-           formatDate={formatDate}
-           formatDateTime={formatDateTime}
-           formatMoney={formatMoney}
-           formatDurationDays={formatDurationDays}
-           getPassStatusLabel={getPassStatusLabel}
-           getPaymentStatusLabel={getPaymentStatusLabel}
-           passStatusStyles={PASS_STATUS_STYLES}
-           planPaymentStatusStyles={PLAN_PAYMENT_STATUS_STYLES}
-+          onRealtimePaymentUpdate={onRealtimeSubscriptionPaymentUpdate}
-         />
-       );
-     }
-
-     return (
-       <MyOrdersTab
-         cms={cmsForTabs}
-         orderKeyword={orderKeyword}
-         setOrderKeyword={setOrderKeyword}
-         orderStatusFilter={orderStatusFilter}
-         setOrderStatusFilter={setOrderStatusFilter}
-         ordersLoading={ordersLoading}
-         filteredOrders={filteredOrders}
-         payingOrderId={payingOrderId}
-         selectedOrder={selectedOrder}
-         setSelectedOrder={setSelectedOrder}
-         qrModalOrder={qrModalOrder}
-         setQrModalOrder={setQrModalOrder}
-         qrPayload={qrPayload}
-         setQrPayload={setQrPayload}
-         qrCountdown={qrCountdown}
-         qrExpiresAt={qrExpiresAt}
-         cancelRequestingOrderId={cancelRequestingOrderId}
-         onPayPendingOrder={onPayPendingOrder}
-         onRequestCancelOrder={onRequestCancelOrder}
-diff --git a/Home/ayanavita-fontend-final/src/pages/account-center/components/SubscriptionsTab.tsx b/Home/ayanavita-fontend-final/src/pages/account-center/components/SubscriptionsTab.tsx
-index 3c0e72130f5c0abc44009b2fd6b11d225f2f3834..75c45740a885c9d4b6b9190f94fdace337cf93c1 100644
---- a/Home/ayanavita-fontend-final/src/pages/account-center/components/SubscriptionsTab.tsx
-+++ b/Home/ayanavita-fontend-final/src/pages/account-center/components/SubscriptionsTab.tsx
-@@ -1,54 +1,55 @@
--import React from "react";
-+import React, { useEffect } from "react";
- import Swal from "sweetalert2";
-
- type Props = {
-     cms: any;
-     subscriptionLoading: boolean;
-     subscriptionError: string | null;
-     currentPass: any;
-     publicPlans: any[];
-     focusedPlanId: number | null;
-     subscriptionActionPlanId: number | null;
-     passHistory: any[];
-     paymentHistory: any[];
-     planPaymentModal: any;
-     planQrCountdown: { expired: boolean; text: string };
-     planQrExpiresAt: string | null;
-     setPlanPaymentModal: React.Dispatch<React.SetStateAction<any>>;
-     onStartPlanCheckout: (plan: any, method: any) => void | Promise<void>;
-     openPlanPaymentModal: (payment: any) => void;
-     onCancelAutoRenewal?: (pass: any) => void | Promise<void>;
-     onResumeAutoRenewal?: (pass: any) => boolean | void | Promise<boolean | void>;
-     formatDate: (date: string | null) => string;
-     formatDateTime: (date: string | null | undefined) => string;
-     formatMoney: (amount: number) => string;
-     formatDurationDays: (days: number, durationUnits: any) => string;
-     getPassStatusLabel: (status: any, labels: any) => string;
-     getPaymentStatusLabel: (status: any, labels: any) => string;
-     passStatusStyles: Record<string, string>;
-     planPaymentStatusStyles: Record<string, string>;
-+    onRealtimePaymentUpdate?: (event: any) => void;
- };
-
- function classNames(...xs: Array<string | false | null | undefined>) {
-     return xs.filter(Boolean).join(" ");
- }
-
- function toTime(value: string | null | undefined) {
-     if (!value) return null;
-     const t = new Date(value).getTime();
-     return Number.isNaN(t) ? null : t;
- }
-
- function isPassEffectiveNow(pass: any, now: number) {
-     const start = toTime(pass?.startAt);
-     const end = toTime(pass?.endAt);
-     const graceUntil = toTime(pass?.graceUntil);
-
-     if (start == null) return false;
-     if (now < start) return false;
-
-     const activeEnd = graceUntil ?? end;
-     if (activeEnd == null) return false;
-
-     return now <= activeEnd;
- }
-@@ -341,59 +342,93 @@ export default function SubscriptionsTab({
-                                              cms,
-                                              subscriptionLoading,
-                                              subscriptionError,
-                                              currentPass,
-                                              publicPlans,
-                                              focusedPlanId,
-                                              subscriptionActionPlanId,
-                                              passHistory,
-                                              paymentHistory,
-                                              planPaymentModal,
-                                              planQrCountdown,
-                                              planQrExpiresAt,
-                                              setPlanPaymentModal,
-                                              onStartPlanCheckout,
-                                              openPlanPaymentModal,
-                                              onCancelAutoRenewal,
-                                              onResumeAutoRenewal,
-                                              formatDate,
-                                              formatDateTime,
-                                              formatMoney,
-                                              formatDurationDays,
-                                              getPassStatusLabel,
-                                              getPaymentStatusLabel,
-                                              passStatusStyles,
-                                              planPaymentStatusStyles,
-+                                             onRealtimePaymentUpdate,
-                                          }: Props) {
-     const effectiveCurrentPass = getCurrentEffectivePass(currentPass, passHistory);
-     const scheduledPass = getScheduledPass(currentPass, passHistory);
-     const hasScheduledPass = Boolean(scheduledPass);
-     const currentPlanId = effectiveCurrentPass?.plan?.id ?? null;
-     const currentPassRenewalState = effectiveCurrentPass ? getPassRenewalState(effectiveCurrentPass, paymentHistory) : "NONE";
-     const renewalMode: RenewalMode = effectiveCurrentPass ? getRenewalMode(effectiveCurrentPass, paymentHistory) : "none";
-     const currentPlanPrice = effectiveCurrentPass?.plan?.price != null ? Number(effectiveCurrentPass.plan.price) : null;
-
-+
-+    useEffect(() => {
-+        if (typeof onRealtimePaymentUpdate !== "function") return;
-+
-+        const token = localStorage.getItem("aya_access_token") || "";
-+        if (!token) return;
-+
-+        const apiBase = (import.meta.env.VITE_API_URL || "http://localhost:8090").replace(/\/$/, "");
-+        const wsBase = apiBase.replace(/^http/i, "ws");
-+        const socket = new WebSocket(`${wsBase}/ws/payments?token=${encodeURIComponent(token)}`);
-+
-+        socket.onmessage = (event) => {
-+            try {
-+                const payload = JSON.parse(event.data || "{}");
-+                if (payload?.event === "payment.updated") {
-+                    onRealtimePaymentUpdate(payload.data);
-+                }
-+            } catch (error) {
-+                console.warn("[subscriptions][ws] Invalid message", error);
-+            }
-+        };
-+
-+        socket.onerror = (error) => {
-+            console.warn("[subscriptions][ws] Connection error", error);
-+        };
-+
-+        return () => {
-+            if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-+                socket.close();
-+            }
-+        };
-+    }, [onRealtimePaymentUpdate]);
-+
-     async function ensureLoggedIn() {
-         if (!localStorage.getItem("aya_access_token")) {
-             window.location.href = "/login";
-             return false;
-         }
-         return true;
-     }
-
-     async function openCheckoutMethodDialog(plan: any) {
-         const ok = await ensureLoggedIn();
-         if (!ok) return;
-
-         const title = cms?.tabs?.subscriptions?.actions?.choosePaymentMethodTitle || "Chọn phương thức thanh toán";
-         const oneTimeLabel = cms?.tabs?.subscriptions?.actions?.oneTimeLabel || "Đăng ký 1 lần";
-         const recurringLabel = cms?.tabs?.subscriptions?.actions?.recurringLabel || "Đăng ký gia hạn tự động";
-         const qrLabel = cms?.tabs?.subscriptions?.actions?.chooseQr || "QR code";
-         const cardLabel = cms?.tabs?.subscriptions?.actions?.chooseStripeOneTime || "Card";
-         const payBtnLabel = cms?.tabs?.subscriptions?.actions?.payNow || "Thanh toán ngay";
-         const cancelBtnLabel = cms?.common?.actions?.close || "Đóng";
-
-         const recurringInfoTitle =
-             cms?.tabs?.subscriptions?.actions?.recurringInfoTitle || "Đăng ký tự động gia hạn tiện lợi";
-         const recurringInfoItems: string[] =
-             cms?.tabs?.subscriptions?.actions?.recurringInfoItems || [
-                 "Thanh toán nhanh chóng bằng thẻ qua Stripe.",
-diff --git a/backend/ayanavitabackend/app/api/src/stripe/stripe-realtime.service.ts b/backend/ayanavitabackend/app/api/src/stripe/stripe-realtime.service.ts
+diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202606070002_add_scheduled_pass_status/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202606070002_add_scheduled_pass_status/migration.sql
 new file mode 100644
-index 0000000000000000000000000000000000000000..49770d7053d38e8a94562121c0195c1c3983fba5
+index 0000000000000000000000000000000000000000..dbb40c6a46d96fb3dc2c00c51cd28f7700eb1af6
 --- /dev/null
-+++ b/backend/ayanavitabackend/app/api/src/stripe/stripe-realtime.service.ts
-@@ -0,0 +1,173 @@
-+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
-+import { HttpAdapterHost } from '@nestjs/core'
-+import { createHash } from 'crypto'
-+import { IncomingMessage } from 'http'
-+import { Socket } from 'net'
++++ b/backend/ayanavitabackend/app/api/prisma/migrations/202606070002_add_scheduled_pass_status/migration.sql
+@@ -0,0 +1,7 @@
++ALTER TYPE "UserCoursePassStatus" ADD VALUE IF NOT EXISTS 'SCHEDULED';
 +
-+type Client = {
-+  socket: Socket
-+  userId: number
-+}
-+
-+@Injectable()
-+export class StripeRealtimeService implements OnModuleInit, OnModuleDestroy {
-+  private readonly logger = new Logger(StripeRealtimeService.name)
-+  private readonly clients = new Set<Client>()
-+
-+  constructor(private readonly httpAdapterHost: HttpAdapterHost) {}
-+
-+  onModuleInit() {
-+    const server = this.httpAdapterHost.httpAdapter?.getHttpServer()
-+    if (!server || typeof server.on !== 'function') {
-+      this.logger.warn('HTTP server is not available to attach websocket upgrade handler')
-+      return
-+    }
-+
-+    server.on('upgrade', this.handleUpgrade)
-+    this.logger.log('Realtime websocket endpoint mounted at /ws/payments')
-+  }
-+
-+  onModuleDestroy() {
-+    const server = this.httpAdapterHost.httpAdapter?.getHttpServer()
-+    if (server && typeof server.off === 'function') {
-+      server.off('upgrade', this.handleUpgrade)
-+    }
-+
-+    for (const client of this.clients) {
-+      client.socket.destroy()
-+    }
-+    this.clients.clear()
-+  }
-+
-+  emitPaymentUpdate(userId: number, payload: Record<string, unknown>) {
-+    if (!Number.isInteger(userId) || userId <= 0) return
-+
-+    const message = JSON.stringify({
-+      event: 'payment.updated',
-+      data: payload,
-+    })
-+
-+    for (const client of this.clients) {
-+      if (client.userId !== userId) continue
-+      this.sendText(client.socket, message)
-+    }
-+  }
-+
-+  private handleUpgrade = (req: IncomingMessage, socket: Socket) => {
-+    const host = req.headers.host || 'localhost'
-+    const url = new URL(req.url || '/', `http://${host}`)
-+
-+    if (url.pathname !== '/ws/payments') return
-+
-+    const key = req.headers['sec-websocket-key']
-+    const version = req.headers['sec-websocket-version']
-+
-+    if (!key || version !== '13') {
-+      socket.write('HTTP/1.1 400 Bad Request\r\n\r\n')
-+      socket.destroy()
-+      return
-+    }
-+
-+    const userId = this.resolveUserId(url)
-+    if (!userId) {
-+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n')
-+      socket.destroy()
-+      return
-+    }
-+
-+    const accept = createHash('sha1')
-+      .update(String(key) + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')
-+      .digest('base64')
-+
-+    socket.write(
-+      [
-+        'HTTP/1.1 101 Switching Protocols',
-+        'Upgrade: websocket',
-+        'Connection: Upgrade',
-+        `Sec-WebSocket-Accept: ${accept}`,
-+        '\r\n',
-+      ].join('\r\n'),
-+    )
-+
-+    const client: Client = { socket, userId }
-+    this.clients.add(client)
-+
-+    socket.on('data', (chunk: Buffer) => this.handleIncomingFrame(client, chunk))
-+    socket.on('end', () => this.clients.delete(client))
-+    socket.on('close', () => this.clients.delete(client))
-+    socket.on('error', () => this.clients.delete(client))
-+
-+    this.sendText(socket, JSON.stringify({ event: 'connected', data: { userId } }))
-+  }
-+
-+  private handleIncomingFrame(client: Client, frame: Buffer) {
-+    if (!frame.length) return
-+
-+    const opcode = frame[0] & 0x0f
-+
-+    if (opcode === 0x8) {
-+      client.socket.end()
-+      this.clients.delete(client)
-+      return
-+    }
-+
-+    if (opcode === 0x9) {
-+      this.sendPong(client.socket)
-+    }
-+  }
-+
-+  private resolveUserId(url: URL) {
-+    const token = url.searchParams.get('token') || ''
-+    if (!token) return null
-+
-+    const parts = token.split('.')
-+    if (parts.length < 2) return null
-+
-+    try {
-+      const payload = JSON.parse(Buffer.from(this.base64UrlToBase64(parts[1]), 'base64').toString('utf8'))
-+      const userId = Number(payload?.sub)
-+      if (!Number.isInteger(userId) || userId <= 0) return null
-+      return userId
-+    } catch {
-+      return null
-+    }
-+  }
-+
-+  private base64UrlToBase64(input: string) {
-+    const normalized = input.replace(/-/g, '+').replace(/_/g, '/')
-+    const pad = normalized.length % 4
-+    if (pad === 0) return normalized
-+    return normalized + '='.repeat(4 - pad)
-+  }
-+
-+  private sendText(socket: Socket, text: string) {
-+    const payload = Buffer.from(text, 'utf8')
-+    this.sendFrame(socket, 0x1, payload)
-+  }
-+
-+  private sendPong(socket: Socket) {
-+    this.sendFrame(socket, 0xa, Buffer.alloc(0))
-+  }
-+
-+  private sendFrame(socket: Socket, opcode: number, payload: Buffer) {
-+    const payloadLength = payload.length
-+
-+    let header: Buffer
-+
-+    if (payloadLength < 126) {
-+      header = Buffer.from([0x80 | opcode, payloadLength])
-+    } else if (payloadLength < 65536) {
-+      header = Buffer.alloc(4)
-+      header[0] = 0x80 | opcode
-+      header[1] = 126
-+      header.writeUInt16BE(payloadLength, 2)
-+    } else {
-+      header = Buffer.alloc(10)
-+      header[0] = 0x80 | opcode
-+      header[1] = 127
-+      header.writeBigUInt64BE(BigInt(payloadLength), 2)
-+    }
-+
-+    socket.write(Buffer.concat([header, payload]))
-+  }
-+}
-diff --git a/backend/ayanavitabackend/app/api/src/stripe/stripe.module.ts b/backend/ayanavitabackend/app/api/src/stripe/stripe.module.ts
-index 0a09b4219b13cd1b11aef0ef0219326c2700baeb..6251fdf365383ce7754bb776ae935e4c805b6b72 100644
---- a/backend/ayanavitabackend/app/api/src/stripe/stripe.module.ts
-+++ b/backend/ayanavitabackend/app/api/src/stripe/stripe.module.ts
-@@ -1,12 +1,13 @@
- import { Module } from '@nestjs/common'
- import { CoursePlansModule } from '../course-plans/course-plans.module'
- import { PaymentsController } from './stripe.controller'
- import { PaymentsService } from './stripe.service'
-+import { StripeRealtimeService } from './stripe-realtime.service'
- import { StripeWebhookController } from './stripe.webhooks'
++UPDATE "UserCoursePass"
++SET "status" = 'SCHEDULED'::"UserCoursePassStatus"
++WHERE "canceledAt" IS NULL
++  AND "startAt" > NOW()
++  AND "status" = 'EXPIRED'::"UserCoursePassStatus";
+diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+index 266f1dc898a3d8409c4b62c550722af8500159fc..f1df727f1a458f85e21a3ecde499bf8c0d2268d2 100644
+--- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
++++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+@@ -940,50 +940,51 @@ model RoleAuditLog {
+   targetUserId Int?
+   roleId       Int?
+   metadata     Json?
+   createdAt    DateTime  @default(now())
 
- @Module({
-   imports: [CoursePlansModule],
-   controllers: [PaymentsController, StripeWebhookController],
--  providers: [PaymentsService],
-+  providers: [PaymentsService, StripeRealtimeService],
- })
- export class StripeModule {}
-diff --git a/backend/ayanavitabackend/app/api/src/stripe/stripe.webhooks.ts b/backend/ayanavitabackend/app/api/src/stripe/stripe.webhooks.ts
-index e10c6ab9cfb4aade96bfd18b813f256d760f8c8b..eba6bd241b0276b508cbb4764794945875383902 100644
---- a/backend/ayanavitabackend/app/api/src/stripe/stripe.webhooks.ts
-+++ b/backend/ayanavitabackend/app/api/src/stripe/stripe.webhooks.ts
-@@ -1,96 +1,125 @@
- import { Controller, Headers, HttpStatus, Post, RawBodyRequest, Req, Res } from '@nestjs/common'
- import { Request, Response } from 'express'
- import Stripe from 'stripe'
- import { CoursePlanPaymentsService } from '../course-plans/course-plan-payments.service'
-+import { StripeRealtimeService } from './stripe-realtime.service'
- import { PaymentsService } from './stripe.service'
+   actorUser  User?     @relation("RoleAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+   targetUser User?     @relation("RoleAuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+   role       RbacRole? @relation(fields: [roleId], references: [id], onDelete: SetNull)
 
- @Controller('webhooks')
- export class StripeWebhookController {
-   private readonly stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-     apiVersion: '2026-02-25.clover',
-   })
+   @@index([createdAt])
+   @@index([actorUserId])
+   @@index([targetUserId])
+   @@index([roleId])
+ }
 
-   constructor(
--      private readonly paymentsService: PaymentsService,
--      private readonly coursePlanPayments: CoursePlanPaymentsService,
-+    private readonly paymentsService: PaymentsService,
-+    private readonly coursePlanPayments: CoursePlanPaymentsService,
-+    private readonly stripeRealtime: StripeRealtimeService,
-   ) {}
+ enum EnrollmentStatus {
+   ACTIVE
+   CANCELED
+ }
 
-   @Post('stripe')
-   async handleStripeWebhook(
--      @Req() req: RawBodyRequest<Request>,
--      @Res() res: Response,
--      @Headers('stripe-signature') signature?: string,
-+    @Req() req: RawBodyRequest<Request>,
-+    @Res() res: Response,
-+    @Headers('stripe-signature') signature?: string,
-   ) {
--    console.log("===== WEBHOOK STRIPE =====")
--    console.log("Đã nhận webhook từ Stripe")
-+    console.log('===== WEBHOOK STRIPE =====')
-+    console.log('Đã nhận webhook từ Stripe')
+ enum CourseAccessStatus {
+   ACTIVE
+   CANCELED
+ }
+ enum UserCoursePassStatus {
++  SCHEDULED
+   ACTIVE
+   GRACE
+   EXPIRED
+   CANCELED
+ }
 
-     if (!signature) {
--      console.log("❌ Thiếu header stripe-signature")
-+      console.log('❌ Thiếu header stripe-signature')
-       return res.status(HttpStatus.BAD_REQUEST).send('Missing stripe-signature header')
+ enum CoursePlanPaymentStatus {
+   PENDING
+   PAID
+   FAILED
+   EXPIRED
+ }
+
+ enum CoursePlanBillingInterval {
+   month
+   year
+ }
+
+ enum CourseEntitlementSourceType {
+   SINGLE_PURCHASE
+   PLAN_PASS
+   ADMIN_GRANT
+ }
+
+ enum OrderStatus {
+diff --git a/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts b/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
+index 31214a44740492aed72ffc62d46ff0c3cb5d752b..5e99ad7c0e97edd2cd7842352bf43b3c42b653dd 100644
+--- a/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
++++ b/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
+@@ -89,51 +89,51 @@ export class CoursePlanPaymentsService {
+
+   private normalizeStatus(status: CoursePlanPaymentStatus, expiredAt: Date | null, now: Date): CoursePlanPaymentStatus {
+     if (status === CoursePlanPaymentStatus.PENDING && expiredAt && expiredAt <= now) {
+       return CoursePlanPaymentStatus.EXPIRED
      }
-
-     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET
-     if (!endpointSecret) {
--      console.log("❌ Chưa cấu hình STRIPE_WEBHOOK_SECRET")
-+      console.log('❌ Chưa cấu hình STRIPE_WEBHOOK_SECRET')
-       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send('STRIPE_WEBHOOK_SECRET is missing')
-     }
-
-     const rawBody = Buffer.isBuffer(req.rawBody)
--        ? req.rawBody
--        : Buffer.isBuffer(req.body)
--            ? req.body
--            : typeof req.body === 'string'
--                ? Buffer.from(req.body, 'utf8')
--                : null
-+      ? req.rawBody
-+      : Buffer.isBuffer(req.body)
-+        ? req.body
-+        : typeof req.body === 'string'
-+          ? Buffer.from(req.body, 'utf8')
-+          : null
-
-     if (!rawBody) {
--      console.log("❌ Không đọc được rawBody của webhook")
-+      console.log('❌ Không đọc được rawBody của webhook')
-       return res.status(HttpStatus.BAD_REQUEST).send('Invalid raw webhook body')
-     }
-
--    console.log("✅ Đã qua kiểm tra signature, bắt đầu parse event")
-+    console.log('✅ Đã qua kiểm tra signature, bắt đầu parse event')
-
-     let event: Stripe.Event
-
-     try {
-       event = this.stripe.webhooks.constructEvent(rawBody, signature, endpointSecret)
--      console.log("📩 Stripe gửi event:", event.type)
-+      console.log('📩 Stripe gửi event:', event.type)
-     } catch (err: any) {
--      console.log("❌ Xác thực webhook thất bại:", err?.message)
-+      console.log('❌ Xác thực webhook thất bại:', err?.message)
-       return res.status(HttpStatus.BAD_REQUEST).send(`Webhook Error: ${err?.message || 'Invalid signature'}`)
-     }
-
-     try {
--
-       if (event.type === 'checkout.session.completed') {
--        console.log("🧾 Event checkout.session.completed")
-+        console.log('🧾 Event checkout.session.completed')
-
-         const session = event.data.object as Stripe.Checkout.Session
-
--        console.log("Session ID:", session.id)
--        console.log("Metadata:", session.metadata)
-+        console.log('Session ID:', session.id)
-+        console.log('Metadata:', session.metadata)
-
-         if (session.metadata?.orderId) {
--          console.log("➡️ Cập nhật trạng thái order:", session.metadata.orderId)
-+          console.log('➡️ Cập nhật trạng thái order:', session.metadata.orderId)
-           await this.paymentsService.markOrderPaidFromCheckoutSession(session)
--          console.log("✅ Order đã được cập nhật thành PAID")
-+          console.log('✅ Order đã được cập nhật thành PAID')
-         } else {
--          console.log("⚠️ Session không có metadata.orderId")
-+          console.log('⚠️ Session không có metadata.orderId')
-         }
-       }
-
--      console.log("➡️ Chuyển event sang CoursePlanPaymentsService xử lý")
-+      console.log('➡️ Chuyển event sang CoursePlanPaymentsService xử lý')
-       await this.coursePlanPayments.handleStripeEvent(event)
--      console.log("✅ CoursePlanPaymentsService đã xử lý xong event")
--
-+      console.log('✅ CoursePlanPaymentsService đã xử lý xong event')
-+
-+      const realtimeUserId = this.extractRealtimeUserId(event)
-+      if (realtimeUserId) {
-+        this.stripeRealtime.emitPaymentUpdate(realtimeUserId, {
-+          source: 'STRIPE_WEBHOOK',
-+          eventType: event.type,
-+          at: new Date().toISOString(),
-+        })
-+      }
-     } catch (err) {
--      console.log("❌ Lỗi khi xử lý webhook:", err)
-+      console.log('❌ Lỗi khi xử lý webhook:', err)
-       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ received: false })
-     }
-
--    console.log("✅ Webhook Stripe xử lý xong, trả về 200")
--    console.log("===========================")
-+    console.log('✅ Webhook Stripe xử lý xong, trả về 200')
-+    console.log('===========================')
-
-     return res.status(HttpStatus.OK).json({ received: true })
+     return status
    }
--}
-\ No newline at end of file
-+
-+  private extractRealtimeUserId(event: Stripe.Event) {
-+    const obj: any = event?.data?.object || {}
-+    const candidates = [
-+      obj?.metadata?.userId,
-+      obj?.client_reference_id,
-+      obj?.userId,
-+      obj?.subscription_details?.metadata?.userId,
-+      obj?.lines?.data?.[0]?.metadata?.userId,
-+    ]
-+
-+    for (const candidate of candidates) {
-+      const userId = Number(candidate)
-+      if (Number.isInteger(userId) && userId > 0) {
-+        return userId
-+      }
-+    }
-+
-+    return null
-+  }
-+}
+
+   private addMinutes(base: Date, minutes: number) {
+     const out = new Date(base)
+     out.setTime(out.getTime() + minutes * 60_000)
+     return out
+   }
+
+   private addDays(base: Date, days: number) {
+     const out = new Date(base)
+     out.setUTCDate(out.getUTCDate() + days)
+     return out
+   }
+
+   private derivePassStatus(
+     pass: { startAt: Date; endAt: Date; graceUntil: Date; canceledAt: Date | null },
+     now: Date,
+   ): UserCoursePassStatus {
+     if (pass.canceledAt) return UserCoursePassStatus.CANCELED
+-    if (now < pass.startAt) return UserCoursePassStatus.EXPIRED
++    if (now < pass.startAt) return UserCoursePassStatus.SCHEDULED
+     if (now < pass.endAt) return UserCoursePassStatus.ACTIVE
+     if (now < pass.graceUntil) return UserCoursePassStatus.GRACE
+     return UserCoursePassStatus.EXPIRED
+   }
+
+   private genTransferCode() {
+     return `PLAN_${Math.random().toString(36).slice(2, 8).toUpperCase()}`
+   }
+
+   private buildTransferContent(paymentId: number) {
+     return `ID${paymentId}CoursePlanPayment`
+   }
+
+   private toJson(value: unknown): Prisma.InputJsonValue {
+     return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue
+   }
+
+   private extractStripeId(value: string | { id: string } | null | undefined): string | null {
+     if (!value) return null
+     if (typeof value === 'string') return value
+     return typeof value.id === 'string' ? value.id : null
+   }
+
+   parseTransferContent(content?: string | null): number | null {
+     if (!content) return null
+diff --git a/backend/ayanavitabackend/app/api/src/course-plans/course-plans.service.ts b/backend/ayanavitabackend/app/api/src/course-plans/course-plans.service.ts
+index 3c0a904569bbeff057425e948dc932681460930d..155580a0e32382820abee5a31d468e5871d2fa71 100644
+--- a/backend/ayanavitabackend/app/api/src/course-plans/course-plans.service.ts
++++ b/backend/ayanavitabackend/app/api/src/course-plans/course-plans.service.ts
+@@ -51,51 +51,51 @@ type UnlockableCourse = {
+ export class CoursePlansService {
+   constructor(private readonly prisma: PrismaService) {}
+
+   private normalizeTagCode(code: string) {
+     return code.trim().toUpperCase().replace(/\s+/g, '_')
+   }
+
+   private parseDateInput(input?: string) {
+     if (!input) return null
+     const d = new Date(input)
+     if (Number.isNaN(d.getTime())) throw new BadRequestException('Invalid date format')
+     return d
+   }
+
+   private addDays(base: Date, days: number) {
+     const out = new Date(base)
+     out.setUTCDate(out.getUTCDate() + days)
+     return out
+   }
+
+   private derivePassStatus(
+     pass: { startAt: Date; endAt: Date; graceUntil: Date; canceledAt: Date | null },
+     now: Date,
+   ): UserCoursePassStatus {
+     if (pass.canceledAt) return UserCoursePassStatus.CANCELED
+-    if (now < pass.startAt) return UserCoursePassStatus.EXPIRED
++    if (now < pass.startAt) return UserCoursePassStatus.SCHEDULED
+     if (now < pass.endAt) return UserCoursePassStatus.ACTIVE
+     if (now < pass.graceUntil) return UserCoursePassStatus.GRACE
+     return UserCoursePassStatus.EXPIRED
+   }
+
+   private async ensureUserExists(userId: number) {
+     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } })
+     if (!user) throw new NotFoundException('User not found')
+   }
+
+   private async ensureCourseExists(courseId: number) {
+     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } })
+     if (!course) throw new NotFoundException('Course not found')
+   }
+
+   private async ensureTagsExist(tagIds: number[]) {
+     if (!tagIds.length) return
+     const found = await this.prisma.courseTag.count({ where: { id: { in: tagIds } } })
+     if (found !== tagIds.length) throw new NotFoundException('One or more tags do not exist')
+   }
+
+   private async findPlanOrThrow(planId: number, opts?: { mustBeActive?: boolean }) {
+     const plan = await this.prisma.coursePlan.findUnique({
+       where: { id: planId },
+       include: {

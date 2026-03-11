@@ -819,8 +819,14 @@ export default function SubscriptionsTab({
     }
 
     async function handleUpgradePlan(plan: any) {
-        const agreed = await openUpgradeConfirmDialog(plan);
-        if (!agreed) return;
+        const currentPlanId = effectiveCurrentPass?.plan?.id ?? null;
+        const shouldShowUpgradeWarning = currentPlanId != null && currentPlanId !== plan?.id;
+
+        if (shouldShowUpgradeWarning) {
+            const agreed = await openUpgradeConfirmDialog(plan);
+            if (!agreed) return;
+        }
+
         await openCheckoutMethodDialog(plan);
     }
 

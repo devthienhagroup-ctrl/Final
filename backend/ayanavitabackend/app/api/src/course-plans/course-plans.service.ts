@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
-import { CourseEntitlementSourceType, Prisma, UserCoursePassStatus } from '@prisma/client'
+import { CourseEntitlementSourceType, Prisma, UserCoursePassEntitlementState, UserCoursePassStatus } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { AdminCreatePassDto } from './dto/admin-create-pass.dto'
 import { AdminGrantEntitlementDto } from './dto/admin-grant-entitlement.dto'
@@ -162,6 +162,7 @@ export class CoursePlansService {
       userId: pass.userId,
       planId: pass.planId,
       purchaseId: pass.purchaseId,
+      entitlementState: pass.entitlementState,
       startAt: pass.startAt,
       endAt: pass.endAt,
       graceUntil: pass.graceUntil,
@@ -181,6 +182,7 @@ export class CoursePlansService {
     userId: number
     planId: number
     purchaseId?: number
+    entitlementState?: UserCoursePassEntitlementState
     startAt: Date
   }) {
     const plan = await this.findPlanOrThrow(params.planId)
@@ -193,6 +195,7 @@ export class CoursePlansService {
         userId: params.userId,
         planId: params.planId,
         purchaseId: params.purchaseId,
+        entitlementState: params.entitlementState ?? UserCoursePassEntitlementState.CONFIRMED,
         startAt: params.startAt,
         endAt,
         graceUntil,

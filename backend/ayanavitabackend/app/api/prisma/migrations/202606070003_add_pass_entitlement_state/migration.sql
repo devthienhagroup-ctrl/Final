@@ -1,0 +1,2 @@
+ALTER TABLE `UserCoursePass`
+    ADD COLUMN `entitlementState` ENUM('CONFIRMED', 'PENDING_CHARGE') NOT NULL DEFAULT 'CONFIRMED' AFTER `purchaseId`;

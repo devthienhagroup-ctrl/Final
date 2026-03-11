@@ -1,261 +1,720 @@
-diff --git a/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx b/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
-index fcacd4012e9b43ea0956b2457f5e1c09e4856686..617a21bfcb0370dad005f47d444f7357cb8a5cbe 100644
---- a/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
-+++ b/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
-@@ -1309,161 +1309,166 @@ export default function AccountCenter() {
-     // eslint-disable-next-line react-hooks/exhaustive-deps
-   }, []);
+diff --git a/Home/ayanavita-fontend-final/src/pages/account-center/components/SubscriptionsTab.tsx b/Home/ayanavita-fontend-final/src/pages/account-center/components/SubscriptionsTab.tsx
+index 75c45740a885c9d4b6b9190f94fdace337cf93c1..12401c7d4d83c8d3ede85310ce48b9415f22483b 100644
+--- a/Home/ayanavita-fontend-final/src/pages/account-center/components/SubscriptionsTab.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/account-center/components/SubscriptionsTab.tsx
+@@ -56,64 +56,75 @@ function isPassEffectiveNow(pass: any, now: number) {
 
+ function getDisplayPassStatus(pass: any, now = Date.now()) {
+     const start = toTime(pass?.startAt);
+     if (!pass?.canceledAt && start != null && start > now) return "SCHEDULED";
+     return pass?.computedStatus;
+ }
 
-   const fetchMyOrders = useCallback(async (showErrorToast = true) => {
-     setOrdersLoading(true);
-     try {
-       const res = await http.get<ApiProductOrder[]>("/api/product-orders/me");
-       const rows = Array.isArray(res.data) ? res.data.map((item) => toMyOrder(item, cms)) : [];
-       setMyOrders(rows);
-       return rows;
-     } catch (e: any) {
-       if (showErrorToast) {
-         pushToast(
-             "error",
-             cms.myOrders.toasts.loadFailed.title,
-             e?.response?.data?.message || cms.myOrders.toasts.loadFailed.message,
-         );
-       }
-       return [];
-     } finally {
-       setOrdersLoading(false);
-     }
-   }, [cms]);
+ function getCurrentEffectivePass(currentPass: any, passHistory: any[]) {
+     const now = Date.now();
+     const allPasses = [currentPass, ...(passHistory || [])].filter(Boolean);
 
--  const fetchSubscriptionData = useCallback(async (showErrorToast = true) => {
--    setSubscriptionLoading(true);
-+  const fetchSubscriptionData = useCallback(async (showErrorToast = true, options?: { silent?: boolean }) => {
-+    const silent = Boolean(options?.silent);
-+    if (!silent) {
-+      setSubscriptionLoading(true);
-+    }
-     setSubscriptionError(null);
+     const effective = allPasses
+         .filter((pass) => isPassEffectiveNow(pass, now))
+         .sort((a, b) => {
+             const aStart = toTime(a?.startAt) ?? 0;
+             const bStart = toTime(b?.startAt) ?? 0;
+             return bStart - aStart;
+         });
 
-     try {
-       const hasToken = Boolean(localStorage.getItem("aya_access_token"));
-       const [plans, passes, payments] = await Promise.all([
-         coursePlansApi.listPublicPlans(),
-         hasToken ? coursePlansApi.listMyPasses() : Promise.resolve([] as CoursePass[]),
-         hasToken ? coursePlansApi.listMyPayments() : Promise.resolve([] as CoursePlanPayment[]),
-       ]);
+     return effective[0] || null;
+ }
 
-       setPublicPlans((Array.isArray(plans) ? plans : []).filter((plan) => plan.isActive).sort((a, b) => a.price - b.price));
-       setMyPasses(Array.isArray(passes) ? passes : []);
-       setMyPlanPayments(Array.isArray(payments) ? payments : []);
+ type PassRenewalState = "AUTO_RENEW_ACTIVE" | "AUTO_RENEW_CANCELED" | "NONE";
+ type RenewalMode = "none" | "scheduled_cancel" | "auto_renew_on";
 
-       return { plans, passes, payments };
-     } catch (e: any) {
-       const message = e?.response?.data?.message || cms.subscriptions.toasts.loadFailed.message;
-       setSubscriptionError(message);
-       if (showErrorToast) {
-         pushToast("error", cms.subscriptions.toasts.loadFailed.title, message);
-       }
-       return null;
-     } finally {
--      setSubscriptionLoading(false);
-+      if (!silent) {
-+        setSubscriptionLoading(false);
-+      }
-     }
-   }, [cms]);
+-function getScheduledPass(currentPass: any, passHistory: any[]) {
++
++
++function getScheduledPassByEntitlementState(currentPass: any, passHistory: any[], state: "CONFIRMED" | "PENDING_CHARGE") {
+     const now = Date.now();
+     const allPasses = [currentPass, ...(passHistory || [])].filter(Boolean);
 
-   const onStartPlanCheckout = useCallback(async (plan: CoursePlan, method?: CoursePlanCheckoutMethod) => {
-     try {
-       setSubscriptionActionPlanId(plan.id);
-       const res = await coursePlansApi.purchasePlan(plan.id, method ? { method } : undefined);
+     const scheduled = allPasses
+         .filter((pass) => {
+             const start = toTime(pass?.startAt);
+-            return start != null && start > now && !pass?.canceledAt;
++            const entitlementState = String(pass?.entitlementState || "CONFIRMED").toUpperCase();
++            return start != null && start > now && !pass?.canceledAt && entitlementState === state;
+         })
+         .sort((a, b) => (toTime(a?.startAt) ?? 0) - (toTime(b?.startAt) ?? 0));
 
-       if (res.mode === "FREE") {
-         pushToast(
-           "success",
-           cms.subscriptions.toasts.registerSuccess.title,
-           cms.subscriptions.toasts.registerSuccess.message,
-         );
--        await fetchSubscriptionData(false);
-+        await fetchSubscriptionData(false, { silent: true });
-         return;
-       }
+     return scheduled[0] || null;
+ }
 
-       if (res.mode === "STRIPE") {
-         if (!res.checkoutUrl) {
-           throw new Error("Kh\u00f4ng nh\u1eadn \u0111\u01b0\u1ee3c li\u00ean k\u1ebft thanh to\u00e1n Stripe.");
-         }
-         window.location.href = res.checkoutUrl;
-         return;
-       }
++function isConfirmedScheduledPass(pass: any) {
++    return String(pass?.entitlementState || "CONFIRMED").toUpperCase() === "CONFIRMED";
++}
++
++function isPendingChargeScheduledPass(pass: any) {
++    return String(pass?.entitlementState || "").toUpperCase() === "PENDING_CHARGE";
++}
++
+ function getRelatedPayments(pass: any, paymentHistory: any[]) {
+     return (paymentHistory || []).filter((payment) => {
+         if (!payment || !pass) return false;
 
-       setPlanPaymentModal(res.payment);
-       setPlanQrTick(Date.now());
-       pushToast(
-         "info",
-         cms.subscriptions.toasts.qrCreated.title,
-         cms.subscriptions.toasts.qrCreated.message,
-       );
-     } catch (e: any) {
-       pushToast(
-         "error",
-         cms.subscriptions.toasts.checkoutFailed.title,
-         e?.response?.data?.message || e?.message || cms.subscriptions.toasts.checkoutFailed.message,
-       );
-     } finally {
-       setSubscriptionActionPlanId(null);
-     }
-   }, [fetchSubscriptionData, cms]);
+         if (pass.purchaseId && payment.id && String(pass.purchaseId) === String(payment.id)) return true;
+         if (pass.purchaseId && payment.code && String(pass.purchaseId) === String(payment.code)) return true;
+         if (pass.paymentId && payment.id && String(pass.paymentId) === String(payment.id)) return true;
 
-   const onCancelAutoRenewal = useCallback(async (pass: CoursePass) => {
-     const confirmMessage = cms.subscriptions.actions.cancelAutoRenewalConfirmMessage;
-
-     // if (!window.confirm(confirmMessage)) {
-     //   return;
-     // }
-
-     try {
-       setSubscriptionActionPlanId(pass.plan.id);
-       const result = await coursePlansApi.cancelAutoRenewal({ passId: pass.id, planId: pass.plan.id });
-       pushToast(
-         "success",
-         cms.subscriptions.toasts.cancelAutoRenewalSuccess.title,
-         result?.alreadyCanceled
-           ? cms.subscriptions.toasts.cancelAutoRenewalAlready.message
-           : cms.subscriptions.toasts.cancelAutoRenewalSuccess.message,
-       );
--      await fetchSubscriptionData(false);
-+      await fetchSubscriptionData(false, { silent: true });
-     } catch (e: any) {
-       pushToast(
-         "error",
-         cms.subscriptions.toasts.cancelAutoRenewalFailed.title,
-         e?.response?.data?.message || cms.subscriptions.toasts.cancelAutoRenewalFailed.message,
-       );
-     } finally {
-       setSubscriptionActionPlanId(null);
-     }
-   }, [fetchSubscriptionData, cms]);
-
-   const onResumeAutoRenewal = useCallback(async (pass: CoursePass) => {
-     try {
-       setSubscriptionActionPlanId(pass.plan.id);
-       const result = await coursePlansApi.resumeAutoRenewal({ passId: pass.id, planId: pass.plan.id });
-       pushToast(
-         "success",
-         cms.subscriptions.toasts.resumeAutoRenewalSuccess.title,
-         result?.alreadyResumed
-           ? cms.subscriptions.toasts.resumeAutoRenewalAlready.message
-           : cms.subscriptions.toasts.resumeAutoRenewalSuccess.message,
-       );
--      await fetchSubscriptionData(false);
-+      await fetchSubscriptionData(false, { silent: true });
-       return true;
-     } catch (e: any) {
-       const message = String(e?.response?.data?.message || e?.message || "");
-       const normalized = message.toLowerCase();
-       const shouldFallbackCheckout =
-         normalized.includes("not found") ||
-         normalized.includes("kh\u00f4ng t\u00ecm th\u1ea5y") ||
-         normalized.includes("ended") ||
-         normalized.includes("expired") ||
-         normalized.includes("h\u1ebft h\u1ea1n");
-
-       if (shouldFallbackCheckout) {
          return false;
-       }
+     });
+ }
 
-       pushToast(
-         "error",
-         cms.subscriptions.toasts.resumeAutoRenewalFailed.title,
-         message || cms.subscriptions.toasts.resumeAutoRenewalFailed.message,
-       );
-       return true;
-     } finally {
-       setSubscriptionActionPlanId(null);
+ function getPassRenewalState(pass: any, paymentHistory: any[]): PassRenewalState {
+     const relatedPayments = getRelatedPayments(pass, paymentHistory)
+         .slice()
+         .sort((a, b) => {
+             const aTime = toTime(a?.paidAt) ?? toTime(a?.createdAt) ?? 0;
+             const bTime = toTime(b?.paidAt) ?? toTime(b?.createdAt) ?? 0;
+             return bTime - aTime;
+         });
+
+     const latestSubscriptionPayment = relatedPayments.find(
+         (payment) => Boolean(payment?.stripeSubscriptionId || payment?.subscriptionId),
+     );
+
+@@ -345,52 +356,54 @@ export default function SubscriptionsTab({
+                                              currentPass,
+                                              publicPlans,
+                                              focusedPlanId,
+                                              subscriptionActionPlanId,
+                                              passHistory,
+                                              paymentHistory,
+                                              planPaymentModal,
+                                              planQrCountdown,
+                                              planQrExpiresAt,
+                                              setPlanPaymentModal,
+                                              onStartPlanCheckout,
+                                              openPlanPaymentModal,
+                                              onCancelAutoRenewal,
+                                              onResumeAutoRenewal,
+                                              formatDate,
+                                              formatDateTime,
+                                              formatMoney,
+                                              formatDurationDays,
+                                              getPassStatusLabel,
+                                              getPaymentStatusLabel,
+                                              passStatusStyles,
+                                              planPaymentStatusStyles,
+                                              onRealtimePaymentUpdate,
+                                          }: Props) {
+     const effectiveCurrentPass = getCurrentEffectivePass(currentPass, passHistory);
+-    const scheduledPass = getScheduledPass(currentPass, passHistory);
+-    const hasScheduledPass = Boolean(scheduledPass);
++    const scheduledConfirmedPass = getScheduledPassByEntitlementState(currentPass, passHistory, "CONFIRMED");
++    const scheduledPendingChargePass = getScheduledPassByEntitlementState(currentPass, passHistory, "PENDING_CHARGE");
++    const hasConfirmedScheduledPass = Boolean(scheduledConfirmedPass && isConfirmedScheduledPass(scheduledConfirmedPass));
++    const hasPendingChargeScheduledPass = Boolean(scheduledPendingChargePass && isPendingChargeScheduledPass(scheduledPendingChargePass));
+     const currentPlanId = effectiveCurrentPass?.plan?.id ?? null;
+     const currentPassRenewalState = effectiveCurrentPass ? getPassRenewalState(effectiveCurrentPass, paymentHistory) : "NONE";
+     const renewalMode: RenewalMode = effectiveCurrentPass ? getRenewalMode(effectiveCurrentPass, paymentHistory) : "none";
+     const currentPlanPrice = effectiveCurrentPass?.plan?.price != null ? Number(effectiveCurrentPass.plan.price) : null;
+
+
+     useEffect(() => {
+         if (typeof onRealtimePaymentUpdate !== "function") return;
+
+         const token = localStorage.getItem("aya_access_token") || "";
+         if (!token) return;
+
+         const apiBase = (import.meta.env.VITE_API_URL || "http://localhost:8090").replace(/\/$/, "");
+         const wsBase = apiBase.replace(/^http/i, "ws");
+         const socket = new WebSocket(`${wsBase}/ws/payments?token=${encodeURIComponent(token)}`);
+
+         socket.onmessage = (event) => {
+             try {
+                 const payload = JSON.parse(event.data || "{}");
+                 if (payload?.event === "payment.updated") {
+                     onRealtimePaymentUpdate(payload.data);
+                 }
+             } catch (error) {
+                 console.warn("[subscriptions][ws] Invalid message", error);
+             }
+@@ -712,72 +725,72 @@ export default function SubscriptionsTab({
+             <div class="aya-warning-desc">
+               Khi bạn nâng cấp, <b>${newPlanName}</b> sẽ được kích hoạt ngay sau khi thanh toán thành công.
+               Gói hiện tại <b>${currentPlanName}</b> sẽ dừng hiệu lực và không tiếp tục dùng song song.
+             </div>
+           </div>
+
+           <div class="aya-warning-card info">
+             <div class="aya-warning-title">
+               <i class="fa-solid fa-circle-info" style="color:#4f46e5;"></i>
+               Xác nhận tiếp tục
+             </div>
+             <div class="aya-warning-desc">
+               Hãy chỉ tiếp tục khi bạn đồng ý chuyển sang gói mới ngay tại thời điểm này.
+             </div>
+           </div>
+         </div>
+       </div>
+     `,
+         });
+
+         return result.isConfirmed;
      }
-   }, [fetchSubscriptionData, cms]);
-@@ -1474,66 +1479,66 @@ export default function AccountCenter() {
 
-   const onRegisterAutoRenewCurrentPass = useCallback(async (pass: CoursePass) => {
-     if (currentPassRenewalState === "AUTO_RENEW_CANCELED") {
-       const resumed = await onResumeAutoRenewal(pass);
-       if (resumed) {
-         return;
-       }
+     async function handleRenewCurrentPass() {
+         if (!effectiveCurrentPass?.plan) return;
+-        if (hasScheduledPass) {
++        if (hasConfirmedScheduledPass) {
+             await Swal.fire({
+                 icon: "info",
+                 title: "Đã có gói chờ kỳ sau",
+-                text: "Bạn đã có pass scheduled cho kỳ tiếp theo, nên chưa thể gia hạn thêm.",
++                text: "Bạn đã có pass scheduled (CONFIRMED) cho kỳ tiếp theo, nên chưa thể gia hạn thêm.",
+             });
+             return;
+         }
+
+         await openOneTimeRenewDialog(effectiveCurrentPass.plan);
      }
 
-     await onStartPlanCheckout(pass.plan, "STRIPE_SUBSCRIPTION");
-   }, [currentPassRenewalState, onResumeAutoRenewal, onStartPlanCheckout]);
+     async function handleSubscribeRecurringCurrentPass() {
+         if (!effectiveCurrentPass?.plan) return;
+         const ok = await ensureLoggedIn();
+         if (!ok) return;
 
-   const openPlanPaymentModal = useCallback((payment: CoursePlanPayment) => {
-     setPlanPaymentModal(payment);
-     setPlanQrTick(Date.now());
-   }, []);
+-        if (hasScheduledPass) {
++        if (hasConfirmedScheduledPass) {
+             await Swal.fire({
+                 icon: "info",
+                 title: "Đã có gói chờ kỳ sau",
+-                text: "Bạn đã có pass scheduled cho kỳ tiếp theo, chưa thể đăng ký thêm tự động gia hạn.",
++                text: "Bạn đã có pass scheduled (CONFIRMED) cho kỳ tiếp theo, chưa thể đăng ký thêm tự động gia hạn.",
+             });
+             return;
+         }
 
-   useEffect(() => {
-     if (!localStorage.getItem("aya_access_token")) return;
-     void fetchMyOrders();
-   }, [fetchMyOrders, cms]);
+         if (currentPassRenewalState === "AUTO_RENEW_CANCELED" && onResumeAutoRenewal) {
+             const resumed = await onResumeAutoRenewal(effectiveCurrentPass);
+             if (resumed) return;
+         }
+
+         const confirm = await Swal.fire({
+             ...getDialogBaseOptions(),
+             title: "Đăng ký tự động gia hạn",
+             confirmButtonText: "Tiếp tục",
+             cancelButtonText: cms?.common?.actions?.close || "Đóng",
+             html: `
+         <div class="aya-dialog text-left">
+           ${getDialogSharedStyle()}
+
+           <div class="aya-warning-stack">
+             <div class="aya-warning-card info">
+               <div class="aya-warning-title">
+                 <i class="fa-solid fa-arrows-rotate" style="color:#7c3aed;"></i>
+                 Tự động gia hạn cho các kỳ tiếp theo
+               </div>
+               <div class="aya-warning-desc">
+@@ -919,78 +932,82 @@ export default function SubscriptionsTab({
+                                         effectiveCurrentPass.remainingUnlocks > 0
+                                             ? cms.tabs.subscriptions.summary.canUnlockYes
+                                             : cms.tabs.subscriptions.summary.canUnlockNo}
+                                     </p>
+                                 </div>
+                             </div>
+
+                             <div className="mt-4 flex flex-wrap gap-2">
+                                 <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700">
+                                     Renewal mode: {renewalMode}
+                                 </span>
+                                 {currentPassRenewalState === "AUTO_RENEW_ACTIVE" ? (
+                                     <button
+                                         type="button"
+                                         className="inline-flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-extrabold text-rose-700 hover:bg-rose-100 disabled:opacity-60"
+                                         disabled={!onCancelAutoRenewal || subscriptionActionPlanId === effectiveCurrentPass.plan.id}
+                                         onClick={() => void handleCancelAutoRenewal()}
+                                     >
+                                         {cms?.tabs?.subscriptions?.actions?.cancelAutoRenewal || "Hủy tự động gia hạn"}
+                                     </button>
+                                 ) : (
+                                     <>
+                                         <button
+                                             type="button"
+                                             className="inline-flex items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-extrabold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
+-                                            disabled={hasScheduledPass || subscriptionActionPlanId === effectiveCurrentPass.plan.id}
++                                            disabled={hasConfirmedScheduledPass || subscriptionActionPlanId === effectiveCurrentPass.plan.id}
+                                             onClick={() => void handleRenewCurrentPass()}
+                                         >
+                                             {subscriptionActionPlanId === effectiveCurrentPass.plan.id
+                                                 ? cms.tabs.subscriptions.actions.processing
+                                                 : cms?.tabs?.subscriptions?.actions?.renewNow || "Gia hạn"}
+                                         </button>
+
+                                         <button
+                                             type="button"
+                                             className="inline-flex items-center justify-center rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-extrabold text-violet-700 hover:bg-violet-100 disabled:opacity-60"
+-                                            disabled={hasScheduledPass || subscriptionActionPlanId === effectiveCurrentPass.plan.id || !effectiveCurrentPass.plan.currentStripePriceId}
++                                            disabled={hasConfirmedScheduledPass || subscriptionActionPlanId === effectiveCurrentPass.plan.id || !effectiveCurrentPass.plan.currentStripePriceId}
+                                             title={
+                                                 !effectiveCurrentPass.plan.currentStripePriceId
+                                                     ? cms.tabs.subscriptions.actions.stripeRecurringUnavailableTitle
+                                                     : undefined
+                                             }
+                                             onClick={() => void handleSubscribeRecurringCurrentPass()}
+                                         >
+                                             {cms?.tabs?.subscriptions?.actions?.registerAutoRenewal || "Đăng ký tự động gia hạn"}
+                                         </button>
+                                     </>
+                                 )}
+                             </div>
+
+-                            {hasScheduledPass ? (
++                            {hasConfirmedScheduledPass ? (
+                                 <p className="mt-3 text-xs font-semibold text-amber-700">
+-                                    Bạn đã có pass scheduled từ {formatDate(scheduledPass?.startAt)}. Hệ thống tạm khóa gia hạn thêm để tránh tạo dư pass.
++                                    Bạn đã có pass scheduled (CONFIRMED) từ {formatDate(scheduledConfirmedPass?.startAt)}. Hệ thống tạm khóa gia hạn thêm để tránh tạo dư pass.
++                                </p>
++                            ) : hasPendingChargeScheduledPass ? (
++                                <p className="mt-3 text-xs font-semibold text-sky-700">
++                                    Bạn đã có pass scheduled (PENDING_CHARGE) từ {formatDate(scheduledPendingChargePass?.startAt)}. Pass này đang chờ trial kết thúc và thanh toán thành công để chuyển sang CONFIRMED.
+                                 </p>
+                             ) : null}
+                         </div>
+                     ) : (
+                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                             {cms.tabs.subscriptions.summary.noActivePass}
+                         </div>
+                     )}
+
+                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                         <p className="text-sm font-bold text-slate-700">{cms.tabs.subscriptions.planList.title}</p>
+                     </div>
+
+                     {publicPlans.length === 0 ? (
+                         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+                             {cms.tabs.subscriptions.planList.emptyText}
+                         </div>
+                     ) : (
+                         <div className="grid gap-3 md:grid-cols-2">
+                             {publicPlans.map((plan) => {
+                                 const highlighted = focusedPlanId === plan.id;
+                                 const isCurrentPlan = currentPlanId != null && currentPlanId === plan.id;
+                                 const planPrice = Number(plan?.price || 0);
+                                 const isLowerThanCurrentPlan = currentPlanPrice != null && planPrice < currentPlanPrice;
+
+@@ -1022,51 +1039,51 @@ export default function SubscriptionsTab({
+                                                 {cms.tabs.subscriptions.planCard.durationUnits.day}
+                                             </p>
+                                             <p>
+                                                 - {cms.tabs.subscriptions.planCard.maxCoursePriceLabel}:{" "}
+                                                 {plan.maxCoursePrice != null
+                                                     ? formatMoney(plan.maxCoursePrice)
+                                                     : cms.tabs.subscriptions.planCard.unlimited}
+                                             </p>
+                                             <p>
+                                                 - {cms.tabs.subscriptions.planCard.blockedTagsLabel}:{" "}
+                                                 {plan.excludedTags.length > 0
+                                                     ? plan.excludedTags.map((tag: any) => tag.code).join(", ")
+                                                     : cms.tabs.subscriptions.planCard.noBlockedTags}
+                                             </p>
+                                         </div>
+
+                                         <div className="mt-3">
+                                             {isCurrentPlan ? (
+                                                 <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">
+                                                     {cms?.tabs?.subscriptions?.planCard?.currentPlanBadge || "Gói hiện tại của bạn"}
+                                                 </span>
+                                             ) : !isLowerThanCurrentPlan ? (
+                                                 <button
+                                                     type="button"
+                                                     className="inline-flex w-full items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-extrabold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
+-                                                    disabled={hasScheduledPass || subscriptionActionPlanId === plan.id}
++                                                    disabled={hasConfirmedScheduledPass || subscriptionActionPlanId === plan.id}
+                                                     onClick={() => void handleUpgradePlan(plan)}
+                                                 >
+                                                     {subscriptionActionPlanId === plan.id
+                                                         ? cms.tabs.subscriptions.actions.processing
+                                                         : cms?.tabs?.subscriptions?.actions?.upgrade || "Nâng cấp"}
+                                                 </button>
+                                             ) : null}
+                                         </div>
+                                     </div>
+                                 );
+                             })}
+                         </div>
+                     )}
+
+                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                         <p className="text-sm font-bold text-slate-700">{cms.tabs.subscriptions.history.passTitle}</p>
+                     </div>
+
+                     {passHistory.length === 0 ? (
+                         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+                             {cms.tabs.subscriptions.history.passEmptyText}
+                         </div>
+                     ) : (
+                         <div className="space-y-3">
+                             {passHistory.map((pass) => (
+diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202606070003_add_pass_entitlement_state/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202606070003_add_pass_entitlement_state/migration.sql
+new file mode 100644
+index 0000000000000000000000000000000000000000..12e531ae53ede24024bed1aa903d6fd0f72da8ea
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/prisma/migrations/202606070003_add_pass_entitlement_state/migration.sql
+@@ -0,0 +1,2 @@
++ALTER TABLE `UserCoursePass`
++    ADD COLUMN `entitlementState` ENUM('CONFIRMED', 'PENDING_CHARGE') NOT NULL DEFAULT 'CONFIRMED' AFTER `purchaseId`;
+diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+index f1df727f1a458f85e21a3ecde499bf8c0d2268d2..5406f7ff27c0255cc1080c729bc5d92078f9a370 100644
+--- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
++++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+@@ -435,50 +435,51 @@ model CoursePlan {
+   updatedAt            DateTime                  @updatedAt
+
+   excludedTags  CoursePlanExcludedTag[]
+   passes        UserCoursePass[]
+   payments      CoursePlanPayment[]
+   priceVersions CoursePlanPriceVersion[]
+   subscriptions UserPlanSubscription[]
+ }
+
+ model CoursePlanExcludedTag {
+   planId Int
+   tagId  Int
+
+   plan CoursePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+   tag  CourseTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+   @@id([planId, tagId])
+   @@index([tagId])
+ }
+
+ model UserCoursePass {
+   id               Int                @id @default(autoincrement())
+   userId           Int
+   planId           Int
+   purchaseId       Int?
++  entitlementState UserCoursePassEntitlementState @default(CONFIRMED)
+   startAt          DateTime
+   endAt            DateTime
+   graceUntil       DateTime
+   remainingUnlocks Int
+   status           UserCoursePassStatus @default(ACTIVE)
+   canceledAt       DateTime?
+   createdAt        DateTime           @default(now())
+   updatedAt        DateTime           @updatedAt
+
+   user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+   plan       CoursePlan    @relation(fields: [planId], references: [id], onDelete: Restrict)
+   unlockLogs PlanUnlockLog[]
+
+   @@index([userId, graceUntil])
+   @@index([userId, endAt])
+   @@index([userId, status])
+   @@index([planId])
+ }
+
+ model CoursePlanPayment {
+   id                      Int                     @id @default(autoincrement())
+   userId                  Int
+   planId                  Int
+   provider                String                  @default("SEPAY") @db.VarChar(32)
+   status                  CoursePlanPaymentStatus @default(PENDING)
+@@ -947,50 +948,55 @@ model RoleAuditLog {
+   role       RbacRole? @relation(fields: [roleId], references: [id], onDelete: SetNull)
+
+   @@index([createdAt])
+   @@index([actorUserId])
+   @@index([targetUserId])
+   @@index([roleId])
+ }
+
+ enum EnrollmentStatus {
+   ACTIVE
+   CANCELED
+ }
+
+ enum CourseAccessStatus {
+   ACTIVE
+   CANCELED
+ }
+ enum UserCoursePassStatus {
+   SCHEDULED
+   ACTIVE
+   GRACE
+   EXPIRED
+   CANCELED
+ }
+
++enum UserCoursePassEntitlementState {
++  CONFIRMED
++  PENDING_CHARGE
++}
++
+ enum CoursePlanPaymentStatus {
+   PENDING
+   PAID
+   FAILED
+   EXPIRED
+ }
+
+ enum CoursePlanBillingInterval {
+   month
+   year
+ }
+
+ enum CourseEntitlementSourceType {
+   SINGLE_PURCHASE
+   PLAN_PASS
+   ADMIN_GRANT
+ }
+
+ enum OrderStatus {
+   PENDING
+   PAID
+   CANCELED
+   EXPIRED
+ }
+
+@@ -1534,26 +1540,25 @@ model IngredientKeyTranslation {
+   description     String? @db.Text
+
+   ingredientKey IngredientKey @relation(fields: [ingredientKeyId], references: [id], onDelete: Cascade)
+   language      Language      @relation(fields: [languageCode], references: [code], onDelete: Restrict)
+
+   @@id([ingredientKeyId, languageCode])
+   @@map("ingredient_key_translations")
+ }
+
+ model ProductIngredient {
+   productId       BigInt @map("product_id")
+   ingredientKeyId BigInt @map("ingredient_key_id")
+   value           String? @db.VarChar(255)
+   note            String? @db.Text
+   sortOrder       Int @default(0) @map("sort_order")
+
+   product       CatalogProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+   ingredientKey IngredientKey  @relation(fields: [ingredientKeyId], references: [id], onDelete: Restrict)
+
+   @@id([productId, ingredientKeyId])
+   @@index([productId, sortOrder], map: "idx_product_ingredient_sort")
+   @@map("product_ingredients")
+ }
 
 
-   const onRealtimeSubscriptionPaymentUpdate = useCallback(async (_event: any) => {
-     if (active !== "subscriptions") return;
--    await fetchSubscriptionData(false);
-+    await fetchSubscriptionData(false, { silent: true });
-   }, [active, fetchSubscriptionData]);
-
-   useEffect(() => {
-     if (active !== "subscriptions") return;
-     void fetchSubscriptionData();
-   }, [active, fetchSubscriptionData]);
-
-   useEffect(() => {
-     if (active !== "subscriptions") return;
-     if (searchParams.get("stripe") !== "success") return;
-
-     let attempts = 0;
-     const timer = window.setInterval(() => {
-       attempts += 1;
--      void fetchSubscriptionData(false);
-+      void fetchSubscriptionData(false, { silent: true });
-       if (attempts >= 6) {
-         window.clearInterval(timer);
-       }
-     }, 3000);
-
-     return () => window.clearInterval(timer);
-   }, [active, fetchSubscriptionData, searchParams]);
-
-   const onPayPendingOrder = useCallback(async (order: MyOrder) => {
-     if (order.status !== "PENDING_PAYMENT") return;
-
-     try {
-       setPayingOrderId(order.id);
-       const res = await http.post<PaymentQrPayload>(`/api/product-orders/${order.id}/payment-qr`);
-       setQrPayload(res.data);
-       setQrModalOrder(order);
-       await fetchMyOrders(false);
-     } catch (e: any) {
-       pushToast(
-           "error",
-           cms.myOrders.toasts.qrFailed.title,
-           e?.response?.data?.message || cms.myOrders.toasts.qrFailed.message,
-       );
-     } finally {
-       setPayingOrderId(null);
+-
 diff --git a/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts b/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
-index 5e99ad7c0e97edd2cd7842352bf43b3c42b653dd..2a35887588ab7f43dde9ec3610aea1ff37ec046a 100644
+index 09f17f5e9a4a458cf6c24fba11f1f636f52ce919..275641c70ef985e4ff28642da85e04cc2cbba5e3 100644
 --- a/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
 +++ b/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
-@@ -1228,123 +1228,156 @@ export class CoursePlanPaymentsService {
-         ...(expiresAt ? { expiredAt: expiresAt } : {}),
-         rawResponse: this.toJson(session),
+@@ -1,71 +1,72 @@
+ import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common'
+-import { CoursePlanPaymentStatus, Prisma, UserCoursePassStatus } from '@prisma/client'
++import { CoursePlanPaymentStatus, Prisma, UserCoursePassEntitlementState, UserCoursePassStatus } from '@prisma/client'
+ import Stripe from 'stripe'
+ import * as tls from 'tls'
+ import { PrismaService } from '../prisma/prisma.service'
+ import { CoursePlansService } from './course-plans.service'
+ import { PurchasePlanDto, PurchasePlanMethod } from './dto/purchase-plan.dto'
+
+ const PLAN_TAG_INCLUDE = {
+   excludedTags: {
+     include: {
+       tag: {
+         select: {
+           id: true,
+           code: true,
+           name: true,
+         },
        },
-       include: PAYMENT_WITH_PLAN_INCLUDE,
-     })
+     },
+     orderBy: { tagId: 'asc' as const },
+   },
+ } as const
+
+ const PAYMENT_WITH_PLAN_INCLUDE = {
+   plan: {
+     include: PLAN_TAG_INCLUDE,
+   },
+ } as const
+
+ type CoursePlanWithTags = Prisma.CoursePlanGetPayload<{
+   include: typeof PLAN_TAG_INCLUDE
+ }>
+
+ type CoursePlanPaymentWithPlan = Prisma.CoursePlanPaymentGetPayload<{
+   include: typeof PAYMENT_WITH_PLAN_INCLUDE
+ }>
+
+ type PassSummary = {
+   id: number
+   planId: number
+   purchaseId: number | null
+   startAt: Date
+   endAt: Date
+   graceUntil: Date
+   remainingUnlocks: number
+   status: UserCoursePassStatus
++  entitlementState: UserCoursePassEntitlementState
+   canceledAt: Date | null
+   createdAt: Date
+ }
+
+
+
+ type SubscriptionMapping = {
+   userId: number
+   planId: number
+ }
+
+ type UserPlanSubscriptionSummary = {
+   stripeSubscriptionId: string
+   status: string
+   cancelAtPeriodEnd: boolean
+   currentPeriodStart: Date | null
+   currentPeriodEnd: Date | null
+   canceledAt: Date | null
+ }
+
+ type SubscriptionActionInput = {
+   passId?: number
+   planId?: number
+ }
+
+@@ -165,50 +166,51 @@ export class CoursePlanPaymentsService {
+         code: row.tag.code,
+         name: row.tag.name,
+       })),
+       excludedTagIds: plan.excludedTags.map((row) => row.tagId),
+     }
+   }
+
+   private mapPassSummary(pass?: PassSummary) {
+     if (!pass) return null
+
+     const now = new Date()
+     const computedStatus = this.derivePassStatus(
+       {
+         startAt: pass.startAt,
+         endAt: pass.endAt,
+         graceUntil: pass.graceUntil,
+         canceledAt: pass.canceledAt,
+       },
+       now,
+     )
 
      return {
+       id: pass.id,
+       planId: pass.planId,
+       purchaseId: pass.purchaseId,
++      entitlementState: pass.entitlementState,
+       startAt: pass.startAt,
+       endAt: pass.endAt,
+       graceUntil: pass.graceUntil,
+       remainingUnlocks: pass.remainingUnlocks,
+       status: pass.status,
+       computedStatus,
+       canceledAt: pass.canceledAt,
+       createdAt: pass.createdAt,
+     }
+   }
+
+   private mapSubscriptionSummary(
+     subscription:
+       | {
+           stripeSubscriptionId: string
+           status: string
+           cancelAtPeriodEnd: boolean
+           currentPeriodStart: Date | null
+           currentPeriodEnd: Date | null
+           canceledAt: Date | null
+         }
+       | undefined
+       | null,
+   ): UserPlanSubscriptionSummary | null {
+     if (!subscription) return null
+@@ -320,80 +322,82 @@ export class CoursePlanPaymentsService {
+       return existingPass.id
+     }
+
+     const plan = await this.prisma.coursePlan.findUnique({
+       where: { id: planId },
+       select: {
+         durationDays: true,
+         graceDays: true,
+         maxUnlocks: true,
+       },
+     })
+
+     if (!plan) {
+       throw new NotFoundException('Course plan not found')
+     }
+
+     const now = new Date()
+
+     await this.handleUpgradeBeforeCreatingPass(userId, planId, now)
+
+     const existingScheduled = await this.prisma.userCoursePass.findFirst({
+       where: {
+         userId,
+         canceledAt: null,
+         startAt: { gt: now },
++        entitlementState: UserCoursePassEntitlementState.CONFIRMED,
+       },
+       select: { id: true },
+       orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
+     })
+
+     if (existingScheduled) {
+       throw new BadRequestException('You already have a scheduled pass for the next cycle')
+     }
+
+     const latestPass = await this.prisma.userCoursePass.findFirst({
+       where: {
+         userId,
+         canceledAt: null,
+       },
+       select: {
+         endAt: true,
+         graceUntil: true,
+       },
+       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+     })
+
+     const startAt = latestPass && now < latestPass.graceUntil ? latestPass.endAt : now
+     const endAt = this.addDays(startAt, plan.durationDays)
+     const graceUntil = this.addDays(endAt, plan.graceDays)
+
+     const pass = await this.prisma.userCoursePass.create({
+       data: {
+         userId,
+         planId,
+         purchaseId,
++        entitlementState: UserCoursePassEntitlementState.CONFIRMED,
+         startAt,
+         endAt,
+         graceUntil,
+         remainingUnlocks: plan.maxUnlocks,
+         status: this.derivePassStatus(
+           {
+             startAt,
+             endAt,
+             graceUntil,
+             canceledAt: null,
+           },
+           now,
+         ),
+       },
+       select: {
+         id: true,
+       },
+     })
+
+     this.logger.debug('Đã tạo course pass thành công', JSON.stringify({ userId, planId, purchaseId, passId: pass.id }))
+     return pass.id
+   }
+
+   private async handleUpgradeBeforeCreatingPass(userId: number, newPlanId: number, now: Date) {
+     const activePass = await this.prisma.userCoursePass.findFirst({
+@@ -1235,59 +1239,76 @@ export class CoursePlanPaymentsService {
        mode: 'STRIPE' as const,
        stripeMode: 'ONE_TIME' as const,
        checkoutUrl: session.url,
@@ -274,13 +733,14 @@ index 5e99ad7c0e97edd2cd7842352bf43b3c42b653dd..2a35887588ab7f43dde9ec3610aea1ff
 
      const customerId = await this.ensureStripeCustomer(userId)
      const now = new Date()
-+    const trialEnd = await this.resolveSubscriptionTrialEndForActiveOneTimePass(userId, plan.id, now)
+     const trialEnd = await this.resolveSubscriptionTrialEndForActiveOneTimePass(userId, plan.id, now)
 
      const existingScheduled = await this.prisma.userCoursePass.findFirst({
        where: {
          userId,
          canceledAt: null,
          startAt: { gt: now },
++        entitlementState: UserCoursePassEntitlementState.CONFIRMED,
        },
        select: { id: true },
        orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
@@ -290,6 +750,22 @@ index 5e99ad7c0e97edd2cd7842352bf43b3c42b653dd..2a35887588ab7f43dde9ec3610aea1ff
        throw new BadRequestException('You already have a scheduled pass for the next cycle')
      }
 
++    const existingPendingChargeScheduled = await this.prisma.userCoursePass.findFirst({
++      where: {
++        userId,
++        planId: plan.id,
++        canceledAt: null,
++        startAt: { gt: now },
++        entitlementState: UserCoursePassEntitlementState.PENDING_CHARGE,
++      },
++      select: { id: true },
++      orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
++    })
++
++    if (existingPendingChargeScheduled) {
++      throw new BadRequestException('You already have a pending-charge scheduled pass for this plan')
++    }
++
      const { successUrl, cancelUrl } = this.resolveStripeReturnUrls(dto)
 
      const payment = await this.prisma.coursePlanPayment.create({
@@ -315,10 +791,10 @@ index 5e99ad7c0e97edd2cd7842352bf43b3c42b653dd..2a35887588ab7f43dde9ec3610aea1ff
          source: 'COURSE_PLAN_SUBSCRIPTION',
          coursePlanPaymentId: String(payment.id),
          userId: String(userId),
-         planId: String(plan.id),
+@@ -1295,58 +1316,129 @@ export class CoursePlanPaymentsService {
        },
        subscription_data: {
-+        ...(trialEnd ? { trial_end: trialEnd } : {}),
+         ...(trialEnd ? { trial_end: trialEnd } : {}),
          metadata: {
            source: 'COURSE_PLAN_SUBSCRIPTION',
            userId: String(userId),
@@ -341,6 +817,15 @@ index 5e99ad7c0e97edd2cd7842352bf43b3c42b653dd..2a35887588ab7f43dde9ec3610aea1ff
        include: PAYMENT_WITH_PLAN_INCLUDE,
      })
 
++    if (trialEnd) {
++      await this.createPendingScheduledPassForSubscriptionTrial({
++        userId,
++        planId: plan.id,
++        purchaseId: payment.id,
++        startAt: new Date(trialEnd * 1000),
++      })
++    }
++
      return {
        mode: 'STRIPE' as const,
        stripeMode: 'SUBSCRIPTION' as const,
@@ -349,37 +834,99 @@ index 5e99ad7c0e97edd2cd7842352bf43b3c42b653dd..2a35887588ab7f43dde9ec3610aea1ff
      }
    }
 
-+  private async resolveSubscriptionTrialEndForActiveOneTimePass(userId: number, planId: number, now: Date) {
-+    const activeOneTimePass = await this.prisma.userCoursePass.findFirst({
++
++  private async createPendingScheduledPassForSubscriptionTrial(params: {
++    userId: number
++    planId: number
++    purchaseId: number
++    startAt: Date
++  }) {
++    const plan = await this.prisma.coursePlan.findUnique({
++      where: { id: params.planId },
++      select: {
++        durationDays: true,
++        graceDays: true,
++        maxUnlocks: true,
++      },
++    })
++
++    if (!plan) {
++      throw new NotFoundException('Course plan not found')
++    }
++
++    const endAt = this.addDays(params.startAt, plan.durationDays)
++    const graceUntil = this.addDays(endAt, plan.graceDays)
++    const now = new Date()
++
++    await this.prisma.userCoursePass.create({
++      data: {
++        userId: params.userId,
++        planId: params.planId,
++        purchaseId: params.purchaseId,
++        entitlementState: UserCoursePassEntitlementState.PENDING_CHARGE,
++        startAt: params.startAt,
++        endAt,
++        graceUntil,
++        remainingUnlocks: plan.maxUnlocks,
++        status: this.derivePassStatus(
++          {
++            startAt: params.startAt,
++            endAt,
++            graceUntil,
++            canceledAt: null,
++          },
++          now,
++        ),
++      },
++    })
++  }
++
++  private async confirmPendingScheduledPassForPayment(userId: number, planId: number, purchaseId: number) {
++    await this.prisma.userCoursePass.updateMany({
 +      where: {
 +        userId,
 +        planId,
++        purchaseId,
 +        canceledAt: null,
-+        startAt: { lte: now },
-+        endAt: { gt: now },
-+        purchaseId: { not: null },
++        entitlementState: UserCoursePassEntitlementState.PENDING_CHARGE,
 +      },
-+      select: {
-+        endAt: true,
-+        purchase: {
-+          select: {
-+            stripeSubscriptionId: true,
-+          },
-+        },
++      data: {
++        entitlementState: UserCoursePassEntitlementState.CONFIRMED,
 +      },
-+      orderBy: [{ endAt: 'desc' }, { id: 'desc' }],
 +    })
-+
-+    if (!activeOneTimePass) return null
-+    if (activeOneTimePass.purchase?.stripeSubscriptionId) return null
-+
-+    const trialEndMs = activeOneTimePass.endAt.getTime()
-+    const minStripeTrialMs = now.getTime() + 5 * 60_000
-+    if (trialEndMs <= minStripeTrialMs) return null
-+
-+    return Math.floor(trialEndMs / 1000)
 +  }
 +
+   private async resolveSubscriptionTrialEndForActiveOneTimePass(userId: number, planId: number, now: Date) {
+     const activeOneTimePass = await this.prisma.userCoursePass.findFirst({
+       where: {
+         userId,
+         planId,
+         canceledAt: null,
+         startAt: { lte: now },
+         endAt: { gt: now },
+         purchaseId: { not: null },
+       },
+       select: {
+         id: true,
+         endAt: true,
+         purchaseId: true,
+       },
+       orderBy: [{ endAt: 'desc' }, { id: 'desc' }],
+     })
+
+     if (!activeOneTimePass?.purchaseId) return null
+
+     const purchase = await this.prisma.coursePlanPayment.findUnique({
+       where: { id: activeOneTimePass.purchaseId },
+       select: {
+         stripeSubscriptionId: true,
+       },
+@@ -1361,50 +1453,51 @@ export class CoursePlanPaymentsService {
+     if (trialEndMs <= minStripeTrialMs) return null
+
+     return Math.floor(trialEndMs / 1000)
+   }
+
    async createCheckout(userId: number, planId: number, dto?: PurchasePlanDto) {
      await this.ensureUserExists(userId)
      const plan = await this.getActivePlanOrThrow(planId)
@@ -400,8 +947,199 @@ index 5e99ad7c0e97edd2cd7842352bf43b3c42b653dd..2a35887588ab7f43dde9ec3610aea1ff
          userId,
          canceledAt: null,
          startAt: { gt: now },
++        entitlementState: UserCoursePassEntitlementState.CONFIRMED,
        },
        select: { id: true },
        orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
      })
 
+     if (existingScheduled) {
+       throw new BadRequestException('You already have a scheduled pass for the next cycle')
+     }
+
+     if (method === PurchasePlanMethod.STRIPE_ONE_TIME) {
+       return this.createStripeOneTimeCheckout(userId, plan, dto)
+     }
+
+     if (method === PurchasePlanMethod.STRIPE_SUBSCRIPTION) {
+       return this.createStripeSubscriptionCheckout(userId, plan, dto)
+     }
+
+     await this.markExpiredPendingPayments(userId, planId)
+
+     const existingPending = await this.prisma.coursePlanPayment.findFirst({
+       where: {
+         userId,
+         planId,
+         provider: 'SEPAY',
+         status: CoursePlanPaymentStatus.PENDING,
+@@ -2308,50 +2401,51 @@ export class CoursePlanPaymentsService {
+             stripeSubscriptionId: subscriptionId,
+             stripePaymentIntentId: paymentIntentId,
+             rawResponse: this.toJson(invoice),
+             failureReason: null,
+           },
+           select: { id: true, userId: true, planId: true },
+         })
+         : await this.prisma.coursePlanPayment.create({
+           data: {
+             userId: mapped.userId,
+             planId: mapped.planId,
+             provider: 'STRIPE',
+             status: CoursePlanPaymentStatus.PAID,
+             amount: amountPaid,
+             transferCode: this.genTransferCode(),
+             transferContent: `INV_${invoiceId}`,
+             paidAt,
+             stripeInvoiceId: invoiceId,
+             stripeSubscriptionId: subscriptionId,
+             stripePaymentIntentId: paymentIntentId,
+             rawResponse: this.toJson(invoice),
+           },
+           select: { id: true, userId: true, planId: true },
+         })
+
++    await this.confirmPendingScheduledPassForPayment(payment.userId, payment.planId, payment.id)
+     await this.ensurePassFromPayment(payment.userId, payment.planId, payment.id)
+
+     const successEmailType = billingReason === 'subscription_create' ? 'SUBSCRIBE' : 'RENEWAL'
+     void this.sendPaymentSuccessEmailIfNeeded(payment.id, successEmailType).catch((error) => {
+       this.logger.error(`Failed to send Stripe success email for paymentId=`, error?.stack ?? String(error))
+     })
+   }
+   private async onStripeInvoiceFailed(invoice: Stripe.Invoice) {
+     const subscriptionId = this.extractStripeId((invoice as any).subscription)
+     if (!subscriptionId) return
+
+     const mapped = await this.resolveSubscriptionMapping(subscriptionId, invoice)
+     if (!mapped) {
+       throw new NotFoundException(`Subscription mapping not found for ${subscriptionId}`)
+     }
+
+     const reason = this.extractInvoiceFailureReason(invoice)
+     const invoiceId = invoice.id
+     const paymentIntentId = this.extractStripeId((invoice as any).payment_intent)
+
+     const existed = await this.prisma.coursePlanPayment.findFirst({
+       where: { stripeInvoiceId: invoiceId },
+       select: { id: true },
+     })
+
+diff --git a/backend/ayanavitabackend/app/api/src/course-plans/course-plans.service.ts b/backend/ayanavitabackend/app/api/src/course-plans/course-plans.service.ts
+index 155580a0e32382820abee5a31d468e5871d2fa71..7a1bb819e81867c6c6aa64f525689fe86f7f0081 100644
+--- a/backend/ayanavitabackend/app/api/src/course-plans/course-plans.service.ts
++++ b/backend/ayanavitabackend/app/api/src/course-plans/course-plans.service.ts
+@@ -1,27 +1,27 @@
+ import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+-import { CourseEntitlementSourceType, Prisma, UserCoursePassStatus } from '@prisma/client'
++import { CourseEntitlementSourceType, Prisma, UserCoursePassEntitlementState, UserCoursePassStatus } from '@prisma/client'
+ import { PrismaService } from '../prisma/prisma.service'
+ import { AdminCreatePassDto } from './dto/admin-create-pass.dto'
+ import { AdminGrantEntitlementDto } from './dto/admin-grant-entitlement.dto'
+ import { AdminRenewPassDto } from './dto/admin-renew-pass.dto'
+ import { CreateCoursePlanDto } from './dto/create-course-plan.dto'
+ import { CreateCourseTagDto } from './dto/create-course-tag.dto'
+ import { ListAdminPassesDto } from './dto/list-admin-passes.dto'
+ import { PurchasePlanDto } from './dto/purchase-plan.dto'
+ import { SetCourseTagsDto } from './dto/set-course-tags.dto'
+ import { UnlockCourseDto } from './dto/unlock-course.dto'
+ import { UpdateCoursePlanDto } from './dto/update-course-plan.dto'
+ import { UpdateCourseTagDto } from './dto/update-course-tag.dto'
+
+ type PassWithPlan = Prisma.UserCoursePassGetPayload<{
+   include: {
+     plan: {
+       include: {
+         excludedTags: {
+           include: {
+             tag: true
+           }
+         }
+       }
+     }
+     _count: {
+@@ -140,81 +140,84 @@ export class CoursePlansService {
+       currentStripePriceId: plan.currentStripePriceId,
+       durationDays: plan.durationDays,
+       graceDays: plan.graceDays,
+       maxUnlocks: plan.maxUnlocks,
+       maxCoursePrice: plan.maxCoursePrice,
+       isActive: plan.isActive,
+       createdAt: plan.createdAt,
+       updatedAt: plan.updatedAt,
+       excludedTags: plan.excludedTags.map((row) => ({
+         id: row.tag.id,
+         code: row.tag.code,
+         name: row.tag.name,
+       })),
+       excludedTagIds: plan.excludedTags.map((row) => row.tagId),
+     }
+   }
+
+   private mapPass(pass: PassWithPlan, now: Date) {
+     const computedStatus = this.derivePassStatus(pass, now)
+
+     return {
+       id: pass.id,
+       userId: pass.userId,
+       planId: pass.planId,
+       purchaseId: pass.purchaseId,
++      entitlementState: pass.entitlementState,
+       startAt: pass.startAt,
+       endAt: pass.endAt,
+       graceUntil: pass.graceUntil,
+       remainingUnlocks: pass.remainingUnlocks,
+       status: pass.status,
+       computedStatus,
+       canceledAt: pass.canceledAt,
+       createdAt: pass.createdAt,
+       updatedAt: pass.updatedAt,
+       unlockCount: pass._count.unlockLogs,
+       canUnlockNew: (computedStatus === UserCoursePassStatus.ACTIVE || computedStatus === UserCoursePassStatus.GRACE) && pass.remainingUnlocks > 0,
+       plan: this.mapPlan(pass.plan),
+     }
+   }
+
+   private async createPassInstance(params: {
+     userId: number
+     planId: number
+     purchaseId?: number
++    entitlementState?: UserCoursePassEntitlementState
+     startAt: Date
+   }) {
+     const plan = await this.findPlanOrThrow(params.planId)
+     const endAt = this.addDays(params.startAt, plan.durationDays)
+     const graceUntil = this.addDays(endAt, plan.graceDays)
+     const now = new Date()
+
+     return this.prisma.userCoursePass.create({
+       data: {
+         userId: params.userId,
+         planId: params.planId,
+         purchaseId: params.purchaseId,
++        entitlementState: params.entitlementState ?? UserCoursePassEntitlementState.CONFIRMED,
+         startAt: params.startAt,
+         endAt,
+         graceUntil,
+         remainingUnlocks: plan.maxUnlocks,
+         status: this.derivePassStatus({
+           startAt: params.startAt,
+           endAt,
+           graceUntil,
+           canceledAt: null,
+         }, now),
+       },
+       include: {
+         plan: {
+           include: {
+             excludedTags: {
+               include: { tag: { select: { id: true, code: true, name: true } } },
+             },
+           },
+         },
+         _count: { select: { unlockLogs: true } },
+       },
+     })
+   }
+
+   async getAdminOverview() {

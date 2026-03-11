@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common'
-import { CoursePlanPaymentStatus, Prisma, UserCoursePassStatus } from '@prisma/client'
+import { CoursePlanPaymentStatus, Prisma, UserCoursePassEntitlementState, UserCoursePassStatus } from '@prisma/client'
 import Stripe from 'stripe'
 import * as tls from 'tls'
 import { PrismaService } from '../prisma/prisma.service'
@@ -44,6 +44,7 @@ type PassSummary = {
   graceUntil: Date
   remainingUnlocks: number
   status: UserCoursePassStatus
+  entitlementState: UserCoursePassEntitlementState
   canceledAt: Date | null
   createdAt: Date
 }
@@ -187,6 +188,7 @@ export class CoursePlanPaymentsService {
       id: pass.id,
       planId: pass.planId,
       purchaseId: pass.purchaseId,
+      entitlementState: pass.entitlementState,
       startAt: pass.startAt,
       endAt: pass.endAt,
       graceUntil: pass.graceUntil,
@@ -342,6 +344,7 @@ export class CoursePlanPaymentsService {
         userId,
         canceledAt: null,
         startAt: { gt: now },
+        entitlementState: UserCoursePassEntitlementState.CONFIRMED,
       },
       select: { id: true },
       orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
@@ -372,6 +375,7 @@ export class CoursePlanPaymentsService {
         userId,
         planId,
         purchaseId,
+        entitlementState: UserCoursePassEntitlementState.CONFIRMED,
         startAt,
         endAt,
         graceUntil,
@@ -1257,6 +1261,7 @@ export class CoursePlanPaymentsService {
         userId,
         canceledAt: null,
         startAt: { gt: now },
+        entitlementState: UserCoursePassEntitlementState.CONFIRMED,
       },
       select: { id: true },
       orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
@@ -1264,6 +1269,22 @@ export class CoursePlanPaymentsService {
 
     if (existingScheduled) {
       throw new BadRequestException('You already have a scheduled pass for the next cycle')
+    }
+
+    const existingPendingChargeScheduled = await this.prisma.userCoursePass.findFirst({
+      where: {
+        userId,
+        planId: plan.id,
+        canceledAt: null,
+        startAt: { gt: now },
+        entitlementState: UserCoursePassEntitlementState.PENDING_CHARGE,
+      },
+      select: { id: true },
+      orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
+    })
+
+    if (existingPendingChargeScheduled) {
+      throw new BadRequestException('You already have a pending-charge scheduled pass for this plan')
     }
 
     const { successUrl, cancelUrl } = this.resolveStripeReturnUrls(dto)
@@ -1317,12 +1338,83 @@ export class CoursePlanPaymentsService {
       include: PAYMENT_WITH_PLAN_INCLUDE,
     })
 
+    if (trialEnd) {
+      await this.createPendingScheduledPassForSubscriptionTrial({
+        userId,
+        planId: plan.id,
+        purchaseId: payment.id,
+        startAt: new Date(trialEnd * 1000),
+      })
+    }
+
     return {
       mode: 'STRIPE' as const,
       stripeMode: 'SUBSCRIPTION' as const,
       checkoutUrl: session.url,
       payment: this.mapPayment(updatedPayment, now),
     }
+  }
+
+
+  private async createPendingScheduledPassForSubscriptionTrial(params: {
+    userId: number
+    planId: number
+    purchaseId: number
+    startAt: Date
+  }) {
+    const plan = await this.prisma.coursePlan.findUnique({
+      where: { id: params.planId },
+      select: {
+        durationDays: true,
+        graceDays: true,
+        maxUnlocks: true,
+      },
+    })
+
+    if (!plan) {
+      throw new NotFoundException('Course plan not found')
+    }
+
+    const endAt = this.addDays(params.startAt, plan.durationDays)
+    const graceUntil = this.addDays(endAt, plan.graceDays)
+    const now = new Date()
+
+    await this.prisma.userCoursePass.create({
+      data: {
+        userId: params.userId,
+        planId: params.planId,
+        purchaseId: params.purchaseId,
+        entitlementState: UserCoursePassEntitlementState.PENDING_CHARGE,
+        startAt: params.startAt,
+        endAt,
+        graceUntil,
+        remainingUnlocks: plan.maxUnlocks,
+        status: this.derivePassStatus(
+          {
+            startAt: params.startAt,
+            endAt,
+            graceUntil,
+            canceledAt: null,
+          },
+          now,
+        ),
+      },
+    })
+  }
+
+  private async confirmPendingScheduledPassForPayment(userId: number, planId: number, purchaseId: number) {
+    await this.prisma.userCoursePass.updateMany({
+      where: {
+        userId,
+        planId,
+        purchaseId,
+        canceledAt: null,
+        entitlementState: UserCoursePassEntitlementState.PENDING_CHARGE,
+      },
+      data: {
+        entitlementState: UserCoursePassEntitlementState.CONFIRMED,
+      },
+    })
   }
 
   private async resolveSubscriptionTrialEndForActiveOneTimePass(userId: number, planId: number, now: Date) {
@@ -1383,6 +1475,7 @@ export class CoursePlanPaymentsService {
         userId,
         canceledAt: null,
         startAt: { gt: now },
+        entitlementState: UserCoursePassEntitlementState.CONFIRMED,
       },
       select: { id: true },
       orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
@@ -1480,28 +1573,29 @@ export class CoursePlanPaymentsService {
 
     const purchaseIds = rows.map((row) => row.id)
     const passRows =
-      purchaseIds.length > 0
-        ? await this.prisma.userCoursePass.findMany({
-            where: {
-              userId,
-              purchaseId: {
-                in: purchaseIds,
+        purchaseIds.length > 0
+            ? await this.prisma.userCoursePass.findMany({
+              where: {
+                userId,
+                purchaseId: {
+                  in: purchaseIds,
+                },
               },
-            },
-            select: {
-              id: true,
-              planId: true,
-              purchaseId: true,
-              startAt: true,
-              endAt: true,
-              graceUntil: true,
-              remainingUnlocks: true,
-              status: true,
-              canceledAt: true,
-              createdAt: true,
-            },
-          })
-        : []
+              select: {
+                id: true,
+                planId: true,
+                purchaseId: true,
+                entitlementState: true,
+                startAt: true,
+                endAt: true,
+                graceUntil: true,
+                remainingUnlocks: true,
+                status: true,
+                canceledAt: true,
+                createdAt: true,
+              },
+            })
+            : []
 
     const passByPurchaseId = new Map<number, (typeof passRows)[number]>()
     for (const pass of passRows) {
@@ -2330,6 +2424,7 @@ export class CoursePlanPaymentsService {
           select: { id: true, userId: true, planId: true },
         })
 
+    await this.confirmPendingScheduledPassForPayment(payment.userId, payment.planId, payment.id)
     await this.ensurePassFromPayment(payment.userId, payment.planId, payment.id)
 
     const successEmailType = billingReason === 'subscription_create' ? 'SUBSCRIBE' : 'RENEWAL'

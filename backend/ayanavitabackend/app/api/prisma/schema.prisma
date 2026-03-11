@@ -457,6 +457,7 @@ model UserCoursePass {
   userId           Int
   planId           Int
   purchaseId       Int?
+  entitlementState UserCoursePassEntitlementState @default(CONFIRMED)
   startAt          DateTime
   endAt            DateTime
   graceUntil       DateTime
@@ -967,6 +968,11 @@ enum UserCoursePassStatus {
   GRACE
   EXPIRED
   CANCELED
+}
+
+enum UserCoursePassEntitlementState {
+  CONFIRMED
+  PENDING_CHARGE
 }
 
 enum CoursePlanPaymentStatus {
@@ -1554,6 +1560,5 @@ model ProductIngredient {
   @@index([productId, sortOrder], map: "idx_product_ingredient_sort")
   @@map("product_ingredients")
 }
-
 
 

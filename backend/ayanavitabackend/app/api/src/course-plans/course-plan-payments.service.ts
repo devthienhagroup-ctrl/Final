@@ -334,6 +334,9 @@ export class CoursePlanPaymentsService {
     }
 
     const now = new Date()
+
+    await this.handleUpgradeBeforeCreatingPass(userId, planId, now)
+
     const existingScheduled = await this.prisma.userCoursePass.findFirst({
       where: {
         userId,
@@ -390,6 +393,69 @@ export class CoursePlanPaymentsService {
 
     this.logger.debug('Đã tạo course pass thành công', JSON.stringify({ userId, planId, purchaseId, passId: pass.id }))
     return pass.id
+  }
+
+  private async handleUpgradeBeforeCreatingPass(userId: number, newPlanId: number, now: Date) {
+    const activePass = await this.prisma.userCoursePass.findFirst({
+      where: {
+        userId,
+        canceledAt: null,
+        startAt: { lte: now },
+        graceUntil: { gt: now },
+      },
+      select: {
+        id: true,
+        planId: true,
+        purchaseId: true,
+        plan: {
+          select: {
+            id: true,
+            price: true,
+          },
+        },
+      },
+      orderBy: [{ startAt: 'desc' }, { id: 'desc' }],
+    })
+
+    if (!activePass || activePass.planId === newPlanId) return
+
+    const newPlan = await this.prisma.coursePlan.findUnique({
+      where: { id: newPlanId },
+      select: { id: true, price: true },
+    })
+
+    if (!newPlan) throw new NotFoundException('Course plan not found')
+
+    if (Number(newPlan.price ?? 0) <= Number(activePass.plan?.price ?? 0)) return
+
+    await this.prisma.userCoursePass.update({
+      where: { id: activePass.id },
+      data: {
+        endAt: now,
+        graceUntil: now,
+        status: UserCoursePassStatus.EXPIRED,
+      },
+    })
+
+    if (!activePass.purchaseId) return
+
+    const oldPayment = await this.prisma.coursePlanPayment.findUnique({
+      where: { id: activePass.purchaseId },
+      select: {
+        stripeSubscriptionId: true,
+      },
+    })
+
+    if (!oldPayment?.stripeSubscriptionId) return
+
+    try {
+      const canceledSubscription = await this.stripe.subscriptions.cancel(oldPayment.stripeSubscriptionId)
+      await this.onStripeSubscriptionChanged(canceledSubscription)
+    } catch (error: any) {
+      this.logger.warn(
+        `Failed to cancel old Stripe subscription ${oldPayment.stripeSubscriptionId} while upgrading userId=${userId}: ${error?.message || error}`,
+      )
+    }
   }
 
   private async reconcileMissingStripePasses(userId: number) {

@@ -53,6 +53,12 @@ function isPassEffectiveNow(pass: any, now: number) {
     return now <= activeEnd;
 }
 
+function getDisplayPassStatus(pass: any, now = Date.now()) {
+    const start = toTime(pass?.startAt);
+    if (!pass?.canceledAt && start != null && start > now) return "SCHEDULED";
+    return pass?.computedStatus;
+}
+
 function getCurrentEffectivePass(currentPass: any, passHistory: any[]) {
     const now = Date.now();
     const allPasses = [currentPass, ...(passHistory || [])].filter(Boolean);
@@ -160,6 +166,177 @@ function getRenewalMode(pass: any, paymentHistory: any[]): RenewalMode {
     return "none";
 }
 
+function getDialogBaseOptions() {
+    return {
+        width: 760,
+        showConfirmButton: true,
+        showCancelButton: true,
+        focusConfirm: false,
+        reverseButtons: false,
+        buttonsStyling: false,
+        customClass: {
+            popup: "rounded-[24px] text-left",
+            title: "text-slate-900 text-xl font-extrabold",
+            htmlContainer: "m-0",
+            confirmButton:
+                "inline-flex items-center justify-center rounded-xl bg-indigo-600 px-5 py-3 text-sm font-extrabold text-white hover:bg-indigo-700 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60",
+            cancelButton:
+                "inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 focus:outline-none",
+            actions: "w-full flex gap-3 justify-end mt-6 pe-6",
+        },
+    } as const;
+}
+
+function getDialogSharedStyle() {
+    return `
+      <style>
+        .aya-dialog {
+          font-family: inherit;
+        }
+
+        .aya-dialog .aya-plan-box {
+          border: 1px solid #e2e8f0;
+          background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+          border-radius: 18px;
+          padding: 14px 16px;
+          margin-bottom: 16px;
+        }
+
+        .aya-dialog .aya-plan-name {
+          font-size: 16px;
+          font-weight: 800;
+          color: #0f172a;
+          margin-bottom: 4px;
+        }
+
+        .aya-dialog .aya-plan-price {
+          font-size: 14px;
+          font-weight: 700;
+          color: #475569;
+        }
+
+        .aya-dialog .aya-segment {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+          margin-bottom: 18px;
+        }
+
+        .aya-dialog .aya-segment-btn,
+        .aya-dialog .aya-radio-card,
+        .aya-dialog .aya-warning-card {
+          width: 100%;
+          border: 1px solid #cbd5e1;
+          background: #ffffff;
+          color: #334155;
+          border-radius: 14px;
+          padding: 14px 16px;
+          text-align: left;
+          cursor: pointer;
+          transition: all .18s ease;
+          box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        }
+
+        .aya-dialog .aya-segment-btn:hover,
+        .aya-dialog .aya-radio-card:hover {
+          border-color: #818cf8;
+          background: #f8faff;
+        }
+
+        .aya-dialog .aya-segment-btn.active,
+        .aya-dialog .aya-radio-card.active {
+          border-color: #6366f1;
+          background: #eef2ff;
+          color: #312e81;
+          box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+        }
+
+        .aya-dialog .aya-segment-title,
+        .aya-dialog .aya-radio-title,
+        .aya-dialog .aya-warning-title,
+        .aya-dialog .aya-panel-title {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-size: 14px;
+          font-weight: 800;
+          color: #0f172a;
+          margin-bottom: 6px;
+        }
+
+        .aya-dialog .aya-segment-desc,
+        .aya-dialog .aya-radio-desc,
+        .aya-dialog .aya-warning-desc {
+          font-size: 13px;
+          line-height: 1.55;
+          color: #64748b;
+        }
+
+        .aya-dialog .aya-submethods {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+          margin-top: 14px;
+        }
+
+        .aya-dialog .aya-panel {
+          border: 1px solid #e2e8f0;
+          background: #f8fafc;
+          border-radius: 18px;
+          padding: 16px;
+          margin-top: 14px;
+        }
+
+        .aya-dialog .aya-list {
+          margin: 0;
+          padding-left: 18px;
+          color: #475569;
+          font-size: 13px;
+          line-height: 1.7;
+        }
+
+        .aya-dialog .aya-list li + li {
+          margin-top: 4px;
+        }
+
+        .aya-dialog .aya-hidden {
+          display: none;
+        }
+
+        .aya-dialog .aya-note {
+          margin-top: 12px;
+          font-size: 12px;
+          color: #64748b;
+        }
+
+        .aya-dialog .aya-warning-stack {
+          display: grid;
+          gap: 12px;
+        }
+
+        .aya-dialog .aya-warning-card {
+          cursor: default;
+        }
+
+        .aya-dialog .aya-warning-card.warning {
+          border-color: #fdba74;
+          background: linear-gradient(180deg, #fff7ed 0%, #fffbeb 100%);
+        }
+
+        .aya-dialog .aya-warning-card.info {
+          border-color: #c7d2fe;
+          background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
+        }
+
+        .aya-dialog .aya-muted {
+          font-size: 13px;
+          line-height: 1.6;
+          color: #475569;
+        }
+      </style>
+    `;
+}
+
 export default function SubscriptionsTab({
                                              cms,
                                              subscriptionLoading,
@@ -224,192 +401,19 @@ export default function SubscriptionsTab({
                 "Không cần thao tác thanh toán mỗi lần.",
                 "Dễ dàng quản lý và hủy tự động gia hạn khi cần.",
                 "Thanh toán an toàn, bảo mật qua Stripe.",
-                "Phí hợp lý nếu bạn muốn duy trì dịch vụ liên tục.",
+                "Phù hợp nếu bạn muốn duy trì dịch vụ liên tục.",
             ];
 
         const priceText = formatMoney(plan?.price || 0);
 
         const result = await Swal.fire({
+            ...getDialogBaseOptions(),
             title,
-            width: 760,
-            showConfirmButton: true,
-            showCancelButton: true,
             confirmButtonText: payBtnLabel,
             cancelButtonText: cancelBtnLabel,
-            focusConfirm: false,
-            reverseButtons: false,
-            buttonsStyling: false,
-            customClass: {
-                popup: "rounded-[24px] text-left",
-                title: "text-slate-900 text-xl font-extrabold",
-                htmlContainer: "m-0",
-                confirmButton:
-                    "inline-flex items-center justify-center rounded-xl bg-indigo-600 px-5 py-3 text-sm font-extrabold text-white hover:bg-indigo-700 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60",
-                cancelButton:
-                    "inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 focus:outline-none",
-                actions: "w-full flex gap-3 justify-end mt-6 pe-6",
-            },
             html: `
-      <div id="aya-checkout-dialog" class="text-left">
-        <style>
-          #aya-checkout-dialog {
-            font-family: inherit;
-          }
-
-          #aya-checkout-dialog .aya-plan-box {
-            border: 1px solid #e2e8f0;
-            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-            border-radius: 18px;
-            padding: 14px 16px;
-            margin-bottom: 16px;
-          }
-
-          #aya-checkout-dialog .aya-plan-name {
-            font-size: 16px;
-            font-weight: 800;
-            color: #0f172a;
-            margin-bottom: 4px;
-          }
-
-          #aya-checkout-dialog .aya-plan-price {
-            font-size: 14px;
-            font-weight: 700;
-            color: #475569;
-          }
-
-          #aya-checkout-dialog .aya-segment {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 18px;
-          }
-
-          #aya-checkout-dialog .aya-segment-btn {
-            width: 100%;
-            border: 1px solid #cbd5e1;
-            background: #ffffff;
-            color: #334155;
-            border-radius: 14px;
-            padding: 14px 16px;
-            text-align: left;
-            cursor: pointer;
-            transition: all .18s ease;
-            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-          }
-
-          #aya-checkout-dialog .aya-segment-btn:hover {
-            border-color: #818cf8;
-            background: #f8faff;
-          }
-
-          #aya-checkout-dialog .aya-segment-btn.active {
-            border-color: #6366f1;
-            background: #eef2ff;
-            color: #312e81;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
-          }
-
-          #aya-checkout-dialog .aya-segment-title {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 14px;
-            font-weight: 800;
-            margin-bottom: 6px;
-          }
-
-          #aya-checkout-dialog .aya-segment-desc {
-            font-size: 13px;
-            line-height: 1.55;
-            color: #64748b;
-          }
-
-          #aya-checkout-dialog .aya-submethods {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-top: 14px;
-          }
-
-          #aya-checkout-dialog .aya-radio-card {
-            width: 100%;
-            border: 1px solid #cbd5e1;
-            background: #fff;
-            border-radius: 14px;
-            padding: 14px 16px;
-            cursor: pointer;
-            text-align: left;
-            transition: all .18s ease;
-            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-          }
-
-          #aya-checkout-dialog .aya-radio-card:hover {
-            border-color: #818cf8;
-            background: #f8faff;
-          }
-
-          #aya-checkout-dialog .aya-radio-card.active {
-            border-color: #6366f1;
-            background: #eef2ff;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
-          }
-
-          #aya-checkout-dialog .aya-radio-title {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 14px;
-            font-weight: 800;
-            color: #0f172a;
-            margin-bottom: 6px;
-          }
-
-          #aya-checkout-dialog .aya-radio-desc {
-            font-size: 13px;
-            line-height: 1.55;
-            color: #64748b;
-          }
-
-          #aya-checkout-dialog .aya-panel {
-            border: 1px solid #e2e8f0;
-            background: #f8fafc;
-            border-radius: 18px;
-            padding: 16px;
-            margin-top: 14px;
-          }
-
-          #aya-checkout-dialog .aya-panel-title {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 14px;
-            font-weight: 800;
-            color: #0f172a;
-            margin-bottom: 10px;
-          }
-
-          #aya-checkout-dialog .aya-list {
-            margin: 0;
-            padding-left: 18px;
-            color: #475569;
-            font-size: 13px;
-            line-height: 1.7;
-          }
-
-          #aya-checkout-dialog .aya-list li + li {
-            margin-top: 4px;
-          }
-
-          #aya-checkout-dialog .aya-hidden {
-            display: none;
-          }
-
-          #aya-checkout-dialog .aya-note {
-            margin-top: 12px;
-            font-size: 12px;
-            color: #64748b;
-          }
-        </style>
+      <div id="aya-checkout-dialog" class="aya-dialog text-left">
+        ${getDialogSharedStyle()}
 
         <div class="aya-plan-box">
           <div class="aya-plan-name">
@@ -428,7 +432,7 @@ export default function SubscriptionsTab({
               ${oneTimeLabel}
             </div>
             <div class="aya-segment-desc">
-              Thanh toán một lần, không tự động gia hạn. Phù hợp khi bạn muốn dùng thử hoặc không có nhu cầu gia hạn.
+              Thanh toán một lần, không tự động gia hạn. Phù hợp khi bạn muốn chủ động quyết định mỗi kỳ sử dụng.
             </div>
           </button>
 
@@ -438,7 +442,7 @@ export default function SubscriptionsTab({
               ${recurringLabel}
             </div>
             <div class="aya-segment-desc">
-              Tự động gia hạn theo chu kỳ, giúp bạn duy trì trải nghiệm liên tục mà không cần thao tác thanh toán lại.
+              Tự động gia hạn theo chu kỳ để trải nghiệm không bị gián đoạn và không cần thao tác thanh toán lại mỗi tháng.
             </div>
           </button>
         </div>
@@ -456,7 +460,7 @@ export default function SubscriptionsTab({
                 ${qrLabel}
               </div>
               <div class="aya-radio-desc">
-                Quét mã QR để chuyển khoản nhanh qua ngân hàng, thanh toán tiện lợi khi dùng app ngân hàng.
+                Quét mã QR để chuyển khoản nhanh qua ngân hàng. Phù hợp nếu bạn muốn thanh toán thủ công ngay tại thời điểm này.
               </div>
             </button>
 
@@ -466,13 +470,13 @@ export default function SubscriptionsTab({
                 ${cardLabel}
               </div>
               <div class="aya-radio-desc">
-                Thanh toán một lần bằng thẻ qua Stripe, nhanh gọn và bảo mật.
+                Thanh toán một lần bằng thẻ qua Stripe, nhanh gọn và an toàn.
               </div>
             </button>
           </div>
 
           <div class="aya-note">
-            Bạn sẽ được chuyển đến trang thanh toán cho lần đăng ký này, hoặc có thể đăng ký tự động gia hạn sau.
+            Bạn chỉ thanh toán cho một kỳ sử dụng này. Khi hết hạn, bạn có thể chủ động gia hạn lại nếu cần.
           </div>
         </div>
 
@@ -487,7 +491,7 @@ export default function SubscriptionsTab({
           </ul>
 
           <div class="aya-note">
-            Hình thức thanh toán định kỳ được xử lý qua Stripe subscription, tự động trừ tiền vào đầu kỳ mới.
+            Hình thức thanh toán định kỳ được xử lý qua Stripe subscription và sẽ tự động thu tiền vào đầu kỳ mới.
           </div>
         </div>
       </div>
@@ -551,6 +555,148 @@ export default function SubscriptionsTab({
         return result;
     }
 
+    async function openOneTimeRenewDialog(plan: any) {
+        const ok = await ensureLoggedIn();
+        if (!ok) return;
+
+        const title = cms?.tabs?.subscriptions?.actions?.renewNow || "Gia hạn";
+        const payBtnLabel = cms?.tabs?.subscriptions?.actions?.payNow || "Thanh toán ngay";
+        const cancelBtnLabel = cms?.common?.actions?.close || "Đóng";
+        const qrLabel = cms?.tabs?.subscriptions?.actions?.chooseQr || "QR code";
+        const cardLabel = cms?.tabs?.subscriptions?.actions?.chooseStripeOneTime || "Card";
+        const priceText = formatMoney(plan?.price || 0);
+
+        const result = await Swal.fire({
+            ...getDialogBaseOptions(),
+            title,
+            confirmButtonText: payBtnLabel,
+            cancelButtonText: cancelBtnLabel,
+            html: `
+      <div id="aya-renew-one-time-dialog" class="aya-dialog text-left">
+        ${getDialogSharedStyle()}
+
+        <div class="aya-plan-box">
+          <div class="aya-plan-name">
+            <i class="fa-solid fa-rotate-right" style="margin-right:8px;color:#6366f1;"></i>
+            ${plan?.name || ""}
+          </div>
+          <div class="aya-plan-price">
+            ${priceText}
+          </div>
+        </div>
+
+        <div class="aya-panel" style="margin-top:0;">
+          <div class="aya-panel-title">
+            <i class="fa-solid fa-wallet" style="color:#6366f1;"></i>
+            Chọn phương thức thanh toán 1 lần
+          </div>
+
+          <div class="aya-submethods">
+            <button type="button" class="aya-radio-card active" id="aya-renew-method-qr" data-method="SEPAY">
+              <div class="aya-radio-title">
+                <i class="fa-solid fa-qrcode" style="color:#059669;"></i>
+                ${qrLabel}
+              </div>
+              <div class="aya-radio-desc">
+                Quét mã QR để chuyển khoản nhanh qua ngân hàng cho lần gia hạn này.
+              </div>
+            </button>
+
+            <button type="button" class="aya-radio-card" id="aya-renew-method-card" data-method="STRIPE_ONE_TIME">
+              <div class="aya-radio-title">
+                <i class="fa-solid fa-credit-card" style="color:#2563eb;"></i>
+                ${cardLabel}
+              </div>
+              <div class="aya-radio-desc">
+                Thanh toán một lần bằng thẻ qua Stripe, thao tác nhanh và bảo mật.
+              </div>
+            </button>
+          </div>
+
+          <div class="aya-note">
+            Đây là gia hạn cho một kỳ sử dụng. Hệ thống sẽ không tự động gia hạn các kỳ tiếp theo.
+          </div>
+        </div>
+      </div>
+    `,
+            didOpen: () => {
+                const root = document.getElementById("aya-renew-one-time-dialog");
+                if (!root) return;
+
+                let selectedMethod: "SEPAY" | "STRIPE_ONE_TIME" = "SEPAY";
+                const btnQr = root.querySelector<HTMLButtonElement>("#aya-renew-method-qr");
+                const btnCard = root.querySelector<HTMLButtonElement>("#aya-renew-method-card");
+
+                const setMethod = (method: "SEPAY" | "STRIPE_ONE_TIME") => {
+                    selectedMethod = method;
+                    btnQr?.classList.toggle("active", method === "SEPAY");
+                    btnCard?.classList.toggle("active", method === "STRIPE_ONE_TIME");
+                };
+
+                btnQr?.addEventListener("click", () => setMethod("SEPAY"));
+                btnCard?.addEventListener("click", () => setMethod("STRIPE_ONE_TIME"));
+
+                (window as any).__ayaRenewOneTimeSelection = {
+                    getMethod: () => selectedMethod,
+                };
+            },
+            willClose: () => {
+                delete (window as any).__ayaRenewOneTimeSelection;
+            },
+            preConfirm: async () => {
+                const method = (window as any).__ayaRenewOneTimeSelection?.getMethod?.() || "SEPAY";
+                await onStartPlanCheckout(plan, method);
+                return method;
+            },
+        });
+
+        return result;
+    }
+
+    async function openUpgradeConfirmDialog(plan: any) {
+        const continueLabel = cms?.tabs?.subscriptions?.actions?.continue || "Tiếp tục nâng cấp";
+        const cancelBtnLabel = cms?.common?.actions?.close || "Đóng";
+        const currentPlanName = effectiveCurrentPass?.plan?.name || "Gói hiện tại";
+        const newPlanName = plan?.name || "Gói mới";
+
+        const result = await Swal.fire({
+            ...getDialogBaseOptions(),
+            title: cms?.tabs?.subscriptions?.actions?.upgrade || "Nâng cấp gói",
+            confirmButtonText: continueLabel,
+            cancelButtonText: cancelBtnLabel,
+            html: `
+      <div class="aya-dialog text-left">
+        ${getDialogSharedStyle()}
+
+        <div class="aya-warning-stack">
+          <div class="aya-warning-card warning">
+            <div class="aya-warning-title">
+              <i class="fa-solid fa-triangle-exclamation" style="color:#ea580c;"></i>
+              Lưu ý trước khi nâng cấp
+            </div>
+            <div class="aya-warning-desc">
+              Khi bạn nâng cấp, <b>${newPlanName}</b> sẽ được kích hoạt ngay sau khi thanh toán thành công.
+              Gói hiện tại <b>${currentPlanName}</b> sẽ dừng hiệu lực và không tiếp tục dùng song song.
+            </div>
+          </div>
+
+          <div class="aya-warning-card info">
+            <div class="aya-warning-title">
+              <i class="fa-solid fa-circle-info" style="color:#4f46e5;"></i>
+              Xác nhận tiếp tục
+            </div>
+            <div class="aya-warning-desc">
+              Hãy chỉ tiếp tục khi bạn đồng ý chuyển sang gói mới ngay tại thời điểm này.
+            </div>
+          </div>
+        </div>
+      </div>
+    `,
+        });
+
+        return result.isConfirmed;
+    }
+
     async function handleRenewCurrentPass() {
         if (!effectiveCurrentPass?.plan) return;
         if (hasScheduledPass) {
@@ -562,24 +708,7 @@ export default function SubscriptionsTab({
             return;
         }
 
-        const result = await Swal.fire({
-            title: "Gia hạn 1 lần",
-            text: "Chọn phương thức thanh toán cho lần gia hạn này.",
-            showCancelButton: true,
-            showDenyButton: true,
-            confirmButtonText: "Sepay QR",
-            denyButtonText: "Stripe one-time",
-            cancelButtonText: cms?.common?.actions?.close || "Đóng",
-        });
-
-        if (result.isConfirmed) {
-            await onStartPlanCheckout(effectiveCurrentPass.plan, "SEPAY");
-            return;
-        }
-
-        if (result.isDenied) {
-            await onStartPlanCheckout(effectiveCurrentPass.plan, "STRIPE_ONE_TIME");
-        }
+        await openOneTimeRenewDialog(effectiveCurrentPass.plan);
     }
 
     async function handleSubscribeRecurringCurrentPass() {
@@ -602,12 +731,37 @@ export default function SubscriptionsTab({
         }
 
         const confirm = await Swal.fire({
-            icon: "question",
+            ...getDialogBaseOptions(),
             title: "Đăng ký tự động gia hạn",
-            text: "Bạn sẽ thanh toán trước 1 gói cho kỳ tiếp theo. Từ các kỳ sau hệ thống sẽ tự động gia hạn hàng tháng.",
-            showCancelButton: true,
             confirmButtonText: "Tiếp tục",
             cancelButtonText: cms?.common?.actions?.close || "Đóng",
+            html: `
+        <div class="aya-dialog text-left">
+          ${getDialogSharedStyle()}
+
+          <div class="aya-warning-stack">
+            <div class="aya-warning-card info">
+              <div class="aya-warning-title">
+                <i class="fa-solid fa-arrows-rotate" style="color:#7c3aed;"></i>
+                Tự động gia hạn cho các kỳ tiếp theo
+              </div>
+              <div class="aya-warning-desc">
+                Bạn sẽ thanh toán trước cho kỳ kế tiếp. Từ các kỳ sau, hệ thống sẽ tự động gia hạn hàng tháng qua Stripe để tránh gián đoạn dịch vụ.
+              </div>
+            </div>
+
+            <div class="aya-warning-card">
+              <div class="aya-warning-title">
+                <i class="fa-solid fa-shield-heart" style="color:#4f46e5;"></i>
+                Phù hợp khi
+              </div>
+              <div class="aya-warning-desc">
+                Bạn muốn tiếp tục sử dụng ổn định và không muốn thao tác thanh toán lại mỗi tháng.
+              </div>
+            </div>
+          </div>
+        </div>
+      `,
         });
 
         if (!confirm.isConfirmed) return;
@@ -619,18 +773,45 @@ export default function SubscriptionsTab({
         if (!effectiveCurrentPass || !onCancelAutoRenewal) return;
 
         const result = await Swal.fire({
-            icon: "warning",
-            title: cms?.tabs?.subscriptions?.actions?.cancelAutoRenewalConfirmTitle || "Xác nhận hủy tự động gia hạn?",
-            text:
-                cms?.tabs?.subscriptions?.actions?.cancelAutoRenewalConfirmMessage ||
-                "Gói của bạn vẫn được sử dụng đến hết chu kỳ hiện tại, nhưng sẽ không tự động gia hạn ở kỳ tiếp theo.",
-            showCancelButton: true,
+            ...getDialogBaseOptions(),
+            title: cms?.tabs?.subscriptions?.actions?.cancelAutoRenewalConfirmTitle || "Hủy tự động gia hạn",
             confirmButtonText:
                 cms?.tabs?.subscriptions?.actions?.cancelAutoRenewalConfirmButton ||
                 cms?.tabs?.subscriptions?.actions?.cancelAutoRenewal ||
-                "Hủy tự động gia hạn",
+                "Xác nhận hủy",
             cancelButtonText: cms?.common?.actions?.close || "Đóng",
-            reverseButtons: false,
+            customClass: {
+                ...getDialogBaseOptions().customClass,
+                confirmButton:
+                    "inline-flex items-center justify-center rounded-xl bg-rose-600 px-5 py-3 text-sm font-extrabold text-white hover:bg-rose-700 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60",
+            },
+            html: `
+        <div class="aya-dialog text-left">
+          ${getDialogSharedStyle()}
+
+          <div class="aya-warning-stack">
+            <div class="aya-warning-card warning">
+              <div class="aya-warning-title">
+                <i class="fa-solid fa-ban" style="color:#dc2626;"></i>
+                Sau khi hủy tự động gia hạn
+              </div>
+              <div class="aya-warning-desc">
+                Gói của bạn vẫn tiếp tục sử dụng đến hết chu kỳ hiện tại. Sau đó hệ thống sẽ không tự động tạo kỳ mới nữa.
+              </div>
+            </div>
+
+            <div class="aya-warning-card info">
+              <div class="aya-warning-title">
+                <i class="fa-solid fa-circle-info" style="color:#4f46e5;"></i>
+                Bạn vẫn có thể đăng ký lại sau
+              </div>
+              <div class="aya-warning-desc">
+                Khi cần, bạn vẫn có thể bật lại tự động gia hạn hoặc thanh toán gia hạn thủ công cho các kỳ tiếp theo.
+              </div>
+            </div>
+          </div>
+        </div>
+      `,
         });
 
         if (!result.isConfirmed) return;
@@ -638,6 +819,8 @@ export default function SubscriptionsTab({
     }
 
     async function handleUpgradePlan(plan: any) {
+        const agreed = await openUpgradeConfirmDialog(plan);
+        if (!agreed) return;
         await openCheckoutMethodDialog(plan);
     }
 
@@ -672,11 +855,11 @@ export default function SubscriptionsTab({
                                 <span
                                     className={classNames(
                                         "inline-flex rounded-full border px-3 py-1 text-xs font-bold",
-                                        passStatusStyles[effectiveCurrentPass.computedStatus],
+                                        passStatusStyles[getDisplayPassStatus(effectiveCurrentPass)],
                                     )}
                                 >
-                  {getPassStatusLabel(effectiveCurrentPass.computedStatus, cms.tabs.subscriptions.statuses.pass)}
-                </span>
+                                    {getPassStatusLabel(getDisplayPassStatus(effectiveCurrentPass), cms.tabs.subscriptions.statuses.pass)}
+                                </span>
                             </div>
 
                             <div className="mt-3 grid gap-3 md:grid-cols-3">
@@ -814,8 +997,8 @@ export default function SubscriptionsTab({
                                         <div className="mt-3">
                                             {isCurrentPlan ? (
                                                 <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">
-                          {cms?.tabs?.subscriptions?.planCard?.currentPlanBadge || "Gói hiện tại của bạn"}
-                        </span>
+                                                    {cms?.tabs?.subscriptions?.planCard?.currentPlanBadge || "Gói hiện tại của bạn"}
+                                                </span>
                                             ) : !isLowerThanCurrentPlan ? (
                                                 <button
                                                     type="button"
@@ -858,11 +1041,11 @@ export default function SubscriptionsTab({
                                         <span
                                             className={classNames(
                                                 "inline-flex rounded-full border px-3 py-1 text-xs font-bold",
-                                                passStatusStyles[pass.computedStatus],
+                                                passStatusStyles[getDisplayPassStatus(pass)],
                                             )}
                                         >
-                      {getPassStatusLabel(pass.computedStatus, cms.tabs.subscriptions.statuses.pass)}
-                    </span>
+                                            {getPassStatusLabel(getDisplayPassStatus(pass), cms.tabs.subscriptions.statuses.pass)}
+                                        </span>
                                     </div>
                                     <div className="mt-2 grid gap-2 text-xs text-slate-600 md:grid-cols-3">
                                         <p>
@@ -909,8 +1092,8 @@ export default function SubscriptionsTab({
                                                 planPaymentStatusStyles[payment.computedStatus],
                                             )}
                                         >
-                      {getPaymentStatusLabel(payment.computedStatus, cms.tabs.subscriptions.statuses.payment)}
-                    </span>
+                                            {getPaymentStatusLabel(payment.computedStatus, cms.tabs.subscriptions.statuses.payment)}
+                                        </span>
                                     </div>
 
                                     <div className="mt-2 grid gap-2 text-xs text-slate-600 md:grid-cols-2">

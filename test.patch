@@ -1,80 +1,314 @@
-diff --git a/Home/ayanavita-fontend-final/src/api/coursePlans.api.ts b/Home/ayanavita-fontend-final/src/api/coursePlans.api.ts
-index 84ce8cf020712c536a847bcf5f98c8cb4be8a52a..7a88d1b4077647c8628012957f5d4bf97d67add9 100644
---- a/Home/ayanavita-fontend-final/src/api/coursePlans.api.ts
-+++ b/Home/ayanavita-fontend-final/src/api/coursePlans.api.ts
-@@ -24,65 +24,67 @@ export type CoursePlan = {
-   excludedTagIds: number[]
-   createdAt?: string
-   updatedAt?: string
+diff --git a/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx b/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
+index f2a3bb9902d7be6e3c0a47e421d91a69d7413622..343db59e6ca2d732645bb8da65ec15496d361d5f 100644
+--- a/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/AccountCenter.tsx
+@@ -1,48 +1,49 @@
+ // AccountCenter.tsx
+ import React, { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+ import { useSearchParams } from "react-router-dom";
+ import { authApi } from "../api/auth.api";
+ import { http } from "../api/http";
+ import {
+   coursePlansApi,
+   type CoursePass,
+   type CoursePassStatus,
+   type CoursePlan,
+   type CoursePlanCheckoutMethod,
+   type CoursePlanPayment,
+   type CoursePlanPaymentStatus,
+ } from "../api/coursePlans.api";
+ import ProfileTab from "./account-center/components/ProfileTab";
+ import ChangePasswordTab from "./account-center/components/ChangePasswordTab";
+ import ForgotPasswordTab from "./account-center/components/ForgotPasswordTab";
+ import MyOrdersTab from "./account-center/components/MyOrdersTab";
+ import SubscriptionsTab from "./account-center/components/SubscriptionsTab";
+
+ type ToastKind = "success" | "error" | "info";
+ type ActiveSection = "profile" | "changePassword" | "forgotPassword" | "myOrders" | "subscriptions";
+ type PassRenewalState = "AUTO_RENEW_ACTIVE" | "AUTO_RENEW_CANCELED" | "NONE";
++type PassDisplayStatus = CoursePassStatus | "SCHEDULED";
+
+ type OrderStatus =
+     | "PENDING"
+     | "PENDING_PAYMENT"
+     | "CANCEL_REQUESTED"
+     | "PAID"
+     | "SHIPPING"
+     | "SUCCESS"
+     | "CANCELLED"
+     | "EXPIRED";
+
+ type MyOrderItem = {
+   name: string;
+   sku: string;
+   qty: number;
+   price: number;
+   image: string;
+ };
+
+ type PaymentQrPayload = {
+   amount: number;
+   expiresAt?: string | null;
+   accountName: string;
+   accountNumber: string;
+   bankName: string;
+@@ -841,94 +842,108 @@ function ToastStack({
+                     >
+                       <i className="fa-solid fa-xmark" />
+                     </button>
+                   </div>
+                   <p className="mt-1 text-sm opacity-90">{t.message}</p>
+                 </div>
+               </div>
+             </div>
+         ))}
+       </div>
+   );
  }
 
- export type CoursePassStatus = 'ACTIVE' | 'GRACE' | 'EXPIRED' | 'CANCELED'
 
- export type CoursePass = {
-   id: number
-   userId: number
-   planId: number
-   purchaseId?: number | null
-   startAt: string
-   endAt: string
-   graceUntil: string
-   remainingUnlocks: number
-   status: CoursePassStatus
-   computedStatus: CoursePassStatus
-   canUnlockNew?: boolean
-   canceledAt?: string | null
-   unlockCount: number
-   plan: CoursePlan
+ const ORDER_STATUS_STYLES: Record<OrderStatus, string> = {
+   PENDING: "bg-amber-50 text-amber-700 border-amber-200",
+   PENDING_PAYMENT: "bg-orange-50 text-orange-700 border-orange-200",
+   CANCEL_REQUESTED: "bg-red-50 text-red-700 border-red-200",
+   PAID: "bg-emerald-50 text-emerald-700 border-emerald-200",
+   SHIPPING: "bg-sky-50 text-sky-700 border-sky-200",
+   SUCCESS: "bg-green-50 text-green-700 border-green-200",
+   CANCELLED: "bg-rose-50 text-rose-700 border-rose-200",
+   EXPIRED: "bg-slate-100 text-slate-700 border-slate-200",
+ };
+
+-const PASS_STATUS_STYLES: Record<CoursePassStatus, string> = {
++const PASS_STATUS_STYLES: Record<PassDisplayStatus, string> = {
+   ACTIVE: "bg-emerald-50 text-emerald-700 border-emerald-200",
+   GRACE: "bg-amber-50 text-amber-700 border-amber-200",
+   EXPIRED: "bg-slate-100 text-slate-700 border-slate-200",
+   CANCELED: "bg-rose-50 text-rose-700 border-rose-200",
++  SCHEDULED: "bg-indigo-50 text-indigo-700 border-indigo-200",
+ };
+
+ const PLAN_PAYMENT_STATUS_STYLES: Record<CoursePlanPaymentStatus, string> = {
+   PENDING: "bg-amber-50 text-amber-700 border-amber-200",
+   PAID: "bg-emerald-50 text-emerald-700 border-emerald-200",
+   FAILED: "bg-rose-50 text-rose-700 border-rose-200",
+   EXPIRED: "bg-slate-100 text-slate-700 border-slate-200",
+ };
+
+ function getPassStatusLabel(
+-    status: CoursePassStatus,
++    status: PassDisplayStatus,
+     labels: CmsData["subscriptions"]["statuses"]["pass"],
+ ) {
+-  return labels[status];
++  if (status === "SCHEDULED") return "Đã lên lịch";
++  return labels[status as CoursePassStatus];
  }
 
- export type CoursePlanPaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'EXPIRED'
-+export type CoursePlanPaymentSource = 'SEPAY_QR' | 'STRIPE_ONE_TIME' | 'STRIPE_SUBSCRIPTION'
-
- export type CoursePlanSubscriptionSnapshot = {
-   stripeSubscriptionId: string
-   status: string
-   cancelAtPeriodEnd: boolean
-   currentPeriodStart?: string | null
-   currentPeriodEnd?: string | null
-   canceledAt?: string | null
+ function getPaymentStatusLabel(
+     status: CoursePlanPaymentStatus,
+     labels: CmsData["subscriptions"]["statuses"]["payment"],
+ ) {
+   return labels[status];
  }
 
- export type CoursePlanPayment = {
-   id: number
-   userId: number
-   planId: number
-   provider: string
-+  paymentSource?: CoursePlanPaymentSource
-   status: CoursePlanPaymentStatus
-   computedStatus: CoursePlanPaymentStatus
-   amount: number
-   transferCode: string
-   transferContent: string
-   stripeCheckoutSessionId?: string | null
-   stripePaymentIntentId?: string | null
-   stripeInvoiceId?: string | null
-   stripeSubscriptionId?: string | null
-   subscriptionStatus?: string | null
-   cancelAtPeriodEnd?: boolean
-   subscriptionCurrentPeriodStart?: string | null
-   subscriptionCurrentPeriodEnd?: string | null
-   subscriptionCanceledAt?: string | null
-   subscription?: CoursePlanSubscriptionSnapshot | null
-   failureReason?: string | null
-   paidAt?: string | null
-   expiredAt?: string | null
-   createdAt: string
-   updatedAt: string
-   plan: CoursePlan
-   pass?: {
-     id: number
-     planId: number
-     purchaseId?: number | null
+ function formatDurationDays(
+     days: number,
+     durationUnits: CmsData["subscriptions"]["planCard"]["durationUnits"],
+ ) {
+   if (days % 30 === 0) {
+     const months = Math.floor(days / 30);
+     return `${months} ${durationUnits.month}`;
+   }
+   return `${days} ${durationUnits.day}`;
+ }
+
+ function toNum(v: number | string | null | undefined) {
+   const n = Number(v ?? 0);
+   return Number.isFinite(n) ? n : 0;
+ }
+
++function toTime(value: string | null | undefined) {
++  if (!value) return null;
++  const t = new Date(value).getTime();
++  return Number.isNaN(t) ? null : t;
++}
++
++function getPassDisplayStatus(pass: CoursePass, now = Date.now()): PassDisplayStatus {
++  const start = toTime(pass.startAt);
++  if (!pass.canceledAt && start != null && start > now) return "SCHEDULED";
++  return pass.computedStatus;
++}
++
+ function mapOrderStatus(status: string): OrderStatus {
+   const s = String(status || "").toUpperCase();
+
+   switch (s) {
+     case "PENDING":
+       return "PENDING";
+     case "PENDING_PAYMENT":
+       return "PENDING_PAYMENT";
+     case "PAID":
+       return "PAID";
+     case "CANCEL_REQUESTED":
+       return "CANCEL_REQUESTED";
+     case "SHIPPING":
+       return "SHIPPING";
+     case "SUCCESS":
+       return "SUCCESS";
+     case "CANCELLED":
+       return "CANCELLED";
+     case "EXPIRED":
+       return "EXPIRED";
+     default:
+       // fallback an toàn nếu backend gửi status lạ
+       return "PENDING";
+   }
+ }
+@@ -1144,51 +1159,55 @@ export default function AccountCenter() {
+
+     return { expired, text: `${mm}:${ss}` };
+   }, [planQrExpiresAt, planQrTick]);
+
+
+   const filteredOrders = useMemo(() => {
+     const kw = orderKeyword.trim().toLowerCase();
+     return myOrders.filter((order) => {
+       if (orderStatusFilter !== "all" && order.status !== orderStatusFilter) return false;
+       if (!kw) return true;
+       const haystack = [
+         order.code,
+         order.branch,
+         order.note,
+         order.shippingInfo.receiverName,
+         order.shippingInfo.phone,
+         order.shippingInfo.trackingCode || "",
+       ]
+           .join(" ")
+           .toLowerCase();
+       return haystack.includes(kw);
+     });
+   }, [myOrders, orderKeyword, orderStatusFilter]);
+
+   const currentPass = useMemo(() => {
+-    return myPasses.find((pass) => pass.computedStatus === "ACTIVE" || pass.computedStatus === "GRACE") || null;
++    const now = Date.now();
++    return myPasses.find((pass) => {
++      const status = getPassDisplayStatus(pass, now);
++      return status === "ACTIVE" || status === "GRACE" || status === "SCHEDULED";
++    }) || null;
+   }, [myPasses]);
+
+   const passHistory = useMemo(() => {
+     return [...myPasses].sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime());
+   }, [myPasses]);
+
+   const paymentHistory = useMemo(() => {
+     return [...myPlanPayments].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+   }, [myPlanPayments]);
+
+   const latestSubscriptionPaymentForCurrentPass = useMemo(() => {
+     if (!currentPass) return null;
+     const subscriptionPayments = myPlanPayments
+       .filter((payment) => payment.planId === currentPass.planId && (payment.stripeSubscriptionId || payment.subscription))
+       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+     return subscriptionPayments[0] || null;
+   }, [currentPass, myPlanPayments]);
+
+   const currentPassRenewalState = useMemo<PassRenewalState>(() => {
+     const latest = latestSubscriptionPaymentForCurrentPass;
+     if (!latest) return "NONE";
+
+     const status = String(latest.subscriptionStatus ?? latest.subscription?.status ?? "").toLowerCase();
+     const cancelAtPeriodEnd = Boolean(latest.cancelAtPeriodEnd ?? latest.subscription?.cancelAtPeriodEnd);
+
+@@ -1457,50 +1476,66 @@ export default function AccountCenter() {
+     if (currentPassRenewalState === "AUTO_RENEW_CANCELED") {
+       const resumed = await onResumeAutoRenewal(pass);
+       if (resumed) {
+         return;
+       }
+     }
+
+     await onStartPlanCheckout(pass.plan, "STRIPE_SUBSCRIPTION");
+   }, [currentPassRenewalState, onResumeAutoRenewal, onStartPlanCheckout]);
+
+   const openPlanPaymentModal = useCallback((payment: CoursePlanPayment) => {
+     setPlanPaymentModal(payment);
+     setPlanQrTick(Date.now());
+   }, []);
+
+   useEffect(() => {
+     if (!localStorage.getItem("aya_access_token")) return;
+     void fetchMyOrders();
+   }, [fetchMyOrders, cms]);
+
+   useEffect(() => {
+     if (active !== "subscriptions") return;
+     void fetchSubscriptionData();
+   }, [active, fetchSubscriptionData]);
+
++  useEffect(() => {
++    if (active !== "subscriptions") return;
++    if (searchParams.get("stripe") !== "success") return;
++
++    let attempts = 0;
++    const timer = window.setInterval(() => {
++      attempts += 1;
++      void fetchSubscriptionData(false);
++      if (attempts >= 6) {
++        window.clearInterval(timer);
++      }
++    }, 3000);
++
++    return () => window.clearInterval(timer);
++  }, [active, fetchSubscriptionData, searchParams]);
++
+   const onPayPendingOrder = useCallback(async (order: MyOrder) => {
+     if (order.status !== "PENDING_PAYMENT") return;
+
+     try {
+       setPayingOrderId(order.id);
+       const res = await http.post<PaymentQrPayload>(`/api/product-orders/${order.id}/payment-qr`);
+       setQrPayload(res.data);
+       setQrModalOrder(order);
+       await fetchMyOrders(false);
+     } catch (e: any) {
+       pushToast(
+           "error",
+           cms.myOrders.toasts.qrFailed.title,
+           e?.response?.data?.message || cms.myOrders.toasts.qrFailed.message,
+       );
+     } finally {
+       setPayingOrderId(null);
+     }
+   }, [fetchMyOrders, cms]);
+
+   const onRequestCancelOrder = useCallback(async (order: MyOrder) => {
+     if (order.status !== "PENDING") return;
+
+     try {
+       setCancelRequestingOrderId(order.id);
 diff --git a/Home/ayanavita-fontend-final/src/pages/account-center/components/SubscriptionsTab.tsx b/Home/ayanavita-fontend-final/src/pages/account-center/components/SubscriptionsTab.tsx
-index 324d5260191f33a6e7d5bd56f3716e62ba722cc4..2d8a7d9d43be3f5f587c184e745c9767dbe6b17c 100644
+index 2d8a7d9d43be3f5f587c184e745c9767dbe6b17c..10f43ce9403e017b37dba9f85d969411bd4f36a0 100644
 --- a/Home/ayanavita-fontend-final/src/pages/account-center/components/SubscriptionsTab.tsx
 +++ b/Home/ayanavita-fontend-final/src/pages/account-center/components/SubscriptionsTab.tsx
-@@ -47,50 +47,65 @@ function isPassEffectiveNow(pass: any, now: number) {
+@@ -31,50 +31,56 @@ type Props = {
+
+ function classNames(...xs: Array<string | false | null | undefined>) {
+     return xs.filter(Boolean).join(" ");
+ }
+
+ function toTime(value: string | null | undefined) {
+     if (!value) return null;
+     const t = new Date(value).getTime();
+     return Number.isNaN(t) ? null : t;
+ }
+
+ function isPassEffectiveNow(pass: any, now: number) {
+     const start = toTime(pass?.startAt);
+     const end = toTime(pass?.endAt);
+     const graceUntil = toTime(pass?.graceUntil);
+
      if (start == null) return false;
      if (now < start) return false;
 
@@ -84,6 +318,12 @@ index 324d5260191f33a6e7d5bd56f3716e62ba722cc4..2d8a7d9d43be3f5f587c184e745c9767
      return now <= activeEnd;
  }
 
++function getDisplayPassStatus(pass: any, now = Date.now()) {
++    const start = toTime(pass?.startAt);
++    if (!pass?.canceledAt && start != null && start > now) return "SCHEDULED";
++    return pass?.computedStatus;
++}
++
  function getCurrentEffectivePass(currentPass: any, passHistory: any[]) {
      const now = Date.now();
      const allPasses = [currentPass, ...(passHistory || [])].filter(Boolean);
@@ -100,250 +340,47 @@ index 324d5260191f33a6e7d5bd56f3716e62ba722cc4..2d8a7d9d43be3f5f587c184e745c9767
  }
 
  type PassRenewalState = "AUTO_RENEW_ACTIVE" | "AUTO_RENEW_CANCELED" | "NONE";
-+type RenewalMode = "none" | "scheduled_cancel" | "auto_renew_on";
-+
-+function getScheduledPass(currentPass: any, passHistory: any[]) {
-+    const now = Date.now();
-+    const allPasses = [currentPass, ...(passHistory || [])].filter(Boolean);
-+
-+    const scheduled = allPasses
-+        .filter((pass) => {
-+            const start = toTime(pass?.startAt);
-+            return start != null && start > now && !pass?.canceledAt;
-+        })
-+        .sort((a, b) => (toTime(a?.startAt) ?? 0) - (toTime(b?.startAt) ?? 0));
-+
-+    return scheduled[0] || null;
-+}
+ type RenewalMode = "none" | "scheduled_cancel" | "auto_renew_on";
 
- function getRelatedPayments(pass: any, paymentHistory: any[]) {
-     return (paymentHistory || []).filter((payment) => {
-         if (!payment || !pass) return false;
+ function getScheduledPass(currentPass: any, passHistory: any[]) {
+     const now = Date.now();
+     const allPasses = [currentPass, ...(passHistory || [])].filter(Boolean);
 
-         if (pass.purchaseId && payment.id && String(pass.purchaseId) === String(payment.id)) return true;
-         if (pass.purchaseId && payment.code && String(pass.purchaseId) === String(payment.code)) return true;
-         if (pass.paymentId && payment.id && String(pass.paymentId) === String(payment.id)) return true;
+     const scheduled = allPasses
+         .filter((pass) => {
+             const start = toTime(pass?.startAt);
+@@ -650,54 +656,54 @@ export default function SubscriptionsTab({
+             ) : null}
 
-         return false;
-     });
- }
+             {subscriptionError ? (
+                 <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{subscriptionError}</div>
+             ) : null}
 
- function getPassRenewalState(pass: any, paymentHistory: any[]): PassRenewalState {
-     const relatedPayments = getRelatedPayments(pass, paymentHistory)
-         .slice()
-         .sort((a, b) => {
-             const aTime = toTime(a?.paidAt) ?? toTime(a?.createdAt) ?? 0;
-             const bTime = toTime(b?.paidAt) ?? toTime(b?.createdAt) ?? 0;
-             return bTime - aTime;
-         });
-
-     const latestSubscriptionPayment = relatedPayments.find(
-         (payment) => Boolean(payment?.stripeSubscriptionId || payment?.subscriptionId),
-     );
-@@ -116,80 +131,90 @@ function getPassRenewalState(pass: any, paymentHistory: any[]): PassRenewalState
-             x?.paymentMethod,
-             x?.method,
-             x?.paymentType,
-             x?.checkoutMethod,
-             x?.provider,
-             x?.purpose,
-             x?.stripeMode,
-             x?.source,
-             x?.channel,
-             x?.kind,
-             x?.type,
-             x?.stripeSubscriptionId ? "STRIPE_SUBSCRIPTION" : null,
-             x?.subscriptionId ? "STRIPE_SUBSCRIPTION" : null,
-             x?.sepay ? "SEPAY" : null,
-         ])
-         .filter(Boolean)
-         .map((x) => String(x).toUpperCase());
-
-     if (source.some((x) => x.includes("SUBSCRIPTION") || x.includes("RECURRING"))) {
-         return "AUTO_RENEW_ACTIVE";
-     }
-
-     return "NONE";
- }
-
-+function getRenewalMode(pass: any, paymentHistory: any[]): RenewalMode {
-+    const state = getPassRenewalState(pass, paymentHistory);
-+    if (state === "AUTO_RENEW_ACTIVE") return "auto_renew_on";
-+    if (state === "AUTO_RENEW_CANCELED") return "scheduled_cancel";
-+    return "none";
-+}
-+
- export default function SubscriptionsTab({
-                                              cms,
-                                              subscriptionLoading,
-                                              subscriptionError,
-                                              currentPass,
-                                              publicPlans,
-                                              focusedPlanId,
-                                              subscriptionActionPlanId,
-                                              passHistory,
-                                              paymentHistory,
-                                              planPaymentModal,
-                                              planQrCountdown,
-                                              planQrExpiresAt,
-                                              setPlanPaymentModal,
-                                              onStartPlanCheckout,
-                                              openPlanPaymentModal,
-                                              onCancelAutoRenewal,
-                                              onResumeAutoRenewal,
-                                              formatDate,
-                                              formatDateTime,
-                                              formatMoney,
-                                              formatDurationDays,
-                                              getPassStatusLabel,
-                                              getPaymentStatusLabel,
-                                              passStatusStyles,
-                                              planPaymentStatusStyles,
-                                          }: Props) {
-     const effectiveCurrentPass = getCurrentEffectivePass(currentPass, passHistory);
-+    const scheduledPass = getScheduledPass(currentPass, passHistory);
-+    const hasScheduledPass = Boolean(scheduledPass);
-     const currentPlanId = effectiveCurrentPass?.plan?.id ?? null;
-     const currentPassRenewalState = effectiveCurrentPass ? getPassRenewalState(effectiveCurrentPass, paymentHistory) : "NONE";
-+    const renewalMode: RenewalMode = effectiveCurrentPass ? getRenewalMode(effectiveCurrentPass, paymentHistory) : "none";
-     const currentPlanPrice = effectiveCurrentPass?.plan?.price != null ? Number(effectiveCurrentPass.plan.price) : null;
-
-     async function ensureLoggedIn() {
-         if (!localStorage.getItem("aya_access_token")) {
-             window.location.href = "/login";
-             return false;
-         }
-         return true;
-     }
-
-     async function openCheckoutMethodDialog(plan: any) {
-         const ok = await ensureLoggedIn();
-         if (!ok) return;
-
-         const title = cms?.tabs?.subscriptions?.actions?.choosePaymentMethodTitle || "Chọn phương thức thanh toán";
-         const oneTimeLabel = cms?.tabs?.subscriptions?.actions?.oneTimeLabel || "Đăng ký 1 lần";
-         const recurringLabel = cms?.tabs?.subscriptions?.actions?.recurringLabel || "Đăng ký gia hạn tự động";
-         const qrLabel = cms?.tabs?.subscriptions?.actions?.chooseQr || "QR code";
-         const cardLabel = cms?.tabs?.subscriptions?.actions?.chooseStripeOneTime || "Card";
-         const payBtnLabel = cms?.tabs?.subscriptions?.actions?.payNow || "Thanh toán ngay";
-         const cancelBtnLabel = cms?.common?.actions?.close || "Đóng";
-
-         const recurringInfoTitle =
-             cms?.tabs?.subscriptions?.actions?.recurringInfoTitle || "Đăng ký tự động gia hạn tiện lợi";
-         const recurringInfoItems: string[] =
-@@ -506,63 +531,109 @@ export default function SubscriptionsTab({
-                 (window as any).__ayaCheckoutSelection = {
-                     getMode: () => selectedMode,
-                     getMethod: () => selectedOneTimeMethod,
-                 };
-             },
-             willClose: () => {
-                 delete (window as any).__ayaCheckoutSelection;
-             },
-             preConfirm: async () => {
-                 const selection = (window as any).__ayaCheckoutSelection;
-                 const mode = selection?.getMode?.() || "SUBSCRIPTION";
-                 const oneTimeMethod = selection?.getMethod?.() || "SEPAY";
-
-                 const checkoutMethod = mode === "SUBSCRIPTION" ? "STRIPE_SUBSCRIPTION" : oneTimeMethod;
-
-                 await onStartPlanCheckout(plan, checkoutMethod);
-                 return checkoutMethod;
-             },
-         });
-
-         return result;
-     }
-
-     async function handleRenewCurrentPass() {
-         if (!effectiveCurrentPass?.plan) return;
--        await openCheckoutMethodDialog(effectiveCurrentPass.plan);
-+        if (hasScheduledPass) {
-+            await Swal.fire({
-+                icon: "info",
-+                title: "Đã có gói chờ kỳ sau",
-+                text: "Bạn đã có pass scheduled cho kỳ tiếp theo, nên chưa thể gia hạn thêm.",
-+            });
-+            return;
-+        }
-+
-+        const result = await Swal.fire({
-+            title: "Gia hạn 1 lần",
-+            text: "Chọn phương thức thanh toán cho lần gia hạn này.",
-+            showCancelButton: true,
-+            showDenyButton: true,
-+            confirmButtonText: "Sepay QR",
-+            denyButtonText: "Stripe one-time",
-+            cancelButtonText: cms?.common?.actions?.close || "Đóng",
-+        });
-+
-+        if (result.isConfirmed) {
-+            await onStartPlanCheckout(effectiveCurrentPass.plan, "SEPAY");
-+            return;
-+        }
-+
-+        if (result.isDenied) {
-+            await onStartPlanCheckout(effectiveCurrentPass.plan, "STRIPE_ONE_TIME");
-+        }
-     }
-
-     async function handleSubscribeRecurringCurrentPass() {
-         if (!effectiveCurrentPass?.plan) return;
-         const ok = await ensureLoggedIn();
-         if (!ok) return;
-
-+        if (hasScheduledPass) {
-+            await Swal.fire({
-+                icon: "info",
-+                title: "Đã có gói chờ kỳ sau",
-+                text: "Bạn đã có pass scheduled cho kỳ tiếp theo, chưa thể đăng ký thêm tự động gia hạn.",
-+            });
-+            return;
-+        }
-+
-         if (currentPassRenewalState === "AUTO_RENEW_CANCELED" && onResumeAutoRenewal) {
-             const resumed = await onResumeAutoRenewal(effectiveCurrentPass);
-             if (resumed) return;
-         }
-
-+        const confirm = await Swal.fire({
-+            icon: "question",
-+            title: "Đăng ký tự động gia hạn",
-+            text: "Bạn sẽ thanh toán trước 1 gói cho kỳ tiếp theo. Từ các kỳ sau hệ thống sẽ tự động gia hạn hàng tháng.",
-+            showCancelButton: true,
-+            confirmButtonText: "Tiếp tục",
-+            cancelButtonText: cms?.common?.actions?.close || "Đóng",
-+        });
-+
-+        if (!confirm.isConfirmed) return;
-+
-         await onStartPlanCheckout(effectiveCurrentPass.plan, "STRIPE_SUBSCRIPTION");
-     }
-
-     async function handleCancelAutoRenewal() {
-         if (!effectiveCurrentPass || !onCancelAutoRenewal) return;
-
-         const result = await Swal.fire({
-             icon: "warning",
-             title: cms?.tabs?.subscriptions?.actions?.cancelAutoRenewalConfirmTitle || "Xác nhận hủy tự động gia hạn?",
-             text:
-                 cms?.tabs?.subscriptions?.actions?.cancelAutoRenewalConfirmMessage ||
-                 "Gói của bạn vẫn được sử dụng đến hết chu kỳ hiện tại, nhưng sẽ không tự động gia hạn ở kỳ tiếp theo.",
-             showCancelButton: true,
-             confirmButtonText:
-                 cms?.tabs?.subscriptions?.actions?.cancelAutoRenewalConfirmButton ||
-                 cms?.tabs?.subscriptions?.actions?.cancelAutoRenewal ||
-                 "Hủy tự động gia hạn",
-             cancelButtonText: cms?.common?.actions?.close || "Đóng",
-             reverseButtons: false,
-         });
-
-         if (!result.isConfirmed) return;
-         await onCancelAutoRenewal(effectiveCurrentPass);
-     }
-
-@@ -607,88 +678,97 @@ export default function SubscriptionsTab({
-                   {getPassStatusLabel(effectiveCurrentPass.computedStatus, cms.tabs.subscriptions.statuses.pass)}
+             {!subscriptionLoading ? (
+                 <>
+                     {effectiveCurrentPass ? (
+                         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
+                             <div className="flex flex-wrap items-start justify-between gap-3">
+                                 <div>
+                                     <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                                         {cms.tabs.subscriptions.summary.currentPlanTitle}
+                                     </p>
+                                     <p className="mt-1 text-lg font-extrabold text-slate-900">{effectiveCurrentPass.plan.name}</p>
+                                     <p className="mt-1 text-sm text-slate-700">
+                                         {cms.tabs.subscriptions.summary.cycleLabel}: {formatDate(effectiveCurrentPass.startAt)} -{" "}
+                                         {formatDate(effectiveCurrentPass.endAt)} | {cms.tabs.subscriptions.summary.graceUntilLabel}{" "}
+                                         {formatDate(effectiveCurrentPass.graceUntil)}
+                                     </p>
+                                 </div>
+                                 <span
+                                     className={classNames(
+                                         "inline-flex rounded-full border px-3 py-1 text-xs font-bold",
+-                                        passStatusStyles[effectiveCurrentPass.computedStatus],
++                                        passStatusStyles[getDisplayPassStatus(effectiveCurrentPass)],
+                                     )}
+                                 >
+-                  {getPassStatusLabel(effectiveCurrentPass.computedStatus, cms.tabs.subscriptions.statuses.pass)}
++                  {getPassStatusLabel(getDisplayPassStatus(effectiveCurrentPass), cms.tabs.subscriptions.statuses.pass)}
                  </span>
                              </div>
 
@@ -368,120 +405,8 @@ index 324d5260191f33a6e7d5bd56f3716e62ba722cc4..2d8a7d9d43be3f5f587c184e745c9767
                              </div>
 
                              <div className="mt-4 flex flex-wrap gap-2">
-+                                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700">
-+                                    Renewal mode: {renewalMode}
-+                                </span>
-                                 {currentPassRenewalState === "AUTO_RENEW_ACTIVE" ? (
-                                     <button
-                                         type="button"
-                                         className="inline-flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-extrabold text-rose-700 hover:bg-rose-100 disabled:opacity-60"
-                                         disabled={!onCancelAutoRenewal || subscriptionActionPlanId === effectiveCurrentPass.plan.id}
-                                         onClick={() => void handleCancelAutoRenewal()}
-                                     >
-                                         {cms?.tabs?.subscriptions?.actions?.cancelAutoRenewal || "Hủy tự động gia hạn"}
-                                     </button>
-                                 ) : (
-                                     <>
-                                         <button
-                                             type="button"
-                                             className="inline-flex items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-extrabold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
--                                            disabled={subscriptionActionPlanId === effectiveCurrentPass.plan.id}
-+                                            disabled={hasScheduledPass || subscriptionActionPlanId === effectiveCurrentPass.plan.id}
-                                             onClick={() => void handleRenewCurrentPass()}
-                                         >
-                                             {subscriptionActionPlanId === effectiveCurrentPass.plan.id
-                                                 ? cms.tabs.subscriptions.actions.processing
-                                                 : cms?.tabs?.subscriptions?.actions?.renewNow || "Gia hạn"}
-                                         </button>
-
-                                         <button
-                                             type="button"
-                                             className="inline-flex items-center justify-center rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-extrabold text-violet-700 hover:bg-violet-100 disabled:opacity-60"
--                                            disabled={subscriptionActionPlanId === effectiveCurrentPass.plan.id || !effectiveCurrentPass.plan.currentStripePriceId}
-+                                            disabled={hasScheduledPass || subscriptionActionPlanId === effectiveCurrentPass.plan.id || !effectiveCurrentPass.plan.currentStripePriceId}
-                                             title={
-                                                 !effectiveCurrentPass.plan.currentStripePriceId
-                                                     ? cms.tabs.subscriptions.actions.stripeRecurringUnavailableTitle
-                                                     : undefined
-                                             }
-                                             onClick={() => void handleSubscribeRecurringCurrentPass()}
-                                         >
-                                             {cms?.tabs?.subscriptions?.actions?.registerAutoRenewal || "Đăng ký tự động gia hạn"}
-                                         </button>
-                                     </>
-                                 )}
-                             </div>
-+
-+                            {hasScheduledPass ? (
-+                                <p className="mt-3 text-xs font-semibold text-amber-700">
-+                                    Bạn đã có pass scheduled từ {formatDate(scheduledPass?.startAt)}. Hệ thống tạm khóa gia hạn thêm để tránh tạo dư pass.
-+                                </p>
-+                            ) : null}
-                         </div>
-                     ) : (
-                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                             {cms.tabs.subscriptions.summary.noActivePass}
-                         </div>
-                     )}
-
-                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                         <p className="text-sm font-bold text-slate-700">{cms.tabs.subscriptions.planList.title}</p>
-                     </div>
-
-                     {publicPlans.length === 0 ? (
-                         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
-                             {cms.tabs.subscriptions.planList.emptyText}
-                         </div>
-                     ) : (
-                         <div className="grid gap-3 md:grid-cols-2">
-                             {publicPlans.map((plan) => {
-                                 const highlighted = focusedPlanId === plan.id;
-                                 const isCurrentPlan = currentPlanId != null && currentPlanId === plan.id;
-                                 const planPrice = Number(plan?.price || 0);
-                                 const isLowerThanCurrentPlan = currentPlanPrice != null && planPrice < currentPlanPrice;
-
-                                 return (
-                                     <div
-@@ -718,51 +798,51 @@ export default function SubscriptionsTab({
-                                                 {cms.tabs.subscriptions.planCard.durationUnits.day}
-                                             </p>
-                                             <p>
-                                                 - {cms.tabs.subscriptions.planCard.maxCoursePriceLabel}:{" "}
-                                                 {plan.maxCoursePrice != null
-                                                     ? formatMoney(plan.maxCoursePrice)
-                                                     : cms.tabs.subscriptions.planCard.unlimited}
-                                             </p>
-                                             <p>
-                                                 - {cms.tabs.subscriptions.planCard.blockedTagsLabel}:{" "}
-                                                 {plan.excludedTags.length > 0
-                                                     ? plan.excludedTags.map((tag: any) => tag.code).join(", ")
-                                                     : cms.tabs.subscriptions.planCard.noBlockedTags}
-                                             </p>
-                                         </div>
-
-                                         <div className="mt-3">
-                                             {isCurrentPlan ? (
-                                                 <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">
-                           {cms?.tabs?.subscriptions?.planCard?.currentPlanBadge || "Gói hiện tại của bạn"}
-                         </span>
-                                             ) : !isLowerThanCurrentPlan ? (
-                                                 <button
-                                                     type="button"
-                                                     className="inline-flex w-full items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-extrabold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
--                                                    disabled={subscriptionActionPlanId === plan.id}
-+                                                    disabled={hasScheduledPass || subscriptionActionPlanId === plan.id}
-                                                     onClick={() => void handleUpgradePlan(plan)}
-                                                 >
-                                                     {subscriptionActionPlanId === plan.id
-                                                         ? cms.tabs.subscriptions.actions.processing
-                                                         : cms?.tabs?.subscriptions?.actions?.upgrade || "Nâng cấp"}
-                                                 </button>
-                                             ) : null}
-                                         </div>
-                                     </div>
-                                 );
-                             })}
-                         </div>
+                                 <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700">
+@@ -836,54 +842,54 @@ export default function SubscriptionsTab({
                      )}
 
                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -495,213 +420,54 @@ index 324d5260191f33a6e7d5bd56f3716e62ba722cc4..2d8a7d9d43be3f5f587c184e745c9767
                      ) : (
                          <div className="space-y-3">
                              {passHistory.map((pass) => (
-@@ -816,50 +896,54 @@ export default function SubscriptionsTab({
-                             {paymentHistory.map((payment) => (
-                                 <article key={payment.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                                 <article key={pass.id} className="rounded-2xl border border-slate-200 bg-white p-4">
                                      <div className="flex flex-wrap items-start justify-between gap-2">
                                          <div>
-                                             <p className="text-sm font-extrabold text-slate-900">{payment.plan.name}</p>
+                                             <p className="text-sm font-extrabold text-slate-900">{pass.plan.name}</p>
                                              <p className="mt-1 text-xs text-slate-600">
-                                                 {cms.tabs.subscriptions.history.amount}: {formatMoney(payment.amount)} |{" "}
-                                                 {cms.tabs.subscriptions.history.createdAt} {formatDateTime(payment.createdAt)}
+                                                 {formatDate(pass.startAt)} - {formatDate(pass.endAt)} |{" "}
+                                                 {cms.tabs.subscriptions.summary.graceUntilLabel} {formatDate(pass.graceUntil)}
                                              </p>
                                          </div>
                                          <span
                                              className={classNames(
                                                  "inline-flex rounded-full border px-3 py-1 text-xs font-bold",
-                                                 planPaymentStatusStyles[payment.computedStatus],
+-                                                passStatusStyles[pass.computedStatus],
++                                                passStatusStyles[getDisplayPassStatus(pass)],
                                              )}
                                          >
-                       {getPaymentStatusLabel(payment.computedStatus, cms.tabs.subscriptions.statuses.payment)}
+-                      {getPassStatusLabel(pass.computedStatus, cms.tabs.subscriptions.statuses.pass)}
++                      {getPassStatusLabel(getDisplayPassStatus(pass), cms.tabs.subscriptions.statuses.pass)}
                      </span>
                                      </div>
-
-                                     <div className="mt-2 grid gap-2 text-xs text-slate-600 md:grid-cols-2">
+                                     <div className="mt-2 grid gap-2 text-xs text-slate-600 md:grid-cols-3">
                                          <p>
-                                             {cms.tabs.subscriptions.history.transferContent}:{" "}
-                                             <span className="font-bold text-slate-800">{payment.transferContent}</span>
+                                             {cms.tabs.subscriptions.history.remainingQuota}:{" "}
+                                             <span className="font-bold text-slate-800">{pass.remainingUnlocks}</span>
                                          </p>
-+                                        <p>
-+                                            Payment source:{" "}
-+                                            <span className="font-bold text-slate-800">{payment.paymentSource || payment.provider || "-"}</span>
-+                                        </p>
                                          <p>
-                                             {cms.tabs.subscriptions.history.paidAt}:{" "}
-                                             <span className="font-bold text-slate-800">{formatDateTime(payment.paidAt)}</span>
+                                             {cms.tabs.subscriptions.history.unlockCount}:{" "}
+                                             <span className="font-bold text-slate-800">{pass.unlockCount}</span>
+                                         </p>
+                                         <p>
+                                             {cms.tabs.subscriptions.history.paymentCode}:{" "}
+                                             <span className="font-bold text-slate-800">{pass.purchaseId || cms.common.emptyValue}</span>
                                          </p>
                                      </div>
-
-                                     {payment.computedStatus === "PENDING" && payment.sepay ? (
-                                         <div className="mt-3">
-                                             <button
-                                                 type="button"
-                                                 className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-extrabold text-emerald-700 hover:bg-emerald-100"
-                                                 onClick={() => openPlanPaymentModal(payment)}
-                                             >
-                                                 <i className="fa-solid fa-qrcode" />
-                                                 {cms.tabs.subscriptions.actions.openPaymentQr}
-                                             </button>
-                                         </div>
-                                     ) : null}
                                  </article>
                              ))}
                          </div>
                      )}
-                 </>
-             ) : null}
 
-@@ -899,26 +983,26 @@ export default function SubscriptionsTab({
-                                 {planPaymentModal.sepay.transferContent}
-                             </p>
-                             <p>
-                                 <span className="font-semibold">{cms.tabs.subscriptions.qrModal.timeLeft}:</span> {planQrCountdown.text}
-                             </p>
-                             <p>
-                                 <span className="font-semibold">{cms.tabs.subscriptions.qrModal.expiresAt}:</span>{" "}
-                                 {formatDateTime(planQrExpiresAt)}
-                             </p>
-                         </div>
-
-                         {planQrCountdown.expired ? (
-                             <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                                 {cms.tabs.subscriptions.qrModal.expiredMessage}
-                             </div>
-                         ) : (
-                             <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                                 {cms.tabs.subscriptions.qrModal.waitingMessage}
-                             </div>
-                         )}
+                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                         <p className="text-sm font-bold text-slate-700">{cms.tabs.subscriptions.history.paymentTitle}</p>
                      </div>
-                 </div>
-             ) : null}
-         </div>
-     );
--}
-\ No newline at end of file
-+}
+
 diff --git a/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts b/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
-index 4dc0ab2daddd4031bb528314ad26fb53ea086b70..8fc1e622187c3df8d3bd751b4b932d764ac298c5 100644
+index 8fc1e622187c3df8d3bd751b4b932d764ac298c5..31214a44740492aed72ffc62d46ff0c3cb5d752b 100644
 --- a/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
 +++ b/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
-@@ -89,51 +89,51 @@ export class CoursePlanPaymentsService {
-
-   private normalizeStatus(status: CoursePlanPaymentStatus, expiredAt: Date | null, now: Date): CoursePlanPaymentStatus {
-     if (status === CoursePlanPaymentStatus.PENDING && expiredAt && expiredAt <= now) {
-       return CoursePlanPaymentStatus.EXPIRED
-     }
-     return status
-   }
-
-   private addMinutes(base: Date, minutes: number) {
-     const out = new Date(base)
-     out.setTime(out.getTime() + minutes * 60_000)
-     return out
-   }
-
-   private addDays(base: Date, days: number) {
-     const out = new Date(base)
-     out.setUTCDate(out.getUTCDate() + days)
-     return out
-   }
-
-   private derivePassStatus(
-     pass: { startAt: Date; endAt: Date; graceUntil: Date; canceledAt: Date | null },
-     now: Date,
-   ): UserCoursePassStatus {
-     if (pass.canceledAt) return UserCoursePassStatus.CANCELED
--    if (now < pass.startAt) return UserCoursePassStatus.ACTIVE
-+    if (now < pass.startAt) return UserCoursePassStatus.EXPIRED
-     if (now < pass.endAt) return UserCoursePassStatus.ACTIVE
-     if (now < pass.graceUntil) return UserCoursePassStatus.GRACE
-     return UserCoursePassStatus.EXPIRED
-   }
-
-   private genTransferCode() {
-     return `PLAN_${Math.random().toString(36).slice(2, 8).toUpperCase()}`
-   }
-
-   private buildTransferContent(paymentId: number) {
-     return `ID${paymentId}CoursePlanPayment`
-   }
-
-   private toJson(value: unknown): Prisma.InputJsonValue {
-     return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue
-   }
-
-   private extractStripeId(value: string | { id: string } | null | undefined): string | null {
-     if (!value) return null
-     if (typeof value === 'string') return value
-     return typeof value.id === 'string' ? value.id : null
-   }
-
-   parseTransferContent(content?: string | null): number | null {
-     if (!content) return null
-@@ -225,55 +225,64 @@ export class CoursePlanPaymentsService {
-
-   private mapPayment(
-     payment: CoursePlanPaymentWithPlan,
-     now: Date,
-     pass?: PassSummary,
-     subscription?: UserPlanSubscriptionSummary | null,
-   ) {
-     const status = this.normalizeStatus(payment.status, payment.expiredAt, now)
-     const mappedSubscription = this.mapSubscriptionSummary(subscription)
-
-     const sepay =
-       status === CoursePlanPaymentStatus.PENDING && payment.provider === 'SEPAY'
-         ? {
-             webhookUrl: '/hooks/sepay-payment',
-             amount: payment.amount,
-             accountName: this.bankInfo.accountName,
-             accountNumber: this.bankInfo.accountNumber,
-             bankName: this.bankInfo.gateway,
-             bankCode: this.bankInfo.gateway,
-             transferContent: payment.transferContent,
-             qrUrl: `https://qr.sepay.vn/img?acc=${this.bankInfo.accountNumber}&bank=${this.bankInfo.gateway}&des=${payment.transferContent}&amount=${payment.amount}`,
-             expiresAt: payment.expiredAt,
-           }
-         : null
-
-+    const rawResponseMode = String((payment.rawResponse as any)?.mode || '').toLowerCase()
-+    const paymentSource =
-+      payment.provider === 'SEPAY'
-+        ? 'SEPAY_QR'
-+        : payment.stripeSubscriptionId || rawResponseMode === 'subscription'
-+          ? 'STRIPE_SUBSCRIPTION'
-+          : 'STRIPE_ONE_TIME'
-+
-     return {
-       id: payment.id,
-       userId: payment.userId,
-       planId: payment.planId,
-       provider: payment.provider,
-+      paymentSource,
-       status: payment.status,
-       computedStatus: status,
-       amount: payment.amount,
-       transferCode: payment.transferCode,
-       transferContent: payment.transferContent,
-       stripeCheckoutSessionId: payment.stripeCheckoutSessionId,
-       stripePaymentIntentId: payment.stripePaymentIntentId,
-       stripeInvoiceId: payment.stripeInvoiceId,
-       stripeSubscriptionId: payment.stripeSubscriptionId,
-       subscriptionStatus: mappedSubscription?.status ?? null,
-       cancelAtPeriodEnd: mappedSubscription?.cancelAtPeriodEnd ?? false,
-       subscriptionCurrentPeriodStart: mappedSubscription?.currentPeriodStart ?? null,
-       subscriptionCurrentPeriodEnd: mappedSubscription?.currentPeriodEnd ?? null,
-       subscriptionCanceledAt: mappedSubscription?.canceledAt ?? null,
-       failureReason: payment.failureReason,
-       paidAt: payment.paidAt,
-       expiredAt: payment.expiredAt,
-       createdAt: payment.createdAt,
-       updatedAt: payment.updatedAt,
-       plan: this.mapPlan(payment.plan),
-       pass: this.mapPassSummary(pass),
-       subscription: mappedSubscription,
-       sepay,
-     }
-   }
-@@ -303,54 +312,67 @@ export class CoursePlanPaymentsService {
+@@ -312,50 +312,53 @@ export class CoursePlanPaymentsService {
          purchaseId,
        },
        select: {
@@ -727,24 +493,26 @@ index 4dc0ab2daddd4031bb528314ad26fb53ea086b70..8fc1e622187c3df8d3bd751b4b932d76
      }
 
      const now = new Date()
-+    const existingScheduled = await this.prisma.userCoursePass.findFirst({
-+      where: {
-+        userId,
-+        canceledAt: null,
-+        startAt: { gt: now },
-+      },
-+      select: { id: true },
-+      orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
-+    })
 +
-+    if (existingScheduled) {
-+      throw new BadRequestException('You already have a scheduled pass for the next cycle')
-+    }
++    await this.handleUpgradeBeforeCreatingPass(userId, planId, now)
 +
+     const existingScheduled = await this.prisma.userCoursePass.findFirst({
+       where: {
+         userId,
+         canceledAt: null,
+         startAt: { gt: now },
+       },
+       select: { id: true },
+       orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
+     })
+
+     if (existingScheduled) {
+       throw new BadRequestException('You already have a scheduled pass for the next cycle')
+     }
+
      const latestPass = await this.prisma.userCoursePass.findFirst({
        where: {
          userId,
--        planId,
          canceledAt: null,
        },
        select: {
@@ -753,14 +521,7 @@ index 4dc0ab2daddd4031bb528314ad26fb53ea086b70..8fc1e622187c3df8d3bd751b4b932d76
        },
        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
      })
-
-     const startAt = latestPass && now < latestPass.graceUntil ? latestPass.endAt : now
-     const endAt = this.addDays(startAt, plan.durationDays)
-     const graceUntil = this.addDays(endAt, plan.graceDays)
-
-     const pass = await this.prisma.userCoursePass.create({
-       data: {
-         userId,
+@@ -370,50 +373,113 @@ export class CoursePlanPaymentsService {
          planId,
          purchaseId,
          startAt,
@@ -770,383 +531,107 @@ index 4dc0ab2daddd4031bb528314ad26fb53ea086b70..8fc1e622187c3df8d3bd751b4b932d76
          status: this.derivePassStatus(
            {
              startAt,
-@@ -1140,50 +1162,65 @@ export class CoursePlanPaymentsService {
-         ...(expiresAt ? { expiredAt: expiresAt } : {}),
-         rawResponse: this.toJson(session),
-       },
-       include: PAYMENT_WITH_PLAN_INCLUDE,
-     })
-
-     return {
-       mode: 'STRIPE' as const,
-       stripeMode: 'ONE_TIME' as const,
-       checkoutUrl: session.url,
-       payment: this.mapPayment(updatedPayment, now),
-     }
-   }
-
-   private async createStripeSubscriptionCheckout(userId: number, plan: CoursePlanWithTags, dto?: PurchasePlanDto) {
-     if (!process.env.STRIPE_SECRET_KEY) {
-       throw new BadRequestException('STRIPE_SECRET_KEY is missing in environment')
-     }
-
-     if (!plan.currentStripePriceId) {
-       throw new BadRequestException('Plan has no Stripe recurring price configured')
-     }
-
-     const customerId = await this.ensureStripeCustomer(userId)
-     const now = new Date()
-+
-+    const existingScheduled = await this.prisma.userCoursePass.findFirst({
-+      where: {
-+        userId,
-+        canceledAt: null,
-+        startAt: { gt: now },
-+      },
-+      select: { id: true },
-+      orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
-+    })
-+
-+    if (existingScheduled) {
-+      throw new BadRequestException('You already have a scheduled pass for the next cycle')
-+    }
-+
-     const { successUrl, cancelUrl } = this.resolveStripeReturnUrls(dto)
-
-     const payment = await this.prisma.coursePlanPayment.create({
-       data: {
-         userId,
-         planId: plan.id,
-         provider: 'STRIPE',
-         status: CoursePlanPaymentStatus.PENDING,
-         amount: plan.price,
-         transferCode: this.genTransferCode(),
-         transferContent: `SUB_${Date.now()}_${Math.floor(Math.random() * 1000000)}`,
-       },
-       include: PAYMENT_WITH_PLAN_INCLUDE,
-     })
-
-     const session = await this.stripe.checkout.sessions.create({
-       mode: 'subscription',
-       customer: customerId,
-       success_url: successUrl,
-       cancel_url: cancelUrl,
-       line_items: [{ price: plan.currentStripePriceId, quantity: 1 }],
-       metadata: {
-         source: 'COURSE_PLAN_SUBSCRIPTION',
-         coursePlanPaymentId: String(payment.id),
-         userId: String(userId),
-@@ -1212,62 +1249,75 @@ export class CoursePlanPaymentsService {
-       include: PAYMENT_WITH_PLAN_INCLUDE,
-     })
-
-     return {
-       mode: 'STRIPE' as const,
-       stripeMode: 'SUBSCRIPTION' as const,
-       checkoutUrl: session.url,
-       payment: this.mapPayment(updatedPayment, now),
-     }
-   }
-
-   async createCheckout(userId: number, planId: number, dto?: PurchasePlanDto) {
-     await this.ensureUserExists(userId)
-     const plan = await this.getActivePlanOrThrow(planId)
-
-     if ((plan.price ?? 0) <= 0) {
-       const pass = await this.plans.purchasePlan(userId, planId, {})
-       return {
-         mode: 'FREE' as const,
-         pass,
-       }
-     }
-
-     const method = dto?.method ?? PurchasePlanMethod.SEPAY
-
-+    const now = new Date()
-+    const existingScheduled = await this.prisma.userCoursePass.findFirst({
-+      where: {
-+        userId,
-+        canceledAt: null,
-+        startAt: { gt: now },
-+      },
-+      select: { id: true },
-+      orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
-+    })
-+
-+    if (existingScheduled) {
-+      throw new BadRequestException('You already have a scheduled pass for the next cycle')
-+    }
-+
-     if (method === PurchasePlanMethod.STRIPE_ONE_TIME) {
-       return this.createStripeOneTimeCheckout(userId, plan, dto)
-     }
-
-     if (method === PurchasePlanMethod.STRIPE_SUBSCRIPTION) {
-       return this.createStripeSubscriptionCheckout(userId, plan, dto)
-     }
-
-     await this.markExpiredPendingPayments(userId, planId)
-
--    const now = new Date()
--
-     const existingPending = await this.prisma.coursePlanPayment.findFirst({
-       where: {
-         userId,
-         planId,
-         provider: 'SEPAY',
-         status: CoursePlanPaymentStatus.PENDING,
-         OR: [{ expiredAt: null }, { expiredAt: { gt: now } }],
-       },
-       include: PAYMENT_WITH_PLAN_INCLUDE,
-       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-     })
-
-     if (existingPending) {
-       return {
-         mode: 'SEPAY' as const,
-         payment: this.mapPayment(existingPending, now),
-       }
-     }
-
-     const created = await this.prisma.$transaction(async (tx) => {
-       const payment = await tx.coursePlanPayment.create({
-         data: {
-           userId,
-           planId,
-           provider: 'SEPAY',
-@@ -1466,51 +1516,50 @@ export class CoursePlanPaymentsService {
-           alreadyPaid: true,
-         }
-       }
-
-       const existingPass = await tx.userCoursePass.findFirst({
-         where: {
-           userId: payment.userId,
-           planId: payment.planId,
-           purchaseId: payment.id,
-         },
-         select: {
-           id: true,
-         },
-       })
-
-       if (existingPass) {
-         return {
-           alreadyPaid: false,
-           passId: existingPass.id,
-         }
-       }
-
-       const latest = await tx.userCoursePass.findFirst({
-         where: {
-           userId: payment.userId,
--          planId: payment.planId,
-           canceledAt: null,
-         },
-         select: {
-           endAt: true,
-           graceUntil: true,
-         },
-         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-       })
-
-       const startAt = latest && now < latest.graceUntil ? latest.endAt : now
-       const endAt = this.addDays(startAt, payment.plan.durationDays)
-       const graceUntil = this.addDays(endAt, payment.plan.graceDays)
-
-       const createdPass = await tx.userCoursePass.create({
-         data: {
-           userId: payment.userId,
-           planId: payment.planId,
-           purchaseId: payment.id,
-           startAt,
-           endAt,
-           graceUntil,
-           remainingUnlocks: payment.plan.maxUnlocks,
-           status: this.derivePassStatus(
-             {
-               startAt,
-@@ -2210,31 +2259,25 @@ export class CoursePlanPaymentsService {
-           stripePaymentIntentId: paymentIntentId,
-           rawResponse: this.toJson(invoice),
-         },
-       })
-       return
-     }
-
-     await this.prisma.coursePlanPayment.create({
-       data: {
-         userId: mapped.userId,
-         planId: mapped.planId,
-         provider: 'STRIPE',
-         status: CoursePlanPaymentStatus.FAILED,
-         amount: Number(invoice.amount_due || 0),
-         transferCode: this.genTransferCode(),
-         transferContent: `INV_FAIL_${invoiceId}`,
-         stripeInvoiceId: invoiceId,
-         stripeSubscriptionId: subscriptionId,
-         stripePaymentIntentId: paymentIntentId,
-         failureReason: reason,
-         rawResponse: this.toJson(invoice),
-       },
-     })
-   }
- }
--
--
--
--
--
--
-diff --git a/backend/ayanavitabackend/app/api/src/course-plans/course-plans.service.ts b/backend/ayanavitabackend/app/api/src/course-plans/course-plans.service.ts
-index 9a9b1f86af8502c86978d2b30b2909a11a1cd6c6..3c0a904569bbeff057425e948dc932681460930d 100644
---- a/backend/ayanavitabackend/app/api/src/course-plans/course-plans.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/course-plans/course-plans.service.ts
-@@ -51,51 +51,51 @@ type UnlockableCourse = {
- export class CoursePlansService {
-   constructor(private readonly prisma: PrismaService) {}
-
-   private normalizeTagCode(code: string) {
-     return code.trim().toUpperCase().replace(/\s+/g, '_')
-   }
-
-   private parseDateInput(input?: string) {
-     if (!input) return null
-     const d = new Date(input)
-     if (Number.isNaN(d.getTime())) throw new BadRequestException('Invalid date format')
-     return d
-   }
-
-   private addDays(base: Date, days: number) {
-     const out = new Date(base)
-     out.setUTCDate(out.getUTCDate() + days)
-     return out
-   }
-
-   private derivePassStatus(
-     pass: { startAt: Date; endAt: Date; graceUntil: Date; canceledAt: Date | null },
-     now: Date,
-   ): UserCoursePassStatus {
-     if (pass.canceledAt) return UserCoursePassStatus.CANCELED
--    if (now < pass.startAt) return UserCoursePassStatus.ACTIVE
-+    if (now < pass.startAt) return UserCoursePassStatus.EXPIRED
-     if (now < pass.endAt) return UserCoursePassStatus.ACTIVE
-     if (now < pass.graceUntil) return UserCoursePassStatus.GRACE
-     return UserCoursePassStatus.EXPIRED
-   }
-
-   private async ensureUserExists(userId: number) {
-     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } })
-     if (!user) throw new NotFoundException('User not found')
-   }
-
-   private async ensureCourseExists(courseId: number) {
-     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } })
-     if (!course) throw new NotFoundException('Course not found')
-   }
-
-   private async ensureTagsExist(tagIds: number[]) {
-     if (!tagIds.length) return
-     const found = await this.prisma.courseTag.count({ where: { id: { in: tagIds } } })
-     if (found !== tagIds.length) throw new NotFoundException('One or more tags do not exist')
-   }
-
-   private async findPlanOrThrow(planId: number, opts?: { mustBeActive?: boolean }) {
-     const plan = await this.prisma.coursePlan.findUnique({
-       where: { id: planId },
-       include: {
-@@ -575,52 +575,66 @@ export class CoursePlansService {
-
-   async cancelPass(passId: number) {
-     const pass = await this.prisma.userCoursePass.findUnique({ where: { id: passId }, select: { id: true } })
-     if (!pass) throw new NotFoundException('Pass not found')
-
-     return this.prisma.userCoursePass.update({
-       where: { id: passId },
-       data: {
-         canceledAt: new Date(),
-         status: UserCoursePassStatus.CANCELED,
+             endAt,
+             graceUntil,
+             canceledAt: null,
+           },
+           now,
+         ),
        },
        select: {
          id: true,
-         canceledAt: true,
-         status: true,
-         updatedAt: true,
        },
      })
+
+     this.logger.debug('Đã tạo course pass thành công', JSON.stringify({ userId, planId, purchaseId, passId: pass.id }))
+     return pass.id
    }
 
-   async purchasePlan(userId: number, planId: number, dto: PurchasePlanDto) {
-     await this.ensureUserExists(userId)
-     await this.findPlanOrThrow(planId, { mustBeActive: true })
-
-     const now = new Date()
-+    const existingScheduled = await this.prisma.userCoursePass.findFirst({
++  private async handleUpgradeBeforeCreatingPass(userId: number, newPlanId: number, now: Date) {
++    const activePass = await this.prisma.userCoursePass.findFirst({
 +      where: {
 +        userId,
 +        canceledAt: null,
-+        startAt: { gt: now },
++        startAt: { lte: now },
++        graceUntil: { gt: now },
 +      },
-+      select: { id: true },
-+      orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
++      select: {
++        id: true,
++        planId: true,
++        purchaseId: true,
++        plan: {
++          select: {
++            id: true,
++            price: true,
++          },
++        },
++      },
++      orderBy: [{ startAt: 'desc' }, { id: 'desc' }],
 +    })
 +
-+    if (existingScheduled) {
-+      throw new BadRequestException('You already have a scheduled pass for the next cycle')
-+    }
++    if (!activePass || activePass.planId === newPlanId) return
 +
-     const latest = await this.prisma.userCoursePass.findFirst({
--      where: { userId, planId, canceledAt: null },
-+      where: { userId, canceledAt: null },
-       select: { endAt: true, graceUntil: true },
-       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-     })
-
-     const startAt = latest && now < latest.graceUntil ? latest.endAt : now
-
-     const created = await this.createPassInstance({
-       userId,
-       planId,
-       purchaseId: dto.purchaseId,
-       startAt,
-     })
-
-     return this.mapPass(created, now)
-   }
-
-   async listMyPasses(userId: number) {
-     const now = new Date()
-     const rows = await this.prisma.userCoursePass.findMany({
-       where: { userId },
-       include: {
-         plan: {
-           include: {
-             excludedTags: {
-               include: {
-@@ -981,26 +995,25 @@ export class CoursePlansService {
-
-     return this.prisma.courseEntitlement.upsert({
++    const newPlan = await this.prisma.coursePlan.findUnique({
++      where: { id: newPlanId },
++      select: { id: true, price: true },
++    })
++
++    if (!newPlan) throw new NotFoundException('Course plan not found')
++
++    if (Number(newPlan.price ?? 0) <= Number(activePass.plan?.price ?? 0)) return
++
++    await this.prisma.userCoursePass.update({
++      where: { id: activePass.id },
++      data: {
++        endAt: now,
++        graceUntil: now,
++        status: UserCoursePassStatus.EXPIRED,
++      },
++    })
++
++    if (!activePass.purchaseId) return
++
++    const oldPayment = await this.prisma.coursePlanPayment.findUnique({
++      where: { id: activePass.purchaseId },
++      select: {
++        stripeSubscriptionId: true,
++      },
++    })
++
++    if (!oldPayment?.stripeSubscriptionId) return
++
++    try {
++      const canceledSubscription = await this.stripe.subscriptions.cancel(oldPayment.stripeSubscriptionId)
++      await this.onStripeSubscriptionChanged(canceledSubscription)
++    } catch (error: any) {
++      this.logger.warn(
++        `Failed to cancel old Stripe subscription ${oldPayment.stripeSubscriptionId} while upgrading userId=${userId}: ${error?.message || error}`,
++      )
++    }
++  }
++
+   private async reconcileMissingStripePasses(userId: number) {
+     const stripePaidPayments = await this.prisma.coursePlanPayment.findMany({
        where: {
-         userId_courseId_sourceType_sourceId: {
-           userId: dto.userId,
-           courseId: dto.courseId,
-           sourceType: CourseEntitlementSourceType.ADMIN_GRANT,
-           sourceId,
-         },
+         userId,
+         provider: 'STRIPE',
+         status: CoursePlanPaymentStatus.PAID,
        },
-       update: {
-         accessStartAt: new Date(),
-         accessEndAt,
-       },
-       create: {
-         userId: dto.userId,
-         courseId: dto.courseId,
-         sourceType: CourseEntitlementSourceType.ADMIN_GRANT,
-         sourceId,
-         accessStartAt: new Date(),
-         accessEndAt,
+       orderBy: [{ id: 'desc' }],
+       take: 200,
+       select: {
+         id: true,
+         userId: true,
+         planId: true,
        },
      })
-   }
- }
--
+
+     if (!stripePaidPayments.length) return
+
+     const purchaseIds = stripePaidPayments.map((row) => row.id)
+     const existedPasses = await this.prisma.userCoursePass.findMany({
+       where: {
+         userId,
+         purchaseId: { in: purchaseIds },
+       },
+       select: { purchaseId: true },

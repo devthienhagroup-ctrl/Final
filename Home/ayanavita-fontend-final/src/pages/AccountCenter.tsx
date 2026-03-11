@@ -21,6 +21,7 @@ import SubscriptionsTab from "./account-center/components/SubscriptionsTab";
 type ToastKind = "success" | "error" | "info";
 type ActiveSection = "profile" | "changePassword" | "forgotPassword" | "myOrders" | "subscriptions";
 type PassRenewalState = "AUTO_RENEW_ACTIVE" | "AUTO_RENEW_CANCELED" | "NONE";
+type PassDisplayStatus = CoursePassStatus | "SCHEDULED";
 
 type OrderStatus =
     | "PENDING"
@@ -863,11 +864,12 @@ const ORDER_STATUS_STYLES: Record<OrderStatus, string> = {
   EXPIRED: "bg-slate-100 text-slate-700 border-slate-200",
 };
 
-const PASS_STATUS_STYLES: Record<CoursePassStatus, string> = {
+const PASS_STATUS_STYLES: Record<PassDisplayStatus, string> = {
   ACTIVE: "bg-emerald-50 text-emerald-700 border-emerald-200",
   GRACE: "bg-amber-50 text-amber-700 border-amber-200",
   EXPIRED: "bg-slate-100 text-slate-700 border-slate-200",
   CANCELED: "bg-rose-50 text-rose-700 border-rose-200",
+  SCHEDULED: "bg-indigo-50 text-indigo-700 border-indigo-200",
 };
 
 const PLAN_PAYMENT_STATUS_STYLES: Record<CoursePlanPaymentStatus, string> = {
@@ -878,10 +880,11 @@ const PLAN_PAYMENT_STATUS_STYLES: Record<CoursePlanPaymentStatus, string> = {
 };
 
 function getPassStatusLabel(
-    status: CoursePassStatus,
+    status: PassDisplayStatus,
     labels: CmsData["subscriptions"]["statuses"]["pass"],
 ) {
-  return labels[status];
+  if (status === "SCHEDULED") return "Đã lên lịch";
+  return labels[status as CoursePassStatus];
 }
 
 function getPaymentStatusLabel(
@@ -905,6 +908,18 @@ function formatDurationDays(
 function toNum(v: number | string | null | undefined) {
   const n = Number(v ?? 0);
   return Number.isFinite(n) ? n : 0;
+}
+
+function toTime(value: string | null | undefined) {
+  if (!value) return null;
+  const t = new Date(value).getTime();
+  return Number.isNaN(t) ? null : t;
+}
+
+function getPassDisplayStatus(pass: CoursePass, now = Date.now()): PassDisplayStatus {
+  const start = toTime(pass.startAt);
+  if (!pass.canceledAt && start != null && start > now) return "SCHEDULED";
+  return pass.computedStatus;
 }
 
 function mapOrderStatus(status: string): OrderStatus {
@@ -1166,7 +1181,11 @@ export default function AccountCenter() {
   }, [myOrders, orderKeyword, orderStatusFilter]);
 
   const currentPass = useMemo(() => {
-    return myPasses.find((pass) => pass.computedStatus === "ACTIVE" || pass.computedStatus === "GRACE") || null;
+    const now = Date.now();
+    return myPasses.find((pass) => {
+      const status = getPassDisplayStatus(pass, now);
+      return status === "ACTIVE" || status === "GRACE" || status === "SCHEDULED";
+    }) || null;
   }, [myPasses]);
 
   const passHistory = useMemo(() => {
@@ -1385,9 +1404,9 @@ export default function AccountCenter() {
   const onCancelAutoRenewal = useCallback(async (pass: CoursePass) => {
     const confirmMessage = cms.subscriptions.actions.cancelAutoRenewalConfirmMessage;
 
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
+    // if (!window.confirm(confirmMessage)) {
+    //   return;
+    // }
 
     try {
       setSubscriptionActionPlanId(pass.plan.id);
@@ -1478,6 +1497,22 @@ export default function AccountCenter() {
     if (active !== "subscriptions") return;
     void fetchSubscriptionData();
   }, [active, fetchSubscriptionData]);
+
+  useEffect(() => {
+    if (active !== "subscriptions") return;
+    if (searchParams.get("stripe") !== "success") return;
+
+    let attempts = 0;
+    const timer = window.setInterval(() => {
+      attempts += 1;
+      void fetchSubscriptionData(false);
+      if (attempts >= 6) {
+        window.clearInterval(timer);
+      }
+    }, 3000);
+
+    return () => window.clearInterval(timer);
+  }, [active, fetchSubscriptionData, searchParams]);
 
   const onPayPendingOrder = useCallback(async (order: MyOrder) => {
     if (order.status !== "PENDING_PAYMENT") return;

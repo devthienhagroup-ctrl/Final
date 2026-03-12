@@ -26,7 +26,7 @@ import LoginPage from "./pages/LoginPage";
 import DemoCheckoutPage from "./pages/PaymentStripeDemo";
 import PaymentSuccessPage from "./pages/PaymentSuccessPage";
 import PaymentCancelPage from "./pages/PaymentCancelPage";
-// ví dụ
+import Policy from "./pages/Policy";
 
 
 export default function App() {
@@ -62,7 +62,7 @@ export default function App() {
                 <Route path="/courses/player" element={<CoursePlayerPage/>}/>
                 <Route path="/courses/:courseId/lesson" element={<LessonDetailPage/>}/>
                 <Route path="/reviews" element={<ReviewsCenterPage/>}/>
-
+                <Route path="/policies" element={<Policy />} />
                 <Route path="/blog" element={<BlogPage/>}/>
 
 

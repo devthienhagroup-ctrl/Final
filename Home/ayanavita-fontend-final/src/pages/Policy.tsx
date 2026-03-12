@@ -3,15 +3,6 @@ import React from "react";
 export default function LegalPageTemplate() {
     return (
         <div className="min-h-screen overflow-x-hidden bg-white text-slate-900">
-            {/* Background glow */}
-            <div className="pointer-events-none fixed inset-0 overflow-hidden">
-                <div className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-indigo-600/15 blur-3xl" />
-                <div className="absolute right-[-60px] top-0 h-80 w-80 rounded-full bg-violet-600/15 blur-3xl" />
-                <div className="absolute bottom-16 left-[10%] h-72 w-72 rounded-full bg-amber-400/12 blur-3xl" />
-                <div className="absolute bottom-0 right-[8%] h-64 w-64 rounded-full bg-yellow-300/12 blur-3xl" />
-                <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.92),rgba(248,250,252,0.88),rgba(255,255,255,0.96))]" />
-            </div>
-
             <div className="relative z-10">
                 {/* Header */}
                 <header className="border-b border-slate-200/70 bg-white/75 backdrop-blur-xl">
@@ -20,7 +11,6 @@ export default function LegalPageTemplate() {
                             href="/"
                             className="text-sm font-extrabold uppercase tracking-[0.24em] text-slate-950"
                         >
-                            AYANAVITA
                         </a>
 
                         <nav className="hidden flex-wrap items-center gap-5 text-sm text-slate-600 md:flex">
@@ -152,33 +142,6 @@ export default function LegalPageTemplate() {
                     </section>
                 </main>
 
-                {/* Footer */}
-                <footer className="border-t border-slate-200/70 bg-white/75 backdrop-blur-xl">
-                    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
-                        <div className="text-sm text-slate-500">© 2026 AYANAVITA</div>
-
-                        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-600">
-                            <a href="#" className="transition hover:text-indigo-600">
-                                Impressum
-                            </a>
-                            <a href="#" className="transition hover:text-indigo-600">
-                                Datenschutzerklärung
-                            </a>
-                            <a href="#" className="transition hover:text-indigo-600">
-                                AGB
-                            </a>
-                            <a href="#" className="transition hover:text-indigo-600">
-                                Non-Medical Disclaimer
-                            </a>
-                            <a href="#" className="transition hover:text-indigo-600">
-                                Payment &amp; Refund Policy
-                            </a>
-                            <a href="#" className="transition hover:text-indigo-600">
-                                Cookie Policy
-                            </a>
-                        </div>
-                    </div>
-                </footer>
             </div>
         </div>
     );

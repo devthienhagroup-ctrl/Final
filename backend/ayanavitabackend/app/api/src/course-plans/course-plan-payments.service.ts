@@ -1535,11 +1535,29 @@ export class CoursePlanPaymentsService implements OnModuleInit, OnModuleDestroy 
   }
 
   private resolveAppBaseUrl() {
-    const appBase = String(process.env.APP_BASE_URL || '')
+    const appBase = String(process.env.APP_BASE_URL || process.env.BACKEND_BASE_URL || process.env.API_BASE_URL || 'http://localhost:8090')
       .trim()
       .replace(/\/$/, '')
 
-    return appBase || null
+    if (appBase) {
+      return appBase
+    }
+
+    const frontendBase = String(process.env.FRONTEND_BASE_URL || '')
+      .trim()
+      .replace(/\/$/, '')
+
+    // Local fallback so email links still point to backend when APP_BASE_URL is not configured.
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(frontendBase)) {
+      try {
+        const parsed = new URL(frontendBase)
+        return `${parsed.protocol}//${parsed.hostname}:3000`
+      } catch {
+        return 'http://localhost:3000'
+      }
+    }
+
+    return null
   }
 
   private buildBackendInvoicePayLink(invoiceId: string) {
@@ -1570,7 +1588,15 @@ export class CoursePlanPaymentsService implements OnModuleInit, OnModuleDestroy 
 
     return `${link}?${query}`
   }
-
+  private extractInvoiceSubscriptionId(invoice: Stripe.Invoice) {
+    const invoiceAny = invoice as any
+    return (
+      this.extractStripeId(invoiceAny?.parent?.subscription_details?.subscription) ||
+      this.extractStripeId(invoiceAny?.subscription) ||
+      this.extractStripeId(invoiceAny?.lines?.data?.[0]?.subscription) ||
+      this.extractStripeId(invoiceAny?.lines?.data?.[0]?.parent?.subscription_details?.subscription)
+    )
+  }
   private async sendRenewalFailureEmailIfNeeded(paymentId: number, invoice: Stripe.Invoice) {
     const payment = await this.prisma.coursePlanPayment.findUnique({
       where: { id: paymentId },
@@ -1585,6 +1611,7 @@ export class CoursePlanPaymentsService implements OnModuleInit, OnModuleDestroy 
           select: {
             email: true,
             name: true,
+            stripeCustomerId: true,
           },
         },
         plan: {
@@ -1601,14 +1628,73 @@ export class CoursePlanPaymentsService implements OnModuleInit, OnModuleDestroy 
     }
 
     const invoiceId = invoice.id || payment.stripeInvoiceId || ''
+    const subscriptionIds = Array.from(
+      new Set(
+        [this.extractInvoiceSubscriptionId(invoice), payment.stripeSubscriptionId].filter(
+          (subscriptionId): subscriptionId is string => typeof subscriptionId === 'string' && subscriptionId.length > 0,
+        ),
+      ),
+    )
 
     let customerId = this.extractStripeId((invoice as any).customer)
-    if (!customerId && payment.stripeSubscriptionId) {
-      const subscription = await this.prisma.userPlanSubscription.findUnique({
-        where: { stripeSubscriptionId: payment.stripeSubscriptionId },
+
+    const resolveCustomerIdFromSubscriptionMapping = async () => {
+      if (!subscriptionIds.length) return null
+
+      const subscription = await this.prisma.userPlanSubscription.findFirst({
+        where: {
+          stripeSubscriptionId: { in: subscriptionIds },
+        },
         select: { stripeCustomerId: true },
       })
-      customerId = subscription?.stripeCustomerId || null
+
+      return subscription?.stripeCustomerId || null
+    }
+
+    if (!customerId) {
+      customerId = await resolveCustomerIdFromSubscriptionMapping()
+    }
+
+    if (!customerId && payment.user?.stripeCustomerId) {
+      customerId = payment.user.stripeCustomerId
+    }
+
+    if (!customerId && invoiceId) {
+      try {
+        const latestInvoice = await this.stripe.invoices.retrieve(invoiceId)
+        const latestCustomerId = this.extractStripeId((latestInvoice as any).customer)
+        if (latestCustomerId) {
+          customerId = latestCustomerId
+        }
+
+        const latestSubscriptionId = this.extractInvoiceSubscriptionId(latestInvoice as Stripe.Invoice)
+        if (latestSubscriptionId && !subscriptionIds.includes(latestSubscriptionId)) {
+          subscriptionIds.push(latestSubscriptionId)
+        }
+      } catch (error: any) {
+        this.logger.warn(
+          `Unable to resolve invoice customer for paymentId=${payment.id}, invoiceId=${invoiceId}: ${error?.message || error}`,
+        )
+      }
+    }
+
+    if (!customerId) {
+      customerId = await resolveCustomerIdFromSubscriptionMapping()
+    }
+
+    if (!customerId && subscriptionIds.length) {
+      for (const subscriptionId of subscriptionIds) {
+        try {
+          const subscription = await this.stripe.subscriptions.retrieve(subscriptionId)
+          const resolvedCustomerId = this.extractStripeId((subscription as any).customer)
+          if (resolvedCustomerId) {
+            customerId = resolvedCustomerId
+            break
+          }
+        } catch {
+          continue
+        }
+      }
     }
 
     let payNowUrl = String((invoice as any)?.hosted_invoice_url || '').trim() || null
@@ -3064,10 +3150,47 @@ export class CoursePlanPaymentsService implements OnModuleInit, OnModuleDestroy 
     })
   }
   private async onStripeInvoiceFailed(invoice: Stripe.Invoice) {
-    const subscriptionId = this.extractStripeId((invoice as any).subscription)
-    if (!subscriptionId) return
+    console.log("⚡ Bắt đầu xử lý invoice thất bại:", invoice.id)
+
+    let subscriptionId = this.extractInvoiceSubscriptionId(invoice)
+
+    console.log("➡️ subscriptionId từ invoice =", subscriptionId)
+
+    if (!subscriptionId) {
+      const customerId = this.extractStripeId((invoice as any).customer)
+      console.log("➡️ Không thấy subscriptionId trong invoice, customerId =", customerId)
+
+      if (customerId) {
+        const subscriptions = await this.stripe.subscriptions.list({
+          customer: customerId,
+          status: 'all',
+          limit: 10,
+        })
+
+        console.log(
+            "➡️ Danh sách subscription của customer =",
+            subscriptions.data.map((s) => `${s.id}:${s.status}`).join(", ")
+        )
+
+        // Ưu tiên sub đang còn liên quan đến billing hiện tại
+        const picked =
+            subscriptions.data.find((s) =>
+                ['active', 'past_due', 'unpaid', 'incomplete'].includes(s.status)
+            ) || subscriptions.data[0]
+
+        subscriptionId = picked?.id ?? null
+        console.log("➡️ subscriptionId fallback theo customer =", subscriptionId)
+      }
+    }
+
+    if (!subscriptionId) {
+      console.log("⛔ Không có subscriptionId sau mọi bước fallback -> dừng xử lý")
+      return
+    }
 
     const mapped = await this.resolveSubscriptionMapping(subscriptionId, invoice)
+    console.log("➡️ Kết quả mapping:", mapped ? "Tìm thấy" : "Không tìm thấy")
+
     if (!mapped) {
       throw new NotFoundException(`Subscription mapping not found for ${subscriptionId}`)
     }
@@ -3084,6 +3207,8 @@ export class CoursePlanPaymentsService implements OnModuleInit, OnModuleDestroy 
     let paymentId = 0
 
     if (existed) {
+      console.log("🔄 Cập nhật payment thất bại id =", existed.id)
+
       await this.prisma.coursePlanPayment.update({
         where: { id: existed.id },
         data: {
@@ -3094,12 +3219,16 @@ export class CoursePlanPaymentsService implements OnModuleInit, OnModuleDestroy 
           rawResponse: this.toJson(invoice),
         },
       })
+
       paymentId = existed.id
 
       if (existed.failureEmailSentAt) {
+        console.log("📧 Email đã gửi trước đó -> dừng")
         return
       }
     } else {
+      console.log("➕ Tạo payment FAILED mới")
+
       const created = await this.prisma.coursePlanPayment.create({
         data: {
           userId: mapped.userId,
@@ -3119,10 +3248,17 @@ export class CoursePlanPaymentsService implements OnModuleInit, OnModuleDestroy 
       })
 
       paymentId = created.id
+      console.log("✅ Đã tạo payment FAILED id =", paymentId)
     }
 
+    console.log("📨 Chuẩn bị gửi email cho paymentId =", paymentId)
+
     void this.sendRenewalFailureEmailIfNeeded(paymentId, invoice).catch((error) => {
-      this.logger.error(`Failed to send renewal failure email for paymentId=${paymentId}`, error?.stack ?? String(error))
+      console.log("❌ Gửi email thất bại paymentId =", paymentId)
+      this.logger.error(
+          `Failed to send renewal failure email for paymentId=${paymentId}`,
+          error?.stack ?? String(error),
+      )
     })
   }
 }

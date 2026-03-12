@@ -42,7 +42,8 @@ type MyCoursePass = {
   endAt: string;
   graceUntil: string;
   remainingUnlocks: number;
-  computedStatus?: "ACTIVE" | "GRACE" | "EXPIRED" | "CANCELED";
+  entitlementState?: "CONFIRMED" | "PENDING_CHARGE";
+  computedStatus?: "SCHEDULED" | "ACTIVE" | "GRACE" | "EXPIRED" | "CANCELED";
   plan?: { code?: string; name?: string };
 };
 
@@ -1150,3 +1151,4 @@ export default function CoursesPage({
       </div>
   );
 }
+

@@ -728,6 +728,7 @@ const defaultCmsData: CmsData = {
     },
     statuses: {
       pass: {
+        SCHEDULED: "Scheduled",
         ACTIVE: "Đang hoạt động",
         GRACE: "Grace",
         EXPIRED: "Hết hạn",
@@ -918,6 +919,14 @@ function toTime(value: string | null | undefined) {
 
 function getPassDisplayStatus(pass: CoursePass, now = Date.now()): PassDisplayStatus {
   const start = toTime(pass.startAt);
+  const graceUntil = toTime(pass.graceUntil);
+  const entitlementState = String((pass as any)?.entitlementState || "CONFIRMED").toUpperCase();
+
+  if (!pass.canceledAt && entitlementState === "PENDING_CHARGE") {
+    if (graceUntil != null && now < graceUntil) return "SCHEDULED";
+    return "EXPIRED";
+  }
+
   if (!pass.canceledAt && start != null && start > now) return "SCHEDULED";
   return pass.computedStatus;
 }
@@ -1368,6 +1377,22 @@ export default function AccountCenter() {
   const onStartPlanCheckout = useCallback(async (plan: CoursePlan, method?: CoursePlanCheckoutMethod) => {
     try {
       setSubscriptionActionPlanId(plan.id);
+
+      if (method === "STRIPE_SUBSCRIPTION") {
+        const refreshed = await fetchSubscriptionData(false, { silent: true });
+        const latestPasses = Array.isArray(refreshed?.passes) ? refreshed.passes : [];
+        const now = Date.now();
+        const hasScheduledPass = latestPasses.some((pass) => {
+          if (pass.canceledAt) return false;
+          return getPassDisplayStatus(pass, now) === "SCHEDULED";
+        });
+
+        if (hasScheduledPass) {
+          pushToast("info", cms.subscriptions.toasts.checkoutFailed.title, "You already have a scheduled pass for the next cycle");
+          return;
+        }
+      }
+
       const res = await coursePlansApi.purchasePlan(plan.id, method ? { method } : undefined);
 
       if (res.mode === "FREE") {
@@ -1396,11 +1421,20 @@ export default function AccountCenter() {
         cms.subscriptions.toasts.qrCreated.message,
       );
     } catch (e: any) {
-      pushToast(
-        "error",
-        cms.subscriptions.toasts.checkoutFailed.title,
-        e?.response?.data?.message || e?.message || cms.subscriptions.toasts.checkoutFailed.message,
-      );
+      const message = String(e?.response?.data?.message || e?.message || cms.subscriptions.toasts.checkoutFailed.message);
+      const normalized = message.toLowerCase();
+      const isAlreadyScheduled =
+        normalized.includes("already have a scheduled pass for the next cycle") ||
+        normalized.includes("already have a pending-charge scheduled pass") ||
+        normalized.includes("đã có pass scheduled");
+
+      if (isAlreadyScheduled) {
+        pushToast("info", cms.subscriptions.toasts.checkoutFailed.title, message);
+        await fetchSubscriptionData(false, { silent: true });
+        return;
+      }
+
+      pushToast("error", cms.subscriptions.toasts.checkoutFailed.title, message);
     } finally {
       setSubscriptionActionPlanId(null);
     }
@@ -2089,3 +2123,4 @@ export default function AccountCenter() {
 
 // Export CMS mặc định (để update DB / tái sử dụng)
 export { defaultCmsData as cmsData, defaultCmsData, deepMerge };
+

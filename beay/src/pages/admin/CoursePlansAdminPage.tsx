@@ -1011,7 +1011,7 @@ export function CoursePlansAdminPage() {
                   <table className="admin-table">
                     <thead>
                     <tr>
-                      <th>Tháº»</th>
+                      <th>Thẻ</th>
                       <th>Sử dụng</th>
                       <th>Thao tác</th>
                     </tr>

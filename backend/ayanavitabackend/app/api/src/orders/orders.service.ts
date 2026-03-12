@@ -343,7 +343,6 @@ export class OrdersService {
     })
     if (!order) throw new NotFoundException('Order not found for SePay webhook')
 
-    // tiá»n chuyá»ƒn pháº£i Ä‘á»§
     const transferAmount = Number(payload?.transferAmount ?? 0)
     if (!Number.isFinite(transferAmount) || transferAmount < (order.total ?? 0)) {
       throw new ForbiddenException('Transfer amount is not enough for this order')
@@ -357,7 +356,7 @@ export class OrdersService {
 
     return {
       ok: true,
-      message: 'Thanh toĂ¡n SePay thĂ nh cĂ´ng, Ä‘Ă£ kĂ­ch hoáº¡t khĂ³a há»c',
+      message: 'Thanh toán SePay thành công, đã kích hoạt khóa học',
       orderId: order.id,
       paid,
     }
@@ -417,7 +416,7 @@ export class OrdersService {
 
     return {
       ok: true,
-      message: 'Thanh toĂ¡n SePay sáº£n pháº©m thĂ nh cĂ´ng',
+      message: 'Thanh toán SePay sản phẩm thành công',
       orderId: payment.order.id.toString(),
       paymentId: payment.id.toString(),
     }

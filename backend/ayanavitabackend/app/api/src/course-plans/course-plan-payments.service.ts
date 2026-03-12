@@ -1,10 +1,11 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { CoursePlanPaymentStatus, Prisma, UserCoursePassEntitlementState, UserCoursePassStatus } from '@prisma/client'
 import Stripe from 'stripe'
 import * as tls from 'tls'
 import { PrismaService } from '../prisma/prisma.service'
 import { CoursePlansService } from './course-plans.service'
 import { PurchasePlanDto, PurchasePlanMethod } from './dto/purchase-plan.dto'
+import { StripeBillingLinksService } from './stripe-billing-links.service'
 
 const PLAN_TAG_INCLUDE = {
   excludedTags: {
@@ -71,7 +72,7 @@ type SubscriptionActionInput = {
 }
 
 @Injectable()
-export class CoursePlanPaymentsService {
+export class CoursePlanPaymentsService implements OnModuleInit, OnModuleDestroy {
   private readonly stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
     apiVersion: '2026-02-25.clover',
   })
@@ -80,12 +81,31 @@ export class CoursePlanPaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly plans: CoursePlansService,
+    private readonly stripeBillingLinks: StripeBillingLinksService,
   ) {}
 
   private readonly bankInfo = {
     gateway: 'BIDV',
     accountNumber: '8810091561',
     accountName: 'LE MINH HIEU',
+  }
+
+  private oneTimeRenewalReminderTimer?: NodeJS.Timeout
+  private lastOneTimeRenewalReminderDate: string | null = null
+
+  onModuleInit() {
+    this.oneTimeRenewalReminderTimer = setInterval(() => {
+      void this.runOneTimeRenewalReminderJob()
+    }, 60_000)
+
+    void this.runOneTimeRenewalReminderJob()
+  }
+
+  onModuleDestroy() {
+    if (this.oneTimeRenewalReminderTimer) {
+      clearInterval(this.oneTimeRenewalReminderTimer)
+      this.oneTimeRenewalReminderTimer = undefined
+    }
   }
 
   private normalizeStatus(status: CoursePlanPaymentStatus, expiredAt: Date | null, now: Date): CoursePlanPaymentStatus {
@@ -107,11 +127,263 @@ export class CoursePlanPaymentsService {
     return out
   }
 
+  private toLocalDateKey(value: Date) {
+    const year = value.getFullYear()
+    const month = String(value.getMonth() + 1).padStart(2, '0')
+    const day = String(value.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  private resolveFrontendSubscriptionsUrl() {
+    const frontendBase = String(process.env.FRONTEND_BASE_URL || process.env.APP_BASE_URL || '')
+      .trim()
+      .replace(/\/$/, '')
+
+    if (!frontendBase) {
+      return null
+    }
+
+    return `${frontendBase}/account-center?tab=subscriptions`
+  }
+
+  private formatDateTimeEn(value: Date | string | null | undefined) {
+    if (!value) return 'N/A'
+    const parsed = value instanceof Date ? value : new Date(value)
+    if (Number.isNaN(parsed.getTime())) return 'N/A'
+    return parsed.toLocaleString('en-US', { hour12: false })
+  }
+
+  private async runOneTimeRenewalReminderJob() {
+    const now = new Date()
+
+    if (now.getHours() !== 7 || now.getMinutes() !== 30) {
+      return
+    }
+
+    const todayKey = this.toLocalDateKey(now)
+    if (this.lastOneTimeRenewalReminderDate === todayKey) {
+      return
+    }
+
+    this.lastOneTimeRenewalReminderDate = todayKey
+
+    try {
+      await this.sendOneTimeRenewalReminderEmails(now)
+    } catch (error: any) {
+      this.logger.error(
+        `Failed to run one-time renewal reminder job: ${error?.message || error}`,
+        error?.stack ?? String(error),
+      )
+    }
+  }
+
+  private async sendOneTimeRenewalReminderEmails(now: Date) {
+    const subscriptionsUrl = this.resolveFrontendSubscriptionsUrl()
+    if (!subscriptionsUrl) {
+      this.logger.warn('Skipping one-time renewal reminder job because FRONTEND_BASE_URL or APP_BASE_URL is missing')
+      return
+    }
+
+    const remindUntil = this.addDays(now, 3)
+
+    const duePasses = await this.prisma.userCoursePass.findMany({
+      where: {
+        canceledAt: null,
+        startAt: { lte: now },
+        endAt: { lte: remindUntil },
+        graceUntil: { gte: now },
+        entitlementState: UserCoursePassEntitlementState.CONFIRMED,
+        purchaseId: { not: null },
+      },
+      select: {
+        id: true,
+        purchaseId: true,
+        userId: true,
+        planId: true,
+        endAt: true,
+        graceUntil: true,
+      },
+      orderBy: [{ endAt: 'asc' }, { id: 'asc' }],
+      take: 1000,
+    })
+
+    if (!duePasses.length) {
+      return
+    }
+
+    const purchaseIds = duePasses
+      .map((pass) => pass.purchaseId)
+      .filter((purchaseId): purchaseId is number => typeof purchaseId === 'number')
+
+    if (!purchaseIds.length) {
+      return
+    }
+
+    const [purchases, users, plans] = await Promise.all([
+      this.prisma.coursePlanPayment.findMany({
+        where: {
+          id: { in: purchaseIds },
+        },
+        select: {
+          id: true,
+          stripeSubscriptionId: true,
+        },
+      }),
+      this.prisma.user.findMany({
+        where: {
+          id: { in: Array.from(new Set(duePasses.map((pass) => pass.userId))) },
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+        },
+      }),
+      this.prisma.coursePlan.findMany({
+        where: {
+          id: { in: Array.from(new Set(duePasses.map((pass) => pass.planId))) },
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      }),
+    ])
+
+    const oneTimePurchaseIdSet = new Set(
+      purchases.filter((payment) => !payment.stripeSubscriptionId).map((payment) => payment.id),
+    )
+    const userById = new Map(users.map((user) => [user.id, user]))
+    const planById = new Map(plans.map((plan) => [plan.id, plan]))
+
+    let sentCount = 0
+
+    for (const pass of duePasses) {
+      if (!pass.purchaseId || !oneTimePurchaseIdSet.has(pass.purchaseId)) {
+        continue
+      }
+
+      const user = userById.get(pass.userId)
+      const plan = planById.get(pass.planId)
+
+      if (!user?.email || !plan?.name) {
+        continue
+      }
+
+      try {
+        await this.sendOneTimeRenewalReminderEmail({
+          email: user.email,
+          customerName: user.name?.trim() || 'there',
+          planName: plan.name,
+          endAt: pass.endAt,
+          graceUntil: pass.graceUntil,
+          subscriptionsUrl,
+        })
+        sentCount += 1
+      } catch (error: any) {
+        this.logger.error(
+          `Failed to send one-time renewal reminder for passId=${pass.id}: ${error?.message || error}`,
+          error?.stack ?? String(error),
+        )
+      }
+    }
+
+    if (sentCount > 0) {
+      this.logger.log(`One-time renewal reminder job sent ${sentCount} email(s)`)
+    }
+  }
+
+  private async sendOneTimeRenewalReminderEmail(params: {
+    email: string
+    customerName: string
+    planName: string
+    endAt: Date
+    graceUntil: Date
+    subscriptionsUrl: string
+  }) {
+    const subject = 'Your one-time package is expiring soon - AYANAVITA'
+    const safeName = this.escapeHtml(params.customerName)
+    const safePlan = this.escapeHtml(params.planName)
+    const safeUrl = this.escapeHtml(params.subscriptionsUrl)
+    const endAt = this.formatDateTimeEn(params.endAt)
+    const graceUntil = this.formatDateTimeEn(params.graceUntil)
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${this.escapeHtml(subject)}</title>
+</head>
+<body style="margin:0;padding:0;background:#f5f7fb;font-family:Arial,Helvetica,sans-serif;color:#111827;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="padding:24px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="640" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:640px;background:#ffffff;border-radius:14px;overflow:hidden;">
+          <tr>
+            <td style="background:linear-gradient(135deg,#f97316,#fb7185);padding:28px 36px;text-align:center;color:#ffffff;">
+              <div style="font-size:26px;font-weight:700;letter-spacing:0.3px;">AYANAVITA</div>
+              <div style="margin-top:8px;font-size:21px;font-weight:700;">One-time Package Renewal Reminder</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:30px 36px;line-height:24px;font-size:15px;">
+              <p style="margin:0 0 14px 0;">Hi <strong>${safeName}</strong>,</p>
+              <p style="margin:0 0 14px 0;">Your one-time package <strong>${safePlan}</strong> is close to expiration.</p>
+              <p style="margin:0 0 14px 0;">Current cycle end: <strong>${this.escapeHtml(endAt)}</strong><br />Grace period end: <strong>${this.escapeHtml(graceUntil)}</strong></p>
+              <p style="margin:0 0 24px 0;">Please renew your package to keep uninterrupted access.</p>
+              <div style="text-align:center;">
+                <a href="${safeUrl}" style="display:inline-block;padding:12px 24px;border-radius:10px;background:#f97316;color:#ffffff;text-decoration:none;font-weight:700;">Renew Package</a>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:18px 36px;background:#f9fafb;border-top:1px solid #e5e7eb;font-size:12px;line-height:20px;color:#6b7280;text-align:center;">
+              This is an automated email from AYANAVITA.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+
+    const body = [
+      'Your one-time package is expiring soon - AYANAVITA',
+      `Hi ${params.customerName},`,
+      `Your one-time package ${params.planName} is close to expiration.`,
+      `Current cycle end: ${endAt}`,
+      `Grace period end: ${graceUntil}`,
+      `Renew now: ${params.subscriptionsUrl}`,
+    ].join('\n')
+
+    await this.sendSmtpViaGmail({
+      to: params.email,
+      subject,
+      body,
+      html,
+    })
+  }
+
   private derivePassStatus(
-    pass: { startAt: Date; endAt: Date; graceUntil: Date; canceledAt: Date | null },
+    pass: {
+      startAt: Date
+      endAt: Date
+      graceUntil: Date
+      canceledAt: Date | null
+      entitlementState?: UserCoursePassEntitlementState | null
+    },
     now: Date,
   ): UserCoursePassStatus {
     if (pass.canceledAt) return UserCoursePassStatus.CANCELED
+    const entitlementState = pass.entitlementState ?? UserCoursePassEntitlementState.CONFIRMED
+
+    if (entitlementState === UserCoursePassEntitlementState.PENDING_CHARGE) {
+      if (now < pass.graceUntil) return UserCoursePassStatus.SCHEDULED
+      return UserCoursePassStatus.EXPIRED
+    }
+
     if (now < pass.startAt) return UserCoursePassStatus.SCHEDULED
     if (now < pass.endAt) return UserCoursePassStatus.ACTIVE
     if (now < pass.graceUntil) return UserCoursePassStatus.GRACE
@@ -180,6 +452,7 @@ export class CoursePlanPaymentsService {
         endAt: pass.endAt,
         graceUntil: pass.graceUntil,
         canceledAt: pass.canceledAt,
+        entitlementState: pass.entitlementState,
       },
       now,
     )
@@ -319,6 +592,7 @@ export class CoursePlanPaymentsService {
     })
 
     if (existingPass) {
+      await this.plans.reconcileUserPassStatuses(userId)
       return existingPass.id
     }
 
@@ -382,6 +656,7 @@ export class CoursePlanPaymentsService {
         remainingUnlocks: plan.maxUnlocks,
         status: this.derivePassStatus(
           {
+            entitlementState: UserCoursePassEntitlementState.CONFIRMED,
             startAt,
             endAt,
             graceUntil,
@@ -406,6 +681,7 @@ export class CoursePlanPaymentsService {
         canceledAt: null,
         startAt: { lte: now },
         graceUntil: { gt: now },
+        entitlementState: UserCoursePassEntitlementState.CONFIRMED,
       },
       select: {
         id: true,
@@ -475,6 +751,8 @@ export class CoursePlanPaymentsService {
         id: true,
         userId: true,
         planId: true,
+        stripeSubscriptionId: true,
+        stripeCheckoutSessionId: true,
       },
     })
 
@@ -496,9 +774,72 @@ export class CoursePlanPaymentsService {
       }
     }
 
+    const latestPaidIdBySubscription = new Map<string, number>()
+    for (const payment of stripePaidPayments) {
+      if (!payment.stripeSubscriptionId) continue
+      const currentLatest = latestPaidIdBySubscription.get(payment.stripeSubscriptionId) ?? 0
+      if (payment.id > currentLatest) {
+        latestPaidIdBySubscription.set(payment.stripeSubscriptionId, payment.id)
+      }
+    }
+
     for (const payment of stripePaidPayments) {
       if (existingPurchaseIdSet.has(payment.id)) continue
-      await this.ensurePassFromPayment(payment.userId, payment.planId, payment.id)
+
+      // Legacy cleanup: trial checkout rows could be marked PAID before first real charge.
+      if (payment.stripeSubscriptionId && payment.stripeCheckoutSessionId) {
+        const latestPaidId = latestPaidIdBySubscription.get(payment.stripeSubscriptionId) ?? payment.id
+        if (latestPaidId > payment.id) {
+          await this.prisma.coursePlanPayment.updateMany({
+            where: {
+              id: payment.id,
+              status: CoursePlanPaymentStatus.PAID,
+            },
+            data: {
+              status: CoursePlanPaymentStatus.PENDING,
+              paidAt: null,
+            },
+          })
+          continue
+        }
+      }
+
+      await this.confirmPendingScheduledPassForPayment(payment.userId, payment.planId, payment.id)
+
+      const linkedPass = await this.prisma.userCoursePass.findFirst({
+        where: {
+          userId,
+          purchaseId: payment.id,
+        },
+        select: { id: true },
+      })
+
+      if (linkedPass) {
+        existingPurchaseIdSet.add(payment.id)
+        continue
+      }
+
+      try {
+        await this.ensurePassFromPayment(payment.userId, payment.planId, payment.id)
+        existingPurchaseIdSet.add(payment.id)
+      } catch (error) {
+        const response = error instanceof BadRequestException ? error.getResponse() : null
+        const message =
+          typeof response === 'string'
+            ? response
+            : Array.isArray((response as any)?.message)
+              ? (response as any).message.join(' ')
+              : String((response as any)?.message || (error as any)?.message || '')
+
+        if (String(message).toLowerCase().includes('already have a scheduled pass for the next cycle')) {
+          this.logger.warn(
+            `Skipping missing-pass reconciliation for paymentId=${payment.id} because a scheduled pass already exists`,
+          )
+          continue
+        }
+
+        throw error
+      }
     }
   }
 
@@ -674,15 +1015,34 @@ export class CoursePlanPaymentsService {
     }
   }
 
+  private async cancelPendingChargePassesForPlan(userId: number, planId: number) {
+    const canceledAt = new Date()
+    const updated = await this.prisma.userCoursePass.updateMany({
+      where: {
+        userId,
+        planId,
+        canceledAt: null,
+        entitlementState: UserCoursePassEntitlementState.PENDING_CHARGE,
+      },
+      data: {
+        canceledAt,
+        status: UserCoursePassStatus.CANCELED,
+      },
+    })
+
+    return updated.count
+  }
+
   async cancelAutoRenewal(userId: number, input: SubscriptionActionInput) {
     this.assertStripeConfigured()
 
     const { planId, subscription } = await this.resolveUserSubscriptionForAction(userId, input)
 
     if (subscription.status === 'canceled' || subscription.cancelAtPeriodEnd) {
+      const canceledPendingPassCount = await this.cancelPendingChargePassesForPlan(userId, planId)
       return {
         ok: true,
-        alreadyCanceled: true,
+        alreadyCanceled: canceledPendingPassCount === 0,
         planId,
         subscription: this.mapSubscriptionSummary(subscription),
       }
@@ -693,6 +1053,7 @@ export class CoursePlanPaymentsService {
     })
 
     await this.onStripeSubscriptionChanged(stripeSubscription)
+    await this.cancelPendingChargePassesForPlan(userId, planId)
 
     const latest = await this.prisma.userPlanSubscription.findUnique({
       where: { stripeSubscriptionId: subscription.stripeSubscriptionId },
@@ -792,9 +1153,9 @@ export class CoursePlanPaymentsService {
   }
 
   private formatDateTime(value: Date | string | null | undefined) {
-    if (!value) return 'Không xác định'
+    if (!value) return 'KhĂ´ng xĂ¡c Ä‘á»‹nh'
     const parsed = value instanceof Date ? value : new Date(value)
-    if (Number.isNaN(parsed.getTime())) return 'Không xác định'
+    if (Number.isNaN(parsed.getTime())) return 'KhĂ´ng xĂ¡c Ä‘á»‹nh'
     return parsed.toLocaleString('vi-VN', { hour12: false })
   }
 
@@ -857,7 +1218,7 @@ export class CoursePlanPaymentsService {
 
           <tr>
             <td style="padding:36px 40px 20px 40px;">
-              <p style="margin:0 0 16px 0;font-size:16px;line-height:26px;">Xin chào <strong>${this.escapeHtml(params.customerName)}</strong>,</p>
+              <p style="margin:0 0 16px 0;font-size:16px;line-height:26px;">Xin chĂ o <strong>${this.escapeHtml(params.customerName)}</strong>,</p>
               <p style="margin:0 0 20px 0;font-size:16px;line-height:26px;">${this.escapeHtml(params.intro)}</p>
 
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;">
@@ -1173,6 +1534,183 @@ export class CoursePlanPaymentsService {
     })
   }
 
+  private resolveAppBaseUrl() {
+    const appBase = String(process.env.APP_BASE_URL || '')
+      .trim()
+      .replace(/\/$/, '')
+
+    return appBase || null
+  }
+
+  private buildBackendInvoicePayLink(invoiceId: string) {
+    const appBase = this.resolveAppBaseUrl()
+    if (!appBase) {
+      return null
+    }
+
+    return `${appBase}/billing/email-links/invoices/${encodeURIComponent(invoiceId)}/pay`
+  }
+
+  private buildBackendUpdatePaymentMethodLink(customerId: string) {
+    const appBase = this.resolveAppBaseUrl()
+    if (!appBase) {
+      return null
+    }
+
+    const link = `${appBase}/billing/email-links/customers/${encodeURIComponent(customerId)}/update-payment-method`
+    const returnUrl = this.resolveFrontendSubscriptionsUrl()
+    if (!returnUrl) {
+      return link
+    }
+
+    const query = new URLSearchParams({
+      returnUrl,
+      afterCompletionReturnUrl: returnUrl,
+    }).toString()
+
+    return `${link}?${query}`
+  }
+
+  private async sendRenewalFailureEmailIfNeeded(paymentId: number, invoice: Stripe.Invoice) {
+    const payment = await this.prisma.coursePlanPayment.findUnique({
+      where: { id: paymentId },
+      select: {
+        id: true,
+        amount: true,
+        failureReason: true,
+        failureEmailSentAt: true,
+        stripeInvoiceId: true,
+        stripeSubscriptionId: true,
+        user: {
+          select: {
+            email: true,
+            name: true,
+          },
+        },
+        plan: {
+          select: {
+            name: true,
+            currency: true,
+          },
+        },
+      },
+    })
+
+    if (!payment || payment.failureEmailSentAt || !payment.user?.email) {
+      return
+    }
+
+    const invoiceId = invoice.id || payment.stripeInvoiceId || ''
+
+    let customerId = this.extractStripeId((invoice as any).customer)
+    if (!customerId && payment.stripeSubscriptionId) {
+      const subscription = await this.prisma.userPlanSubscription.findUnique({
+        where: { stripeSubscriptionId: payment.stripeSubscriptionId },
+        select: { stripeCustomerId: true },
+      })
+      customerId = subscription?.stripeCustomerId || null
+    }
+
+    let payNowUrl = String((invoice as any)?.hosted_invoice_url || '').trim() || null
+    if (!payNowUrl && invoiceId) {
+      payNowUrl = await this.stripeBillingLinks.getHostedInvoiceUrl(invoiceId)
+    }
+    if (!payNowUrl && invoiceId) {
+      payNowUrl = this.buildBackendInvoicePayLink(invoiceId)
+    }
+
+    const updatePaymentMethodUrl = customerId ? this.buildBackendUpdatePaymentMethodLink(customerId) : null
+    const subscriptionsUrl = this.resolveFrontendSubscriptionsUrl()
+
+    const failureReason = this.extractInvoiceFailureReason(invoice)
+    const amountDue = Number((invoice as any)?.amount_due || payment.amount || 0)
+    const dueAt = this.getInvoicePeriodEnd(invoice)
+
+    const subject = 'Subscription renewal payment failed - AYANAVITA'
+    const intro = `We could not renew your subscription for ${payment.plan.name}.`
+
+    const payNowButton = payNowUrl
+      ? `<a href="${this.escapeHtml(payNowUrl)}" style="display:inline-block;padding:12px 20px;border-radius:9px;background:#dc2626;color:#ffffff;text-decoration:none;font-weight:700;margin:0 8px 8px 0;">Pay Now</a>`
+      : ''
+    const updateCardButton = updatePaymentMethodUrl
+      ? `<a href="${this.escapeHtml(updatePaymentMethodUrl)}" style="display:inline-block;padding:12px 20px;border-radius:9px;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:700;margin:0 8px 8px 0;">Update Payment Method</a>`
+      : ''
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${this.escapeHtml(subject)}</title>
+</head>
+<body style="margin:0;padding:0;background:#f5f7fb;font-family:Arial,Helvetica,sans-serif;color:#111827;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="padding:24px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="640" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:640px;background:#ffffff;border-radius:14px;overflow:hidden;">
+          <tr>
+            <td style="background:linear-gradient(135deg,#dc2626,#ef4444);padding:28px 36px;text-align:center;color:#ffffff;">
+              <div style="font-size:26px;font-weight:700;letter-spacing:0.3px;">AYANAVITA</div>
+              <div style="margin-top:8px;font-size:21px;font-weight:700;">Subscription Renewal Payment Failed</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:30px 36px;line-height:24px;font-size:15px;">
+              <p style="margin:0 0 14px 0;">Hi <strong>${this.escapeHtml(payment.user.name?.trim() || 'there')}</strong>,</p>
+              <p style="margin:0 0 14px 0;">${this.escapeHtml(intro)}</p>
+              <p style="margin:0 0 4px 0;"><strong>Plan:</strong> ${this.escapeHtml(payment.plan.name)}</p>
+              <p style="margin:0 0 4px 0;"><strong>Amount due:</strong> ${this.escapeHtml(this.formatMoney(amountDue, payment.plan.currency))}</p>
+              <p style="margin:0 0 4px 0;"><strong>Invoice:</strong> ${this.escapeHtml(invoiceId || 'N/A')}</p>
+              <p style="margin:0 0 4px 0;"><strong>Due date:</strong> ${this.escapeHtml(this.formatDateTimeEn(dueAt))}</p>
+              <p style="margin:0 0 20px 0;"><strong>Reason:</strong> ${this.escapeHtml(failureReason)}</p>
+              <div style="margin-top:4px;">${payNowButton}${updateCardButton}</div>
+              ${subscriptionsUrl ? `<p style="margin:20px 0 0 0;">You can also manage your package here: <a href="${this.escapeHtml(subscriptionsUrl)}">${this.escapeHtml(subscriptionsUrl)}</a></p>` : ''}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:18px 36px;background:#f9fafb;border-top:1px solid #e5e7eb;font-size:12px;line-height:20px;color:#6b7280;text-align:center;">
+              This is an automated email from AYANAVITA.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+
+    const body = [
+      'Subscription renewal payment failed - AYANAVITA',
+      `Hi ${payment.user.name?.trim() || 'there'},`,
+      intro,
+      `Plan: ${payment.plan.name}`,
+      `Amount due: ${this.formatMoney(amountDue, payment.plan.currency)}`,
+      `Invoice: ${invoiceId || 'N/A'}`,
+      `Due date: ${this.formatDateTimeEn(dueAt)}`,
+      `Reason: ${failureReason}`,
+      ...(payNowUrl ? [`Pay now: ${payNowUrl}`] : []),
+      ...(updatePaymentMethodUrl ? [`Update payment method: ${updatePaymentMethodUrl}`] : []),
+      ...(subscriptionsUrl ? [`Manage package: ${subscriptionsUrl}`] : []),
+    ].join('\n')
+
+    await this.sendSmtpViaGmail({
+      to: payment.user.email,
+      subject,
+      body,
+      html,
+    })
+
+    await this.prisma.coursePlanPayment.updateMany({
+      where: {
+        id: payment.id,
+        failureEmailSentAt: null,
+      },
+      data: {
+        failureEmailSentAt: new Date(),
+      },
+    })
+  }
+
   private async createStripeOneTimeCheckout(userId: number, plan: CoursePlanWithTags, dto?: PurchasePlanDto) {
     if (!process.env.STRIPE_SECRET_KEY) {
       throw new BadRequestException('STRIPE_SECRET_KEY is missing in environment')
@@ -1276,7 +1814,7 @@ export class CoursePlanPaymentsService {
         userId,
         planId: plan.id,
         canceledAt: null,
-        startAt: { gt: now },
+        graceUntil: { gt: now },
         entitlementState: UserCoursePassEntitlementState.PENDING_CHARGE,
       },
       select: { id: true },
@@ -1391,6 +1929,7 @@ export class CoursePlanPaymentsService {
         remainingUnlocks: plan.maxUnlocks,
         status: this.derivePassStatus(
           {
+            entitlementState: UserCoursePassEntitlementState.PENDING_CHARGE,
             startAt: params.startAt,
             endAt,
             graceUntil,
@@ -1403,7 +1942,7 @@ export class CoursePlanPaymentsService {
   }
 
   private async confirmPendingScheduledPassForPayment(userId: number, planId: number, purchaseId: number) {
-    await this.prisma.userCoursePass.updateMany({
+    const updatedByPurchase = await this.prisma.userCoursePass.updateMany({
       where: {
         userId,
         planId,
@@ -1415,6 +1954,56 @@ export class CoursePlanPaymentsService {
         entitlementState: UserCoursePassEntitlementState.CONFIRMED,
       },
     })
+
+    if (updatedByPurchase.count > 0) {
+      return
+    }
+
+    const pendingScheduledPass = await this.prisma.userCoursePass.findFirst({
+      where: {
+        userId,
+        planId,
+        canceledAt: null,
+        entitlementState: UserCoursePassEntitlementState.PENDING_CHARGE,
+      },
+      select: {
+        id: true,
+        purchaseId: true,
+      },
+      orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
+    })
+
+    if (!pendingScheduledPass) {
+      return
+    }
+
+    await this.prisma.userCoursePass.update({
+      where: { id: pendingScheduledPass.id },
+      data: {
+        purchaseId,
+        entitlementState: UserCoursePassEntitlementState.CONFIRMED,
+      },
+    })
+
+    if (
+      typeof pendingScheduledPass.purchaseId === 'number' &&
+      pendingScheduledPass.purchaseId > 0 &&
+      pendingScheduledPass.purchaseId !== purchaseId
+    ) {
+      await this.prisma.coursePlanPayment.updateMany({
+        where: {
+          id: pendingScheduledPass.purchaseId,
+          provider: 'STRIPE',
+          status: CoursePlanPaymentStatus.PAID,
+          stripeSubscriptionId: { not: null },
+          stripeCheckoutSessionId: { not: null },
+        },
+        data: {
+          status: CoursePlanPaymentStatus.PENDING,
+          paidAt: null,
+        },
+      })
+    }
   }
 
   private async resolveSubscriptionTrialEndForActiveOneTimePass(userId: number, planId: number, now: Date) {
@@ -1425,6 +2014,7 @@ export class CoursePlanPaymentsService {
         canceledAt: null,
         startAt: { lte: now },
         endAt: { gt: now },
+        entitlementState: UserCoursePassEntitlementState.CONFIRMED,
         purchaseId: { not: null },
       },
       select: {
@@ -1448,7 +2038,7 @@ export class CoursePlanPaymentsService {
 
     const trialEndMs = activeOneTimePass.endAt.getTime()
 
-    // Stripe yêu cầu trial_end đủ xa trong tương lai
+    // Stripe yĂªu cáº§u trial_end Ä‘á»§ xa trong tÆ°Æ¡ng lai
     const minStripeTrialMs = now.getTime() + 48 * 60 * 60 * 1000
     if (trialEndMs <= minStripeTrialMs) return null
 
@@ -1561,6 +2151,7 @@ export class CoursePlanPaymentsService {
   async listMyPayments(userId: number) {
     await this.markExpiredPendingPayments(userId)
     await this.reconcileMissingStripePasses(userId)
+    await this.plans.reconcileUserPassStatuses(userId)
 
     const now = new Date()
 
@@ -1756,12 +2347,14 @@ export class CoursePlanPaymentsService {
           userId: payment.userId,
           planId: payment.planId,
           purchaseId: payment.id,
+          entitlementState: UserCoursePassEntitlementState.CONFIRMED,
           startAt,
           endAt,
           graceUntil,
           remainingUnlocks: payment.plan.maxUnlocks,
           status: this.derivePassStatus(
             {
+              entitlementState: UserCoursePassEntitlementState.CONFIRMED,
               startAt,
               endAt,
               graceUntil,
@@ -1782,6 +2375,8 @@ export class CoursePlanPaymentsService {
     })
 
     if (!result.alreadyPaid) {
+      await this.plans.reconcileUserPassStatuses(payment.userId, now)
+
       void this.sendPaymentSuccessEmailIfNeeded(payment.id, 'SUBSCRIBE').catch((error) => {
         this.logger.error(`Failed to send subscription success email for paymentId=${payment.id}`, error?.stack ?? String(error))
       })
@@ -1930,7 +2525,9 @@ export class CoursePlanPaymentsService {
       const paymentIntentId = this.extractStripeId(session.payment_intent as any)
       const invoiceId = this.extractStripeId((session as any).invoice)
       const paymentStatus = String(session.payment_status || '').toLowerCase()
-      const canGrantPass = paymentStatus === 'paid' || paymentStatus === 'no_payment_required'
+      // For trial subscriptions, Stripe can return "no_payment_required" before the first real charge.
+      // Only mark as paid/grant pass when payment is actually captured.
+      const canGrantPass = paymentStatus === 'paid'
       const paidAt = canGrantPass ? new Date() : null
 
       const updated = await this.prisma.coursePlanPayment.updateMany({
@@ -2382,14 +2979,48 @@ export class CoursePlanPaymentsService {
             })
             : null
 
-    const paidAt = new Date()
     const amountPaid = Number(invoice.amount_paid || 0)
+    const isTrialStartWithoutCharge = billingReason === 'subscription_create' && amountPaid <= 0
 
     const existed = existedByInvoice || existedByCheckoutSession
 
-    if (existed) {
-    } else {
+    if (isTrialStartWithoutCharge) {
+      if (existed) {
+        await this.prisma.coursePlanPayment.update({
+          where: { id: existed.id },
+          data: {
+            status: CoursePlanPaymentStatus.PENDING,
+            paidAt: null,
+            amount: Number(invoice.amount_due || 0),
+            stripeInvoiceId: invoiceId,
+            stripeSubscriptionId: subscriptionId,
+            stripePaymentIntentId: paymentIntentId,
+            rawResponse: this.toJson(invoice),
+            failureReason: null,
+          },
+        })
+      } else {
+        await this.prisma.coursePlanPayment.create({
+          data: {
+            userId: mapped.userId,
+            planId: mapped.planId,
+            provider: 'STRIPE',
+            status: CoursePlanPaymentStatus.PENDING,
+            amount: Number(invoice.amount_due || 0),
+            transferCode: this.genTransferCode(),
+            transferContent: `INV_PENDING_${invoiceId}`,
+            stripeInvoiceId: invoiceId,
+            stripeSubscriptionId: subscriptionId,
+            stripePaymentIntentId: paymentIntentId,
+            rawResponse: this.toJson(invoice),
+          },
+        })
+      }
+
+      return
     }
+
+    const paidAt = new Date()
 
     const payment = existed
         ? await this.prisma.coursePlanPayment.update({
@@ -2447,8 +3078,10 @@ export class CoursePlanPaymentsService {
 
     const existed = await this.prisma.coursePlanPayment.findFirst({
       where: { stripeInvoiceId: invoiceId },
-      select: { id: true },
+      select: { id: true, failureEmailSentAt: true },
     })
+
+    let paymentId = 0
 
     if (existed) {
       await this.prisma.coursePlanPayment.update({
@@ -2461,24 +3094,36 @@ export class CoursePlanPaymentsService {
           rawResponse: this.toJson(invoice),
         },
       })
-      return
+      paymentId = existed.id
+
+      if (existed.failureEmailSentAt) {
+        return
+      }
+    } else {
+      const created = await this.prisma.coursePlanPayment.create({
+        data: {
+          userId: mapped.userId,
+          planId: mapped.planId,
+          provider: 'STRIPE',
+          status: CoursePlanPaymentStatus.FAILED,
+          amount: Number(invoice.amount_due || 0),
+          transferCode: this.genTransferCode(),
+          transferContent: `INV_FAIL_${invoiceId}`,
+          stripeInvoiceId: invoiceId,
+          stripeSubscriptionId: subscriptionId,
+          stripePaymentIntentId: paymentIntentId,
+          failureReason: reason,
+          rawResponse: this.toJson(invoice),
+        },
+        select: { id: true },
+      })
+
+      paymentId = created.id
     }
 
-    await this.prisma.coursePlanPayment.create({
-      data: {
-        userId: mapped.userId,
-        planId: mapped.planId,
-        provider: 'STRIPE',
-        status: CoursePlanPaymentStatus.FAILED,
-        amount: Number(invoice.amount_due || 0),
-        transferCode: this.genTransferCode(),
-        transferContent: `INV_FAIL_${invoiceId}`,
-        stripeInvoiceId: invoiceId,
-        stripeSubscriptionId: subscriptionId,
-        stripePaymentIntentId: paymentIntentId,
-        failureReason: reason,
-        rawResponse: this.toJson(invoice),
-      },
+    void this.sendRenewalFailureEmailIfNeeded(paymentId, invoice).catch((error) => {
+      this.logger.error(`Failed to send renewal failure email for paymentId=${paymentId}`, error?.stack ?? String(error))
     })
   }
 }
+

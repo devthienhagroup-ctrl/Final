@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
-import { CourseAccessStatus, CourseEntitlementSourceType, Prisma } from '@prisma/client'
+import { CourseAccessStatus, CourseEntitlementSourceType, Prisma, UserCoursePassEntitlementState } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { JwtUser } from '../auth/decorators/current-user.decorator'
 import { hasAnyPermission } from '../auth/permission-utils'
@@ -144,6 +144,7 @@ export class EnrollmentsService {
         canceledAt: null,
         startAt: { lte: now },
         graceUntil: { gt: now },
+        entitlementState: UserCoursePassEntitlementState.CONFIRMED,
       },
       select: {
         id: true,

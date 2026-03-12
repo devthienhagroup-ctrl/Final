@@ -1,4 +1,4 @@
-﻿import { http } from './http'
+import { http } from './http'
 
 export type CoursePlanTag = {
   id: number
@@ -26,13 +26,16 @@ export type CoursePlan = {
   updatedAt?: string
 }
 
-export type CoursePassStatus = 'ACTIVE' | 'GRACE' | 'EXPIRED' | 'CANCELED'
+export type CoursePassStatus = 'SCHEDULED' | 'ACTIVE' | 'GRACE' | 'EXPIRED' | 'CANCELED'
+
+export type CoursePassEntitlementState = 'CONFIRMED' | 'PENDING_CHARGE'
 
 export type CoursePass = {
   id: number
   userId: number
   planId: number
   purchaseId?: number | null
+  entitlementState?: CoursePassEntitlementState
   startAt: string
   endAt: string
   graceUntil: string
@@ -88,6 +91,7 @@ export type CoursePlanPayment = {
     id: number
     planId: number
     purchaseId?: number | null
+    entitlementState?: CoursePassEntitlementState
     startAt: string
     endAt: string
     graceUntil: string
@@ -180,3 +184,4 @@ export const coursePlansApi = {
     return data
   },
 }
+

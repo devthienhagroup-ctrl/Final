@@ -40,24 +40,33 @@ function toTime(value: string | null | undefined) {
     return Number.isNaN(t) ? null : t;
 }
 
-function isPassEffectiveNow(pass: any, now: number) {
+function computePassStatusFromTime(pass: any, now: number) {
     const start = toTime(pass?.startAt);
     const end = toTime(pass?.endAt);
     const graceUntil = toTime(pass?.graceUntil);
+    const entitlementState = String(pass?.entitlementState || "CONFIRMED").toUpperCase();
 
-    if (start == null) return false;
-    if (now < start) return false;
+    if (pass?.canceledAt) return "CANCELED";
+    if (graceUntil == null) return null;
 
-    const activeEnd = graceUntil ?? end;
-    if (activeEnd == null) return false;
+    if (entitlementState === "PENDING_CHARGE") {
+        return now < graceUntil ? "SCHEDULED" : "EXPIRED";
+    }
 
-    return now <= activeEnd;
+    if (start == null || end == null) return null;
+    if (now < start) return "SCHEDULED";
+    if (now < end) return "ACTIVE";
+    if (now < graceUntil) return "GRACE";
+    return "EXPIRED";
+}
+
+function isPassEffectiveNow(pass: any, now: number) {
+    const computed = computePassStatusFromTime(pass, now);
+    return computed === "ACTIVE" || computed === "GRACE";
 }
 
 function getDisplayPassStatus(pass: any, now = Date.now()) {
-    const start = toTime(pass?.startAt);
-    if (!pass?.canceledAt && start != null && start > now) return "SCHEDULED";
-    return pass?.computedStatus;
+    return pass?.computedStatus || computePassStatusFromTime(pass, now) || pass?.status;
 }
 
 function getCurrentEffectivePass(currentPass: any, passHistory: any[]) {
@@ -86,9 +95,9 @@ function getScheduledPassByEntitlementState(currentPass: any, passHistory: any[]
 
     const scheduled = allPasses
         .filter((pass) => {
-            const start = toTime(pass?.startAt);
             const entitlementState = String(pass?.entitlementState || "CONFIRMED").toUpperCase();
-            return start != null && start > now && !pass?.canceledAt && entitlementState === state;
+            if (pass?.canceledAt || entitlementState !== state) return false;
+            return getDisplayPassStatus(pass, now) === "SCHEDULED";
         })
         .sort((a, b) => (toTime(a?.startAt) ?? 0) - (toTime(b?.startAt) ?? 0));
 
@@ -382,11 +391,14 @@ export default function SubscriptionsTab({
     const scheduledPendingChargePass = getScheduledPassByEntitlementState(currentPass, passHistory, "PENDING_CHARGE");
     const hasConfirmedScheduledPass = Boolean(scheduledConfirmedPass && isConfirmedScheduledPass(scheduledConfirmedPass));
     const hasPendingChargeScheduledPass = Boolean(scheduledPendingChargePass && isPendingChargeScheduledPass(scheduledPendingChargePass));
+    const effectiveCurrentPassStatus = effectiveCurrentPass ? getDisplayPassStatus(effectiveCurrentPass) : null;
     const currentPlanId = effectiveCurrentPass?.plan?.id ?? null;
     const currentPassRenewalState = effectiveCurrentPass ? getPassRenewalState(effectiveCurrentPass, paymentHistory) : "NONE";
     const renewalMode: RenewalMode = effectiveCurrentPass ? getRenewalMode(effectiveCurrentPass, paymentHistory) : "none";
     const currentPlanPrice = effectiveCurrentPass?.plan?.price != null ? Number(effectiveCurrentPass.plan.price) : null;
-
+    const cancelAutoRenewTargetPass = scheduledPendingChargePass || effectiveCurrentPass || null;
+    const showCancelAutoRenewAction =
+        currentPassRenewalState === "AUTO_RENEW_ACTIVE" || hasPendingChargeScheduledPass;
 
     useEffect(() => {
         if (typeof onRealtimePaymentUpdate !== "function") return;
@@ -818,7 +830,8 @@ export default function SubscriptionsTab({
     }
 
     async function handleCancelAutoRenewal() {
-        if (!effectiveCurrentPass || !onCancelAutoRenewal) return;
+        const targetPass = cancelAutoRenewTargetPass;
+        if (!targetPass || !onCancelAutoRenewal) return;
 
         const result = await Swal.fire({
             ...getDialogBaseOptions(),
@@ -863,7 +876,7 @@ export default function SubscriptionsTab({
         });
 
         if (!result.isConfirmed) return;
-        await onCancelAutoRenewal(effectiveCurrentPass);
+        await onCancelAutoRenewal(targetPass);
     }
 
     async function handleUpgradePlan(plan: any) {
@@ -928,7 +941,7 @@ export default function SubscriptionsTab({
                                 <div className="rounded-xl border border-white/60 bg-white px-3 py-3">
                                     <p className="text-xs text-slate-500">{cms.tabs.subscriptions.summary.unlockNew}</p>
                                     <p className="mt-1 text-xl font-extrabold text-slate-900">
-                                        {(effectiveCurrentPass.computedStatus === "ACTIVE" || effectiveCurrentPass.computedStatus === "GRACE") &&
+                                        {(effectiveCurrentPassStatus === "ACTIVE" || effectiveCurrentPassStatus === "GRACE") &&
                                         effectiveCurrentPass.remainingUnlocks > 0
                                             ? cms.tabs.subscriptions.summary.canUnlockYes
                                             : cms.tabs.subscriptions.summary.canUnlockNo}
@@ -940,11 +953,11 @@ export default function SubscriptionsTab({
                                 <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700">
                                     Renewal mode: {renewalMode}
                                 </span>
-                                {currentPassRenewalState === "AUTO_RENEW_ACTIVE" ? (
+                                {showCancelAutoRenewAction ? (
                                     <button
                                         type="button"
                                         className="inline-flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-extrabold text-rose-700 hover:bg-rose-100 disabled:opacity-60"
-                                        disabled={!onCancelAutoRenewal || subscriptionActionPlanId === effectiveCurrentPass.plan.id}
+                                        disabled={!onCancelAutoRenewal || !cancelAutoRenewTargetPass || subscriptionActionPlanId === cancelAutoRenewTargetPass.plan.id}
                                         onClick={() => void handleCancelAutoRenewal()}
                                     >
                                         {cms?.tabs?.subscriptions?.actions?.cancelAutoRenewal || "Hủy tự động gia hạn"}
@@ -1247,3 +1260,4 @@ export default function SubscriptionsTab({
         </div>
     );
 }
+

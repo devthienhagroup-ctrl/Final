@@ -51,9 +51,11 @@ type UnlockableCourse = {
 export class CoursePlansService {
   constructor(private readonly prisma: PrismaService) {}
 
+
   private normalizeTagCode(code: string) {
     return code.trim().toUpperCase().replace(/\s+/g, '_')
   }
+
 
   private parseDateInput(input?: string) {
     if (!input) return null
@@ -62,6 +64,7 @@ export class CoursePlansService {
     return d
   }
 
+
   private addDays(base: Date, days: number) {
     const out = new Date(base)
     out.setUTCDate(out.getUTCDate() + days)
@@ -69,14 +72,104 @@ export class CoursePlansService {
   }
 
   private derivePassStatus(
-    pass: { startAt: Date; endAt: Date; graceUntil: Date; canceledAt: Date | null },
+    pass: {
+      startAt: Date
+      endAt: Date
+      graceUntil: Date
+      canceledAt: Date | null
+      entitlementState?: UserCoursePassEntitlementState | null
+    },
     now: Date,
   ): UserCoursePassStatus {
     if (pass.canceledAt) return UserCoursePassStatus.CANCELED
+    const entitlementState = pass.entitlementState ?? UserCoursePassEntitlementState.CONFIRMED
+
+    if (entitlementState === UserCoursePassEntitlementState.PENDING_CHARGE) {
+      if (now < pass.graceUntil) return UserCoursePassStatus.SCHEDULED
+      return UserCoursePassStatus.EXPIRED
+    }
+
     if (now < pass.startAt) return UserCoursePassStatus.SCHEDULED
     if (now < pass.endAt) return UserCoursePassStatus.ACTIVE
     if (now < pass.graceUntil) return UserCoursePassStatus.GRACE
     return UserCoursePassStatus.EXPIRED
+  }
+  async reconcileUserPassStatuses(userId: number, nowInput?: Date) {
+    const now = nowInput ? new Date(nowInput) : new Date()
+
+    const passes = await this.prisma.userCoursePass.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        startAt: true,
+        endAt: true,
+        graceUntil: true,
+        canceledAt: true,
+        entitlementState: true,
+        status: true,
+      },
+    })
+
+    if (!passes.length) {
+      return { syncedStatusCount: 0, forcedExpiredGraceCount: 0 }
+    }
+
+    const computedByPassId = new Map<number, UserCoursePassStatus>()
+    let hasActivePass = false
+
+    for (const pass of passes) {
+      const computedStatus = this.derivePassStatus(pass, now)
+      computedByPassId.set(pass.id, computedStatus)
+      if (computedStatus === UserCoursePassStatus.ACTIVE) {
+        hasActivePass = true
+      }
+    }
+
+    const updates: Prisma.PrismaPromise<any>[] = []
+    let syncedStatusCount = 0
+    let forcedExpiredGraceCount = 0
+
+    for (const pass of passes) {
+      const computedStatus = computedByPassId.get(pass.id) ?? this.derivePassStatus(pass, now)
+
+      // Business rule: once a new pass is active, no pass is allowed to remain in GRACE.
+      if (hasActivePass && computedStatus === UserCoursePassStatus.GRACE) {
+        const forcedGraceUntil = pass.graceUntil > now ? now : pass.graceUntil
+        const needsUpdate =
+          pass.status !== UserCoursePassStatus.EXPIRED || pass.graceUntil.getTime() !== forcedGraceUntil.getTime()
+
+        if (needsUpdate) {
+          updates.push(
+            this.prisma.userCoursePass.updateMany({
+              where: { id: pass.id },
+              data: {
+                graceUntil: forcedGraceUntil,
+                status: UserCoursePassStatus.EXPIRED,
+              },
+            }),
+          )
+          syncedStatusCount += 1
+          forcedExpiredGraceCount += 1
+        }
+        continue
+      }
+
+      if (pass.status !== computedStatus) {
+        updates.push(
+          this.prisma.userCoursePass.updateMany({
+            where: { id: pass.id },
+            data: { status: computedStatus },
+          }),
+        )
+        syncedStatusCount += 1
+      }
+    }
+
+    if (updates.length > 0) {
+      await this.prisma.$transaction(updates)
+    }
+
+    return { syncedStatusCount, forcedExpiredGraceCount }
   }
 
   private async ensureUserExists(userId: number) {
@@ -190,7 +283,7 @@ export class CoursePlansService {
     const graceUntil = this.addDays(endAt, plan.graceDays)
     const now = new Date()
 
-    return this.prisma.userCoursePass.create({
+    const created = await this.prisma.userCoursePass.create({
       data: {
         userId: params.userId,
         planId: params.planId,
@@ -201,6 +294,7 @@ export class CoursePlansService {
         graceUntil,
         remainingUnlocks: plan.maxUnlocks,
         status: this.derivePassStatus({
+          entitlementState: params.entitlementState ?? UserCoursePassEntitlementState.CONFIRMED,
           startAt: params.startAt,
           endAt,
           graceUntil,
@@ -218,6 +312,12 @@ export class CoursePlansService {
         _count: { select: { unlockLogs: true } },
       },
     })
+
+    if (created.status === UserCoursePassStatus.ACTIVE) {
+      await this.reconcileUserPassStatuses(params.userId, now)
+    }
+
+    return created
   }
 
   async getAdminOverview() {
@@ -239,6 +339,7 @@ export class CoursePlansService {
           endAt: true,
           graceUntil: true,
           canceledAt: true,
+          entitlementState: true,
           plan: {
             select: {
               maxUnlocks: true,
@@ -634,6 +735,8 @@ export class CoursePlansService {
 
   async listMyPasses(userId: number) {
     const now = new Date()
+    await this.reconcileUserPassStatuses(userId, now)
+
     const rows = await this.prisma.userCoursePass.findMany({
       where: { userId },
       include: {
@@ -789,6 +892,7 @@ export class CoursePlansService {
         canceledAt: null,
         startAt: { lte: now },
         graceUntil: { gt: now },
+        entitlementState: UserCoursePassEntitlementState.CONFIRMED,
         remainingUnlocks: { gt: 0 },
       },
       orderBy: [{ graceUntil: 'asc' }, { endAt: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
@@ -807,6 +911,7 @@ export class CoursePlansService {
           canceledAt: null,
           startAt: { lte: now },
           graceUntil: { gt: now },
+          entitlementState: UserCoursePassEntitlementState.CONFIRMED,
         },
       })
       if (activePassCount > 0) {
@@ -1020,3 +1125,4 @@ export class CoursePlansService {
     })
   }
 }
+

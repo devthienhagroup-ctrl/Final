@@ -54,7 +54,7 @@ function FallbackRoute() {
 export function AppRoutes() {
     return (
         <Routes>
-            <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="/" element={<Navigate to="/student" replace />} />
             <Route path="/login" element={<LoginPage />} />
 
             <Route element={<RequireAuth />}>
@@ -63,6 +63,13 @@ export function AppRoutes() {
                 <Route path="/student/lessons/:id" element={<RequirePermission permission="my_courses.read"><StudentLessonPlayerPage /></RequirePermission>} />
 
             </Route>
+	    <Route path="/require-permission" element={
+                <ErrorStatusPage
+                    code={403}
+                    title="403 - Không có quyền truy cập"
+                    message="Tài khoản của bạn đã đăng nhập nhưng chưa được cấp quyền để vào trang này."
+                />
+            } />
 
             <Route path="*" element={<FallbackRoute />} />
         </Routes>

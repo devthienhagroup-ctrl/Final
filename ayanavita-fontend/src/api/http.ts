@@ -19,11 +19,9 @@ const REFRESH_TOKEN_KEY = "refreshToken";
 
 // Base URL: ưu tiên env, fallback localhost
 function getBaseUrl() {
-  const viteUrl =
-    (import.meta as any)?.env?.VITE_API_URL ||
-    (import.meta as any)?.env?.VITE_BACKEND_URL;
+  const viteUrl = (import.meta as any)?.env?.VITE_API_URL;
 
-  return (viteUrl || "http://localhost:8090").replace(/\/+$/, "");
+  return (viteUrl || "/api").replace(/\/+$/, "");
 }
 
 

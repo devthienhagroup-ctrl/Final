@@ -7,7 +7,7 @@ services:
       MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: ayanavita
       MYSQL_USER: ayanavita
-      MYSQL_PASSWORD: ayanavita_pw
+      MYSQL_PASSWORD: ayanavita_fuftAd_2@
       TZ: Asia/Ho_Chi_Minh
     volumes:
       - mysql_data:/var/lib/mysql

@@ -1,17 +1,24 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+// vite.config.ts
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
-// https://vite.dev/config/
 export default defineConfig({
+  plugins: [
+    react(),
+    tailwindcss()
+  ],
+
   server: {
-    host: true,
+    host: "0.0.0.0",
     port: 5181,
     strictPort: true,
-    watch: {
-      usePolling: true,
-      interval: 1000,
-    },
-  },
-  plugins: [react(),tailwindcss()],
-})
+
+    allowedHosts: [
+      "demo.ayanavita.com",
+      "manage.ayanavita.com",
+      "student.ayanavita.com",
+      "lecturer.ayanavita.com"
+    ]
+  }
+});

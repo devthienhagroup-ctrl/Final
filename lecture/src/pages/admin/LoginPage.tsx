@@ -6,10 +6,8 @@ import { useAuth } from "../../app/auth";
 type LocationState = { from?: string };
 
 function resolveDefaultRoute(permissions: string[]) {
-  if (permissions.includes("dashboard.admin")) return "/admin/dashboard";
   if (permissions.includes("courses.write")) return "/instructor";
-  if (permissions.includes("my_courses.read")) return "/student";
-  return "/login";
+  return "/require-permission";
 }
 
 function GoogleIcon() {
@@ -232,49 +230,12 @@ export function LoginPage() {
             </button>
 
             <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail("");
-                  setPassword("");
-                  setErr(null);
-                }}
-                style={{
-                  height: 40,
-                  padding: "0 14px",
-                  borderRadius: 12,
-                  border: `1px solid ${fieldBorder}`,
-                  background: dark ? "rgba(2,6,23,.20)" : "rgba(255,255,255,.8)",
-                  color: text,
-                  fontWeight: 800,
-                  cursor: "pointer",
-                }}
-              >
-                Xoá form
-              </button>
 
-              <button
-                type="button"
-                onClick={() => nav(from, { replace: true })}
-                style={{
-                  height: 40,
-                  padding: "0 14px",
-                  borderRadius: 12,
-                  border: `1px solid ${fieldBorder}`,
-                  background: dark ? "rgba(2,6,23,.20)" : "rgba(255,255,255,.8)",
-                  color: text,
-                  fontWeight: 800,
-                  cursor: "pointer",
-                }}
-                title="Đi tới trang mục tiêu (nếu đã đăng nhập)"
-              >
-                Tiếp tục
-              </button>
             </div>
 
             <div style={{ textAlign: "center", marginTop: 6 }}>
-              <div style={{ fontWeight: 900, fontSize: 13, color: text }}>Login</div>
-              <div style={{ fontSize: 12, color: subText }}>with Others</div>
+              <div style={{ fontWeight: 900, fontSize: 13, color: text }}></div>
+              <div style={{ fontSize: 12, color: subText }}></div>
             </div>
 
           </form>

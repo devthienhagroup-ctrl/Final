@@ -59,6 +59,7 @@ export function StudentPortalPage() {
     setLoading(true);
     try {
       const rows = await studentApi.myCourses("vi");
+      console.log("Đã gọi API Student", rows)
       const mapped = await Promise.all(
           rows.map(async (row) => {
             const canAccess = row.status === "ACTIVE" && row.canAccess !== false;

@@ -47,7 +47,7 @@ const defaultToastCmsData = {
   // ✅ BỔ SUNG: các toast đang còn hardcode trong file
   loadFailed: {
     title: "Không tải được dữ liệu",
-    message: "Vui lòng kiểm tra backend (localhost:8090).",
+    message: "Vui lòng kiểm tra kết nối backend.",
   },
   branchLoadFailed: {
     title: "Không tải được chi nhánh theo dịch vụ",

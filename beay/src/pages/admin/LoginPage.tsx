@@ -20,7 +20,8 @@ type RefreshResponse = {
     refreshToken?: string;
 };
 
-const API_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:8090").replace(/\/+$/, "");
+const API_BASE = (import.meta.env.VITE_API_URL || "/api").replace(/\/+$/, "");
+const BASE_URL = (import.meta.env.VITE_BASE_URL || window.location.origin).replace(/\/+$/, "");
 const CROSS_APP_SESSION_PARAM = "aya_session";
 
 type CrossAppSession = {
@@ -37,7 +38,7 @@ function normalizeScopeType(scopeType: unknown): ScopeType | null {
 }
 
 function resolveCoursesRoute(scopeType: ScopeType | null) {
-    return scopeType === "COURSE" ? "http://localhost:5181/instructor" : "/admin/courses";
+    return scopeType === "COURSE" ? `${BASE_URL}/instructor` : "/admin/courses";
 }
 
 const DEFAULT_PERMISSIONS = [
@@ -69,7 +70,7 @@ const PERMISSION_ROUTE_MAP: Array<{ permission: string; path: string }> = [
 
 function resolveDefaultRoute(permissions: string[], scopeType: ScopeType | null) {
     if (permissions.includes("dashboard.admin")) return "/admin/dashboard";
-    if (permissions.includes("my_courses.read")) return "http://localhost:5180/student";
+    if (permissions.includes("my_courses.read")) return `${BASE_URL}/student`;
     if (permissions.includes("courses.write")) return resolveCoursesRoute(scopeType);
     for (const route of PERMISSION_ROUTE_MAP) {
         if (permissions.includes(route.permission)) return route.path;
@@ -89,7 +90,7 @@ function resolveLoginTarget(_from: string, permissions: string[], scopeType: Sco
 
     // student
     if (permissions.includes("my_courses.read")) {
-        return "http://localhost:5180/student";
+        return `${BASE_URL}/student`;
     }
 
     // fallback

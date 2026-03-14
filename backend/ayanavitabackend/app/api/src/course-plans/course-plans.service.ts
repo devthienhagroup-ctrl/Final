@@ -1,5 +1,13 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common'
 import { CourseEntitlementSourceType, Prisma, UserCoursePassEntitlementState, UserCoursePassStatus } from '@prisma/client'
+import Stripe from 'stripe'
 import { PrismaService } from '../prisma/prisma.service'
 import { AdminCreatePassDto } from './dto/admin-create-pass.dto'
 import { AdminGrantEntitlementDto } from './dto/admin-grant-entitlement.dto'
@@ -47,9 +55,21 @@ type UnlockableCourse = {
   }>
 }
 
+type StripePriceVersionInput = {
+  planId: number
+  stripeProductId: string
+  stripePriceId: string
+  amount: number
+  currency: string
+  billingInterval: 'month' | 'year'
+}
+
 @Injectable()
 export class CoursePlansService {
   constructor(private readonly prisma: PrismaService) {}
+  private readonly stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+    apiVersion: '2026-02-25.clover',
+  })
 
 
   private normalizeTagCode(code: string) {
@@ -69,6 +89,115 @@ export class CoursePlansService {
     const out = new Date(base)
     out.setUTCDate(out.getUTCDate() + days)
     return out
+  }
+
+  private getStripeClientOrThrow() {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new BadRequestException('STRIPE_SECRET_KEY is missing in environment')
+    }
+
+    return this.stripe
+  }
+
+  private async createStripeRecurringPrice(params: {
+    planCode: string
+    planName: string
+    amount: number
+    currency: string
+    billingInterval: 'month' | 'year'
+    durationDays: number
+    stripeProductId?: string | null
+  }) {
+    const stripe = this.getStripeClientOrThrow()
+    const currency = params.currency.toLowerCase()
+    const metadata = {
+      source: 'COURSE_PLAN_SUBSCRIPTION',
+      planCode: params.planCode,
+      durationDays: String(params.durationDays),
+    }
+
+    try {
+      const stripeProductId =
+        params.stripeProductId?.trim() ||
+        (
+          await stripe.products.create({
+            name: params.planName,
+            metadata,
+          })
+        ).id
+
+      const stripePrice = await stripe.prices.create({
+        product: stripeProductId,
+        currency,
+        unit_amount: params.amount,
+        recurring: {
+          interval: params.billingInterval,
+        },
+        metadata,
+      })
+
+      await stripe.products.update(stripeProductId, { default_price: stripePrice.id })
+
+      return {
+        stripeProductId,
+        stripePriceId: stripePrice.id,
+      }
+    } catch (error: any) {
+      const stripeMessage =
+        typeof error?.raw?.message === 'string'
+          ? error.raw.message
+          : typeof error?.message === 'string'
+          ? error.message
+          : 'Unknown Stripe error'
+      throw new InternalServerErrorException(`Failed to create Stripe recurring price: ${stripeMessage}`)
+    }
+  }
+
+  private async upsertCurrentPriceVersion(tx: Prisma.TransactionClient, input: StripePriceVersionInput) {
+    const existing = await tx.coursePlanPriceVersion.findUnique({
+      where: { stripePriceId: input.stripePriceId },
+      select: { planId: true },
+    })
+
+    if (existing && existing.planId !== input.planId) {
+      throw new ConflictException('Stripe price is already linked to another plan')
+    }
+
+    await tx.coursePlanPriceVersion.updateMany({
+      where: {
+        planId: input.planId,
+        isCurrent: true,
+      },
+      data: {
+        isCurrent: false,
+      },
+    })
+
+    if (existing) {
+      await tx.coursePlanPriceVersion.update({
+        where: { stripePriceId: input.stripePriceId },
+        data: {
+          stripeProductId: input.stripeProductId,
+          amount: input.amount,
+          currency: input.currency,
+          billingInterval: input.billingInterval,
+          isCurrent: true,
+        },
+      })
+      return
+    }
+
+    await tx.coursePlanPriceVersion.create({
+      data: {
+        planId: input.planId,
+        stripeProductId: input.stripeProductId,
+        stripePriceId: input.stripePriceId,
+        amount: input.amount,
+        currency: input.currency,
+        billingInterval: input.billingInterval,
+        isCurrent: true,
+      },
+    })
   }
 
   private derivePassStatus(
@@ -493,45 +622,84 @@ export class CoursePlansService {
     const excludedTagIds = Array.from(new Set(dto.excludedTagIds || []))
     await this.ensureTagsExist(excludedTagIds)
 
-    const plan = await this.prisma.coursePlan.create({
-      data: {
-        code: dto.code.trim().toUpperCase(),
-        name: dto.name.trim(),
-        price: dto.price,
-        currency: (dto.currency ?? 'vnd').toLowerCase(),
-        billingInterval: dto.billingInterval ?? 'month',
-        ...(dto.stripeProductId !== undefined ? { stripeProductId: dto.stripeProductId.trim() || null } : {}),
-        ...(dto.currentStripePriceId !== undefined
-          ? { currentStripePriceId: dto.currentStripePriceId.trim() || null }
-          : {}),
+    const code = dto.code.trim().toUpperCase()
+    const name = dto.name.trim()
+    const currency = (dto.currency ?? 'vnd').toLowerCase()
+    const billingInterval = dto.billingInterval ?? 'month'
+    const dtoStripeProductId = dto.stripeProductId?.trim() || null
+    const dtoStripePriceId = dto.currentStripePriceId?.trim() || null
+
+    let stripeProductId = dtoStripeProductId
+    let currentStripePriceId = dtoStripePriceId
+
+    if (!currentStripePriceId) {
+      const stripeIds = await this.createStripeRecurringPrice({
+        planCode: code,
+        planName: name,
+        amount: dto.price,
+        currency,
+        billingInterval,
         durationDays: dto.durationDays,
-        graceDays: dto.graceDays,
-        maxUnlocks: dto.maxUnlocks,
-        ...(dto.maxCoursePrice !== undefined ? { maxCoursePrice: dto.maxCoursePrice } : {}),
-        isActive: dto.isActive ?? true,
-        ...(excludedTagIds.length
-          ? {
-              excludedTags: {
-                create: excludedTagIds.map((tagId) => ({ tagId })),
-              },
-            }
-          : {}),
-      },
-      include: {
-        excludedTags: {
-          include: {
-            tag: { select: { id: true, code: true, name: true } },
-          },
-          orderBy: { tagId: 'asc' },
+        stripeProductId,
+      })
+      stripeProductId = stripeIds.stripeProductId
+      currentStripePriceId = stripeIds.stripePriceId
+    }
+
+    const plan = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.coursePlan.create({
+        data: {
+          code,
+          name,
+          price: dto.price,
+          currency,
+          billingInterval,
+          stripeProductId,
+          currentStripePriceId,
+          durationDays: dto.durationDays,
+          graceDays: dto.graceDays,
+          maxUnlocks: dto.maxUnlocks,
+          ...(dto.maxCoursePrice !== undefined ? { maxCoursePrice: dto.maxCoursePrice } : {}),
+          isActive: dto.isActive ?? true,
+          ...(excludedTagIds.length
+            ? {
+                excludedTags: {
+                  create: excludedTagIds.map((tagId) => ({ tagId })),
+                },
+              }
+            : {}),
         },
-      },
+      })
+
+      if (stripeProductId && currentStripePriceId) {
+        await this.upsertCurrentPriceVersion(tx, {
+          planId: created.id,
+          stripeProductId,
+          stripePriceId: currentStripePriceId,
+          amount: dto.price,
+          currency,
+          billingInterval,
+        })
+      }
+
+      return tx.coursePlan.findUniqueOrThrow({
+        where: { id: created.id },
+        include: {
+          excludedTags: {
+            include: {
+              tag: { select: { id: true, code: true, name: true } },
+            },
+            orderBy: { tagId: 'asc' },
+          },
+        },
+      })
     })
 
     return this.mapPlan(plan)
   }
 
   async updatePlan(planId: number, dto: UpdateCoursePlanDto) {
-    await this.findPlanOrThrow(planId)
+    const currentPlan = await this.findPlanOrThrow(planId)
 
     const baseData: Prisma.CoursePlanUpdateInput = {
       ...(dto.code !== undefined ? { code: dto.code.trim().toUpperCase() } : {}),
@@ -550,32 +718,68 @@ export class CoursePlansService {
       ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
     }
 
-    if (dto.excludedTagIds === undefined) {
-      const plan = await this.prisma.coursePlan.update({
-        where: { id: planId },
-        data: baseData,
-        include: {
-          excludedTags: {
-            include: {
-              tag: { select: { id: true, code: true, name: true } },
-            },
-            orderBy: { tagId: 'asc' },
-          },
-        },
+    const nextPrice = dto.price ?? currentPlan.price
+    const nextCurrency = (dto.currency ?? currentPlan.currency).toLowerCase()
+    const nextBillingInterval = (dto.billingInterval ?? currentPlan.billingInterval) as 'month' | 'year'
+    const nextDurationDays = dto.durationDays ?? currentPlan.durationDays
+    const requestedStripeProductId =
+      dto.stripeProductId !== undefined ? dto.stripeProductId.trim() || null : currentPlan.stripeProductId
+    const requestedStripePriceId =
+      dto.currentStripePriceId !== undefined ? dto.currentStripePriceId.trim() || null : currentPlan.currentStripePriceId
+
+    const shouldGenerateStripePrice =
+      dto.currentStripePriceId === undefined &&
+      (dto.price !== undefined ||
+        dto.durationDays !== undefined ||
+        dto.billingInterval !== undefined ||
+        dto.currency !== undefined ||
+        dto.stripeProductId !== undefined)
+
+    let stripeProductId = requestedStripeProductId
+    let currentStripePriceId = requestedStripePriceId
+
+    if (shouldGenerateStripePrice) {
+      const stripeIds = await this.createStripeRecurringPrice({
+        planCode: dto.code?.trim().toUpperCase() ?? currentPlan.code,
+        planName: dto.name?.trim() ?? currentPlan.name,
+        amount: nextPrice,
+        currency: nextCurrency,
+        billingInterval: nextBillingInterval,
+        durationDays: nextDurationDays,
+        stripeProductId: requestedStripeProductId,
       })
-      return this.mapPlan(plan)
+      stripeProductId = stripeIds.stripeProductId
+      currentStripePriceId = stripeIds.stripePriceId
+      baseData.stripeProductId = stripeProductId
+      baseData.currentStripePriceId = currentStripePriceId
     }
 
-    const excludedTagIds = Array.from(new Set(dto.excludedTagIds || []))
-    await this.ensureTagsExist(excludedTagIds)
+    const excludedTagIds = dto.excludedTagIds === undefined ? null : Array.from(new Set(dto.excludedTagIds || []))
+    if (excludedTagIds) {
+      await this.ensureTagsExist(excludedTagIds)
+    }
 
     const plan = await this.prisma.$transaction(async (tx) => {
       await tx.coursePlan.update({ where: { id: planId }, data: baseData })
-      await tx.coursePlanExcludedTag.deleteMany({ where: { planId } })
-      if (excludedTagIds.length) {
-        await tx.coursePlanExcludedTag.createMany({
-          data: excludedTagIds.map((tagId) => ({ planId, tagId })),
-          skipDuplicates: true,
+
+      if (excludedTagIds !== null) {
+        await tx.coursePlanExcludedTag.deleteMany({ where: { planId } })
+        if (excludedTagIds.length) {
+          await tx.coursePlanExcludedTag.createMany({
+            data: excludedTagIds.map((tagId) => ({ planId, tagId })),
+            skipDuplicates: true,
+          })
+        }
+      }
+
+      if (stripeProductId && currentStripePriceId) {
+        await this.upsertCurrentPriceVersion(tx, {
+          planId,
+          stripeProductId,
+          stripePriceId: currentStripePriceId,
+          amount: nextPrice,
+          currency: nextCurrency,
+          billingInterval: nextBillingInterval,
         })
       }
 

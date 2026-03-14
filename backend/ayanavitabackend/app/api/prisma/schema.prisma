@@ -1560,5 +1560,85 @@ model ProductIngredient {
   @@index([productId, sortOrder], map: "idx_product_ingredient_sort")
   @@map("product_ingredients")
 }
+// ===================== QR SCAN SYSTEM =====================
 
+model Customer {
+  customer_id BigInt   @id @default(autoincrement())
+  name        String?  @db.VarChar(255)
+  phone       String?  @db.VarChar(20)
+  email       String?  @db.VarChar(255)
+  created_at  DateTime @default(now())
+
+  sessions  CustomerSession[]
+  profiles  ProfileRecord[]
+  summaries SummaryRecord[]
+
+  @@index([email])
+  @@index([phone])
+  @@map("customers")
+}
+
+model CustomerSession {
+  session_id  BigInt   @id @default(autoincrement())
+  customer_id BigInt
+  device      String?  @db.VarChar(255)
+  ip          String?  @db.VarChar(50)
+  source      String?  @db.VarChar(100)
+  start_time  DateTime @default(now())
+  end_time    DateTime?
+
+  customer Customer @relation(fields: [customer_id], references: [customer_id], onDelete: Cascade)
+
+  scans     ScanRecord[]
+  profiles  ProfileRecord[]
+  summaries SummaryRecord[]
+
+  @@index([customer_id])
+  @@map("customer_sessions")
+}
+
+model ScanRecord {
+  scan_id    BigInt   @id @default(autoincrement())
+  session_id BigInt
+  qr_type    String?  @db.VarChar(100)
+  qr_id      String?  @db.VarChar(255)
+  timestamp  DateTime @default(now())
+  location   String?  @db.VarChar(255)
+
+  session CustomerSession @relation(fields: [session_id], references: [session_id], onDelete: Cascade)
+
+  @@index([session_id])
+  @@unique([session_id, timestamp])
+  @@map("scan_records")
+}
+
+model ProfileRecord {
+  profile_id  BigInt   @id @default(autoincrement())
+  session_id  BigInt
+  customer_id BigInt
+  profile_data Json?
+  created_at  DateTime @default(now())
+
+  session  CustomerSession @relation(fields: [session_id], references: [session_id], onDelete: Cascade)
+  customer Customer        @relation(fields: [customer_id], references: [customer_id], onDelete: Cascade)
+
+  @@index([session_id])
+  @@index([customer_id])
+  @@map("profile_records")
+}
+
+model SummaryRecord {
+  summary_id  BigInt   @id @default(autoincrement())
+  session_id  BigInt
+  customer_id BigInt
+  summary_data Json?
+  created_at  DateTime @default(now())
+
+  session  CustomerSession @relation(fields: [session_id], references: [session_id], onDelete: Cascade)
+  customer Customer        @relation(fields: [customer_id], references: [customer_id], onDelete: Cascade)
+
+  @@index([session_id])
+  @@index([customer_id])
+  @@map("summary_records")
+}
 

@@ -1,6 +1,6 @@
 import { clearTokenPair, readAccessToken, readRefreshToken, writePermissionKeys, writeTokenPair } from './session';
 
-const API_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:8090").replace(/\/+$/, "");
+const API_BASE = (import.meta.env.VITE_API_URL || "/api").replace(/\/+$/, "");
 function joinUrl(path: string) {
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
   return `${API_BASE}${cleanPath}`;

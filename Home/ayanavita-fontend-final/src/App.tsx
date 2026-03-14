@@ -62,7 +62,7 @@ export default function App() {
                 <Route path="/courses/player" element={<CoursePlayerPage/>}/>
                 <Route path="/courses/:courseId/lesson" element={<LessonDetailPage/>}/>
                 <Route path="/reviews" element={<ReviewsCenterPage/>}/>
-                <Route path="/policies" element={<Policy />} />
+                <Route path="/policies/:policy" element={<Policy />} />
                 <Route path="/blog" element={<BlogPage/>}/>
 
 

@@ -134,9 +134,10 @@ const defaultCMSData: HeaderCMSData = {
 export const defaultCmsData = defaultCMSData;
 
 const CROSS_APP_SESSION_PARAM = "aya_session";
-const ADMIN_APP_BASE_URL = "http://localhost:5179";
-const INSTRUCTOR_APP_BASE_URL = "http://localhost:5181";
-const STUDENT_APP_BASE_URL = "http://localhost:5180";
+const APP_BASE_URL = (import.meta.env.VITE_BASE_URL || window.location.origin).replace(/\/+$/, "");
+const ADMIN_APP_BASE_URL = (import.meta.env.VITE_MANAGE_URL || APP_BASE_URL).replace(/\/+$/, "");
+const INSTRUCTOR_APP_BASE_URL = (import.meta.env.VITE_LECTURER_URL || APP_BASE_URL).replace(/\/+$/, "");
+const STUDENT_APP_BASE_URL = (import.meta.env.VITE_STUDENT_URL || APP_BASE_URL).replace(/\/+$/, "");
 
 const ROUTE_BY_PERMISSION = {
   dashboardAdmin: "/admin/dashboard",

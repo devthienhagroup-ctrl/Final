@@ -406,7 +406,7 @@ export default function SubscriptionsTab({
         const token = localStorage.getItem("aya_access_token") || "";
         if (!token) return;
 
-        const apiBase = (import.meta.env.VITE_API_URL || "http://localhost:8090").replace(/\/$/, "");
+        const apiBase = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
         const wsBase = apiBase.replace(/^http/i, "ws");
         const socket = new WebSocket(`${wsBase}/ws/payments?token=${encodeURIComponent(token)}`);
 

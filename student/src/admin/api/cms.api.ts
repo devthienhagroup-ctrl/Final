@@ -187,5 +187,6 @@ export async function adminDuplicatePage(token: string, pageId: number) {
 // cms.api.ts
 export function adminGetPublicPageUrl(slug: string, lang?: string) {
   const qs = lang ? `?lang=${encodeURIComponent(lang)}` : "";
-  return `http://localhost:5174/public/pages/${encodeURIComponent(slug)}${qs}`;
+  const baseUrl = (import.meta.env.VITE_BASE_URL || window.location.origin).replace(/\/+$/, "");
+  return `${baseUrl}/public/pages/${encodeURIComponent(slug)}${qs}`;
 }

@@ -31,36 +31,51 @@ export class StripeWebhookController {
       return res.status(HttpStatus.BAD_REQUEST).send('Missing stripe-signature header')
     }
 
-    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET
-    if (!endpointSecret) {
-      console.log('❌ Chưa cấu hình STRIPE_WEBHOOK_SECRET')
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send('STRIPE_WEBHOOK_SECRET is missing')
+    const endpointSecrets = this.getWebhookSecrets()
+    if (!endpointSecrets.length) {
+      console.log('❌ Missing Stripe webhook signing secret')
+      return res
+          .status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .send('Missing Stripe webhook secret. Set STRIPE_WEBHOOK_SECRET or STRIPE_WEBHOOK_SECRET_CLI')
     }
 
-    const rawBody = Buffer.isBuffer(req.rawBody)
-      ? req.rawBody
-      : Buffer.isBuffer(req.body)
-        ? req.body
-        : typeof req.body === 'string'
-          ? Buffer.from(req.body, 'utf8')
-          : null
-
-    if (!rawBody) {
-      console.log('❌ Không đọc được rawBody của webhook')
-      return res.status(HttpStatus.BAD_REQUEST).send('Invalid raw webhook body')
+    const rawPayload = this.resolveRawPayload(req)
+    if (!rawPayload) {
+      console.log('❌ req.rawBody does not exist or is not a Buffer')
+      console.log('typeof req.body =', typeof req.body)
+      console.log('isBuffer(req.body) =', Buffer.isBuffer(req.body))
+      return res.status(HttpStatus.BAD_REQUEST).send('Raw body is required for Stripe webhook verification')
     }
 
-    console.log('✅ Đã qua kiểm tra signature, bắt đầu parse event')
+    console.log('➡️ Bắt đầu verify webhook signature')
 
-    let event: Stripe.Event
+    let event: Stripe.Event | null = null
+    let lastVerifyError: any = null
 
-    try {
-      event = this.stripe.webhooks.constructEvent(rawBody, signature, endpointSecret)
-      console.log('📩 Stripe gửi event:', event.type)
-    } catch (err: any) {
-      console.log('❌ Xác thực webhook thất bại:', err?.message)
-      return res.status(HttpStatus.BAD_REQUEST).send(`Webhook Error: ${err?.message || 'Invalid signature'}`)
+    for (const endpointSecret of endpointSecrets) {
+      try {
+        event = this.stripe.webhooks.constructEvent(
+            rawPayload,
+            signature,
+            endpointSecret,
+        )
+        break
+      } catch (err: any) {
+        lastVerifyError = err
+      }
     }
+
+    if (!event) {
+      console.log('❌ Xác thực webhook thất bại:', lastVerifyError?.message)
+      console.log('configured webhook secrets =', endpointSecrets.length)
+      console.log('secret prefixes =', endpointSecrets.map((s) => s.slice(0, 8)).join(', '))
+      return res
+          .status(HttpStatus.BAD_REQUEST)
+          .send(`Webhook Error: ${lastVerifyError?.message || 'Invalid signature'}`)
+    }
+
+    console.log('✅ Verify webhook signature thành công')
+    console.log('📩 Stripe gửi event:', event.type)
 
     try {
       if (event.type === 'checkout.session.completed') {
@@ -101,6 +116,46 @@ export class StripeWebhookController {
     console.log('===========================')
 
     return res.status(HttpStatus.OK).json({ received: true })
+  }
+
+  private resolveRawPayload(req: RawBodyRequest<Request>) {
+    if (req.rawBody && Buffer.isBuffer(req.rawBody)) {
+      return req.rawBody
+    }
+
+    const body = req.body as unknown
+
+    if (Buffer.isBuffer(body)) {
+      return body
+    }
+
+    if (typeof body === 'string') {
+      return Buffer.from(body)
+    }
+
+    return null
+  }
+
+  private getWebhookSecrets() {
+    const candidates = [
+      process.env.STRIPE_WEBHOOK_SECRET,
+      process.env.STRIPE_WEBHOOK_SECRET_CLI,
+      ...(process.env.STRIPE_WEBHOOK_SECRETS || '').split(','),
+    ]
+
+    const unique = new Set<string>()
+
+    for (const candidate of candidates) {
+      const secret = String(candidate || '')
+          .trim()
+          .replace(/^['"]|['"]$/g, '')
+
+      if (secret) {
+        unique.add(secret)
+      }
+    }
+
+    return Array.from(unique)
   }
 
   private extractRealtimeUserId(event: Stripe.Event) {

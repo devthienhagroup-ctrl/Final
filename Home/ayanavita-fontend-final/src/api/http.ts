@@ -1,6 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
-const baseURL = import.meta.env.VITE_API_URL ?? "http://localhost:8090";
+const baseURL = (import.meta.env.VITE_API_URL || "/api").replace(/\/+$/, "");
 const ACCESS_TOKEN_KEY = "aya_access_token";
 const REFRESH_TOKEN_KEY = "aya_refresh_token";
 

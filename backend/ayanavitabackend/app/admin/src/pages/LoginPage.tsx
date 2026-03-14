@@ -142,7 +142,7 @@ export function LoginPage() {
               </label>
 
               <div className="hint">
-                Nếu backend port khác, set <code>VITE_API_BASE</code> trong <code>.env</code>
+                Nếu backend port khác, set <code>VITE_API_URL</code> trong <code>.env</code>
               </div>
             </div>
 

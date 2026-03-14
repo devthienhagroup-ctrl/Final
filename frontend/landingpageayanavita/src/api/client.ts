@@ -1,5 +1,5 @@
 // src/api/client.ts
-const API_BASE = (import.meta as any).env?.VITE_API_BASE || "http://localhost:8090";
+const API_BASE = (import.meta as any).env?.VITE_API_URL || "/api";
 
 export type ApiError = { status: number; message: string; raw?: string };
 

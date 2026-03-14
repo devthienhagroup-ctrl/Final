@@ -57,8 +57,8 @@ export class PaymentsService {
 
     const session = await this.stripe.checkout.sessions.create({
       mode: 'payment',
-      success_url: `http://localhost:5176/payment/success?session_id={CHECKOUT_SESSION_ID}&order_id=${order.id}`,
-      cancel_url: `http://localhost:5176/payment/cancel?order_id=${order.id}`,
+      success_url: `https://demo.ayanavita.com/payment/success?session_id={CHECKOUT_SESSION_ID}&order_id=${order.id}`,
+      cancel_url: `https://demo.ayanavita.com/payment/cancel?order_id=${order.id}`,
       line_items: [
         {
           price_data: {

@@ -1,6 +1,6 @@
 set -euo pipefail
 
-BASE="http://localhost:8090"
+BASE="https://demo.ayanavita.com"
 
 TOKEN_ADMIN=$(curl -s $BASE/auth/login \
   -H "Content-Type: application/json" \

@@ -861,7 +861,7 @@ export class CoursePlanPaymentsService implements OnModuleInit, OnModuleDestroy 
   }
 
   private resolveStripeReturnUrls(dto?: PurchasePlanDto) {
-    const frontendBase = (process.env.FRONTEND_BASE_URL || 'http://localhost:5176').replace(/\/$/, '')
+    const frontendBase = (process.env.FRONTEND_BASE_URL || 'https://demo.ayanvita.com').replace(/\/$/, '')
 
     return {
       successUrl:
@@ -1160,7 +1160,7 @@ export class CoursePlanPaymentsService implements OnModuleInit, OnModuleDestroy 
   }
 
   private resolveAccountUrl() {
-    const base = (process.env.FRONTEND_BASE_URL || 'http://localhost:5176').replace(/\/$/, '')
+    const base = (process.env.FRONTEND_BASE_URL || 'https://demo.ayanavita.com').replace(/\/$/, '')
     return `${base}/account-center?tab=subscriptions`
   }
 
@@ -1535,7 +1535,7 @@ export class CoursePlanPaymentsService implements OnModuleInit, OnModuleDestroy 
   }
 
   private resolveAppBaseUrl() {
-    const appBase = String(process.env.APP_BASE_URL || process.env.BACKEND_BASE_URL || process.env.API_BASE_URL || 'http://localhost:8090')
+    const appBase = String(process.env.APP_BASE_URL || process.env.BACKEND_BASE_URL || process.env.API_BASE_URL || 'https://demo.ayanavita.com/api')
       .trim()
       .replace(/\/$/, '')
 

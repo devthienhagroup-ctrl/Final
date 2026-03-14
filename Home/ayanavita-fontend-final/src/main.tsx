@@ -7,7 +7,7 @@ import App from "./App";
 import { CartProvider } from "./contexts/CartContext";
 import "./styles/aya-course-player.css";
 import ScrollToTop from "./ScrollToTop";
-
+import CookieConsentBanner from "./components/common/CookieConsentBanner";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -17,8 +17,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         v7_relativeSplatPath: true,
       }}
     >
-        <ScrollToTop/>
-      <CartProvider><App /></CartProvider>
+      <ScrollToTop />
+      <CartProvider>
+        <App />
+        <CookieConsentBanner />
+      </CartProvider>
     </BrowserRouter>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

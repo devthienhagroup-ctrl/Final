@@ -1,6 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
-const baseURL = ('https://demo.ayanavita.com/api'|| "/api").replace(/\/+$/, "");
+// const baseURL = ('https://demo.ayanavita.com/api'|| "/api").replace(/\/+$/, "");
+const baseURL = ('http://localhost:8090').replace(/\/+$/, "");
 const ACCESS_TOKEN_KEY = "aya_access_token";
 const REFRESH_TOKEN_KEY = "aya_refresh_token";
 

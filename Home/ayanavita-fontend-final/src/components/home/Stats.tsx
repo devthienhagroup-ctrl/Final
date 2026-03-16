@@ -3,15 +3,19 @@ import React from "react";
 
 type Tone = "amber" | "indigo" | "cyan" | "emerald";
 
-// Định nghĩa kiểu cho mỗi item trong cmsData
 export interface StatsItem {
-    icon: string;       // class name cho icon (ví dụ: "fa-solid fa-users")
+    icon: string;
     value: string;
     label: string;
 }
 
+// CMS structure mới
+export interface StatsCmsData {
+    items: StatsItem[];
+}
+
 interface ItemProps {
-    icon: string;       // nhận string thay vì ReactNode
+    icon: string;
     value: string;
     label: string;
     tone: Tone;
@@ -30,7 +34,6 @@ const Item: React.FC<ItemProps> = ({ icon, value, label, tone }) => {
             <div
                 className={`mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-2xl ${toneMap[tone]}`}
             >
-                {/* Render icon từ string className */}
                 <i className={icon}></i>
             </div>
 
@@ -40,13 +43,12 @@ const Item: React.FC<ItemProps> = ({ icon, value, label, tone }) => {
     );
 };
 
-// Props cho Stats component
 interface StatsProps {
-    cmsData?: StatsItem[];   // nếu không có, dùng dữ liệu mẫu
+    cmsData?: StatsCmsData | StatsItem[];
 }
 
 export const Stats: React.FC<StatsProps> = ({ cmsData }) => {
-    // Dữ liệu mẫu (fallback) – chuyển các icon thành string
+
     const defaultData: StatsItem[] = [
         { icon: "fa-solid fa-users", value: "30K+", label: "Học viên" },
         { icon: "fa-solid fa-book", value: "120+", label: "Khóa học" },
@@ -54,9 +56,15 @@ export const Stats: React.FC<StatsProps> = ({ cmsData }) => {
         { icon: "fa-solid fa-star", value: "4.8★", label: "Đánh giá" },
     ];
 
-    const data = cmsData || defaultData;
+    // normalize dữ liệu từ CMS
+    let data: StatsItem[] = defaultData;
 
-    // Mảng tone mặc định, có thể lặp lại nếu data dài hơn
+    if (Array.isArray(cmsData)) {
+        data = cmsData;
+    } else if (cmsData && Array.isArray(cmsData.items)) {
+        data = cmsData.items;
+    }
+
     const tones: Tone[] = ["amber", "indigo", "cyan", "emerald"];
 
     return (
@@ -64,10 +72,11 @@ export const Stats: React.FC<StatsProps> = ({ cmsData }) => {
             <div className="mx-auto max-w-6xl px-4">
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                     {data.map((item, index) => {
-                        // Lấy tone theo index (vòng tròn nếu cần)
                         const tone = tones[index % tones.length];
+
                         return (
                             <Item
+
                                 key={index}
                                 icon={item.icon}
                                 value={item.value}

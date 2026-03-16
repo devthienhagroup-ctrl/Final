@@ -27,6 +27,8 @@ import DemoCheckoutPage from "./pages/PaymentStripeDemo";
 import PaymentSuccessPage from "./pages/PaymentSuccessPage";
 import PaymentCancelPage from "./pages/PaymentCancelPage";
 import Policy from "./pages/Policy";
+import PartnerLandingPage from "./pages/Partner";
+import AboutAyanavita from "./pages/AboutAyanavita";
 
 
 export default function App() {
@@ -64,17 +66,13 @@ export default function App() {
                 <Route path="/reviews" element={<ReviewsCenterPage/>}/>
                 <Route path="/policies/:policy" element={<Policy />} />
                 <Route path="/blog" element={<BlogPage/>}/>
-
-
+                <Route path="/partners" element={<PartnerLandingPage/>}/>
+                <Route path="about" element={<AboutAyanavita />}/>
                 {/* placeholder các page khác để không vỡ Link */}
-                <Route path="/products" element={<div className="p-6">Products (todo)</div>}/>
-                <Route path="/checkout" element={<div className="p-6">Checkout (todo)</div>}/>
                 <Route path="/franchise" element={<div className="p-6">Franchise (todo)</div>}/>
                 <Route path="/account" element={<AccountCenter/>}/>
                 <Route path="/account-center" element={<AccountCenter/>}/>
-                <Route path="/compare" element={<div className="p-6">Compare (todo)</div>}/>
-                <Route path="/track-order" element={<div className="p-6">Track order (todo)</div>}/>
-                        <Route path="/contact" element={<ContactPage />} />
+                <Route path="/contact" element={<ContactPage />} />
                 <Route path="*" element={<div className="p-6">Not found</div>}/>
             </Route>
         </Routes>

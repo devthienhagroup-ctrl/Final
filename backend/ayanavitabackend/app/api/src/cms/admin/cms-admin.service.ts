@@ -1,10 +1,18 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
-import { CmsLocale, CmsStatus } from "@prisma/client";
+import { CmsLocale, CmsStatus, Prisma } from "@prisma/client";
+import { AdminListContactInquiriesDto } from "./dto/admin-list-contact-inquiries.dto";
+import { ReplyContactInquiryDto } from "./dto/reply-contact-inquiry.dto";
+import { CmsPublicService } from "../public/cms-public.service";
 
 @Injectable()
 export class CmsAdminService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(CmsAdminService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private cmsPublicService: CmsPublicService,
+  ) {}
 
   private parseLocale(localeStr: string): CmsLocale {
     const v = String(localeStr ?? "").toLowerCase();
@@ -152,6 +160,95 @@ export class CmsAdminService {
       });
     });
 
+    return { ok: true };
+  }
+
+  async listContactInquiries(query: AdminListContactInquiriesDto) {
+    const where: Prisma.ContactInquiryWhereInput = {};
+
+    if (query.status) where.status = query.status;
+
+    if (query.search?.trim()) {
+      const q = query.search.trim();
+      where.OR = [
+        { name: { contains: q } },
+        { phone: { contains: q } },
+        { email: { contains: q } },
+        { need: { contains: q } },
+      ];
+    }
+
+    if (query.from || query.to) {
+      where.createdAt = {
+        gte: query.from ? new Date(query.from) : undefined,
+        lte: query.to ? new Date(query.to) : undefined,
+      };
+    }
+
+    const page = Math.max(1, Number(query.page || 1));
+    const pageSize = Math.min(100, Math.max(1, Number(query.pageSize || 20)));
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.contactInquiry.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          replies: {
+            orderBy: { createdAt: "desc" },
+            include: { user: { select: { id: true, name: true, email: true } } },
+          },
+        },
+      }),
+      this.prisma.contactInquiry.count({ where }),
+    ]);
+
+    return {
+      items,
+      page,
+      pageSize,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    };
+  }
+
+  async replyContactInquiry(inquiryId: number, dto: ReplyContactInquiryDto, actor?: { sub?: number; email?: string }) {
+    const inquiry = await this.prisma.contactInquiry.findUnique({ where: { id: inquiryId } });
+    if (!inquiry) throw new NotFoundException("Contact inquiry not found");
+
+    const toEmail = dto.toEmail?.trim().toLowerCase() || inquiry.email || null;
+    if (!toEmail) {
+      throw new BadRequestException("Inquiry has no email. Please provide toEmail to send reply.");
+    }
+
+    await this.cmsPublicService.sendSmtpViaGmail({
+      to: toEmail,
+      subject: dto.subject,
+      body: dto.content,
+    });
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.contactInquiryReply.create({
+        data: {
+          inquiryId,
+          userId: actor?.sub ? Number(actor.sub) : null,
+          staffEmail: actor?.email || null,
+          subject: dto.subject,
+          content: dto.content,
+        },
+      });
+
+      await tx.contactInquiry.update({
+        where: { id: inquiryId },
+        data: {
+          status: "replied",
+          repliedAt: new Date(),
+        },
+      });
+    });
+
+    this.logger.log(`Inquiry #${inquiryId} replied by ${actor?.email || "unknown"}`);
     return { ok: true };
   }
 }

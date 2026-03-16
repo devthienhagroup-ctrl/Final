@@ -1,99 +1,1852 @@
-diff --git a/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts b/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
-index 5df9808696080d930ec4961094a783f5ca3c29aa..7842126848452a30f32b1067e024272c6b247493 100644
---- a/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
-+++ b/backend/ayanavitabackend/app/api/src/course-plans/course-plan-payments.service.ts
-@@ -1381,62 +1381,93 @@ export class CoursePlanPaymentsService {
+diff --git a/Home/ayanavita-fontend-final/src/components/home/ContactSection.tsx b/Home/ayanavita-fontend-final/src/components/home/ContactSection.tsx
+index 950dd407f6b04d4b8e2c5e3ca7c98878527c2e95..6c3316d1a649609f03a10ba88a17fab67c09e7bf 100644
+--- a/Home/ayanavita-fontend-final/src/components/home/ContactSection.tsx
++++ b/Home/ayanavita-fontend-final/src/components/home/ContactSection.tsx
+@@ -1,220 +1,126 @@
+-// src/components/home/ContactSection.fixed.tsx
+ import React, { useState } from "react";
 
-     await this.prisma.userCoursePass.create({
-       data: {
-         userId: params.userId,
-         planId: params.planId,
-         purchaseId: params.purchaseId,
-         entitlementState: UserCoursePassEntitlementState.PENDING_CHARGE,
-         startAt: params.startAt,
-         endAt,
-         graceUntil,
-         remainingUnlocks: plan.maxUnlocks,
-         status: this.derivePassStatus(
-           {
-             startAt: params.startAt,
-             endAt,
-             graceUntil,
-             canceledAt: null,
+ export type ContactLead = {
+   name: string;
+   phone: string;
+   email: string;
+   need: string;
+   note: string;
+ };
+
+-/**
+- * Dữ liệu nội dung từ CMS – chỉ chứa text, mảng, không chứa style hay kích thước.
+- * Tất cả các trường đều là optional, nếu không có sẽ dùng fallback mặc định.
+- */
+ export type ContactCmsData = {
+-  /** Dòng địa chỉ 1 (ví dụ: tên trung tâm) */
+   addressLine1?: string;
+-  /** Dòng địa chỉ 2 (số nhà, đường, quận) */
+   addressLine2?: string;
+-  /** Số điện thoại hiển thị */
+   phone?: string;
+-  /** Email hiển thị */
+   email?: string;
+-  /** Giờ làm việc */
+   businessHours?: string;
+-  /** Tiêu đề của khung bản đồ (ví dụ: "Bản đồ") */
+   mapTitle?: string;
+-  /** Mô tả ngắn dưới tiêu đề bản đồ */
+   mapDescription?: string;
+-  /** URL nhúng Google Maps (thay đổi địa điểm) */
+   mapEmbedUrl?: string;
+-  /** Tiêu đề của phần form */
+   formTitle?: string;
+-  /** Mô tả phụ dưới tiêu đề form */
+   formDescription?: string;
+-  /** Placeholder cho ô Họ tên */
+   namePlaceholder?: string;
+-  /** Placeholder cho ô Số điện thoại */
+   phonePlaceholder?: string;
+-  /** Placeholder cho ô Email */
+   emailPlaceholder?: string;
+-  /** Tuỳ chọn mặc định trong dropdown Nhu cầu (giá trị rỗng) */
+   needDefaultOption?: string;
+-  /** Danh sách các lựa chọn cho dropdown "Nhu cầu" */
+   needOptions?: string[];
+-  /** Placeholder cho ô Mô tả nhu cầu (textarea) */
+   notePlaceholder?: string;
+-  /** Chữ trên nút gửi */
+   submitButtonText?: string;
+ };
+
+ export type ContactSectionProps = {
+-  /** Bạn truyền onSubmit từ HomePage -> component sẽ gọi khi submit */
+   onSubmit?: (lead: ContactLead) => void | Promise<void>;
+-  /** Dữ liệu nội dung từ CMS (nếu có) */
+   cmsData?: ContactCmsData;
+ };
+
+-export const ContactSection: React.FC<ContactSectionProps> = ({
+-                                                                onSubmit,
+-                                                                cmsData = {},
+-                                                              }) => {
+-  const [lead, setLead] = useState<ContactLead>({
+-    name: "",
+-    phone: "",
+-    email: "",
+-    need: "",
+-    note: "",
+-  });
++const initialLead: ContactLead = { name: "", phone: "", email: "", need: "", note: "" };
++
++export const ContactSection: React.FC<ContactSectionProps> = ({ onSubmit, cmsData = {} }) => {
++  const [lead, setLead] = useState<ContactLead>(initialLead);
++  const [message, setMessage] = useState<string>("");
++  const [error, setError] = useState<string>("");
+
+-  // Fallback content
+   const {
+     addressLine1 = "AYANAVITA Wellness Experience",
+     addressLine2 = "Không gian trải nghiệm và tư vấn wellness cá nhân hóa",
+     phone = "(028) 1234 5678",
+     email = "hello@ayanavita.com",
+     businessHours = "8:00 – 20:00 (T2 – CN)",
+     mapTitle = "Không gian AYANAVITA",
+     mapDescription = "Nơi bạn bắt đầu hành trình wellness cân bằng và cá nhân hóa.",
+     mapEmbedUrl = "https://www.google.com/maps?q=So%20123%20Duong%20ABC%20Quan%201%20TPHCM&output=embed",
+     formTitle = "Để lại thông tin để được tư vấn",
+-    formDescription = "Nếu bạn vẫn đang phân vân gói trải nghiệm nào phù hợp, hãy để lại thông tin bên dưới để đội ngũ AYANAVITA tư vấn chi tiết cho bạn.",
++    formDescription = "Hãy để lại thông tin để đội ngũ AYANAVITA liên hệ sớm nhất.",
+     namePlaceholder = "Họ và tên",
+     phonePlaceholder = "Số điện thoại",
+     emailPlaceholder = "Email",
+     needDefaultOption = "Chọn nhu cầu của bạn",
+-    needOptions = [
+-      "Tư vấn wellness",
+-      "Đặt lịch trải nghiệm",
+-      "Chăm sóc cá nhân",
+-      "Hợp tác đối tác",
+-    ],
++    needOptions = ["Tư vấn wellness", "Đặt lịch trải nghiệm", "Chăm sóc cá nhân", "Hợp tác đối tác"],
+     notePlaceholder = "Chia sẻ nhu cầu của bạn...",
+     submitButtonText = "Nhận tư vấn",
+   } = cmsData;
+
+   const submit = async (e: React.FormEvent) => {
+     e.preventDefault();
++    setError("");
++    setMessage("");
+     try {
+       if (onSubmit) await onSubmit(lead);
+-      if (!onSubmit) window.alert("Đã nhận thông tin tư vấn. Sau này có thể nối API để lưu lead.");
++      setMessage("Gửi liên hệ thành công. Nhân viên sẽ liên hệ sớm nhất cho quý khách.");
++      setLead(initialLead);
+     } catch (err: any) {
+-      window.alert(err?.message ?? "Gửi yêu cầu thất bại");
++      setError(err?.message ?? "Gửi yêu cầu thất bại");
+     }
+   };
+
+   return (
+-      <section id="contact" className="w-full pb-16">
+-        <div className="mx-auto max-w-6xl px-4">
+-          <div className="mt-8 grid gap-4 md:grid-cols-2">
+-            <div className="rounded-3xl bg-white p-8 ring-1 ring-slate-200 shadow-sm">
+-              <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
+-                <div className="text-xs font-semibold text-slate-500">Liên hệ</div>
+-                <div className="mt-1 font-extrabold text-slate-900">{addressLine1}</div>
+-                <div className="mt-1 text-sm text-slate-700">{addressLine2}</div>
+-
+-                <div className="mt-4 grid gap-2 text-sm text-slate-700">
+-                  <div className="flex items-center gap-2">
+-                    <i className="fa-solid fa-phone"></i>
+-                    <span>{phone}</span>
+-                  </div>
+-                  <div className="flex items-center gap-2">
+-                    <i className="fa-solid fa-envelope"></i>
+-                    <span>{email}</span>
+-                  </div>
+-                  <div className="flex items-center gap-2">
+-                    <i className="fa-solid fa-business-time"></i>
+-                    <span>{businessHours}</span>
+-                  </div>
+-                </div>
+-              </div>
+-
+-              <div className="mt-6">
+-                <div className="text-sm font-semibold text-slate-900">{formTitle}</div>
+-                <p className="mt-1 text-sm leading-6 text-slate-600">{formDescription}</p>
+-
+-                <form className="mt-4 grid gap-3" onSubmit={submit}>
+-                  <div className="grid gap-3 md:grid-cols-2">
+-                    <input
+-                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none ring-indigo-100 focus:ring-4"
+-                        placeholder={namePlaceholder}
+-                        value={lead.name}
+-                        onChange={(e) => setLead((s) => ({ ...s, name: e.target.value }))}
+-                    />
+-                    <input
+-                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none ring-indigo-100 focus:ring-4"
+-                        placeholder={phonePlaceholder}
+-                        value={lead.phone}
+-                        onChange={(e) => setLead((s) => ({ ...s, phone: e.target.value }))}
+-                    />
+-                  </div>
+-
+-                  <div className="grid gap-3 md:grid-cols-2">
+-                    <input
+-                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none ring-indigo-100 focus:ring-4"
+-                        placeholder={emailPlaceholder}
+-                        value={lead.email}
+-                        onChange={(e) => setLead((s) => ({ ...s, email: e.target.value }))}
+-                    />
+-                    <div className="relative w-full overflow-hidden rounded-2xl">
+-                      <select
+-                          className="block w-full max-w-full appearance-none truncate rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-10 outline-none ring-indigo-100 focus:ring-4"
+-                          value={lead.need}
+-                          onChange={(e) => setLead((s) => ({ ...s, need: e.target.value }))}
+-                      >
+-                        <option value="">{needDefaultOption}</option>
+-                        {needOptions.map((opt) => (
+-                            <option key={opt} value={opt}>
+-                              {opt}
+-                            </option>
+-                        ))}
+-                      </select>
+-                      <i className="fa-solid fa-chevron-down pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+-                    </div>
+-                  </div>
+-
+-                  <textarea
+-                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none ring-indigo-100 focus:ring-4"
+-                      style={{ minHeight: 120 }}
+-                      placeholder={notePlaceholder}
+-                      value={lead.note}
+-                      onChange={(e) => setLead((s) => ({ ...s, note: e.target.value }))}
+-                  />
+-
+-                  <button
+-                      type="submit"
+-                      className="rounded-2xl bg-gradient-to-r from-amber-300 to-yellow-300 px-6 py-3 font-extrabold text-slate-900 shadow hover:opacity-95"
+-                  >
+-                    {submitButtonText}
+-                  </button>
+-                </form>
++    <section id="contact" className="w-full pb-16">
++      <div className="mx-auto max-w-6xl px-4">
++        <div className="mt-8 grid gap-4 md:grid-cols-2">
++          <div className="rounded-3xl bg-white p-8 ring-1 ring-slate-200 shadow-sm">
++            <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
++              <div className="text-xs font-semibold text-slate-500">Liên hệ</div>
++              <div className="mt-1 font-extrabold text-slate-900">{addressLine1}</div>
++              <div className="mt-1 text-sm text-slate-700">{addressLine2}</div>
++              <div className="mt-4 grid gap-2 text-sm text-slate-700">
++                <span>{phone}</span>
++                <span>{email}</span>
++                <span>{businessHours}</span>
+               </div>
+             </div>
+
+-            <div className="overflow-hidden rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm">
+-              <div className="border-b border-slate-200 p-6">
+-                <div className="text-sm font-semibold text-slate-900">{mapTitle}</div>
+-                <div className="text-sm text-slate-600">{mapDescription}</div>
+-              </div>
++            <div className="mt-6">
++              <div className="text-sm font-semibold text-slate-900">{formTitle}</div>
++              <p className="mt-1 text-sm leading-6 text-slate-600">{formDescription}</p>
++              <form className="mt-4 grid gap-3" onSubmit={submit}>
++                <input required className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3" placeholder={namePlaceholder} value={lead.name} onChange={(e) => setLead((s) => ({ ...s, name: e.target.value }))} />
++                <input required className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3" placeholder={phonePlaceholder} value={lead.phone} onChange={(e) => setLead((s) => ({ ...s, phone: e.target.value }))} />
++                <input type="email" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3" placeholder={emailPlaceholder} value={lead.email} onChange={(e) => setLead((s) => ({ ...s, email: e.target.value }))} />
++                <select className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3" value={lead.need} onChange={(e) => setLead((s) => ({ ...s, need: e.target.value }))}>
++                  <option value="">{needDefaultOption}</option>
++                  {needOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
++                </select>
++                <textarea className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3" style={{ minHeight: 120 }} placeholder={notePlaceholder} value={lead.note} onChange={(e) => setLead((s) => ({ ...s, note: e.target.value }))} />
++                {message ? <div className="rounded-xl bg-emerald-50 p-2 text-sm text-emerald-700">{message}</div> : null}
++                {error ? <div className="rounded-xl bg-rose-50 p-2 text-sm text-rose-700">{error}</div> : null}
++                <button type="submit" className="rounded-2xl bg-gradient-to-r from-amber-300 to-yellow-300 px-6 py-3 font-extrabold text-slate-900 shadow hover:opacity-95">{submitButtonText}</button>
++              </form>
++            </div>
++          </div>
+
+-              <div className="p-4">
+-                <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200">
+-                  <iframe
+-                      title="AYANAVITA Map"
+-                      width="100%"
+-                      height="420"
+-                      style={{ border: 0 }}
+-                      loading="lazy"
+-                      referrerPolicy="no-referrer-when-downgrade"
+-                      src={mapEmbedUrl}
+-                  />
+-                </div>
++          <div className="overflow-hidden rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm">
++            <div className="border-b border-slate-200 p-6">
++              <div className="text-sm font-semibold text-slate-900">{mapTitle}</div>
++              <div className="text-sm text-slate-600">{mapDescription}</div>
++            </div>
++            <div className="p-4">
++              <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200">
++                <iframe title="AYANAVITA Map" width="100%" height="420" style={{ border: 0 }} loading="lazy" referrerPolicy="no-referrer-when-downgrade" src={mapEmbedUrl} />
+               </div>
+             </div>
+           </div>
+         </div>
+-      </section>
++      </div>
++    </section>
+   );
+ };
+diff --git a/Home/ayanavita-fontend-final/src/pages/ContactPage.tsx b/Home/ayanavita-fontend-final/src/pages/ContactPage.tsx
+index 9db8b2e13aba6cce9e06e3e6bbe8cfcb35b0b445..2c487f7092dcfe43b4eb1f3df67e80681c55855c 100644
+--- a/Home/ayanavita-fontend-final/src/pages/ContactPage.tsx
++++ b/Home/ayanavita-fontend-final/src/pages/ContactPage.tsx
+@@ -1,289 +1,161 @@
+ import React, { useEffect, useMemo, useState } from "react";
+ import { http } from "../api/http";
+
+ type ContactLead = {
+-    name: string;
+-    phone: string;
+-    email: string;
+-    need: string;
+-    note: string;
++  name: string;
++  phone: string;
++  email: string;
++  need: string;
++  note: string;
+ };
+
+ type CmsData = {
+-    // Hero riêng của ContactPage
+-    eyebrow?: string;
+-    title?: string;
+-    description?: string;
+-
+-    // Đồng bộ field với ContactSection.fixed.tsx để dùng chung API
+-    addressLine1?: string;
+-    addressLine2?: string;
+-    phone?: string;
+-    email?: string;
+-    businessHours?: string;
+-
+-    mapTitle?: string;
+-    mapDescription?: string;
+-    mapEmbedUrl?: string;
+-
+-    formTitle?: string;
+-    formDescription?: string;
+-    namePlaceholder?: string;
+-    phonePlaceholder?: string;
+-    emailPlaceholder?: string;
+-    needDefaultOption?: string;
+-    needOptions?: string[];
+-    notePlaceholder?: string;
+-    submitButtonText?: string;
++  eyebrow?: string;
++  title?: string;
++  description?: string;
++  addressLine1?: string;
++  addressLine2?: string;
++  phone?: string;
++  email?: string;
++  businessHours?: string;
++  mapTitle?: string;
++  mapDescription?: string;
++  mapEmbedUrl?: string;
++  formTitle?: string;
++  formDescription?: string;
++  namePlaceholder?: string;
++  phonePlaceholder?: string;
++  emailPlaceholder?: string;
++  needDefaultOption?: string;
++  needOptions?: string[];
++  notePlaceholder?: string;
++  submitButtonText?: string;
+ };
+
+ const cmsDataDefault: CmsData = {
+-    eyebrow: "Liên hệ AYANAVITA",
+-    title: "Kết nối với đội ngũ tư vấn AYANAVITA",
+-    description:
+-        "Nếu bạn cần tư vấn về trải nghiệm wellness, đặt lịch, chăm sóc cá nhân hóa hoặc cơ hội hợp tác, hãy để lại thông tin. Đội ngũ AYANAVITA sẽ liên hệ để hỗ trợ bạn lựa chọn hướng đi phù hợp nhất.",
+-
+-    addressLine1: "AYANAVITA Wellness Experience",
+-    addressLine2: "Quận 1, TP.HCM",
+-    phone: "(028) 1234 5678",
+-    email: "hello@ayanavita.com",
+-    businessHours: "8:00 – 20:00 (T2 – CN)",
+-
+-    mapTitle: "Không gian AYANAVITA",
+-    mapDescription: "Nơi bạn bắt đầu hành trình wellness cân bằng và cá nhân hóa.",
+-    mapEmbedUrl:
+-        "https://www.google.com/maps?q=AYANAVITA%20Wellness%20Experience%20Quan%201%20TPHCM&output=embed",
+-
+-    formTitle: "Để lại thông tin để được tư vấn",
+-    formDescription:
+-        "Nếu bạn vẫn đang phân vân gói trải nghiệm nào phù hợp, hãy để lại thông tin bên dưới để đội ngũ AYANAVITA tư vấn chi tiết cho bạn.",
+-    namePlaceholder: "Họ và tên",
+-    phonePlaceholder: "Số điện thoại",
+-    emailPlaceholder: "Email",
+-    needDefaultOption: "Chọn nhu cầu của bạn",
+-    needOptions: [
+-        "Tư vấn wellness",
+-        "Đặt lịch trải nghiệm",
+-        "Chăm sóc cá nhân",
+-        "Hợp tác đối tác",
+-    ],
+-    notePlaceholder: "Chia sẻ nhu cầu của bạn...",
+-    submitButtonText: "Nhận tư vấn",
++  eyebrow: "Liên hệ AYANAVITA",
++  title: "Kết nối với đội ngũ tư vấn AYANAVITA",
++  description: "Đội ngũ AYANAVITA sẽ liên hệ sớm nhất để hỗ trợ bạn.",
++  addressLine1: "AYANAVITA Wellness Experience",
++  addressLine2: "Quận 1, TP.HCM",
++  phone: "(028) 1234 5678",
++  email: "hello@ayanavita.com",
++  businessHours: "8:00 – 20:00 (T2 – CN)",
++  mapTitle: "Không gian AYANAVITA",
++  mapDescription: "Nơi bạn bắt đầu hành trình wellness cân bằng và cá nhân hóa.",
++  mapEmbedUrl: "https://www.google.com/maps?q=AYANAVITA%20Wellness%20Experience%20Quan%201%20TPHCM&output=embed",
++  formTitle: "Để lại thông tin để được tư vấn",
++  formDescription: "Hãy để lại thông tin, nhân viên sẽ liên hệ sớm nhất.",
++  namePlaceholder: "Họ và tên",
++  phonePlaceholder: "Số điện thoại",
++  emailPlaceholder: "Email",
++  needDefaultOption: "Chọn nhu cầu của bạn",
++  needOptions: ["Tư vấn wellness", "Đặt lịch trải nghiệm", "Chăm sóc cá nhân", "Hợp tác đối tác"],
++  notePlaceholder: "Chia sẻ nhu cầu của bạn...",
++  submitButtonText: "Nhận tư vấn",
+ };
+
+-export default function ContactPage() {
+-    const [currentLanguage, setCurrentLanguage] = useState<string>(() => {
+-        return localStorage.getItem("preferred-language") || "vi";
+-    });
+-
+-    const [cmsDataFromApi, setCmsDataFromApi] = useState<Partial<CmsData> | null>(null);
+-    const [lead, setLead] = useState<ContactLead>({
+-        name: "",
+-        phone: "",
+-        email: "",
+-        need: "",
+-        note: "",
+-    });
+-
+-    useEffect(() => {
+-        const handleLanguageChange = (event: CustomEvent) => {
+-            setCurrentLanguage(event.detail.language);
+-        };
+-
+-        window.addEventListener("languageChange", handleLanguageChange as EventListener);
+-        return () => {
+-            window.removeEventListener("languageChange", handleLanguageChange as EventListener);
+-        };
+-    }, []);
+-
+-    useEffect(() => {
+-        let cancelled = false;
+-
+-        const fetchCmsContact = async () => {
+-            try {
+-                const res = await http.get(`/public/pages/contact?lang=${currentLanguage}`);
+-                if (!cancelled) {
+-                    const sectionData = res?.data?.sections?.[0]?.data ?? null;
+-                    setCmsDataFromApi(sectionData);
+-                }
+-            } catch {
+-                if (!cancelled) setCmsDataFromApi(null);
+-            }
+-        };
+-
+-        fetchCmsContact();
+-
+-        return () => {
+-            cancelled = true;
+-        };
+-    }, [currentLanguage]);
+-
+-    const cmsData: CmsData = useMemo(() => {
+-        return {
+-            ...cmsDataDefault,
+-            ...(cmsDataFromApi || {}),
+-            needOptions:
+-                cmsDataFromApi?.needOptions && Array.isArray(cmsDataFromApi.needOptions)
+-                    ? cmsDataFromApi.needOptions
+-                    : cmsDataDefault.needOptions,
+-        };
+-    }, [cmsDataFromApi]);
++const initialLead: ContactLead = { name: "", phone: "", email: "", need: "", note: "" };
+
+-    const handleSubmit = (e: React.FormEvent) => {
+-        e.preventDefault();
+-        console.log("Form submitted", lead);
++export default function ContactPage() {
++  const [currentLanguage, setCurrentLanguage] = useState<string>(() => localStorage.getItem("preferred-language") || "vi");
++  const [cmsDataFromApi, setCmsDataFromApi] = useState<Partial<CmsData> | null>(null);
++  const [lead, setLead] = useState<ContactLead>(initialLead);
++  const [submitting, setSubmitting] = useState(false);
++  const [submitMessage, setSubmitMessage] = useState<string>("");
++  const [submitError, setSubmitError] = useState<string>("");
++
++  useEffect(() => {
++    const handleLanguageChange = (event: CustomEvent) => setCurrentLanguage(event.detail.language);
++    window.addEventListener("languageChange", handleLanguageChange as EventListener);
++    return () => window.removeEventListener("languageChange", handleLanguageChange as EventListener);
++  }, []);
++
++  useEffect(() => {
++    let cancelled = false;
++    const fetchCmsContact = async () => {
++      try {
++        const res = await http.get(`/public/pages/contact?lang=${currentLanguage}`);
++        if (!cancelled) setCmsDataFromApi(res?.data?.sections?.[0]?.data ?? null);
++      } catch {
++        if (!cancelled) setCmsDataFromApi(null);
++      }
+     };
+-
+-    return (
+-        <div className="min-h-screen bg-slate-50 text-slate-900">
+-            <section className="mx-auto max-w-7xl px-4 pt-8 pb-2">
+-                <div className="overflow-hidden rounded-[32px] border border-white/70 bg-white/80 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.06)] backdrop-blur-sm md:p-8">
+-                    <p className="inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-indigo-700">
+-                        {cmsData.eyebrow}
+-                    </p>
+-                    <h1 className="mt-4 text-2xl font-extrabold leading-tight md:text-4xl">
+-                        {cmsData.title}
+-                    </h1>
+-                    <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 md:text-base">
+-                        {cmsData.description}
+-                    </p>
+-                </div>
+-            </section>
+-
+-            <section className="mx-auto max-w-7xl px-4 pb-16">
+-                <div className="mt-8 grid gap-8 rounded-[32px] border border-white/70 bg-white/80 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-200 backdrop-blur-sm md:grid-cols-2 md:p-10">
+-                    <div className="space-y-6">
+-                        <div className="rounded-3xl bg-slate-50 p-6 ring-1 ring-slate-200">
+-                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+-                                Liên hệ
+-                            </div>
+-                            <h3 className="mt-1 text-lg font-bold text-slate-900">
+-                                {cmsData.addressLine1}
+-                            </h3>
+-                            <p className="mt-1 text-sm text-slate-700">{cmsData.addressLine2}</p>
+-
+-                            <div className="mt-4 grid gap-3 text-sm text-slate-700">
+-                                <div className="flex items-center gap-2">
+-                                    <i className="fa-solid fa-phone text-slate-500" />
+-                                    <span>{cmsData.phone}</span>
+-                                </div>
+-                                <div className="flex items-center gap-2">
+-                                    <i className="fa-solid fa-envelope text-slate-500" />
+-                                    <span>{cmsData.email}</span>
+-                                </div>
+-                                <div className="flex items-center gap-2">
+-                                    <i className="fa-solid fa-business-time text-slate-500" />
+-                                    <span>{cmsData.businessHours}</span>
+-                                </div>
+-                            </div>
+-                        </div>
+-
+-                        <div className="overflow-hidden rounded-3xl bg-white ring-1 ring-slate-200">
+-                            <div className="border-b border-slate-200 p-6">
+-                                <h3 className="text-lg font-bold text-slate-900">{cmsData.mapTitle}</h3>
+-                                <p className="mt-1 text-sm text-slate-600">{cmsData.mapDescription}</p>
+-                            </div>
+-
+-                            <div className="p-4">
+-                                <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200">
+-                                    <iframe
+-                                        title="AYANAVITA Map"
+-                                        width="100%"
+-                                        height="380"
+-                                        style={{ border: 0 }}
+-                                        loading="lazy"
+-                                        referrerPolicy="no-referrer-when-downgrade"
+-                                        src={cmsData.mapEmbedUrl}
+-                                    />
+-                                </div>
+-                            </div>
+-                        </div>
+-                    </div>
+-
+-                    <div className="rounded-3xl bg-white p-1">
+-                        <div className="rounded-3xl bg-gradient-to-br from-indigo-50 to-amber-50 p-6 ring-1 ring-slate-200 md:p-8">
+-                            <h3 className="text-xl font-bold text-slate-900">{cmsData.formTitle}</h3>
+-                            <p className="mt-2 text-sm leading-6 text-slate-600">
+-                                {cmsData.formDescription}
+-                            </p>
+-
+-                            <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+-                                <div className="grid gap-4 md:grid-cols-2">
+-                                    <input
+-                                        type="text"
+-                                        required
+-                                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none ring-indigo-100 transition focus:ring-4"
+-                                        placeholder={cmsData.namePlaceholder}
+-                                        value={lead.name}
+-                                        onChange={(e) =>
+-                                            setLead((prev) => ({ ...prev, name: e.target.value }))
+-                                        }
+-                                    />
+-
+-                                    <input
+-                                        type="tel"
+-                                        required
+-                                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none ring-indigo-100 transition focus:ring-4"
+-                                        placeholder={cmsData.phonePlaceholder}
+-                                        value={lead.phone}
+-                                        onChange={(e) =>
+-                                            setLead((prev) => ({ ...prev, phone: e.target.value }))
+-                                        }
+-                                    />
+-                                </div>
+-
+-                                <div className="grid gap-4 md:grid-cols-2">
+-                                    <input
+-                                        type="email"
+-                                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none ring-indigo-100 transition focus:ring-4"
+-                                        placeholder={cmsData.emailPlaceholder}
+-                                        value={lead.email}
+-                                        onChange={(e) =>
+-                                            setLead((prev) => ({ ...prev, email: e.target.value }))
+-                                        }
+-                                    />
+-
+-                                    <div className="relative w-full overflow-hidden rounded-2xl">
+-                                        <select
+-                                            className="block w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-10 outline-none ring-indigo-100 transition focus:ring-4"
+-                                            value={lead.need}
+-                                            onChange={(e) =>
+-                                                setLead((prev) => ({ ...prev, need: e.target.value }))
+-                                            }
+-                                        >
+-                                            <option value="">{cmsData.needDefaultOption}</option>
+-                                            {(cmsData.needOptions || []).map((opt) => (
+-                                                <option key={opt} value={opt}>
+-                                                    {opt}
+-                                                </option>
+-                                            ))}
+-                                        </select>
+-                                        <i className="fa-solid fa-chevron-down pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400" />
+-                                    </div>
+-                                </div>
+-
+-                                <textarea
+-                                    rows={5}
+-                                    required
+-                                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none ring-indigo-100 transition focus:ring-4"
+-                                    placeholder={cmsData.notePlaceholder}
+-                                    value={lead.note}
+-                                    onChange={(e) =>
+-                                        setLead((prev) => ({ ...prev, note: e.target.value }))
+-                                    }
+-                                />
+-
+-                                <button
+-                                    type="submit"
+-                                    className="w-full rounded-2xl bg-gradient-to-r from-amber-300 to-yellow-300 py-3 font-extrabold text-slate-900 shadow hover:opacity-95"
+-                                >
+-                                    {cmsData.submitButtonText}
+-                                </button>
+-                            </form>
+-                        </div>
+-                    </div>
+-                </div>
+-            </section>
++    fetchCmsContact();
++    return () => {
++      cancelled = true;
++    };
++  }, [currentLanguage]);
++
++  const cmsData: CmsData = useMemo(
++    () => ({
++      ...cmsDataDefault,
++      ...(cmsDataFromApi || {}),
++      needOptions: Array.isArray(cmsDataFromApi?.needOptions) ? cmsDataFromApi?.needOptions : cmsDataDefault.needOptions,
++    }),
++    [cmsDataFromApi],
++  );
++
++  const handleSubmit = async (e: React.FormEvent) => {
++    e.preventDefault();
++    setSubmitting(true);
++    setSubmitError("");
++    setSubmitMessage("");
++    try {
++      const { data } = await http.post("/public/contact-inquiries", lead);
++      setSubmitMessage(data?.message || "Gửi liên hệ thành công. Nhân viên sẽ liên hệ sớm nhất.");
++      setLead(initialLead);
++    } catch (error: any) {
++      setSubmitError(error?.response?.data?.message || "Không thể gửi liên hệ. Vui lòng thử lại.");
++    } finally {
++      setSubmitting(false);
++    }
++  };
++
++  return (
++    <div className="min-h-screen bg-slate-50 text-slate-900">
++      <section className="mx-auto max-w-7xl px-4 pt-8 pb-2">
++        <div className="overflow-hidden rounded-[32px] border border-white/70 bg-white/80 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.06)] backdrop-blur-sm md:p-8">
++          <p className="inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-indigo-700">{cmsData.eyebrow}</p>
++          <h1 className="mt-4 text-2xl font-extrabold leading-tight md:text-4xl">{cmsData.title}</h1>
++          <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 md:text-base">{cmsData.description}</p>
++        </div>
++      </section>
++
++      <section className="mx-auto max-w-7xl px-4 pb-16">
++        <div className="mt-8 grid gap-8 rounded-[32px] border border-white/70 bg-white/80 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-200 backdrop-blur-sm md:grid-cols-2 md:p-10">
++          <div className="space-y-6">
++            <div className="rounded-3xl bg-slate-50 p-6 ring-1 ring-slate-200">
++              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Liên hệ</div>
++              <div className="mt-1 text-lg font-extrabold text-slate-900">{cmsData.addressLine1}</div>
++              <div className="mt-1 text-sm text-slate-700">{cmsData.addressLine2}</div>
++            </div>
++          </div>
++
++          <div className="rounded-3xl bg-white p-1">
++            <div className="rounded-3xl bg-gradient-to-br from-indigo-50 to-amber-50 p-6 ring-1 ring-slate-200 md:p-8">
++              <h3 className="text-xl font-bold text-slate-900">{cmsData.formTitle}</h3>
++              <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
++                <input required className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3" placeholder={cmsData.namePlaceholder} value={lead.name} onChange={(e) => setLead((p) => ({ ...p, name: e.target.value }))} />
++                <input required className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3" placeholder={cmsData.phonePlaceholder} value={lead.phone} onChange={(e) => setLead((p) => ({ ...p, phone: e.target.value }))} />
++                <input type="email" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3" placeholder={cmsData.emailPlaceholder} value={lead.email} onChange={(e) => setLead((p) => ({ ...p, email: e.target.value }))} />
++                <select className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3" value={lead.need} onChange={(e) => setLead((p) => ({ ...p, need: e.target.value }))}>
++                  <option value="">{cmsData.needDefaultOption}</option>
++                  {(cmsData.needOptions || []).map((opt) => <option key={opt} value={opt}>{opt}</option>)}
++                </select>
++                <textarea rows={4} required className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3" placeholder={cmsData.notePlaceholder} value={lead.note} onChange={(e) => setLead((p) => ({ ...p, note: e.target.value }))} />
++
++                {submitMessage ? <div className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{submitMessage}</div> : null}
++                {submitError ? <div className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{submitError}</div> : null}
++
++                <button disabled={submitting} type="submit" className="w-full rounded-2xl bg-gradient-to-r from-amber-300 to-yellow-300 py-3 font-extrabold text-slate-900 shadow hover:opacity-95 disabled:opacity-60">
++                  {submitting ? "Đang gửi..." : cmsData.submitButtonText}
++                </button>
++              </form>
++            </div>
++          </div>
+         </div>
+-    );
+-}
+\ No newline at end of file
++      </section>
++    </div>
++  );
++}
+diff --git a/backend/ayanavitabackend/app/api/prisma/migrations/202606160001_add_contact_inquiries/migration.sql b/backend/ayanavitabackend/app/api/prisma/migrations/202606160001_add_contact_inquiries/migration.sql
+new file mode 100644
+index 0000000000000000000000000000000000000000..af597c2cae8a183f572949ff3171c5d3b0a9c258
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/prisma/migrations/202606160001_add_contact_inquiries/migration.sql
+@@ -0,0 +1,40 @@
++CREATE TABLE `contact_inquiries` (
++  `id` INTEGER NOT NULL AUTO_INCREMENT,
++  `name` VARCHAR(120) NOT NULL,
++  `phone` VARCHAR(30) NOT NULL,
++  `email` VARCHAR(120) NULL,
++  `need` VARCHAR(200) NULL,
++  `note` TEXT NULL,
++  `ip_address` VARCHAR(64) NOT NULL,
++  `user_agent` VARCHAR(500) NULL,
++  `status` VARCHAR(30) NOT NULL DEFAULT 'new',
++  `replied_at` DATETIME(3) NULL,
++  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
++  `updated_at` DATETIME(3) NOT NULL,
++
++  INDEX `idx_contact_inquiry_created`(`created_at`),
++  INDEX `idx_contact_inquiry_status_created`(`status`, `created_at`),
++  INDEX `idx_contact_inquiry_ip_created`(`ip_address`, `created_at`),
++  PRIMARY KEY (`id`)
++) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
++
++CREATE TABLE `contact_inquiry_replies` (
++  `id` INTEGER NOT NULL AUTO_INCREMENT,
++  `inquiry_id` INTEGER NOT NULL,
++  `user_id` INTEGER NULL,
++  `staff_name` VARCHAR(120) NULL,
++  `staff_email` VARCHAR(120) NULL,
++  `subject` VARCHAR(255) NOT NULL,
++  `content` TEXT NOT NULL,
++  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
++
++  INDEX `idx_contact_reply_inquiry_created`(`inquiry_id`, `created_at`),
++  INDEX `idx_contact_reply_user`(`user_id`),
++  PRIMARY KEY (`id`)
++) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
++
++ALTER TABLE `contact_inquiry_replies`
++  ADD CONSTRAINT `contact_inquiry_replies_inquiry_id_fkey`
++  FOREIGN KEY (`inquiry_id`) REFERENCES `contact_inquiries`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
++  ADD CONSTRAINT `contact_inquiry_replies_user_id_fkey`
++  FOREIGN KEY (`user_id`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+diff --git a/backend/ayanavitabackend/app/api/prisma/schema.prisma b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+index b17469c473f3f5673a9547def7aff3deb4f83e9c..c86882c00ea370d642a6c1c22b17d046cacd5837 100644
+--- a/backend/ayanavitabackend/app/api/prisma/schema.prisma
++++ b/backend/ayanavitabackend/app/api/prisma/schema.prisma
+@@ -1124,50 +1124,88 @@ model MediaAsset {
+   filename String  @db.VarChar(255)
+   mimeType String  @db.VarChar(100)
+   size     Int
+   width    Int?
+   height   Int?
+   alt      String? @db.VarChar(255)
+   tags     String? @db.Text
+
+   createdBy Int?
+   createdAt DateTime @default(now())
+
+   user User? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+   @@index([createdBy, createdAt])
+ }
+
+ model PublicLead {
+   id        Int      @id @default(autoincrement())
+   type      String   @db.VarChar(30) // "book" | "talk"
+   payload   Json
+   createdAt DateTime @default(now())
+
+   @@index([type, createdAt])
+ }
+
++model ContactInquiry {
++  id              Int                  @id @default(autoincrement())
++  name            String               @db.VarChar(120)
++  phone           String               @db.VarChar(30)
++  email           String?              @db.VarChar(120)
++  need            String?              @db.VarChar(200)
++  note            String?              @db.Text
++  ipAddress       String               @map("ip_address") @db.VarChar(64)
++  userAgent       String?              @map("user_agent") @db.VarChar(500)
++  status          String               @default("new") @db.VarChar(30)
++  repliedAt       DateTime?            @map("replied_at")
++  createdAt       DateTime             @default(now()) @map("created_at")
++  updatedAt       DateTime             @updatedAt @map("updated_at")
++  replies         ContactInquiryReply[]
++
++  @@index([createdAt], map: "idx_contact_inquiry_created")
++  @@index([status, createdAt], map: "idx_contact_inquiry_status_created")
++  @@index([ipAddress, createdAt], map: "idx_contact_inquiry_ip_created")
++  @@map("contact_inquiries")
++}
++
++model ContactInquiryReply {
++  id          Int            @id @default(autoincrement())
++  inquiryId   Int            @map("inquiry_id")
++  userId      Int?           @map("user_id")
++  staffName   String?        @map("staff_name") @db.VarChar(120)
++  staffEmail  String?        @map("staff_email") @db.VarChar(120)
++  subject     String         @db.VarChar(255)
++  content     String         @db.Text
++  createdAt   DateTime       @default(now()) @map("created_at")
++  inquiry     ContactInquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
++  user        User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
++
++  @@index([inquiryId, createdAt], map: "idx_contact_reply_inquiry_created")
++  @@index([userId], map: "idx_contact_reply_user")
++  @@map("contact_inquiry_replies")
++}
++
+ model Language {
+   code     String  @id @db.VarChar(10)
+   name     String  @db.VarChar(50)
+   isActive Boolean @default(true) @map("is_active")
+
+   categoryTranslations     CategoryTranslation[]
+   productTranslations      ProductTranslation[]
+   attributeKeyTranslations AttributeKeyTranslation[]
+   ingredientKeyTranslations IngredientKeyTranslation[]
+
+   @@map("languages")
+ }
+
+ model Category {
+   id       BigInt   @id @default(autoincrement())
+   parentId BigInt?  @map("parent_id")
+   status   String   @default("active") @db.VarChar(20)
+
+   parent   Category?  @relation("CategoryParent", fields: [parentId], references: [id], onDelete: SetNull)
+   children Category[] @relation("CategoryParent")
+
+   translations CategoryTranslation[]
+   products     CatalogProduct[]
+
+   @@map("categories")
+@@ -1619,26 +1657,25 @@ model ProfileRecord {
+   profile_data Json?
+   created_at  DateTime @default(now())
+
+   session  CustomerSession @relation(fields: [session_id], references: [session_id], onDelete: Cascade)
+   customer Customer        @relation(fields: [customer_id], references: [customer_id], onDelete: Cascade)
+
+   @@index([session_id])
+   @@index([customer_id])
+   @@map("profile_records")
+ }
+
+ model SummaryRecord {
+   summary_id  BigInt   @id @default(autoincrement())
+   session_id  BigInt
+   customer_id BigInt
+   summary_data Json?
+   created_at  DateTime @default(now())
+
+   session  CustomerSession @relation(fields: [session_id], references: [session_id], onDelete: Cascade)
+   customer Customer        @relation(fields: [customer_id], references: [customer_id], onDelete: Cascade)
+
+   @@index([session_id])
+   @@index([customer_id])
+   @@map("summary_records")
+ }
+-
+diff --git a/backend/ayanavitabackend/app/api/src/cms/admin/cms-admin.controller.ts b/backend/ayanavitabackend/app/api/src/cms/admin/cms-admin.controller.ts
+index 430be52b0d702e03fb2c022fd18aad3917eac4ae..f1521620a19d16f80176e42062e51ba43f8bc4a0 100644
+--- a/backend/ayanavitabackend/app/api/src/cms/admin/cms-admin.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/cms/admin/cms-admin.controller.ts
+@@ -1,79 +1,96 @@
+ import { Body, Controller, Delete, Get, Param, Post, Put, Query, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
+ import { SaveDraftDto } from "./dto/save-draft.dto";
+ import { RestoreDto } from "./dto/restore.dto";
+ import { PermissionGuard } from "../../auth/guards/permission.guard";
+ import { Permissions } from "../../auth/decorators/permissions.decorator";
+ import { CmsAdminService } from "./cms-admin.service";
+ import { AccessTokenGuard } from "../../auth/guards/access-token.guard";
+ import { FileInterceptor } from "@nestjs/platform-express";
+ import { ImageUploadService } from "../../services/ImageUploadService";
++import { AdminListContactInquiriesDto } from "./dto/admin-list-contact-inquiries.dto";
++import { ReplyContactInquiryDto } from "./dto/reply-contact-inquiry.dto";
++import { CurrentUser, JwtUser } from "../../auth/decorators/current-user.decorator";
+
+ @Controller("admin/cms")
+ @UseGuards(AccessTokenGuard, PermissionGuard)
+ export class CmsAdminController {
+   constructor(
+     private readonly svc: CmsAdminService,
+     private readonly imageUploadService: ImageUploadService,
+   ) {}
+
+   @Permissions("cms.read")
+   @Get("pages")
+   listPages() {
+     return this.svc.listPages();
+   }
+
+   @Permissions("cms.read")
+   @Get("pages/:slug")
+   page(@Param("slug") slug: string) {
+     return this.svc.getPageBySlug(slug);
+   }
+
+   @Permissions("cms.write")
+   @Put("sections/:id/draft")
+   saveDraft(
+     @Param("id") id: string,
+     @Query("locale") locale: string,
+     @Body() dto: SaveDraftDto,
+   ) {
+-    // userId: nếu bạn có current-user decorator thì truyền vào ở đây
+     return this.svc.saveDraft(Number(id), locale, dto.draftData, dto.note, undefined);
+   }
+
+-
+   @Permissions("cms.write")
+   @Post("images/upload")
+   @UseInterceptors(FileInterceptor("file"))
+   uploadImage(@UploadedFile() file: Express.Multer.File) {
+     return this.imageUploadService.uploadImage(file);
+   }
+
+   @Permissions("cms.write")
+   @Delete("images")
+   deleteImage(@Body("url") url?: string, @Body("fileName") fileName?: string) {
+     return this.imageUploadService.deleteImage({ url, fileName });
+   }
+
+   @Permissions("cms.publish")
+   @Post("sections/:id/publish")
+   publish(@Param("id") id: string, @Query("locale") locale: string) {
+     return this.svc.publish(Number(id), locale, undefined);
+   }
+
+   @Permissions("cms.publish")
+   @Post("sections/:id/unpublish")
+   unpublish(@Param("id") id: string, @Query("locale") locale: string) {
+     return this.svc.unpublish(Number(id), locale);
+   }
+
+   @Permissions("cms.read")
+   @Get("sections/:id/versions")
+   versions(@Param("id") id: string, @Query("locale") locale: string) {
+     return this.svc.listVersions(Number(id), locale);
+   }
+
+   @Permissions("cms.write")
+   @Post("sections/:id/restore")
+   restore(@Param("id") id: string, @Query("locale") locale: string, @Body() dto: RestoreDto) {
+     return this.svc.restoreDraft(Number(id), locale, dto.versionId, undefined);
+   }
++
++  @Permissions("cms.read")
++  @Get("contacts")
++  listContactInquiries(@Query() query: AdminListContactInquiriesDto) {
++    return this.svc.listContactInquiries(query);
++  }
++
++  @Permissions("cms.write")
++  @Post("contacts/:id/reply")
++  replyContactInquiry(
++    @Param("id") id: string,
++    @Body() dto: ReplyContactInquiryDto,
++    @CurrentUser() user: JwtUser,
++  ) {
++    return this.svc.replyContactInquiry(Number(id), dto, user);
++  }
+ }
+diff --git a/backend/ayanavitabackend/app/api/src/cms/admin/cms-admin.service.ts b/backend/ayanavitabackend/app/api/src/cms/admin/cms-admin.service.ts
+index 1f8230b060eaa7a21e6cbd1f8933465daea40baf..1349d1293a27fe5f4e0b464dd428e4730a50af47 100644
+--- a/backend/ayanavitabackend/app/api/src/cms/admin/cms-admin.service.ts
++++ b/backend/ayanavitabackend/app/api/src/cms/admin/cms-admin.service.ts
+@@ -1,32 +1,40 @@
+-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
++import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+ import { PrismaService } from "../../prisma/prisma.service";
+-import { CmsLocale, CmsStatus } from "@prisma/client";
++import { CmsLocale, CmsStatus, Prisma } from "@prisma/client";
++import { AdminListContactInquiriesDto } from "./dto/admin-list-contact-inquiries.dto";
++import { ReplyContactInquiryDto } from "./dto/reply-contact-inquiry.dto";
++import { CmsPublicService } from "../public/cms-public.service";
+
+ @Injectable()
+ export class CmsAdminService {
+-  constructor(private prisma: PrismaService) {}
++  private readonly logger = new Logger(CmsAdminService.name);
++
++  constructor(
++    private prisma: PrismaService,
++    private cmsPublicService: CmsPublicService,
++  ) {}
+
+   private parseLocale(localeStr: string): CmsLocale {
+     const v = String(localeStr ?? "").toLowerCase();
+     if (v === "vi" || v === "en" || v === "de") return v as CmsLocale;
+     throw new BadRequestException("locale must be vi|en|de");
+   }
+
+   async listPages() {
+     return this.prisma.cmsPage.findMany({
+       orderBy: { updatedAt: "desc" },
+       select: { id: true, slug: true, title: true, isActive: true, updatedAt: true },
+     });
+   }
+
+   async getPageBySlug(slug: string) {
+     const page = await this.prisma.cmsPage.findUnique({
+       where: { slug },
+       include: {
+         sections: {
+           orderBy: { sortOrder: "asc" },
+           include: { locales: true },
+         },
+       },
+     });
+     if (!page) throw new NotFoundException("Page not found");
+@@ -132,26 +140,115 @@ export class CmsAdminService {
+       where: { id: versionId, sectionId, locale },
+     });
+     if (!v) throw new NotFoundException("Version not found");
+
+     await this.prisma.$transaction(async (tx) => {
+       await tx.cmsSectionLocale.upsert({
+         where: { sectionId_locale: { sectionId, locale } },
+         update: { draftData: v.data, status: CmsStatus.DRAFT },
+         create: { sectionId, locale, draftData: v.data, status: CmsStatus.DRAFT },
+       });
+
+       await tx.cmsSectionVersion.create({
+         data: {
+           sectionId,
+           locale,
+           status: CmsStatus.DRAFT,
+           data: v.data,
+           note: `restore:${versionId}`,
+           createdBy: userId ?? null,
+         },
+       });
+     });
+
+     return { ok: true };
+   }
++
++  async listContactInquiries(query: AdminListContactInquiriesDto) {
++    const where: Prisma.ContactInquiryWhereInput = {};
++
++    if (query.status) where.status = query.status;
++
++    if (query.search?.trim()) {
++      const q = query.search.trim();
++      where.OR = [
++        { name: { contains: q } },
++        { phone: { contains: q } },
++        { email: { contains: q } },
++        { need: { contains: q } },
++      ];
++    }
++
++    if (query.from || query.to) {
++      where.createdAt = {
++        gte: query.from ? new Date(query.from) : undefined,
++        lte: query.to ? new Date(query.to) : undefined,
++      };
++    }
++
++    const page = Math.max(1, Number(query.page || 1));
++    const pageSize = Math.min(100, Math.max(1, Number(query.pageSize || 20)));
++
++    const [items, total] = await this.prisma.$transaction([
++      this.prisma.contactInquiry.findMany({
++        where,
++        orderBy: { createdAt: "desc" },
++        skip: (page - 1) * pageSize,
++        take: pageSize,
++        include: {
++          replies: {
++            orderBy: { createdAt: "desc" },
++            include: { user: { select: { id: true, name: true, email: true } } },
++          },
++        },
++      }),
++      this.prisma.contactInquiry.count({ where }),
++    ]);
++
++    return {
++      items,
++      page,
++      pageSize,
++      total,
++      totalPages: Math.max(1, Math.ceil(total / pageSize)),
++    };
++  }
++
++  async replyContactInquiry(inquiryId: number, dto: ReplyContactInquiryDto, actor?: { sub?: number; email?: string }) {
++    const inquiry = await this.prisma.contactInquiry.findUnique({ where: { id: inquiryId } });
++    if (!inquiry) throw new NotFoundException("Contact inquiry not found");
++
++    const toEmail = dto.toEmail?.trim().toLowerCase() || inquiry.email || null;
++    if (!toEmail) {
++      throw new BadRequestException("Inquiry has no email. Please provide toEmail to send reply.");
++    }
++
++    await this.cmsPublicService.sendSmtpViaGmail({
++      to: toEmail,
++      subject: dto.subject,
++      body: dto.content,
++    });
++
++    await this.prisma.$transaction(async (tx) => {
++      await tx.contactInquiryReply.create({
++        data: {
++          inquiryId,
++          userId: actor?.sub ? Number(actor.sub) : null,
++          staffEmail: actor?.email || null,
++          subject: dto.subject,
++          content: dto.content,
++        },
++      });
++
++      await tx.contactInquiry.update({
++        where: { id: inquiryId },
++        data: {
++          status: "replied",
++          repliedAt: new Date(),
++        },
++      });
++    });
++
++    this.logger.log(`Inquiry #${inquiryId} replied by ${actor?.email || "unknown"}`);
++    return { ok: true };
++  }
+ }
+diff --git a/backend/ayanavitabackend/app/api/src/cms/admin/dto/admin-list-contact-inquiries.dto.ts b/backend/ayanavitabackend/app/api/src/cms/admin/dto/admin-list-contact-inquiries.dto.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..ff8e2e3434ca37f769c840843761e8f1fd191e51
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/cms/admin/dto/admin-list-contact-inquiries.dto.ts
+@@ -0,0 +1,29 @@
++import { IsIn, IsInt, IsOptional, IsString, Min } from "class-validator";
++
++export class AdminListContactInquiriesDto {
++  @IsOptional()
++  @IsString()
++  search?: string;
++
++  @IsOptional()
++  @IsIn(["new", "replied"])
++  status?: "new" | "replied";
++
++  @IsOptional()
++  @IsString()
++  from?: string;
++
++  @IsOptional()
++  @IsString()
++  to?: string;
++
++  @IsOptional()
++  @IsInt()
++  @Min(1)
++  page: number = 1;
++
++  @IsOptional()
++  @IsInt()
++  @Min(1)
++  pageSize: number = 20;
++}
+diff --git a/backend/ayanavitabackend/app/api/src/cms/admin/dto/reply-contact-inquiry.dto.ts b/backend/ayanavitabackend/app/api/src/cms/admin/dto/reply-contact-inquiry.dto.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..1a363e85c7394b7c953003b8cc24e6fb6a570a82
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/cms/admin/dto/reply-contact-inquiry.dto.ts
+@@ -0,0 +1,16 @@
++import { IsEmail, IsOptional, IsString, MaxLength } from "class-validator";
++
++export class ReplyContactInquiryDto {
++  @IsOptional()
++  @IsEmail()
++  @MaxLength(120)
++  toEmail?: string;
++
++  @IsString()
++  @MaxLength(255)
++  subject!: string;
++
++  @IsString()
++  @MaxLength(5000)
++  content!: string;
++}
+diff --git a/backend/ayanavitabackend/app/api/src/cms/public/cms-public.controller.ts b/backend/ayanavitabackend/app/api/src/cms/public/cms-public.controller.ts
+index 89ddef14c0a48a9d1ba6839d93d78fecd450cbec..580ccc87f676edaa3f7024d64e4f13e71d0207d1 100644
+--- a/backend/ayanavitabackend/app/api/src/cms/public/cms-public.controller.ts
++++ b/backend/ayanavitabackend/app/api/src/cms/public/cms-public.controller.ts
+@@ -1,22 +1,36 @@
+-import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
++import { Body, Controller, Get, Param, Post, Query, Req } from "@nestjs/common";
+ import { CmsPublicService } from "./cms-public.service";
++import { CreateContactInquiryDto } from "./dto/create-contact-inquiry.dto";
++import type { Request } from "express";
+
+ @Controller("public")
+ export class CmsPublicController {
+   constructor(private svc: CmsPublicService) {}
+
+   @Get("pages/:slug")
+   getPage(@Param("slug") slug: string, @Query("lang") lang = "vi") {
+     return this.svc.getPublishedPage(slug, lang);
+   }
+
+   @Post("leads/book")
+   book(@Body() body: any) {
+     return this.svc.createLead("book", body);
+   }
+
+   @Post("leads/talk")
+   talk(@Body() body: any) {
+     return this.svc.createLead("talk", body);
+   }
++
++  @Post("contact-inquiries")
++  createContactInquiry(@Body() dto: CreateContactInquiryDto, @Req() req: Request) {
++    const xff = req.headers["x-forwarded-for"];
++    const forwarded = Array.isArray(xff) ? xff[0] : (xff ?? "");
++    const ipAddress = String(forwarded || req.ip || req.socket.remoteAddress || "unknown")
++      .split(",")[0]
++      .trim();
++    const userAgent = req.headers["user-agent"] ? String(req.headers["user-agent"]) : null;
++
++    return this.svc.createContactInquiry(dto, ipAddress, userAgent);
++  }
+ }
+diff --git a/backend/ayanavitabackend/app/api/src/cms/public/cms-public.service.ts b/backend/ayanavitabackend/app/api/src/cms/public/cms-public.service.ts
+index 70c0e7c2145cd0eba3bedb0a431c97dd71524e2d..2c53a29a050fbc33790bea2857c5c575d7171317 100644
+--- a/backend/ayanavitabackend/app/api/src/cms/public/cms-public.service.ts
++++ b/backend/ayanavitabackend/app/api/src/cms/public/cms-public.service.ts
+@@ -1,59 +1,59 @@
+-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
++import { BadRequestException, Injectable, Logger, NotFoundException, TooManyRequestsException } from "@nestjs/common";
+ import { PrismaService } from "../../prisma/prisma.service";
+ import { CmsLocale, CmsStatus } from "@prisma/client";
++import * as tls from "tls";
++import { CreateContactInquiryDto } from "./dto/create-contact-inquiry.dto";
+
+ @Injectable()
+ export class CmsPublicService {
++  private readonly logger = new Logger(CmsPublicService.name);
++  private readonly spamWindowMs = Number(process.env.CONTACT_SPAM_WINDOW_MS ?? 10 * 60 * 1000);
++  private readonly spamMaxPerWindow = Number(process.env.CONTACT_SPAM_MAX_PER_WINDOW ?? 5);
++
+   constructor(private prisma: PrismaService) {}
+
+   private parseLocale(lang: string): CmsLocale {
+-  const v = String(lang ?? "").toLowerCase();
+-  if (v === "vi" || v === "en" || v === "de") return v as CmsLocale;
+-  throw new BadRequestException("lang must be vi|en|de");
+-}
++    const v = String(lang ?? "").toLowerCase();
++    if (v === "vi" || v === "en" || v === "de") return v as CmsLocale;
++    throw new BadRequestException("lang must be vi|en|de");
++  }
+
+-  /**
+-   * Fallback rule:
+-   * - request en -> fallback vi
+-   * - request vi -> fallback vi (no-op)
+-   */
+   private getFallbackLocale(locale: CmsLocale): CmsLocale {
+     return "vi";
+   }
+
+   private pickPublishedLocaleRow(
+     rows: Array<{
+       locale: CmsLocale;
+       status: CmsStatus;
+       publishedData: any;
+       publishedAt: Date | null;
+     }>,
+     preferred: CmsLocale,
+     fallback: CmsLocale,
+   ) {
+-    // rows already filtered by status=PUBLISHED in query
+     return (
+       rows.find((r) => r.locale === preferred && r.publishedAt) ??
+       rows.find((r) => r.locale === fallback && r.publishedAt) ??
+       null
+     );
+   }
+
+   async getPublishedPage(slug: string, lang: string) {
+     const locale = this.parseLocale(lang);
+     const fallbackLocale = this.getFallbackLocale(locale);
+
+     const page = await this.prisma.cmsPage.findUnique({
+       where: { slug },
+       include: {
+         sections: {
+           where: { isActive: true },
+           orderBy: { sortOrder: "asc" },
+           include: {
+             locales: {
+               where: {
+                 status: CmsStatus.PUBLISHED,
+                 locale: { in: [locale, fallbackLocale] },
+               },
+               select: {
+                 locale: true,
+@@ -61,37 +61,178 @@ export class CmsPublicService {
+                 publishedData: true,
+                 publishedAt: true,
+               },
+             },
            },
-           now,
-         ),
+         },
        },
-     })
+     });
+
+     if (!page) {
+       if (slug === "global") {
+         return { slug: "global", title: "Global", sections: [] };
+       }
+       throw new NotFoundException("Page not found");
+     }
+
+     const sections = page.sections.map((s) => {
+       const chosen = this.pickPublishedLocaleRow(s.locales ?? [], locale, fallbackLocale);
+
+       return {
+         id: s.id,
+         key: s.key,
+         sortOrder: s.sortOrder,
+         data: chosen?.publishedData ?? null,
+         publishedAt: chosen?.publishedAt ?? null,
+-        // nếu muốn debug locale đang được dùng, mở dòng dưới:
+-        // locale: chosen?.locale ?? null,
+       };
+     });
+
+     return { slug: page.slug, title: page.title, sections };
    }
 
-   private async confirmPendingScheduledPassForPayment(userId: number, planId: number, purchaseId: number) {
--    await this.prisma.userCoursePass.updateMany({
-+    const updatedByPurchase = await this.prisma.userCoursePass.updateMany({
-       where: {
-         userId,
-         planId,
-         purchaseId,
-         canceledAt: null,
-         entitlementState: UserCoursePassEntitlementState.PENDING_CHARGE,
-       },
-       data: {
-         entitlementState: UserCoursePassEntitlementState.CONFIRMED,
-       },
-     })
+   async createLead(type: "book" | "talk", payload: any) {
+     return this.prisma.publicLead.create({ data: { type, payload } });
+   }
 +
-+    if (updatedByPurchase.count > 0) {
-+      return
-+    }
++  async createContactInquiry(payload: CreateContactInquiryDto, ipAddress: string, userAgent?: string | null) {
++    const normalizedEmail = payload.email?.trim().toLowerCase() || null;
++    const normalizedIp = String(ipAddress || "").trim() || "unknown";
 +
-+    const now = new Date()
-+    const pendingScheduledPass = await this.prisma.userCoursePass.findFirst({
-+      where: {
-+        userId,
-+        planId,
-+        canceledAt: null,
-+        startAt: { gt: now },
-+        entitlementState: UserCoursePassEntitlementState.PENDING_CHARGE,
-+      },
-+      select: {
-+        id: true,
-+      },
-+      orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
-+    })
++    await this.checkSpamByIp(normalizedIp);
 +
-+    if (!pendingScheduledPass) {
-+      return
-+    }
-+
-+    await this.prisma.userCoursePass.update({
-+      where: { id: pendingScheduledPass.id },
++    const inquiry = await this.prisma.contactInquiry.create({
 +      data: {
-+        purchaseId,
-+        entitlementState: UserCoursePassEntitlementState.CONFIRMED,
++        name: payload.name.trim(),
++        phone: payload.phone.trim(),
++        email: normalizedEmail,
++        need: payload.need?.trim() || null,
++        note: payload.note?.trim() || null,
++        ipAddress: normalizedIp,
++        userAgent: userAgent?.slice(0, 500) || null,
 +      },
-+    })
-   }
++    });
++
++    if (normalizedEmail) {
++      void this.sendThankYouEmail(normalizedEmail, inquiry.name).catch((error) => {
++        this.logger.error(`Failed to send contact thank-you email to ${normalizedEmail}`, error?.stack ?? String(error));
++      });
++    }
++
++    return { ok: true, id: inquiry.id, message: "Gửi liên hệ thành công" };
++  }
++
++  private async checkSpamByIp(ipAddress: string) {
++    const from = new Date(Date.now() - this.spamWindowMs);
++    const count = await this.prisma.contactInquiry.count({
++      where: {
++        ipAddress,
++        createdAt: { gte: from },
++      },
++    });
++
++    if (count >= this.spamMaxPerWindow) {
++      throw new TooManyRequestsException("Bạn gửi liên hệ quá nhanh. Vui lòng thử lại sau ít phút.");
++    }
++  }
++
++  private async sendThankYouEmail(to: string, customerName: string) {
++    const subject = "[AYANAVITA] Cảm ơn bạn đã liên hệ";
++    const body = `Xin chào ${customerName},\n\nAYANAVITA đã nhận được thông tin liên hệ của bạn.\nNhân viên của chúng tôi sẽ liên hệ sớm nhất để tư vấn chi tiết cho quý khách.\n\nTrân trọng,\nĐội ngũ AYANAVITA`;
++    await this.sendSmtpViaGmail({ to, subject, body });
++  }
++
++  async sendSmtpViaGmail(params: { to: string; subject: string; body: string }) {
++    const user = process.env.MAIL_USER ?? "manage.ayanavita@gmail.com";
++    const pass = process.env.MAIL_PASS ?? "";
++    if (!pass) {
++      this.logger.warn("MAIL_PASS is missing, skip sending email");
++      return;
++    }
++
++    const { to, subject, body } = params;
++
++    const readSmtpResponse = (socket: tls.TLSSocket) =>
++      new Promise<string>((resolve, reject) => {
++        let buffer = "";
++
++        const cleanup = () => {
++          socket.off("data", onData);
++          socket.off("error", onError);
++          socket.off("close", onClose);
++        };
++
++        const onError = (err: Error) => {
++          cleanup();
++          reject(err);
++        };
++
++        const onClose = () => {
++          cleanup();
++          reject(new Error("SMTP connection closed unexpectedly"));
++        };
++
++        const onData = (chunk: Buffer) => {
++          buffer += chunk.toString("utf8");
++          const normalized = buffer.replace(/\r\n/g, "\n");
++          const lines = normalized.split("\n").filter(Boolean);
++          if (lines.length === 0) return;
++          const lastLine = lines[lines.length - 1];
++          if (!/^\d{3} /.test(lastLine)) return;
++          cleanup();
++          resolve(normalized.trim());
++        };
++
++        socket.on("data", onData);
++        socket.once("error", onError);
++        socket.once("close", onClose);
++      });
++
++    const sendCommand = async (socket: tls.TLSSocket, command: string, expectedCodes: number[]) => {
++      socket.write(`${command}\r\n`);
++      const response = await readSmtpResponse(socket);
++      const code = Number(response.slice(0, 3));
++      if (!expectedCodes.includes(code)) {
++        throw new Error(`SMTP command failed (${command}): ${response}`);
++      }
++      return response;
++    };
++
++    const socket = await new Promise<tls.TLSSocket>((resolve, reject) => {
++      const client = tls.connect(465, "smtp.gmail.com", { servername: "smtp.gmail.com" }, () => resolve(client));
++      client.once("error", reject);
++    });
++
++    try {
++      const greeting = await readSmtpResponse(socket);
++      if (!greeting.startsWith("220")) {
++        throw new Error(`SMTP greeting failed: ${greeting}`);
++      }
++
++      await sendCommand(socket, "EHLO ayanavita.local", [250]);
++      await sendCommand(socket, "AUTH LOGIN", [334]);
++      await sendCommand(socket, Buffer.from(user).toString("base64"), [334]);
++      await sendCommand(socket, Buffer.from(pass).toString("base64"), [235]);
++      await sendCommand(socket, `MAIL FROM:<${user}>`, [250]);
++      await sendCommand(socket, `RCPT TO:<${to}>`, [250, 251]);
++      await sendCommand(socket, "DATA", [354]);
++
++      const message = [
++        `Subject: ${subject}`,
++        `From: AYANAVITA <${user}>`,
++        `To: ${to}`,
++        "Content-Type: text/plain; charset=UTF-8",
++        "",
++        body,
++        ".",
++      ].join("\r\n");
++      socket.write(`${message}\r\n`);
++      const dataResponse = await readSmtpResponse(socket);
++      if (!dataResponse.startsWith("250")) {
++        throw new Error(`SMTP send failed: ${dataResponse}`);
++      }
++
++      await sendCommand(socket, "QUIT", [221]);
++    } finally {
++      socket.end();
++    }
++  }
+ }
+diff --git a/backend/ayanavitabackend/app/api/src/cms/public/dto/create-contact-inquiry.dto.ts b/backend/ayanavitabackend/app/api/src/cms/public/dto/create-contact-inquiry.dto.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..2f46fd9fc0d0db13229df6246ce43f0b6489554e
+--- /dev/null
++++ b/backend/ayanavitabackend/app/api/src/cms/public/dto/create-contact-inquiry.dto.ts
+@@ -0,0 +1,26 @@
++import { IsEmail, IsOptional, IsString, MaxLength } from "class-validator";
++
++export class CreateContactInquiryDto {
++  @IsString()
++  @MaxLength(120)
++  name!: string;
++
++  @IsString()
++  @MaxLength(30)
++  phone!: string;
++
++  @IsOptional()
++  @IsEmail()
++  @MaxLength(120)
++  email?: string;
++
++  @IsOptional()
++  @IsString()
++  @MaxLength(200)
++  need?: string;
++
++  @IsOptional()
++  @IsString()
++  @MaxLength(3000)
++  note?: string;
++}
+diff --git a/beay/src/admin/api/contactInquiries.api.ts b/beay/src/admin/api/contactInquiries.api.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..ebf7d652aaf1bab4ae8f19275a14233724416231
+--- /dev/null
++++ b/beay/src/admin/api/contactInquiries.api.ts
+@@ -0,0 +1,44 @@
++import { apiFetch } from "./client";
++
++export type ContactInquiryReply = {
++  id: number;
++  subject: string;
++  content: string;
++  staffEmail: string | null;
++  createdAt: string;
++};
++
++export type ContactInquiry = {
++  id: number;
++  name: string;
++  phone: string;
++  email: string | null;
++  need: string | null;
++  note: string | null;
++  ipAddress: string;
++  userAgent: string | null;
++  status: "new" | "replied" | string;
++  createdAt: string;
++  replies: ContactInquiryReply[];
++};
++
++export type ContactInquiryListResponse = {
++  items: ContactInquiry[];
++  page: number;
++  pageSize: number;
++  total: number;
++  totalPages: number;
++};
++
++export async function adminListContactInquiries(token: string, params: Record<string, string>) {
++  const qs = new URLSearchParams(params).toString();
++  return apiFetch<ContactInquiryListResponse>(`/admin/cms/contacts${qs ? `?${qs}` : ""}`, { method: "GET", token });
++}
++
++export async function adminReplyContactInquiry(token: string, id: number, payload: { subject: string; content: string; toEmail?: string }) {
++  return apiFetch<{ ok: boolean }>(`/admin/cms/contacts/${id}/reply`, {
++    method: "POST",
++    token,
++    body: JSON.stringify(payload),
++  });
++}
+diff --git a/beay/src/admin/pages/ContactInquiriesPage.tsx b/beay/src/admin/pages/ContactInquiriesPage.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..13ce420a02e033b255314d8b2f7a0b4d997673b5
+--- /dev/null
++++ b/beay/src/admin/pages/ContactInquiriesPage.tsx
+@@ -0,0 +1,105 @@
++import React, { useEffect, useMemo, useState } from "react";
++import { useAuth } from "../../app/auth";
++import { adminListContactInquiries, adminReplyContactInquiry, type ContactInquiry } from "../api/contactInquiries.api";
++
++export function ContactInquiriesPage() {
++  const { token } = useAuth();
++  const [items, setItems] = useState<ContactInquiry[]>([]);
++  const [loading, setLoading] = useState(false);
++  const [status, setStatus] = useState<string>("");
++  const [search, setSearch] = useState("");
++  const [selected, setSelected] = useState<ContactInquiry | null>(null);
++  const [subject, setSubject] = useState("Phản hồi từ AYANAVITA");
++  const [content, setContent] = useState("");
++
++  const query = useMemo(() => {
++    const params: Record<string, string> = {};
++    if (status) params.status = status;
++    if (search.trim()) params.search = search.trim();
++    return params;
++  }, [search, status]);
++
++  const loadData = async () => {
++    if (!token) return;
++    setLoading(true);
++    try {
++      const res = await adminListContactInquiries(token, query);
++      setItems(res.items);
++    } finally {
++      setLoading(false);
++    }
++  };
++
++  useEffect(() => {
++    void loadData();
++  }, [token, query]);
++
++  const onReply = async () => {
++    if (!token || !selected || !subject.trim() || !content.trim()) return;
++    await adminReplyContactInquiry(token, selected.id, {
++      toEmail: selected.email || undefined,
++      subject: subject.trim(),
++      content: content.trim(),
++    });
++    setContent("");
++    await loadData();
++  };
++
++  return (
++    <div className="grid" style={{ gap: 12 }}>
++      <div className="card">
++        <div className="h1">Liên hệ khách hàng</div>
++        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
++          <input className="input" placeholder="Tìm tên/sđt/email" value={search} onChange={(e) => setSearch(e.target.value)} />
++          <select className="select" value={status} onChange={(e) => setStatus(e.target.value)}>
++            <option value="">Tất cả trạng thái</option>
++            <option value="new">Mới</option>
++            <option value="replied">Đã phản hồi</option>
++          </select>
++          <button className="btn" onClick={() => void loadData()}>{loading ? "Loading..." : "Làm mới"}</button>
++        </div>
++      </div>
++
++      <div className="card">
++        <table className="table">
++          <thead>
++            <tr>
++              <th>ID</th><th>Khách hàng</th><th>Nhu cầu</th><th>IP</th><th>Trạng thái</th><th>Ngày</th>
++            </tr>
++          </thead>
++          <tbody>
++            {items.map((it) => (
++              <tr key={it.id} onClick={() => setSelected(it)} style={{ cursor: "pointer" }}>
++                <td>{it.id}</td>
++                <td>
++                  <div>{it.name}</div>
++                  <div className="muted">{it.phone} • {it.email || "-"}</div>
++                </td>
++                <td>{it.need || "-"}</td>
++                <td>{it.ipAddress}</td>
++                <td>{it.status}</td>
++                <td>{new Date(it.createdAt).toLocaleString("vi-VN")}</td>
++              </tr>
++            ))}
++          </tbody>
++        </table>
++      </div>
++
++      {selected ? (
++        <div className="card" style={{ display: "grid", gap: 8 }}>
++          <div className="h2">Phản hồi liên hệ #{selected.id}</div>
++          <div className="muted">{selected.note || "(Không có ghi chú)"}</div>
++          <input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Tiêu đề email" />
++          <textarea className="input" rows={5} value={content} onChange={(e) => setContent(e.target.value)} placeholder="Nội dung phản hồi" />
++          <button className="btn btn-primary" onClick={() => void onReply()}>Gửi phản hồi email</button>
++          <div>
++            <div className="muted">Lịch sử phản hồi</div>
++            {selected.replies.map((r) => (
++              <div key={r.id} className="muted">• {new Date(r.createdAt).toLocaleString("vi-VN")} - {r.staffEmail || "staff"}: {r.subject}</div>
++            ))}
++          </div>
++        </div>
++      ) : null}
++    </div>
++  );
++}
+diff --git a/beay/src/app/routes.tsx b/beay/src/app/routes.tsx
+index 0db1f4e025911a9d97bf283af7452c9088ca71bd..47aa65aa8b664048b9cf8f5d8edfa4614e94573b 100644
+--- a/beay/src/app/routes.tsx
++++ b/beay/src/app/routes.tsx
+@@ -1,42 +1,43 @@
+ import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
+ import { useAuth } from './auth'
+ import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage'
+ import { LoginPage } from '../pages/admin/LoginPage'
+ import { AdminRbacPage } from '../pages/admin/AdminRbacPage'
+ import AdminSpaPage from '../pages/admin/AdminSpaPage'
+ import AdminCoursesPage from '../pages/admin/AdminCoursesPage'
+ import { CmsEditPage } from "../admin/pages/CmsEditPage";
+ import { ToastProvider as AdminToastProvider } from "../admin/components/Toast";
+ import { CmsPagesPage } from "../admin/pages/CmsPagesPage";
+ import  OrderAdminPage  from "../admin/pages/OrderAdminPage";
+ import { ReviewsAdminPage } from "../admin/pages/ReviewsAdminPage";
+ import { BlogAdminPage } from "../admin/pages/BlogAdminPage";
+ import { ProductAdminListPage } from "../admin/pages/ProductAdminListPage";
+ import { ProductAdminDetailPage } from "../admin/pages/ProductAdminDetailPage";
+ import { AdminUserManagementPage } from '../pages/admin/AdminUserManagementPage'
+ import { CoursePlansAdminPage } from '../pages/admin/CoursePlansAdminPage'
++import { ContactInquiriesPage } from '../admin/pages/ContactInquiriesPage'
+ import { ErrorStatusPage } from '../pages/ErrorStatusPage';
 
-   private async resolveSubscriptionTrialEndForActiveOneTimePass(userId: number, planId: number, now: Date) {
-     const activeOneTimePass = await this.prisma.userCoursePass.findFirst({
-       where: {
-         userId,
-         planId,
-         canceledAt: null,
-         startAt: { lte: now },
-         endAt: { gt: now },
-         purchaseId: { not: null },
-       },
-       select: {
-         id: true,
-         endAt: true,
-         purchaseId: true,
-       },
-       orderBy: [{ endAt: 'desc' }, { id: 'desc' }],
-     })
 
-     if (!activeOneTimePass?.purchaseId) return null
 
-     const purchase = await this.prisma.coursePlanPayment.findUnique({
-       where: { id: activeOneTimePass.purchaseId },
-       select: {
+ function RequireAuth() {
+     const { token } = useAuth();
+     const location = useLocation();
+
+     if (!token) {
+         return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+     }
+
+     return <Outlet />;
+ }
+
+ function RequirePermission({ permission, children }: { permission: string; children: React.ReactNode }) {
+     const { can } = useAuth();
+
+     if (!can(permission)) {
+         return (
+             <ErrorStatusPage
+                 code={403}
+                 title="403 - Không có quyền truy cập"
+                 message="Tài khoản của bạn đã đăng nhập nhưng chưa được cấp quyền để vào trang này."
+             />
+@@ -65,42 +66,43 @@ function FallbackRoute() {
+ export function AppRoutes() {
+     return (
+         <Routes>
+             <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+             <Route path="/login" element={<LoginPage />} />
+
+             <Route element={<RequireAuth />}>
+                 <Route path="/admin/orders" element={<RequirePermission permission="orders.write"><OrderAdminPage /></RequirePermission>} />
+                 <Route
+                     path="/admin/rbac"
+                     element={
+                         <RequirePermission permission="role.write">
+                             <Navigate to="/admin/rbac/rbac" replace />
+                         </RequirePermission>
+                     }
+                 />
+                 <Route path="/admin/rbac/:tab" element={<RequirePermission permission="role.write"><AdminRbacPage /></RequirePermission>} />
+                 <Route path="/admin/services" element={<RequirePermission permission="spa_services.write"><AdminSpaPage /></RequirePermission>} />
+                 <Route path="/admin/courses" element={<RequirePermission permission="courses.read"><AdminCoursesPage /></RequirePermission>} />
+                 <Route path="/admin/reviews" element={<RequirePermission permission="reviews.write"><ReviewsAdminPage /></RequirePermission>} />
+                 <Route path="/admin/blog" element={<RequirePermission permission="blogs.write"><BlogAdminPage /></RequirePermission>} />
+                 <Route path="/admin/product" element={<RequirePermission permission="products.write"><ProductAdminListPage /></RequirePermission>} />
+                 <Route path="/admin/product/:productId" element={<RequirePermission permission="products.write"><ProductAdminDetailPage /></RequirePermission>} />
+                 <Route path="/admin/users" element={<RequirePermission permission="role.write"><AdminUserManagementPage /></RequirePermission>} />
+                 <Route path="/admin/course-plans" element={<RequirePermission permission="packages.read"><CoursePlansAdminPage /></RequirePermission>} />
++                <Route path="/admin/contacts" element={<RequirePermission permission="cms.read"><ContactInquiriesPage /></RequirePermission>} />
+                 <Route path="/admin/dashboard" element={<RequirePermission permission="dashboard.admin"><AdminDashboardPage /></RequirePermission>} />
+                 <Route
+                     path="/admin/cms"
+                     element={<RequirePermission permission="cms.read"><AdminToastProvider><CmsPagesPage /></AdminToastProvider></RequirePermission>}
+                 />
+                 <Route
+                     path="/admin/cms/pages/:slug"
+                     element={<RequirePermission permission="cms.write"><AdminToastProvider><CmsEditPage /></AdminToastProvider></RequirePermission>}
+                 />
+             </Route>
+
+             <Route path="*" element={<FallbackRoute />} />
+         </Routes>
+     );
+
+ }
+
+diff --git a/beay/src/pages/components/AdminSidebar.tsx b/beay/src/pages/components/AdminSidebar.tsx
+index 9ccd33bd06e4ee50b780af8bb0a60f74d37b9d15..13c60f1eaad329f2a8544b55ebbbc13c376e0910 100644
+--- a/beay/src/pages/components/AdminSidebar.tsx
++++ b/beay/src/pages/components/AdminSidebar.tsx
+@@ -77,50 +77,55 @@ export function AdminSidebar({ open, onClose }: Props) {
+             <span className="font-semibold">Sản phẩm</span>
+           </Link>
+           <Link to="/admin/services" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+             <i className="fa-solid fa-spa text-violet-700" />
+             <span className="font-semibold">Dịch vụ</span>
+           </Link>
+           <Link to="/admin/orders" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+             <i className="fa-solid fa-bag-shopping text-emerald-700" />
+             <span className="font-semibold">Đơn hàng</span>
+           </Link>
+           <Link to="/admin/users" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+             <i className="fa-solid fa-users-gear text-indigo-700" />
+             <span className="font-semibold">User Management</span>
+           </Link>
+           {/* Thêm link: CMS /admin/cms */}
+           <Link to="/admin/cms" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+             <i className="fa-solid fa-file-lines text-slate-700" />
+             <span className="font-semibold">CMS</span>
+           </Link>
+           {/* Thêm link: Đánh giá /admin/reviews */}
+           <Link to="/admin/reviews" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+             <i className="fa-solid fa-star text-yellow-700" />
+             <span className="font-semibold">Đánh giá</span>
+           </Link>
+
++          <Link to="/admin/contacts" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
++            <i className="fa-solid fa-address-book text-cyan-700" />
++            <span className="font-semibold">Liên hệ khách hàng</span>
++          </Link>
++
+           <Link to="/admin/blog" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+             <i className="fa-solid fa-newspaper text-yellow-700" />
+             <span className="font-semibold">Quản lý blog</span>
+           </Link>
+
+           {/*<a href="#settings" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">*/}
+           {/*  <i className="fa-solid fa-gear text-slate-700" />*/}
+           {/*  <span className="font-semibold">Cài đặt</span>*/}
+           {/*</a>*/}
+         </nav>
+
+         {/* <div className="mt-6 card p-4">
+           <div className="flex items-start justify-between gap-4">
+             <div>
+               <div className="text-xs font-semibold text-slate-500">Gợi ý</div>
+               <div className="mt-1 font-extrabold">Thiết lập thanh toán</div>
+               <div className="mt-1 text-sm text-slate-600">Kết nối MoMo/VNPay/Stripe để bán khoá học.</div>
+             </div>
+             <div className="h-10 w-10 rounded-2xl bg-amber-100 flex items-center justify-center">
+               <i className="fa-solid fa-bolt text-amber-700" />
+             </div>
+           </div>
+           <button onClick={onConnectPay} className="mt-4 w-full btn btn-accent">Kết nối ngay</button>
+           <div className="mt-3 text-xs text-slate-500">
+             Mẹo: <span className="kbd">/</span> focus search • <span className="kbd">g</span> <span className="kbd">o</span> sang Orders

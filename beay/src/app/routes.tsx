@@ -15,6 +15,7 @@ import { ProductAdminListPage } from "../admin/pages/ProductAdminListPage";
 import { ProductAdminDetailPage } from "../admin/pages/ProductAdminDetailPage";
 import { AdminUserManagementPage } from '../pages/admin/AdminUserManagementPage'
 import { CoursePlansAdminPage } from '../pages/admin/CoursePlansAdminPage'
+import { ContactInquiriesPage } from '../admin/pages/ContactInquiriesPage'
 import { ErrorStatusPage } from '../pages/ErrorStatusPage';
 
 
@@ -87,6 +88,7 @@ export function AppRoutes() {
                 <Route path="/admin/product/:productId" element={<RequirePermission permission="products.write"><ProductAdminDetailPage /></RequirePermission>} />
                 <Route path="/admin/users" element={<RequirePermission permission="role.write"><AdminUserManagementPage /></RequirePermission>} />
                 <Route path="/admin/course-plans" element={<RequirePermission permission="packages.read"><CoursePlansAdminPage /></RequirePermission>} />
+                <Route path="/admin/contacts" element={<RequirePermission permission="cms.read"><ContactInquiriesPage /></RequirePermission>} />
                 <Route path="/admin/dashboard" element={<RequirePermission permission="dashboard.admin"><AdminDashboardPage /></RequirePermission>} />
                 <Route
                     path="/admin/cms"

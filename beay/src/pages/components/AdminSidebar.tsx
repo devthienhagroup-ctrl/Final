@@ -99,6 +99,11 @@ export function AdminSidebar({ open, onClose }: Props) {
             <span className="font-semibold">Đánh giá</span>
           </Link>
 
+          <Link to="/admin/contacts" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
+            <i className="fa-solid fa-address-book text-cyan-700" />
+            <span className="font-semibold">Liên hệ khách hàng</span>
+          </Link>
+
           <Link to="/admin/blog" className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-slate-50">
             <i className="fa-solid fa-newspaper text-yellow-700" />
             <span className="font-semibold">Quản lý blog</span>

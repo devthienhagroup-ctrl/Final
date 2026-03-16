@@ -26,7 +26,6 @@ model User {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  // Ă„â€Ă‚Â¢Ä‚â€¦Ă¢â‚¬Å“Ä‚Â¢Ă¢â€Â¬Ă‚Â¦ ADD
   enrollments    Enrollment[]
   courseAccesses CourseAccess[]
   coursePasses   UserCoursePass[]
@@ -36,7 +35,7 @@ model User {
   planUnlockLogs PlanUnlockLog[]
   lessonProgress LessonProgress[]
   lessonVideoProgress LessonVideoProgress[]
-  orders         Order[] // <Ă„â€Ă‚Â¢Ä‚Â¢Ă¢â‚¬ÂĂ‚Â¬Ä‚Â¢Ă¢â€Â¬Ă‚Â opposite for Order.user
+  orders         Order[]
   productOrders  ProductOrder[]
   processedProductOrders ProductOrder[] @relation("ProductOrderProcessedBy")
   carts          Cart[]
@@ -56,6 +55,8 @@ model User {
   roleAuditLogsAsTarget RoleAuditLog[] @relation("RoleAuditTarget")
   userManagementLogsAsActor  UserManagementLog[] @relation("UserManagementLogActor")
   userManagementLogsAsTarget UserManagementLog[] @relation("UserManagementLogTarget")
+
+  contactInquiryReplies ContactInquiryReply[]
 
   @@index([roleId])
 }
@@ -1146,6 +1147,44 @@ model PublicLead {
   @@index([type, createdAt])
 }
 
+model ContactInquiry {
+  id              Int                  @id @default(autoincrement())
+  name            String               @db.VarChar(120)
+  phone           String               @db.VarChar(30)
+  email           String?              @db.VarChar(120)
+  need            String?              @db.VarChar(200)
+  note            String?              @db.Text
+  ipAddress       String               @map("ip_address") @db.VarChar(64)
+  userAgent       String?              @map("user_agent") @db.VarChar(500)
+  status          String               @default("new") @db.VarChar(30)
+  repliedAt       DateTime?            @map("replied_at")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+  replies         ContactInquiryReply[]
+
+  @@index([createdAt], map: "idx_contact_inquiry_created")
+  @@index([status, createdAt], map: "idx_contact_inquiry_status_created")
+  @@index([ipAddress, createdAt], map: "idx_contact_inquiry_ip_created")
+  @@map("contact_inquiries")
+}
+
+model ContactInquiryReply {
+  id          Int            @id @default(autoincrement())
+  inquiryId   Int            @map("inquiry_id")
+  userId      Int?           @map("user_id")
+  staffName   String?        @map("staff_name") @db.VarChar(120)
+  staffEmail  String?        @map("staff_email") @db.VarChar(120)
+  subject     String         @db.VarChar(255)
+  content     String         @db.Text
+  createdAt   DateTime       @default(now()) @map("created_at")
+  inquiry     ContactInquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  user        User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([inquiryId, createdAt], map: "idx_contact_reply_inquiry_created")
+  @@index([userId], map: "idx_contact_reply_user")
+  @@map("contact_inquiry_replies")
+}
+
 model Language {
   code     String  @id @db.VarChar(10)
   name     String  @db.VarChar(50)
@@ -1641,4 +1680,3 @@ model SummaryRecord {
   @@index([customer_id])
   @@map("summary_records")
 }
-

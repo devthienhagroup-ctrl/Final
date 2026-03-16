@@ -7,6 +7,9 @@ import { CmsAdminService } from "./cms-admin.service";
 import { AccessTokenGuard } from "../../auth/guards/access-token.guard";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ImageUploadService } from "../../services/ImageUploadService";
+import { AdminListContactInquiriesDto } from "./dto/admin-list-contact-inquiries.dto";
+import { ReplyContactInquiryDto } from "./dto/reply-contact-inquiry.dto";
+import { CurrentUser, JwtUser } from "../../auth/decorators/current-user.decorator";
 
 @Controller("admin/cms")
 @UseGuards(AccessTokenGuard, PermissionGuard)
@@ -35,10 +38,8 @@ export class CmsAdminController {
     @Query("locale") locale: string,
     @Body() dto: SaveDraftDto,
   ) {
-    // userId: nếu bạn có current-user decorator thì truyền vào ở đây
     return this.svc.saveDraft(Number(id), locale, dto.draftData, dto.note, undefined);
   }
-
 
   @Permissions("cms.write")
   @Post("images/upload")
@@ -75,5 +76,21 @@ export class CmsAdminController {
   @Post("sections/:id/restore")
   restore(@Param("id") id: string, @Query("locale") locale: string, @Body() dto: RestoreDto) {
     return this.svc.restoreDraft(Number(id), locale, dto.versionId, undefined);
+  }
+
+  @Permissions("cms.read")
+  @Get("contacts")
+  listContactInquiries(@Query() query: AdminListContactInquiriesDto) {
+    return this.svc.listContactInquiries(query);
+  }
+
+  @Permissions("cms.write")
+  @Post("contacts/:id/reply")
+  replyContactInquiry(
+    @Param("id") id: string,
+    @Body() dto: ReplyContactInquiryDto,
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.svc.replyContactInquiry(Number(id), dto, user);
   }
 }

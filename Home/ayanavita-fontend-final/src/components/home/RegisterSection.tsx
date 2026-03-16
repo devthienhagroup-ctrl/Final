@@ -92,12 +92,12 @@ export type RegisterSectionCmsData = {
 // Nội dung mặc định (dùng khi không có cmsData) – hoàn toàn không chứa HTML
 export const defaultRegisterSectionCmsData: RegisterSectionCmsData = {
   title: "Đăng ký thành viên AYANAVITA",
-  description: "Nhận ưu đãi đặc biệt khi đăng ký tài khoản mới:",
+  description: "Trở thành thành viên để nhận những trải nghiệm wellness cá nhân hóa.",
   benefits: [
-    "Truy cập miễn phí 3 khóa học cơ bản",
-    "Giảm 20% cho khóa học đầu tiên",
-    "Lộ trình học tập cá nhân hóa",
-    "Cộng đồng học viên VIP",
+    "Wellness check-in để hiểu rõ cơ thể và nhu cầu hiện tại",
+    "Phân tích làn da, sức sống và mức năng lượng tổng thể",
+    "Liệu trình thư giãn và chăm sóc phù hợp với từng cá nhân",
+    "Không gian phục hồi cân bằng cho cơ thể và tinh thần",
   ],
   offerTitle: "Ưu đãi có hiệu lực trong:",
   offerDaysLabel: "Ngày",
@@ -195,19 +195,19 @@ export type RegisterSectionProps = {
 
   /** override API đăng ký kèm OTP (mặc định dùng authApi.registerNew) */
   onRegisterWithOtp?: (
-    payload: RegisterVerifyPayload,
+      payload: RegisterVerifyPayload,
   ) => void | Promise<{ accessToken?: string; refreshToken?: string } | any>;
 };
 
 export const RegisterSection: React.FC<RegisterSectionProps> = ({
-  onRegisterSuccess,
-  cmsData,
-  onSendOtp,
-  onRegisterWithOtp,
-}) => {
+                                                                  onRegisterSuccess,
+                                                                  cmsData,
+                                                                  onSendOtp,
+                                                                  onRegisterWithOtp,
+                                                                }) => {
   const content = useMemo(
-    () => ({ ...defaultRegisterSectionCmsData, ...cmsData }),
-    [cmsData],
+      () => ({ ...defaultRegisterSectionCmsData, ...cmsData }),
+      [cmsData],
   );
 
   const [form, setForm] = useState(INITIAL_FORM);
@@ -255,8 +255,6 @@ export const RegisterSection: React.FC<RegisterSectionProps> = ({
 
   const setField = <K extends keyof RegisterFormState>(key: K, value: RegisterFormState[K]) => {
     setForm((s) => ({ ...s, [key]: value }));
-    // UX: nếu user đã submit rồi thì khi gõ lại sẽ cập nhật lỗi live (do uiErrors phụ thuộc errors)
-    // Không cần setSubmitted ở đây.
   };
 
   function resetFormState() {
@@ -269,7 +267,6 @@ export const RegisterSection: React.FC<RegisterSectionProps> = ({
   }
 
   async function sendOtp() {
-    // ✅ bấm đăng ký mới bắt đầu validate
     setSubmitted(true);
 
     const e = validateForm(form);
@@ -369,266 +366,270 @@ export const RegisterSection: React.FC<RegisterSectionProps> = ({
   }
 
   return (
-    <section id="register" className="w-full py-12">
-      <div className="mx-auto max-w-6xl px-4">
-        <div className="overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 to-violet-600 shadow-xl">
-          <div className="grid md:grid-cols-2">
-            <div className="p-10 text-white">
-              <h2 className="text-3xl font-extrabold">{content.title}</h2>
-              <p className="mt-4 text-white/90">{content.description}</p>
+      <section id="register" className="w-full py-12">
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 to-violet-600 shadow-xl">
+            <div className="grid md:grid-cols-2">
+              <div className="relative overflow-hidden p-10 text-white">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(251,191,36,0.18),transparent_30%)]" />
+                <div className="absolute -left-16 top-16 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
+                <div className="absolute bottom-0 right-0 h-48 w-48 rounded-full bg-amber-300/10 blur-3xl" />
 
-              <ul className="mt-6 space-y-3 text-white/95">
-                {(content.benefits || []).map((item, idx) => (
-                  <li key={idx} className="flex items-center gap-2">
-                    <i className="fa-regular fa-circle-check"></i> {item}
-                  </li>
-                ))}
-              </ul>
+                <div className="relative">
+                  <h2 className="text-3xl font-extrabold leading-tight">{content.title}</h2>
+                  <p className="mt-4 max-w-xl text-white/90">{content.description}</p>
 
-              <div className="mt-8 rounded-2xl bg-white/10 p-5 ring-1 ring-white/10">
-                <div className="text-sm font-medium">{content.offerTitle}</div>
-                <div className="mt-2 flex gap-2">
-                  {[
-                    { v: content.offerDaysValue, l: content.offerDaysLabel },
-                    { v: content.offerHoursValue, l: content.offerHoursLabel },
-                    { v: content.offerMinutesValue, l: content.offerMinutesLabel },
-                  ].map((x) => (
-                    <div
-                      key={String(x.l)}
-                      className="rounded-lg bg-white/15 px-3 py-2 text-center ring-1 ring-white/10"
-                    >
-                      <div className="text-xl font-extrabold">{x.v}</div>
-                      <div className="text-xs">{x.l}</div>
+                  <div className="mt-8 rounded-[28px] border border-white/15 bg-white/10 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.18)] backdrop-blur-sm ring-1 ring-white/10">
+                    <div className="relative flex items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-white/10 via-white/5 to-amber-200/10 px-6 py-8">
+                      <div className="absolute -left-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-white/15 blur-2xl" />
+                      <div className="absolute -right-6 top-4 h-20 w-20 rounded-full bg-amber-300/20 blur-2xl" />
+                      <div className="absolute inset-0 bg-[linear-gradient(120deg,transparent_0%,rgba(255,255,255,0.12)_35%,transparent_60%)] animate-pulse" />
+                      <img
+                          className="relative z-10 w-[60%] brightness-0 invert drop-shadow-[0_0_18px_rgba(255,255,255,0.35)] transition duration-500 hover:scale-[1.03]"
+                          src="/imgs/logo.png"
+                          alt="Ayanavita Logo"
+                      />
                     </div>
-                  ))}
+                  </div>
+
+                  <ul className="mt-6 space-y-3 text-white/95">
+                    {(content.benefits || []).map((item, idx) => (
+                        <li
+                            key={idx}
+                            className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 transition duration-300 hover:bg-white/10 hover:translate-x-1"
+                        >
+                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-amber-200 ring-1 ring-white/10 transition duration-300 group-hover:scale-110 group-hover:bg-white/15">
+                        <i className="fa-solid fa-spa text-sm"></i>
+                      </span>
+                          <span>{item}</span>
+                        </li>
+                    ))}
+                  </ul>
                 </div>
               </div>
-            </div>
 
-            <div className="bg-white p-10">
-              <h3 className="text-2xl font-extrabold text-slate-900">{content.formTitle}</h3>
+              <div className="bg-white p-10">
+                <h3 className="text-2xl font-extrabold text-slate-900">{content.formTitle}</h3>
 
-              {error ? <div className="mt-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</div> : null}
-              {info ? <div className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{info}</div> : null}
+                {error ? <div className="mt-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</div> : null}
+                {info ? <div className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{info}</div> : null}
 
-              {!otpOpen ? (
-                <form
-                  className="mt-6"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    sendOtp();
-                  }}
-                >
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-semibold text-slate-700">{content.fullNameLabel}</label>
-                      <input
-                        className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
-                          uiErrors.fullName ? "border-red-400" : "border-slate-200"
-                        }`}
-                        value={form.fullName}
-                        onChange={(e) => setField("fullName", e.target.value)}
-                        placeholder={content.fullNamePlaceholder}
-                      />
-                      {uiErrors.fullName ? <div className="mt-1 text-xs text-red-500">{uiErrors.fullName}</div> : null}
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-semibold text-slate-700">{content.phoneLabel}</label>
-                      <input
-                        className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
-                          uiErrors.phone ? "border-red-400" : "border-slate-200"
-                        }`}
-                        value={form.phone}
-                        onChange={(e) => setField("phone", e.target.value)}
-                        placeholder={content.phonePlaceholder}
-                      />
-                      {uiErrors.phone ? <div className="mt-1 text-xs text-red-500">{uiErrors.phone}</div> : null}
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    <label className="text-sm font-semibold text-slate-700">{content.emailLabel}</label>
-                    <input
-                      className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
-                        uiErrors.email ? "border-red-400" : "border-slate-200"
-                      }`}
-                      value={form.email}
-                      onChange={(e) => setField("email", e.target.value)}
-                      placeholder={content.emailPlaceholder}
-                    />
-                    {uiErrors.email ? <div className="mt-1 text-xs text-red-500">{uiErrors.email}</div> : null}
-                  </div>
-
-                  <div className="mt-4">
-                    <label className="text-sm font-semibold text-slate-700">{content.passwordLabel}</label>
-                    <input
-                      type="password"
-                      className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
-                        uiErrors.password ? "border-red-400" : "border-slate-200"
-                      }`}
-                      value={form.password}
-                      onChange={(e) => setField("password", e.target.value)}
-                      placeholder={content.passwordPlaceholder}
-                    />
-                    {uiErrors.password ? <div className="mt-1 text-xs text-red-500">{uiErrors.password}</div> : null}
-                  </div>
-
-                  <div className="mt-4">
-                    <label className="text-sm font-semibold text-slate-700">{content.confirmPasswordLabel}</label>
-                    <input
-                      type="password"
-                      className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
-                        uiErrors.confirmPassword ? "border-red-400" : "border-slate-200"
-                      }`}
-                      value={form.confirmPassword}
-                      onChange={(e) => setField("confirmPassword", e.target.value)}
-                      placeholder={content.confirmPasswordPlaceholder}
-                    />
-                    {uiErrors.confirmPassword ? (
-                      <div className="mt-1 text-xs text-red-500">{uiErrors.confirmPassword}</div>
-                    ) : null}
-                  </div>
-
-                  <div className="mt-4">
-                    <label className="text-sm font-semibold text-slate-700">{content.interestLabel}</label>
-                    <select
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none ring-indigo-100 focus:ring-4"
-                      value={form.interest}
-                      onChange={(e) => setField("interest", e.target.value)}
+                {!otpOpen ? (
+                    <form
+                        className="mt-6"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          sendOtp();
+                        }}
                     >
-                      <option value="">{content.interestPlaceholder}</option>
-                      <option value="tech">Công nghệ thông tin</option>
-                      <option value="business">Kinh doanh & Marketing</option>
-                      <option value="design">Thiết kế & Sáng tạo</option>
-                      <option value="language">Ngoại ngữ</option>
-                      <option value="softskills">Kỹ năng mềm</option>
-                    </select>
-                  </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-semibold text-slate-700">{content.fullNameLabel}</label>
+                          <input
+                              className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
+                                  uiErrors.fullName ? "border-red-400" : "border-slate-200"
+                              }`}
+                              value={form.fullName}
+                              onChange={(e) => setField("fullName", e.target.value)}
+                              placeholder={content.fullNamePlaceholder}
+                          />
+                          {uiErrors.fullName ? <div className="mt-1 text-xs text-red-500">{uiErrors.fullName}</div> : null}
+                        </div>
 
-                  <div className="mt-4">
-                    <label className="text-sm font-semibold text-slate-700">{content.roleLabel}</label>
-                    <select
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none ring-indigo-100 focus:ring-4"
-                      value={form.role}
-                      onChange={(e) => setForm((s) => ({ ...s, role: e.target.value as "LECTURER" | "USER" }))}
-                    >
-                      <option value="USER">{content.roleUserLabel} </option>
-                      <option value="LECTURER">{content.roleLecturerLabel} </option>
-                    </select>
-                  </div>
+                        <div>
+                          <label className="text-sm font-semibold text-slate-700">{content.phoneLabel}</label>
+                          <input
+                              className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
+                                  uiErrors.phone ? "border-red-400" : "border-slate-200"
+                              }`}
+                              value={form.phone}
+                              onChange={(e) => setField("phone", e.target.value)}
+                              placeholder={content.phonePlaceholder}
+                          />
+                          {uiErrors.phone ? <div className="mt-1 text-xs text-red-500">{uiErrors.phone}</div> : null}
+                        </div>
+                      </div>
 
-                  <label className="mt-5 flex items-start gap-2 text-sm text-slate-600">
-                    <input
-                      type="checkbox"
-                      className="mt-1 h-4 w-4 rounded border-slate-300"
-                      checked={form.terms}
-                      onChange={(e) => setField("terms", e.target.checked)}
-                    />
-                    <span>
+                      <div className="mt-4">
+                        <label className="text-sm font-semibold text-slate-700">{content.emailLabel}</label>
+                        <input
+                            className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
+                                uiErrors.email ? "border-red-400" : "border-slate-200"
+                            }`}
+                            value={form.email}
+                            onChange={(e) => setField("email", e.target.value)}
+                            placeholder={content.emailPlaceholder}
+                        />
+                        {uiErrors.email ? <div className="mt-1 text-xs text-red-500">{uiErrors.email}</div> : null}
+                      </div>
+
+                      <div className="mt-4">
+                        <label className="text-sm font-semibold text-slate-700">{content.passwordLabel}</label>
+                        <input
+                            type="password"
+                            className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
+                                uiErrors.password ? "border-red-400" : "border-slate-200"
+                            }`}
+                            value={form.password}
+                            onChange={(e) => setField("password", e.target.value)}
+                            placeholder={content.passwordPlaceholder}
+                        />
+                        {uiErrors.password ? <div className="mt-1 text-xs text-red-500">{uiErrors.password}</div> : null}
+                      </div>
+
+                      <div className="mt-4">
+                        <label className="text-sm font-semibold text-slate-700">{content.confirmPasswordLabel}</label>
+                        <input
+                            type="password"
+                            className={`mt-2 w-full rounded-2xl border px-4 py-3 outline-none ring-indigo-100 focus:ring-4 ${
+                                uiErrors.confirmPassword ? "border-red-400" : "border-slate-200"
+                            }`}
+                            value={form.confirmPassword}
+                            onChange={(e) => setField("confirmPassword", e.target.value)}
+                            placeholder={content.confirmPasswordPlaceholder}
+                        />
+                        {uiErrors.confirmPassword ? (
+                            <div className="mt-1 text-xs text-red-500">{uiErrors.confirmPassword}</div>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-4">
+                        <label className="text-sm font-semibold text-slate-700">{content.interestLabel}</label>
+                        <select
+                            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none ring-indigo-100 focus:ring-4"
+                            value={form.interest}
+                            onChange={(e) => setField("interest", e.target.value)}
+                        >
+                          <option value="">{content.interestPlaceholder}</option>
+                          <option value="wellness-checkin">Wellness check-in cá nhân</option>
+                          <option value="skin-analysis">Phân tích làn da và sức sống</option>
+                          <option value="wellness-program">Chương trình chăm sóc cá nhân hóa</option>
+                          <option value="relaxation">Thư giãn và phục hồi năng lượng</option>
+                          <option value="beauty-care">Chăm sóc sắc đẹp và cân bằng</option>
+                        </select>
+                      </div>
+
+                      <div className="mt-4">
+                        <label className="text-sm font-semibold text-slate-700">{content.roleLabel}</label>
+                        <select
+                            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none ring-indigo-100 focus:ring-4"
+                            value={form.role}
+                            onChange={(e) => setForm((s) => ({ ...s, role: e.target.value as "LECTURER" | "USER" }))}
+                        >
+                          <option value="USER">{content.roleUserLabel} </option>
+                          <option value="LECTURER">{content.roleLecturerLabel} </option>
+                        </select>
+                      </div>
+
+                      <label className="mt-5 flex items-start gap-2 text-sm text-slate-600">
+                        <input
+                            type="checkbox"
+                            className="mt-1 h-4 w-4 rounded border-slate-300"
+                            checked={form.terms}
+                            onChange={(e) => setField("terms", e.target.checked)}
+                        />
+                        <span>
                       {content.termsPrefix}
-                      <span className="font-semibold text-indigo-600">{content.termsLink1}</span>
-                      {content.termsSeparator}
-                      <span className="font-semibold text-indigo-600">{content.termsLink2}</span>
+                          <span className="font-semibold text-indigo-600">{content.termsLink1}</span>
+                          {content.termsSeparator}
+                          <span className="font-semibold text-indigo-600">{content.termsLink2}</span>
                     </span>
-                  </label>
-                  {uiErrors.terms ? <div className="mt-1 text-xs text-red-500">{uiErrors.terms}</div> : null}
+                      </label>
+                      {uiErrors.terms ? <div className="mt-1 text-xs text-red-500">{uiErrors.terms}</div> : null}
 
-                  <button
-                    type="submit"
-                    disabled={sendingOtp}
-                    className="mt-6 w-full rounded-2xl bg-gradient-to-r from-amber-300 to-yellow-300 py-4 font-extrabold text-slate-900 shadow hover:opacity-95 disabled:opacity-60"
-                  >
-                    {sendingOtp ? content.submitButtonLoadingText : content.submitButtonText}
-                  </button>
-
-                  <div className="mt-4 text-sm text-slate-600">
-                    {content.loginPromptText}{" "}
-                    <a href="#top" className="font-semibold text-indigo-600 hover:underline">
-                      {content.loginLinkText}
-                    </a>
-                  </div>
-                </form>
-              ) : (
-                <div className="mt-6 rounded-3xl border border-slate-200 p-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="text-xs font-semibold text-slate-500">{content.otpCardLabel}</div>
                       <button
-                        type="button"
-                        onClick={() => {
-                          setOtpOpen(false);
-                          setError("");
-                          setInfo(content.otpBackHintText || "");
-                          // Giữ submitted=true để nếu form còn sai thì vẫn thấy lỗi (user đang "quay lại để sửa")
-                          // Không reset submitted ở đây.
-                        }}
-                        className="text-sm font-semibold text-blue-600 hover:underline"
+                          type="submit"
+                          disabled={sendingOtp}
+                          className="mt-6 w-full rounded-2xl bg-gradient-to-r from-amber-300 to-yellow-300 py-4 font-extrabold text-slate-900 shadow hover:opacity-95 disabled:opacity-60"
                       >
-                        {content.otpBackToRegisterText}
+                        {sendingOtp ? content.submitButtonLoadingText : content.submitButtonText}
                       </button>
+
+                      <div className="mt-4 text-sm text-slate-600">
+                        {content.loginPromptText}{" "}
+                        <a href="#top" className="font-semibold text-indigo-600 hover:underline">
+                          {content.loginLinkText}
+                        </a>
+                      </div>
+                    </form>
+                ) : (
+                    <div className="mt-6 rounded-3xl border border-slate-200 p-5">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="text-xs font-semibold text-slate-500">{content.otpCardLabel}</div>
+                          <button
+                              type="button"
+                              onClick={() => {
+                                setOtpOpen(false);
+                                setError("");
+                                setInfo(content.otpBackHintText || "");
+                              }}
+                              className="text-sm font-semibold text-blue-600 hover:underline"
+                          >
+                            {content.otpBackToRegisterText}
+                          </button>
+                        </div>
+
+                        <button
+                            type="button"
+                            aria-label={content.otpCloseAriaLabel}
+                            onClick={resetFormState}
+                            className="h-9 w-9 rounded-xl bg-slate-100 hover:bg-slate-200"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <h4 className="mt-2 text-xl font-bold text-slate-900">{content.otpTitle}</h4>
+
+                      <p className="mt-2 text-sm text-slate-600">
+                        {content.otpDescriptionPrefix} <span className="font-semibold">{form.email}</span>{" "}
+                        {content.otpDescriptionSuffix}
+                      </p>
+
+                      <div className="mt-5 flex justify-between gap-2">
+                        {otpDigits.map((digit, idx) => (
+                            <input
+                                key={idx}
+                                ref={(el) => {
+                                  otpInputRefs.current[idx] = el;
+                                }}
+                                value={digit}
+                                onChange={(e) => handleOtpChange(idx, e.target.value)}
+                                onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                                onPaste={handleOtpPaste}
+                                inputMode="numeric"
+                                maxLength={1}
+                                className="h-12 w-12 rounded-2xl border border-slate-300 text-center text-xl font-bold tracking-widest text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+                            />
+                        ))}
+                      </div>
+
+                      <div className="mt-5 flex gap-2">
+                        <button
+                            type="button"
+                            onClick={handleRegisterWithOtp}
+                            disabled={verifying || !otpCompleted}
+                            className="w-1/2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+                        >
+                          {verifying ? content.otpConfirmButtonLoadingText : content.otpConfirmButtonText}
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={sendOtp}
+                            disabled={sendingOtp}
+                            className="w-1/2 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-60"
+                        >
+                          {sendingOtp ? content.otpResendButtonLoadingText : content.otpResendButtonText}
+                        </button>
+                      </div>
                     </div>
-
-                    <button
-                      type="button"
-                      aria-label={content.otpCloseAriaLabel}
-                      onClick={resetFormState}
-                      className="h-9 w-9 rounded-xl bg-slate-100 hover:bg-slate-200"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  <h4 className="mt-2 text-xl font-bold text-slate-900">{content.otpTitle}</h4>
-
-                  <p className="mt-2 text-sm text-slate-600">
-                    {content.otpDescriptionPrefix} <span className="font-semibold">{form.email}</span>{" "}
-                    {content.otpDescriptionSuffix}
-                  </p>
-
-                  <div className="mt-5 flex justify-between gap-2">
-                    {otpDigits.map((digit, idx) => (
-                      <input
-                        key={idx}
-                        ref={(el) => {
-                          otpInputRefs.current[idx] = el;
-                        }}
-                        value={digit}
-                        onChange={(e) => handleOtpChange(idx, e.target.value)}
-                        onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                        onPaste={handleOtpPaste}
-                        inputMode="numeric"
-                        maxLength={1}
-                        className="h-12 w-12 rounded-2xl border border-slate-300 text-center text-xl font-bold tracking-widest text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
-                      />
-                    ))}
-                  </div>
-
-                  <div className="mt-5 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handleRegisterWithOtp}
-                      disabled={verifying || !otpCompleted}
-                      className="w-1/2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
-                    >
-                      {verifying ? content.otpConfirmButtonLoadingText : content.otpConfirmButtonText}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={sendOtp}
-                      disabled={sendingOtp}
-                      className="w-1/2 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-60"
-                    >
-                      {sendingOtp ? content.otpResendButtonLoadingText : content.otpResendButtonText}
-                    </button>
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
   );
 };

@@ -1,4 +1,3 @@
-// src/components/home/Outcomes.tsx
 import React from "react";
 
 interface OutcomeCard {
@@ -19,32 +18,41 @@ interface OutcomesProps {
 export const Outcomes: React.FC<OutcomesProps> = ({ cmsData }) => {
   // Dữ liệu mặc định nếu không có cmsData
   const defaultData: OutcomesCMSData = {
-    heading: "Học xong làm được gì?",
-    subheading: "Đánh trực tiếp vào “kết quả” — yếu tố quan trọng nhất để chốt mua.",
+    heading: "Bạn sẽ nhận được gì sau trải nghiệm?",
+    subheading:
+        "Những giá trị bạn có thể nhận được sau khi trải nghiệm wellness tại AYANAVITA.",
     cards: [
       {
-        title: "Thiết kế UI chuẩn LMS",
+        title: "Hiểu rõ cơ thể của mình",
         items: [
-          "Landing dài + proof + CTA",
-          "Catalog + filter + sorting",
-          "Course detail + outline + review",
+          "Nhận được những insight giúp hiểu rõ trạng thái cơ thể và mức năng lượng hiện tại.",
+          "Nhận diện những yếu tố ảnh hưởng đến sức khỏe, làn da và tinh thần.",
+          "Hiểu rõ hơn nhu cầu chăm sóc cá nhân của cơ thể.",
         ],
       },
       {
-        title: "Xây luồng học tập",
+        title: "Những gợi ý chăm sóc phù hợp",
         items: [
-          "Player + danh sách bài",
-          "Tiến độ & tiếp tục bài học",
-          "Dashboard học viên",
+          "Nhận các gợi ý chăm sóc wellness dựa trên dữ liệu và tình trạng cá nhân.",
+          "Biết nên ưu tiên những phương pháp chăm sóc nào cho cơ thể và làn da.",
+          "Có định hướng rõ ràng cho các bước chăm sóc tiếp theo.",
         ],
       },
       {
-        title: "Luồng mua & thanh toán",
-        items: ["Checkout tối giản", "Voucher/ưu đãi", "Lịch sử đơn hàng"],
+        title: "Lộ trình wellness cá nhân hoá",
+        items: [
+          "Xây dựng một lộ trình chăm sóc sức khỏe phù hợp với nhu cầu của bạn.",
+          "Theo dõi và điều chỉnh hành trình wellness theo từng giai đoạn.",
+          "Duy trì thói quen chăm sóc bản thân một cách bền vững.",
+        ],
       },
       {
-        title: "Sẵn sàng mở rộng",
-        items: ["Quiz/assignment", "Certificate", "Instructor/Admin panel"],
+        title: "Một phong cách sống cân bằng hơn",
+        items: [
+          "Học cách lắng nghe và chăm sóc cơ thể đúng cách.",
+          "Cải thiện sự cân bằng giữa sức khỏe thể chất và tinh thần.",
+          "Hình thành lối sống wellness tích cực và lâu dài.",
+        ],
       },
     ],
   };
@@ -63,15 +71,13 @@ export const Outcomes: React.FC<OutcomesProps> = ({ cmsData }) => {
                 <p className="mt-2 text-slate-600">{data.subheading}</p>
               </div>
 
-              <div className="md:col-span-2 grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:col-span-2 md:grid-cols-2">
                 {data.cards.map((card, index) => (
                     <div
                         key={index}
                         className="rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 p-5 ring-1 ring-slate-200"
                     >
-                      <div className="font-semibold text-slate-900">
-                        {card.title}
-                      </div>
+                      <div className="font-semibold text-slate-900">{card.title}</div>
                       <ul className="mt-3 space-y-2 text-sm text-slate-700">
                         {card.items.map((item, idx) => (
                             <li key={idx} className="flex items-start gap-2">

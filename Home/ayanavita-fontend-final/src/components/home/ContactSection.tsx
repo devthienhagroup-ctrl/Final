@@ -1,4 +1,4 @@
-// src/components/home/ContactSection.tsx
+// src/components/home/ContactSection.fixed.tsx
 import React, { useState } from "react";
 
 export type ContactLead = {
@@ -71,35 +71,35 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
 
   // Fallback content
   const {
-    addressLine1 = "AYANAVITA – Trung tâm đào tạo",
-    addressLine2 = "Số 123, Đường ABC, Quận 1, TP.HCM",
+    addressLine1 = "AYANAVITA Wellness Experience",
+    addressLine2 = "Không gian trải nghiệm và tư vấn wellness cá nhân hóa",
     phone = "(028) 1234 5678",
-    email = "support@ayanavita.vn",
-    businessHours = "8:00 – 18:00 (T2 – T7)",
-    mapTitle = "Bản đồ",
-    mapDescription = "Vị trí AYANAVITA",
+    email = "hello@ayanavita.com",
+    businessHours = "8:00 – 20:00 (T2 – CN)",
+    mapTitle = "Không gian AYANAVITA",
+    mapDescription = "Nơi bạn bắt đầu hành trình wellness cân bằng và cá nhân hóa.",
     mapEmbedUrl = "https://www.google.com/maps?q=So%20123%20Duong%20ABC%20Quan%201%20TPHCM&output=embed",
-    formTitle = "Gửi yêu cầu tư vấn",
-    formDescription = "Prototype UI: sau này nối API lưu lead vào DB/CRM.",
-    namePlaceholder = "Họ tên",
+    formTitle = "Để lại thông tin để được tư vấn",
+    formDescription = "Nếu bạn vẫn đang phân vân gói trải nghiệm nào phù hợp, hãy để lại thông tin bên dưới để đội ngũ AYANAVITA tư vấn chi tiết cho bạn.",
+    namePlaceholder = "Họ và tên",
     phonePlaceholder = "Số điện thoại",
     emailPlaceholder = "Email",
-    needDefaultOption = "Nhu cầu",
+    needDefaultOption = "Chọn nhu cầu của bạn",
     needOptions = [
-      "Triển khai LMS bán khóa học",
-      "Thiết kế Landing + Catalog + Checkout",
-      "Làm App Flutter",
-      "Tư vấn Business / Doanh nghiệp",
+      "Tư vấn wellness",
+      "Đặt lịch trải nghiệm",
+      "Chăm sóc cá nhân",
+      "Hợp tác đối tác",
     ],
-    notePlaceholder = "Mô tả nhu cầu...",
-    submitButtonText = "Gửi yêu cầu",
+    notePlaceholder = "Chia sẻ nhu cầu của bạn...",
+    submitButtonText = "Nhận tư vấn",
   } = cmsData;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       if (onSubmit) await onSubmit(lead);
-      if (!onSubmit) window.alert("Đã nhận yêu cầu tư vấn (prototype). Sau này nối API lưu lead.");
+      if (!onSubmit) window.alert("Đã nhận thông tin tư vấn. Sau này có thể nối API để lưu lead.");
     } catch (err: any) {
       window.alert(err?.message ?? "Gửi yêu cầu thất bại");
     }
@@ -111,7 +111,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
           <div className="mt-8 grid gap-4 md:grid-cols-2">
             <div className="rounded-3xl bg-white p-8 ring-1 ring-slate-200 shadow-sm">
               <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
-                <div className="text-xs font-semibold text-slate-500">Địa chỉ</div>
+                <div className="text-xs font-semibold text-slate-500">Liên hệ</div>
                 <div className="mt-1 font-extrabold text-slate-900">{addressLine1}</div>
                 <div className="mt-1 text-sm text-slate-700">{addressLine2}</div>
 
@@ -133,7 +133,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
 
               <div className="mt-6">
                 <div className="text-sm font-semibold text-slate-900">{formTitle}</div>
-                <p className="mt-1 text-sm text-slate-600">{formDescription}</p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">{formDescription}</p>
 
                 <form className="mt-4 grid gap-3" onSubmit={submit}>
                   <div className="grid gap-3 md:grid-cols-2">
@@ -158,16 +158,21 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                         value={lead.email}
                         onChange={(e) => setLead((s) => ({ ...s, email: e.target.value }))}
                     />
-                    <select
-                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none ring-indigo-100 focus:ring-4"
-                        value={lead.need}
-                        onChange={(e) => setLead((s) => ({ ...s, need: e.target.value }))}
-                    >
-                      <option value="">{needDefaultOption}</option>
-                      {needOptions.map((opt) => (
-                          <option key={opt}>{opt}</option>
-                      ))}
-                    </select>
+                    <div className="relative w-full overflow-hidden rounded-2xl">
+                      <select
+                          className="block w-full max-w-full appearance-none truncate rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-10 outline-none ring-indigo-100 focus:ring-4"
+                          value={lead.need}
+                          onChange={(e) => setLead((s) => ({ ...s, need: e.target.value }))}
+                      >
+                        <option value="">{needDefaultOption}</option>
+                        {needOptions.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                        ))}
+                      </select>
+                      <i className="fa-solid fa-chevron-down pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+                    </div>
                   </div>
 
                   <textarea

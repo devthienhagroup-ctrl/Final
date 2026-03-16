@@ -77,7 +77,7 @@ export const Reviews: React.FC<ReviewsProps> = ({ cmsData }) => {
 
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             {data.reviews.map((r, index) => (
-                <div key={index} className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm hover:shadow transition">
+                <div key={index} className="flex flex-col gap-2 rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm hover:shadow transition">
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-semibold text-slate-900">{r.title}</div>
                     <div className="text-xs text-slate-500">⭐ {r.rating}</div>
@@ -85,7 +85,7 @@ export const Reviews: React.FC<ReviewsProps> = ({ cmsData }) => {
 
                   <p className="mt-3 text-sm leading-6 text-slate-700">{r.text}</p>
 
-                  <div className="mt-4 flex items-center gap-3">
+                  <div className="mt-auto flex items-center gap-3">
                     <img className="h-10 w-10 rounded-full object-cover" src={r.avatar} alt={r.name} />
                     <div>
                       <div className="text-sm font-semibold text-slate-900">{r.name}</div>

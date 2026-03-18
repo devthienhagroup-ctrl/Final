@@ -27,6 +27,10 @@ type HeaderProps = {
 };
 
 type DropdownKey = "products" | "pricing" | null;
+type CmsNavLinkItem = { label: string; to: string; children?: never };
+type CmsNavChildrenItem = { label: string; children: Array<{ label: string; to: string }>; to?: never };
+type CmsNavDropdownKeyItem = { label: string; dropdownKey: Exclude<DropdownKey, null>; to?: never; children?: never };
+type HeaderNavItem = CmsNavLinkItem | CmsNavChildrenItem | CmsNavDropdownKeyItem;
 type AuthTab = "login" | "register";
 type Language = "vi" | "en" | "de";
 type UserMenuItem = "desktop" | "mobile" | null;
@@ -50,7 +54,7 @@ type HeaderCMSData = {
   brandText: string;
   pricingDropdownLabel: string;
   pricingDropdownItems: Array<{ label: string; to: string } | { separator: true }>;
-  navLinks: Array<{ label: string; to: string }>;
+  navLinks: HeaderNavItem[];
   loginButtonText: string;
   registerButtonText: string;
   languageOptions?: Array<{ code: string; label: string; flag: string }>;
@@ -94,6 +98,7 @@ const defaultCMSData: HeaderCMSData = {
     { label: "Bộ tài liệu nhượng quyền", to: "/franchise-docs" },
   ],
   navLinks: [
+    { label: "Gói & Giá", dropdownKey: "pricing" },
     { label: "Đánh giá", to: "/reviews" },
     { label: "Blog kiến thức", to: "/blog" },
     { label: "Liên hệ", to: "/contact" },
@@ -154,6 +159,14 @@ const ROUTE_BY_PERMISSION = {
   studentHome: "/student",
   login: "/login",
 } as const;
+
+function isCmsNavDropdownKeyItem(item: HeaderNavItem): item is CmsNavDropdownKeyItem {
+  return "dropdownKey" in item;
+}
+
+function isCmsNavChildrenItem(item: HeaderNavItem): item is CmsNavChildrenItem {
+  return "children" in item && Array.isArray(item.children);
+}
 
 function decodeJwtClaims(token: string): SessionClaims | null {
   try {
@@ -229,7 +242,7 @@ export function Header({
   const cms: HeaderCMSData = useMemo(() => ({ ...defaultCMSData, ...(cmsData ?? {}) }), [cmsData]);
 
   const location = useLocation();
-  const [openDd, setOpenDd] = useState<DropdownKey>(null);
+  const [openDd, setOpenDd] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [authTab, setAuthTab] = useState<AuthTab>("login");
@@ -284,6 +297,39 @@ export function Header({
     );
   }, [location.pathname, cms.pricingDropdownItems]);
 
+  const headerNavItems = useMemo<HeaderNavItem[]>(() => {
+    const hasDropdownInCms = cms.navLinks.some((item) => isCmsNavDropdownKeyItem(item) || isCmsNavChildrenItem(item));
+
+    if (hasDropdownInCms) {
+      return cms.navLinks;
+    }
+
+    return [
+      { label: cms.pricingDropdownLabel, dropdownKey: "pricing" },
+      ...cms.navLinks,
+    ];
+  }, [cms.navLinks, cms.pricingDropdownLabel]);
+
+  const getDropdownConfig = (item: Extract<HeaderNavItem, CmsNavChildrenItem | CmsNavDropdownKeyItem>) => {
+    if (isCmsNavChildrenItem(item)) {
+      return {
+        label: item.label,
+        items: item.children,
+        isActive: item.children.some((child) => location.pathname.startsWith(child.to)),
+      };
+    }
+
+    if (item.dropdownKey === "pricing") {
+      return {
+        label: item.label || cms.pricingDropdownLabel,
+        items: cms.pricingDropdownItems,
+        isActive: isPricingActive,
+      };
+    }
+
+    return null;
+  };
+
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       const root = rootRef.current;
@@ -325,8 +371,8 @@ export function Header({
     };
   }, [drawerOpen]);
 
-  const toggleDd = (k: Exclude<DropdownKey, null>) => {
-    setOpenDd((cur) => (cur === k ? null : k));
+  const toggleDd = (key: string) => {
+    setOpenDd((cur) => (cur === key ? null : key));
   };
 
   const openAuth = (tab: AuthTab) => {
@@ -425,11 +471,11 @@ export function Header({
             ref={rootRef}
             className="sticky top-0 z-[80] border-b border-slate-200/60 bg-white/80 backdrop-blur-xl"
         >
-          <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-3 px-4 py-3">
+          <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-2 px-4 py-3 xl:px-5">
             {/* Brand */}
             <Link
                 to={brandHref}
-                className="flex min-w-[180px] items-center gap-3 transition-transform duration-300 hover:scale-[1.02]"
+                className="flex min-w-[150px] shrink-0 items-center gap-2.5 transition-transform duration-300 hover:scale-[1.02]"
             >
               <div
                   className="flex h-10 w-10 items-center justify-center rounded-2xl font-black text-white shadow-lg transition-all duration-300 hover:shadow-xl hover:rotate-3"
@@ -440,87 +486,97 @@ export function Header({
               >
                 <img src={cms.brandLogoSrc} alt={cms.brandLogoAlt} className={cms.brandLogoClassName + ' rounded-full'} />
               </div>
-              <div className="font-black tracking-[0.3px] text-slate-900">{cms.brandText}</div>
+              <div className="text-[15px] font-black tracking-[0.2px] text-slate-900 xl:text-base">{cms.brandText}</div>
             </Link>
 
 
 
             {/* Desktop nav */}
-            <nav className="hidden flex-1 items-center justify-center gap-1 lg:flex">
+            <nav className="hidden flex-1 items-center justify-center gap-0.5 px-2 lg:flex xl:gap-1">
+              {headerNavItems.map((item, index) => {
+                if (isCmsNavDropdownKeyItem(item) || isCmsNavChildrenItem(item)) {
+                  const dropdownConfig = getDropdownConfig(item);
+                  if (!dropdownConfig) return null;
 
-              {/* Pricing dropdown */}
-              <div className="relative">
-                <button
-                    type="button"
-                    className={`group inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[15px] font-extrabold transition-all duration-200 ${
-                        openDd === "pricing" || isPricingActive
-                            ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 border-indigo-200"
-                            : "border border-transparent text-slate-900 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md hover:scale-[1.02]"
-                    }`}
-                    aria-expanded={openDd === "pricing"}
-                    onClick={() => toggleDd("pricing")}
-                >
-                <span className="relative">
-                  {cms.pricingDropdownLabel}
-                  {(openDd === "pricing" || isPricingActive) && (
-                      <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" />
-                  )}
-                </span>
-                  <span
-                      className={`text-xs transition-transform duration-200 group-hover:translate-y-0.5 ${
-                          openDd === "pricing" ? "rotate-180" : ""
-                      }`}
-                  >
-                  ▾
-                </span>
-                </button>
+                  const dropdownOpenKey = isCmsNavDropdownKeyItem(item) ? item.dropdownKey : `children-${index}`;
+                  const isDropdownOpen = openDd === dropdownOpenKey;
 
-                {openDd === "pricing" && (
-                    <div className="absolute left-0 top-full z-[60] min-w-[260px] animate-in fade-in slide-in-from-top-2 duration-200 rounded-2xl border border-slate-200/70 bg-white p-2 shadow-[0_18px_40px_rgba(2,6,23,.10)]">
-                      {cms.pricingDropdownItems.map((it, idx) =>
-                          "separator" in it ? (
-                              <div key={`sep-${idx}`} className="my-2 h-px bg-slate-200/70" />
-                          ) : (
-                              <Link
-                                  key={it.to}
-                                  to={it.to}
-                                  className={`block rounded-xl px-3 py-2 font-extrabold transition-all duration-200 ${
-                                      isActiveLink(it.to)
-                                          ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700"
-                                          : "text-slate-900 hover:bg-indigo-50 hover:text-indigo-700 hover:translate-x-1"
-                                  }`}
-                                  onClick={() => setOpenDd(null)}
-                              >
-                                {it.label}
-                              </Link>
-                          ),
-                      )}
-                    </div>
-                )}
-              </div>
+                  return (
+                      <div key={`${dropdownOpenKey}-${index}`} className="relative">
+                        <button
+                            type="button"
+                            className={`group inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-[13px] font-bold transition-all duration-200 xl:px-3 xl:text-[14px] ${
+                                isDropdownOpen || dropdownConfig.isActive
+                                    ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 border-indigo-200"
+                                    : "border border-transparent text-slate-900 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md hover:scale-[1.02]"
+                            }`}
+                            aria-expanded={isDropdownOpen}
+                            onClick={() => toggleDd(dropdownOpenKey)}
+                        >
+                        <span className="relative">
+                          {dropdownConfig.label}
+                          {(isDropdownOpen || dropdownConfig.isActive) && (
+                              <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" />
+                          )}
+                        </span>
+                          <span
+                              className={`text-xs transition-transform duration-200 group-hover:translate-y-0.5 ${
+                                  isDropdownOpen ? "rotate-180" : ""
+                              }`}
+                          >
+                          ▾
+                        </span>
+                        </button>
 
-              {cms.navLinks.map((link) => (
-                  <Link
-                      key={link.to}
-                      to={link.to}
-                      className={`relative rounded-xl px-3 py-2 text-[15px] font-extrabold transition-all duration-200 ${
-                          isActiveLink(link.to)
-                              ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700"
-                              : "border border-transparent text-slate-900 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md hover:scale-[1.02]"
-                      }`}
-                  >
-                <span className="relative">
-                  {link.label}
-                  {isActiveLink(link.to) && (
-                      <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" />
-                  )}
-                </span>
-                  </Link>
-              ))}
+                        {isDropdownOpen && (
+                            <div className="absolute left-0 top-full z-[60] min-w-[240px] animate-in fade-in slide-in-from-top-2 duration-200 rounded-2xl border border-slate-200/70 bg-white p-2 shadow-[0_18px_40px_rgba(2,6,23,.10)]">
+                              {dropdownConfig.items.map((dropdownItem, dropdownIndex) =>
+                                  "separator" in dropdownItem ? (
+                                      <div key={`sep-${dropdownOpenKey}-${dropdownIndex}`} className="my-2 h-px bg-slate-200/70" />
+                                  ) : (
+                                      <Link
+                                          key={`${dropdownOpenKey}-${dropdownItem.to}`}
+                                          to={dropdownItem.to}
+                                          className={`block rounded-xl px-3 py-2 text-[14px] font-bold transition-all duration-200 ${
+                                              isActiveLink(dropdownItem.to)
+                                                  ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700"
+                                                  : "text-slate-900 hover:bg-indigo-50 hover:text-indigo-700 hover:translate-x-1"
+                                          }`}
+                                          onClick={() => setOpenDd(null)}
+                                      >
+                                        {dropdownItem.label}
+                                      </Link>
+                                  ),
+                              )}
+                            </div>
+                        )}
+                      </div>
+                  );
+                }
+
+                return (
+                    <Link
+                        key={item.to}
+                        to={item.to}
+                        className={`relative rounded-xl px-2.5 py-2 text-[13px] font-bold transition-all duration-200 xl:px-3 xl:text-[14px] ${
+                            isActiveLink(item.to)
+                                ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700"
+                                : "border border-transparent text-slate-900 hover:border-indigo-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 hover:text-indigo-700 hover:shadow-md hover:scale-[1.02]"
+                        }`}
+                    >
+                  <span className="relative">
+                    {item.label}
+                    {isActiveLink(item.to) && (
+                        <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" />
+                    )}
+                  </span>
+                    </Link>
+                );
+              })}
             </nav>
 
             {/* Actions */}
-            <div className="flex min-w-fit items-center gap-2 lg:min-w-[260px] lg:justify-end">
+            <div className="flex min-w-fit shrink-0 items-center gap-1.5 lg:justify-end">
               <div
                   className="relative"
                   onMouseEnter={openMiniCart}
@@ -529,7 +585,7 @@ export function Header({
                 <button
                     type="button"
                     onClick={() => setMiniCartOpen((prev) => !prev)}
-                    className="relative rounded-xl border px-3 py-2 text-sm font-semibold hover:bg-slate-50"
+                    className="relative rounded-xl border px-2.5 py-2 text-sm font-semibold hover:bg-slate-50"
                     aria-expanded={miniCartOpen}
                     aria-label={cms.cartButtonAriaLabel}
                 >
@@ -633,7 +689,7 @@ export function Header({
                     <button
                         type="button"
                         onClick={() => openAuth("register")}
-                        className="hidden rounded-full px-4 py-2 font-black text-slate-900 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] hover:brightness-110 sm:inline-flex"
+                        className="hidden rounded-full px-3.5 py-2 text-[14px] font-black text-slate-900 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] hover:brightness-110 sm:inline-flex"
                         style={{
                           background: "linear-gradient(135deg,var(--aya-accent-1),var(--aya-accent-2))",
                           border: "1px solid rgba(17,24,39,.10)",
@@ -679,45 +735,55 @@ export function Header({
                   </div>
 
                   <div className="grid gap-2 p-4">
+                    {headerNavItems.map((item, index) => {
+                      if (isCmsNavDropdownKeyItem(item) || isCmsNavChildrenItem(item)) {
+                        const dropdownConfig = getDropdownConfig(item);
+                        if (!dropdownConfig) return null;
 
-                    <details className="overflow-hidden rounded-2xl border border-slate-200">
-                      <summary className="cursor-pointer bg-slate-50 px-4 py-3 font-black transition-colors hover:bg-indigo-50 hover:text-indigo-700">
-                        {cms.pricingDropdownLabel}
-                      </summary>
-                      <div className="grid">
-                        {cms.pricingDropdownItems
-                            .filter((item): item is { label: string; to: string } => !("separator" in item))
-                            .map((it) => (
-                                <Link
-                                    key={it.to}
-                                    to={it.to}
-                                    className={`border-t border-slate-200 px-4 py-3 font-extrabold transition-all duration-200 ${
-                                        isActiveLink(it.to)
-                                            ? "bg-indigo-50 text-indigo-700"
-                                            : "text-slate-900 hover:bg-indigo-50 hover:text-indigo-700 hover:translate-x-1"
-                                    }`}
-                                    onClick={() => setDrawerOpen(false)}
-                                >
-                                  {it.label}
-                                </Link>
-                            ))}
-                      </div>
-                    </details>
+                        const dropdownOpenKey = isCmsNavDropdownKeyItem(item) ? item.dropdownKey : `children-${index}`;
 
-                    {cms.navLinks.map((link) => (
-                        <Link
-                            key={link.to}
-                            to={link.to}
-                            className={`rounded-2xl border border-slate-200 px-4 py-3 font-black transition-all duration-200 ${
-                                isActiveLink(link.to)
-                                    ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                    : "bg-slate-50 text-slate-900 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 hover:shadow-md hover:translate-x-1"
-                            }`}
-                            onClick={() => setDrawerOpen(false)}
-                        >
-                          {link.label}
-                        </Link>
-                    ))}
+                        return (
+                            <details key={`${dropdownOpenKey}-${index}`} className="overflow-hidden rounded-2xl border border-slate-200">
+                              <summary className="cursor-pointer bg-slate-50 px-4 py-3 font-black transition-colors hover:bg-indigo-50 hover:text-indigo-700">
+                                {dropdownConfig.label}
+                              </summary>
+                              <div className="grid">
+                                {dropdownConfig.items
+                                    .filter((dropdownItem): dropdownItem is { label: string; to: string } => !("separator" in dropdownItem))
+                                    .map((dropdownItem) => (
+                                        <Link
+                                            key={`${dropdownOpenKey}-${dropdownItem.to}`}
+                                            to={dropdownItem.to}
+                                            className={`border-t border-slate-200 px-4 py-3 font-extrabold transition-all duration-200 ${
+                                                isActiveLink(dropdownItem.to)
+                                                    ? "bg-indigo-50 text-indigo-700"
+                                                    : "text-slate-900 hover:bg-indigo-50 hover:text-indigo-700 hover:translate-x-1"
+                                            }`}
+                                            onClick={() => setDrawerOpen(false)}
+                                        >
+                                          {dropdownItem.label}
+                                        </Link>
+                                    ))}
+                              </div>
+                            </details>
+                        );
+                      }
+
+                      return (
+                          <Link
+                              key={item.to}
+                              to={item.to}
+                              className={`rounded-2xl border border-slate-200 px-4 py-3 font-black transition-all duration-200 ${
+                                  isActiveLink(item.to)
+                                      ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                      : "bg-slate-50 text-slate-900 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 hover:shadow-md hover:translate-x-1"
+                              }`}
+                              onClick={() => setDrawerOpen(false)}
+                          >
+                            {item.label}
+                          </Link>
+                      );
+                    })}
 
                     <div className="mt-2 grid grid-cols-3 gap-2 border-t border-slate-200 pt-2">
                       {languageOptions.map((opt) => (

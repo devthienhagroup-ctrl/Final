@@ -99,16 +99,72 @@ function stableStringify(v: any) {
   }
 }
 
+function normalizeSearch(value: any) {
+  return String(value ?? "").toLowerCase().trim();
+}
+
+function pathLabel(path: (string | number)[]) {
+  return path.length ? path.join(".") : "root";
+}
+
+function valueMatchesSearch(value: any, keyword: string): boolean {
+  const q = normalizeSearch(keyword);
+  if (!q) return true;
+  if (value === null || value === undefined) return false;
+
+  if (Array.isArray(value)) {
+    return value.some((item) => valueMatchesSearch(item, q));
+  }
+
+  if (typeof value === "object") {
+    return Object.entries(value).some(([k, v]) => normalizeSearch(k).includes(q) || valueMatchesSearch(v, q));
+  }
+
+  return normalizeSearch(value).includes(q);
+}
+
+function fieldMatchesSearch(data: any, form: any, path: (string | number)[], keyword: string): boolean {
+  const q = normalizeSearch(keyword);
+  if (!q) return true;
+
+  const pathText = normalizeSearch(pathLabel(path));
+  if (pathText.includes(q)) return true;
+
+  const lastKey = path[path.length - 1];
+  if (normalizeSearch(lastKey).includes(q)) return true;
+
+  return valueMatchesSearch(form, q) || valueMatchesSearch(data, q);
+}
+
+function sectionMatchesSearch(section: CmsSection, keyword: string): boolean {
+  const q = normalizeSearch(keyword);
+  if (!q) return true;
+
+  if (normalizeSearch(section.key).includes(q)) return true;
+
+  return (section.locales ?? []).some(
+      (loc) => valueMatchesSearch(loc.draftData, q) || valueMatchesSearch(loc.publishedData, q)
+  );
+}
+
+
+function countLeafFields(value: any): number {
+  if (value === null || value === undefined) return 0;
+  if (Array.isArray(value)) return value.reduce((sum, item) => sum + countLeafFields(item), 0);
+  if (typeof value === "object") return Object.values(value).reduce((sum, item) => sum + countLeafFields(item), 0);
+  return 1;
+}
+
 // =====================
 // Image Field Component – hiện tại dùng input text để nhập link
 // =====================
 function ImageField({
-  value,
-  disabled,
-  busy,
-  onUpload,
-  onRemove,
-}: {
+                      value,
+                      disabled,
+                      busy,
+                      onUpload,
+                      onRemove,
+                    }: {
   value: string;
   disabled?: boolean;
   busy?: boolean;
@@ -135,37 +191,37 @@ function ImageField({
   };
 
   return (
-    <div className="image-field">
-      {value && (
-        <div className="image-preview">
-          <img src={value} alt="preview" />
-        </div>
-      )}
-      <div className="image-actions">
-        <input
-          type="text"
-          className="input2"
-          value={value}
-          readOnly
-          placeholder="URL hình ảnh"
-        />
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleFileChange}
-          style={{ display: "none" }}
-        />
-        <button className="btn" type="button" onClick={triggerPick} disabled={busy || disabled}>
-          {busy ? "Uploading..." : value ? "Replace" : "Upload"}
-        </button>
+      <div className="image-field">
         {value && (
-          <button className="btn" type="button" onClick={handleRemove} disabled={busy || disabled}>
-            {busy ? "Deleting..." : "Remove"}
-          </button>
+            <div className="image-preview">
+              <img src={value} alt="preview" />
+            </div>
         )}
+        <div className="image-actions">
+          <input
+              type="text"
+              className="input2"
+              value={value}
+              readOnly
+              placeholder="URL hình ảnh"
+          />
+          <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              style={{ display: "none" }}
+          />
+          <button className="btn" type="button" onClick={triggerPick} disabled={busy || disabled}>
+            {busy ? "Uploading..." : value ? "Replace" : "Upload"}
+          </button>
+          {value && (
+              <button className="btn" type="button" onClick={handleRemove} disabled={busy || disabled}>
+                {busy ? "Deleting..." : "Remove"}
+              </button>
+          )}
+        </div>
       </div>
-    </div>
   );
 }
 
@@ -180,11 +236,25 @@ interface DynamicFieldProps {
   onImageUpload: (path: (string | number)[], file: File, prevUrl: string) => Promise<void>;
   onImageRemove: (path: (string | number)[], url: string) => Promise<void>;
   isImageBusy: (path: (string | number)[]) => boolean;
+  searchTerm?: string;
 }
 
-function DynamicField({ data, form, path, onFormChange, onImageUpload, onImageRemove, isImageBusy }: DynamicFieldProps) {
+function DynamicField({
+                        data,
+                        form,
+                        path,
+                        onFormChange,
+                        onImageUpload,
+                        onImageRemove,
+                        isImageBusy,
+                        searchTerm = "",
+                      }: DynamicFieldProps) {
   if (data === null || data === undefined) {
     return <div className="muted">(no data)</div>;
+  }
+
+  if (!fieldMatchesSearch(data, form, path, searchTerm)) {
+    return null;
   }
 
   // ARRAY
@@ -207,38 +277,42 @@ function DynamicField({ data, form, path, onFormChange, onImageUpload, onImageRe
     };
 
     return (
-      <div className="dynamic-array">
-        <div className="array-header">
-          <span className="array-label">{path[path.length - 1]?.toString() || "Array"}</span>
-          <button className="btn array-add" onClick={addItem} type="button">
-            + Add
-          </button>
+        <div className="dynamic-array">
+          <div className="array-header">
+            <span className="array-label">{path[path.length - 1]?.toString() || "Array"}</span>
+            <button className="btn array-add" onClick={addItem} type="button">
+              + Add
+            </button>
+          </div>
+          <div className="array-items">
+            {arrayForm.map((item, idx) => (
+                <div key={idx} className="array-item">
+                  <div className="array-item-header">
+                    <div className="array-item-meta">
+                      <span className="array-item-index">#{idx + 1}</span>
+                      <span className="field-path">{pathLabel([...path, idx])}</span>
+                    </div>
+                    <button className="btn array-remove" onClick={() => removeItem(idx)} type="button">
+                      ✕
+                    </button>
+                  </div>
+                  <DynamicField
+                      data={data[idx] ?? data[0] ?? {}}
+                      form={item}
+                      path={[...path, idx]}
+                      onFormChange={onFormChange}
+                      onImageUpload={onImageUpload}
+                      onImageRemove={onImageRemove}
+                      isImageBusy={isImageBusy}
+                      searchTerm={searchTerm}
+                  />
+                </div>
+            ))}
+            {arrayForm.length === 0 && (
+                <div className="muted array-empty">(empty)</div>
+            )}
+          </div>
         </div>
-        <div className="array-items">
-          {arrayForm.map((item, idx) => (
-            <div key={idx} className="array-item">
-              <div className="array-item-header">
-                <span className="array-item-index">#{idx + 1}</span>
-                <button className="btn array-remove" onClick={() => removeItem(idx)} type="button">
-                  ✕
-                </button>
-              </div>
-              <DynamicField
-                data={data[idx] ?? data[0] ?? {}}
-                form={item}
-                path={[...path, idx]}
-                onFormChange={onFormChange}
-                onImageUpload={onImageUpload}
-                onImageRemove={onImageRemove}
-                isImageBusy={isImageBusy}
-              />
-            </div>
-          ))}
-          {arrayForm.length === 0 && (
-            <div className="muted array-empty">(empty)</div>
-          )}
-        </div>
-      </div>
     );
   }
 
@@ -247,26 +321,30 @@ function DynamicField({ data, form, path, onFormChange, onImageUpload, onImageRe
     const objectForm = (form && typeof form === "object") ? form : {};
 
     return (
-      <div className="dynamic-object">
-        {Object.keys(data).map((key) => {
-          const childData = data[key];
-          const childForm = objectForm[key];
-          return (
-            <div key={key} className="object-field">
-              <div className="field-label">{key}</div>
-              <DynamicField
-                data={childData}
-                form={childForm}
-                path={[...path, key]}
-                onFormChange={onFormChange}
-                onImageUpload={onImageUpload}
-                onImageRemove={onImageRemove}
-                isImageBusy={isImageBusy}
-              />
-            </div>
-          );
-        })}
-      </div>
+        <div className="dynamic-object">
+          {Object.keys(data).map((key) => {
+            const childData = data[key];
+            const childForm = objectForm[key];
+            return (
+                <div key={key} className="object-field">
+                  <div className="field-head">
+                    <div className="field-label">{key}</div>
+                    <div className="field-path">{pathLabel([...path, key])}</div>
+                  </div>
+                  <DynamicField
+                      data={childData}
+                      form={childForm}
+                      path={[...path, key]}
+                      onFormChange={onFormChange}
+                      onImageUpload={onImageUpload}
+                      onImageRemove={onImageRemove}
+                      isImageBusy={isImageBusy}
+                      searchTerm={searchTerm}
+                  />
+                </div>
+            );
+          })}
+        </div>
     );
   }
 
@@ -280,37 +358,37 @@ function DynamicField({ data, form, path, onFormChange, onImageUpload, onImageRe
 
   if (isImageKey(lastKey) && typeof data === "string") {
     return (
-      <div className="dynamic-primitive">
-        <ImageField
-          value={inputValue}
-          busy={isImageBusy(path)}
-          onUpload={(file, prevUrl) => onImageUpload(path, file, prevUrl)}
-          onRemove={(url) => onImageRemove(path, url)}
-        />
-      </div>
+        <div className="dynamic-primitive">
+          <ImageField
+              value={inputValue}
+              busy={isImageBusy(path)}
+              onUpload={(file, prevUrl) => onImageUpload(path, file, prevUrl)}
+              onRemove={(url) => onImageRemove(path, url)}
+          />
+        </div>
     );
   }
 
   const useTextArea = typeof data === "string" && isDescriptionKey(lastKey);
 
   return (
-    <div className="dynamic-primitive">
-      {useTextArea ? (
-        <textarea
-          className="textarea2"
-          value={inputValue}
-          onChange={handleChange}
-          rows={5}
-        />
-      ) : (
-        <input
-          type="text"
-          className="input2"
-          value={inputValue}
-          onChange={handleChange}
-        />
-      )}
-    </div>
+      <div className="dynamic-primitive">
+        {useTextArea ? (
+            <textarea
+                className="textarea2"
+                value={inputValue}
+                onChange={handleChange}
+                rows={5}
+            />
+        ) : (
+            <input
+                type="text"
+                className="input2"
+                value={inputValue}
+                onChange={handleChange}
+            />
+        )}
+      </div>
   );
 }
 
@@ -340,6 +418,8 @@ export function CmsEditPage() {
   const [publishing, setPublishing] = useState(false);
   const [form, setForm] = useState<any>({});
   const [imageBusyMap, setImageBusyMap] = useState<Record<string, boolean>>({});
+  const [searchTerm, setSearchTerm] = useState("");
+
 
   const section = useMemo(() => page?.sections?.find((s) => s.id === sectionId) || null, [page, sectionId]);
   const key = section?.key || "unknown";
@@ -348,6 +428,10 @@ export function CmsEditPage() {
   const effectiveData = useMemo(() => locInfo?.draftData ?? locInfo?.publishedData ?? {}, [locInfo]);
 
   const sectionsSorted = useMemo(() => (page?.sections || []).slice().sort((a, b) => a.sortOrder - b.sortOrder), [page]);
+  const filteredSections = useMemo(
+      () => sectionsSorted.filter((s) => sectionMatchesSearch(s, searchTerm)),
+      [sectionsSorted, searchTerm]
+  );
 
   const baselineRef = useRef<string>("");
   const saveTimerRef = useRef<number | null>(null);
@@ -571,559 +655,767 @@ export function CmsEditPage() {
     return <span className="badge">{st}</span>;
   }, [locInfo]);
 
+  const selectedIndex = useMemo(() => filteredSections.findIndex((s) => s.id === sectionId), [filteredSections, sectionId]);
+  const totalFieldCount = useMemo(() => countLeafFields(effectiveData), [effectiveData]);
+  const matchedSectionCount = filteredSections.length;
+  const pageTitle = slug ? String(slug).replace(/[-_]/g, " ") : "CMS";
+
   return (
-    <div className="aya-editor">
-      <div className="aya-container">
-        {/* Toolbar container - card glass */}
-        <div className="toolbar glass">
-          {/* Header row */}
-          <div className="toolbar-header">
-            <div>
-              <div className="h1">
-                Edit CMS: <span className="g-text">{slug}</span>
-                {saving ? (
-                  <span className="dirty">● Saving…</span>
-                ) : dirty ? (
-                  <span className="dirty">● Unsaved</span>
-                ) : (
-                  <span className="saved">✓ Saved</span>
+      <div className="aya-editor">
+        <div className="aya-shell">
+          <aside className="sidebar glass">
+            <div className="sidebar-top">
+              <div className="eyebrow">CMS Editor</div>
+              <div className="page-title">{pageTitle}</div>
+              <div className="page-subtitle">
+                Tập trung vào section, key và nội dung để tìm nhanh hơn, sửa ít bị lạc hơn.
+              </div>
+            </div>
+
+            <div className="search-panel">
+              <label className="panel-label">Tìm kiếm key</label>
+              <div className="search-box">
+                <span className="search-icon">⌕</span>
+                <input
+                    className="search-input"
+                    type="text"
+                    placeholder="hero, title, image, button..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                {searchTerm && (
+                    <button className="search-clear" type="button" onClick={() => setSearchTerm("")}>
+                      Xóa
+                    </button>
                 )}
               </div>
-              <div className="muted sub">
-                Chỉnh text theo section • <b>{AUTOSAVE ? "Auto-save" : "Manual Save"}</b> • Publish
+              <div className="search-meta">
+                {searchTerm
+                    ? `${matchedSectionCount}/${sectionsSorted.length} section khớp • lọc theo key + nội dung`
+                    : "Tìm theo section key, field path, field key và cả text hiện có."}
               </div>
             </div>
-            <div className="hdrRight">
-              {statusBadge}
-              <button className="btn" onClick={load} disabled={loading}>
-                {loading ? "Loading…" : "Refresh"}
-              </button>
-            </div>
-          </div>
 
-          {/* Controls row */}
-          <div className="toolbar-controls">
-            {/* Back Button */}
-            <div className="control-group">
-              <button
-                className="btn"
-                onClick={() => nav(-1)}
-                type="button"
-              >
-                Quay lại
-              </button>
-            </div>
+            {/*<div className="sidebar-stats">*/}
+            {/*  <div className="stat-card">*/}
+            {/*    <div className="stat-label">Sections</div>*/}
+            {/*    <div className="stat-value">{sectionsSorted.length}</div>*/}
+            {/*  </div>*/}
+            {/*  <div className="stat-card">*/}
+            {/*    <div className="stat-label">Kết quả</div>*/}
+            {/*    <div className="stat-value">{matchedSectionCount}</div>*/}
+            {/*  </div>*/}
+            {/*  <div className="stat-card">*/}
+            {/*    <div className="stat-label">Field</div>*/}
+            {/*    <div className="stat-value">{totalFieldCount}</div>*/}
+            {/*  </div>*/}
+            {/*  <div className="stat-card">*/}
+            {/*    <div className="stat-label">Trạng thái</div>*/}
+            {/*    <div className={`stat-pill ${dirty ? "warn" : "ok"}`}>{dirty ? "Unsaved" : "Saved"}</div>*/}
+            {/*  </div>*/}
+            {/*</div>*/}
 
-            {/* Locale selector */}
-            <div className="control-group">
-              <span className="control-label">Locale:</span>
-              <div className="btn-group">
-                {(["vi", "en", "de"] as CmsLocale[]).map((l) => {
-                  const active = locale === l;
-                  return (
+            <div className="locale-switcher">
+              {(["vi", "en", "de"] as CmsLocale[]).map((l) => {
+                const active = locale === l;
+                return (
                     <button
-                      key={l}
-                      className={`btn ${active ? "btn-primary" : ""}`}
-                      onClick={() => guardedSwitch(l)}
-                      type="button"
+                        key={l}
+                        className={`locale-chip ${active ? "active" : ""}`}
+                        onClick={() => guardedSwitch(l)}
+                        type="button"
                     >
                       {l.toUpperCase()}
                     </button>
-                  );
-                })}
+                );
+              })}
+            </div>
+
+            <div className="sections-head">
+              <div>Danh sách section</div>
+              <div className="muted">{selectedIndex >= 0 ? `Đang chọn ${selectedIndex + 1}` : "Chưa chọn"}</div>
+            </div>
+
+            <div className="section-list">
+              {filteredSections.length ? (
+                  filteredSections.map((s, idx) => {
+                    const active = s.id === sectionId;
+                    const secLoc = pickLocale(s, locale);
+                    const secStatus = String(secLoc?.status || "NO LOCALE").toUpperCase();
+                    return (
+                        <button
+                            key={s.id}
+                            className={`section-item ${active ? "active" : ""}`}
+                            onClick={() => guardedSwitch(locale, s.id)}
+                            type="button"
+                        >
+                          <div className="section-item-top">
+                            <span className="section-index">{String(idx + 1).padStart(2, "0")}</span>
+                            <span className={`mini-status ${secStatus.includes("PUBLISH") ? "ok" : secStatus.includes("DRAFT") ? "warn" : "off"}`}>
+                        {secStatus.replace("_", " ")}
+                      </span>
+                          </div>
+                          <div className="section-key">{s.key}</div>
+                          <div className="section-meta-row">
+                            <span>#{s.sortOrder}</span>
+                            <span>{countLeafFields((pickLocale(s, locale)?.draftData ?? pickLocale(s, locale)?.publishedData ?? {}))} field</span>
+                          </div>
+                        </button>
+                    );
+                  })
+              ) : (
+                  <div className="empty-search">
+                    <div className="empty-search-title">Không có section phù hợp</div>
+                    <div className="muted">Thử key ngắn hơn như hero, title, button, image…</div>
+                  </div>
+              )}
+            </div>
+          </aside>
+
+          <main className="main-pane">
+            <div className="topbar glass">
+              <div className="topbar-left">
+                <button className="btn" onClick={() => nav(-1)} type="button">
+                  Quay lại
+                </button>
+                <button className="btn" onClick={load} disabled={loading}>
+                  {loading ? "Loading…" : "Refresh"}
+                </button>
+                {statusBadge}
+              </div>
+
+              <div className="topbar-right">
+                <button className="btn" onClick={onCopyPublishedToDraft} disabled={!section}>
+                  Copy Published
+                </button>
+                <button className="btn" onClick={onReset} disabled={!dirty}>
+                  Reset
+                </button>
+                <button className="btn btn-primary" onClick={onSaveDraft} disabled={!section || saving}>
+                  {saving ? "Saving…" : "Save Draft"}
+                </button>
+                <button className="btn btn-success" onClick={onPublish} disabled={!section || publishing}>
+                  {publishing ? "Publishing…" : "Publish"}
+                </button>
               </div>
             </div>
 
-            {/* Quick actions */}
-            <div className="control-group actions-group">
-              <button
-                className="btn"
-                onClick={onCopyPublishedToDraft}
-                disabled={!section}
-              >
-                Copy Published
-              </button>
-              <button
-                className="btn"
-                onClick={onReset}
-                disabled={!dirty}
-              >
-                Reset
-              </button>
-            </div>
-
-            {/* Save & Publish */}
-            <div className="control-group primary-actions">
-              <button
-                className="btn btn-primary"
-                onClick={onSaveDraft}
-                disabled={!section || saving}
-              >
-                {saving ? "Saving…" : "Save Draft"}
-              </button>
-              <button
-                className="btn btn-success"
-                onClick={onPublish}
-                disabled={!section || publishing}
-              >
-                {publishing ? "Publishing…" : "Publish"}
-              </button>
-            </div>
-          </div>
-          <div className="toolbar-controls">
-            {/* Sections tabs */}
-            <div className="control-group sections-tabs">
-              <div className="tabs-scroll">
-                {sectionsSorted.map((s) => {
-                  const active = s.id === sectionId;
-                  return (
-                    <button
-                      key={s.id}
-                      className={`tab ${active ? "active" : ""}`}
-                      onClick={() => guardedSwitch(locale, s.id)}
-                      type="button"
-                    >
-                      <span>{s.key}</span>
-                      <span className="tab-order">#{s.sortOrder}</span>
-                    </button>
-                  );
-                })}
-                {!sectionsSorted.length && (
-                  <span className="muted">Không có sections.</span>
-                )}
-              </div>
-            </div>
-          </div>
-          {/* Status info row (optional) */}
-          {locInfo && (
-            <div className="toolbar-status">
-              <div><span className="muted">locale:</span> <b>{locInfo.locale}</b></div>
-              <div><span className="muted">status:</span> <b>{locInfo.status}</b></div>
-              <div><span className="muted">published:</span> <b>{fmtDate((locInfo as any)?.publishedAt)}</b></div>
-              <div><span className="muted">updated:</span> <b>{fmtDate((locInfo as any)?.updatedAt)}</b></div>
-            </div>
-          )}
-        </div>
-
-        {/* Editor Panel */}
-        <div className="editor-panel glass">
-          {!section ? (
-            <div className="pad muted">Chưa có section để chỉnh.</div>
-          ) : (
-            <>
-              <div className="editor-header">
-                <div>
-                  <div className="h2">{key.toUpperCase()} CONTENT</div>
-                  <div className="muted">Dynamic fields • click để chỉnh sửa</div>
+            <div className="hero glass">
+              <div>
+                <div className="eyebrow">Đang chỉnh sửa</div>
+                <div className="hero-title">
+                  {section ? section.key : "Chưa có section"}
+                  {saving ? (
+                      <span className="dirty">● Saving…</span>
+                  ) : dirty ? (
+                      <span className="dirty">● Unsaved</span>
+                  ) : (
+                      <span className="saved">✓ Saved</span>
+                  )}
                 </div>
-                <div className="editor-badges">
-                  {saving && <span className="badge warn">SAVING…</span>}
-                  <span className={`badge ${dirty ? "warn" : "ok"}`}>
-                    {dirty ? "UNSAVED" : "SAVED"}
-                  </span>
+                <div className="page-subtitle">
+                  {AUTOSAVE ? "Đang dùng auto-save." : "Đang dùng save thủ công."} Tập trung chỉnh nội dung theo field path để đỡ lạc key.
                 </div>
               </div>
-              <div className="pad dynamic-editor">
-                <DynamicField
-                  data={effectiveData}
-                  form={form}
-                  path={[]}
-                  onFormChange={handleFormChange}
-                  onImageUpload={handleImageUpload}
-                  onImageRemove={handleImageRemove}
-                  isImageBusy={isImageBusy}
-                />
+              <div className="hero-grid">
+                <div className="hero-chip">
+                  <span>Locale</span>
+                  <strong>{locale.toUpperCase()}</strong>
+                </div>
+                <div className="hero-chip">
+                  <span>Published</span>
+                  <strong>{fmtDate((locInfo as any)?.publishedAt)}</strong>
+                </div>
+                <div className="hero-chip">
+                  <span>Updated</span>
+                  <strong>{fmtDate((locInfo as any)?.updatedAt)}</strong>
+                </div>
+                <div className="hero-chip">
+                  <span>Status</span>
+                  <strong>{locInfo?.status || "NO LOCALE"}</strong>
+                </div>
               </div>
-            </>
-          )}
-        </div>
-      </div>
-      {/* CSS (phỏng theo file gốc, điều chỉnh cho layout mới) */}
-      <style>{`
-        .aya-container {
-                  max-width: 1200px;
-          margin: 20px auto;
-          padding: 0 20px;
-        }
+            </div>
 
+            <div className="editor-panel glass">
+              {!section ? (
+                  <div className="pad muted">Chưa có section để chỉnh.</div>
+              ) : (
+                  <>
+                    <div className="editor-header">
+                      <div>
+                        <div className="h2">{key.toUpperCase()} CONTENT</div>
+                        <div className="muted">
+                          Hiển thị field path rõ hơn để bạn nhìn ra key nhanh.
+                          {searchTerm ? ` • đang lọc: "${searchTerm}"` : ""}
+                        </div>
+                      </div>
+                      <div className="editor-badges">
+                        <span className="badge">{totalFieldCount} fields</span>
+                        {saving && <span className="badge warn">SAVING…</span>}
+                        <span className={`badge ${dirty ? "warn" : "ok"}`}>
+                      {dirty ? "UNSAVED" : "SAVED"}
+                    </span>
+                      </div>
+                    </div>
+                    <div className="editor-tip">
+                      <span>Gợi ý:</span> tìm bằng <b>title</b>, <b>description</b>, <b>button</b>, <b>image</b>, <b>hero</b> để nhảy đúng vùng nhanh hơn.
+                    </div>
+                    <div className="pad dynamic-editor">
+                      {fieldMatchesSearch(effectiveData, form, [], searchTerm) ? (
+                          <DynamicField
+                              data={effectiveData}
+                              form={form}
+                              path={[]}
+                              onFormChange={handleFormChange}
+                              onImageUpload={handleImageUpload}
+                              onImageRemove={handleImageRemove}
+                              isImageBusy={isImageBusy}
+                              searchTerm={searchTerm}
+                          />
+                      ) : (
+                          <div className="empty-search">
+                            <div className="empty-search-title">Không thấy field nào khớp</div>
+                            <div className="muted">Thử tìm bằng key ngắn hơn như title, hero, image, description…</div>
+                          </div>
+                      )}
+                    </div>
+                  </>
+              )}
+            </div>
+          </main>
+        </div>
+        <style>{`
         .aya-editor {
           min-height: 100vh;
           color: #1e293b;
-          font-family: system-ui, -apple-system, sans-serif;
-          background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 48%, #f8fafc 100%);
+          font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          background:
+            radial-gradient(circle at top left, rgba(99, 102, 241, 0.14), transparent 30%),
+            radial-gradient(circle at top right, rgba(16, 185, 129, 0.08), transparent 26%),
+            linear-gradient(180deg, #f8fafc 0%, #eef2ff 52%, #f8fafc 100%);
+          padding: 24px;
+        }
+        .aya-shell {
+          max-width: 1520px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: 340px minmax(0, 1fr);
+          gap: 20px;
+          align-items: start;
         }
         .glass {
-          border-radius: 18px;
-          border: 1px solid #dbe7ff;
-          background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-          box-shadow: 0 14px 38px rgba(37, 99, 235, 0.08);
+          border-radius: 24px;
+          border: 1px solid rgba(203, 213, 225, 0.9);
+          background: rgba(255, 255, 255, 0.9);
+          backdrop-filter: blur(10px);
+          box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
         }
-        .toolbar {
-          margin-bottom: 20px;
-        }
-        .toolbar-header {
-          padding: 16px 20px;
+        .sidebar {
+          position: sticky;
+          top: 24px;
+          padding: 18px;
           display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          flex-wrap: wrap;
-          gap: 12px;
+          flex-direction: column;
+          gap: 16px;
+          max-height: calc(100vh - 48px);
+          overflow: hidden;
+        }
+        .sidebar-top {
+          padding-bottom: 8px;
           border-bottom: 1px solid #e2e8f0;
         }
-        .h1 {
-          font-size: 22px;
-          font-weight: 950;
-          letter-spacing: 0.2px;
-          display: flex;
-          gap: 10px;
-          align-items: center;
-          flex-wrap: wrap;
-        }
-        .h2 {
-          font-size: 14px;
-          font-weight: 950;
-          letter-spacing: 0.08em;
+        .eyebrow {
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.14em;
           text-transform: uppercase;
-          opacity: 0.92;
+          color: #6366f1;
+          margin-bottom: 8px;
         }
-        .g-text {
-          color: #4f46e5;
+        .page-title {
+          font-size: 28px;
+          font-weight: 900;
+          line-height: 1.05;
+          color: #0f172a;
         }
-        .dirty, .saved {
-          font-size: 12px;
-          font-weight: 950;
-          padding: 6px 10px;
-          border-radius: 999px;
-        }
-        .dirty {
-          border: 1px solid #facc15;
-          background: #fef9c3;
-          color: #854d0e;
-        }
-        .saved {
-          border: 1px solid #86efac;
-          background: #dcfce7;
-          color: #166534;
-        }
-        .muted {
-          opacity: 1;
+        .page-subtitle {
+          margin-top: 8px;
           color: #64748b;
           font-size: 14px;
+          line-height: 1.55;
         }
-        .sub {
-          margin-top: 6px;
+        .panel-label, .sections-head {
+          font-size: 12px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          color: #475569;
         }
-        .hdrRight {
+        .search-panel {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .search-box {
           display: flex;
           align-items: center;
           gap: 10px;
+          padding: 0 14px;
+          border-radius: 18px;
+          border: 1px solid #cbd5e1;
+          background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        }
+        .search-box:focus-within {
+          border-color: #818cf8;
+          box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+        }
+        .search-icon {
+          color: #94a3b8;
+          font-size: 18px;
+          flex: 0 0 auto;
+        }
+        .search-input {
+          flex: 1;
+          min-width: 0;
+          height: 50px;
+          border: 0;
+          outline: none;
+          background: transparent;
+          color: #0f172a;
+          font-size: 14px;
+        }
+        .search-clear {
+          border: 0;
+          background: #eef2ff;
+          color: #4338ca;
+          border-radius: 999px;
+          padding: 8px 10px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .search-meta, .muted {
+          color: #64748b;
+          font-size: 13px;
+          line-height: 1.5;
+        }
+        .sidebar-stats {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+        }
+        .stat-card {
+          border: 1px solid #e2e8f0;
+          border-radius: 18px;
+          padding: 14px;
+          background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        }
+        .stat-label {
+          font-size: 12px;
+          font-weight: 700;
+          color: #64748b;
+          margin-bottom: 8px;
+        }
+        .stat-value {
+          font-size: 24px;
+          font-weight: 900;
+          color: #0f172a;
+        }
+        .stat-pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 34px;
+          border-radius: 999px;
+          padding: 0 12px;
+          font-size: 12px;
+          font-weight: 900;
+        }
+        .stat-pill.ok { background: #dcfce7; color: #166534; }
+        .stat-pill.warn { background: #fef3c7; color: #92400e; }
+        .locale-switcher {
+          display: flex;
+          gap: 8px;
+        }
+        .locale-chip {
+          flex: 1;
+          height: 40px;
+          border-radius: 14px;
+          border: 1px solid #dbeafe;
+          background: #f8fafc;
+          font-weight: 800;
+          color: #334155;
+          cursor: pointer;
+        }
+        .locale-chip.active {
+          background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+          color: #fff;
+          border-color: #4338ca;
+          box-shadow: 0 10px 24px rgba(79, 70, 229, 0.22);
+        }
+        .sections-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          margin-top: 4px;
+        }
+        .section-list {
+          overflow: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          padding-right: 4px;
+        }
+        .section-item {
+          text-align: left;
+          border: 1px solid #e2e8f0;
+          border-radius: 18px;
+          padding: 14px;
+          background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+          cursor: pointer;
+          transition: 0.18s ease;
+        }
+        .section-item:hover {
+          transform: translateY(-1px);
+          border-color: #c7d2fe;
+          box-shadow: 0 10px 26px rgba(99, 102, 241, 0.12);
+        }
+        .section-item.active {
+          border-color: #818cf8;
+          background: linear-gradient(180deg, #eef2ff 0%, #ffffff 100%);
+          box-shadow: 0 12px 28px rgba(99, 102, 241, 0.16);
+        }
+        .section-item-top, .section-meta-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+        }
+        .section-index {
+          font-size: 11px;
+          font-weight: 900;
+          color: #94a3b8;
+        }
+        .section-key {
+          margin: 10px 0 8px;
+          font-size: 16px;
+          font-weight: 850;
+          color: #0f172a;
+          word-break: break-word;
+        }
+        .section-meta-row {
+          font-size: 12px;
+          color: #64748b;
+        }
+        .mini-status {
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          border-radius: 999px;
+          padding: 4px 8px;
+          border: 1px solid transparent;
+        }
+        .mini-status.ok { background: #dcfce7; color: #166534; }
+        .mini-status.warn { background: #fef3c7; color: #92400e; }
+        .mini-status.off { background: #e2e8f0; color: #475569; }
+
+        .main-pane {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          min-width: 0;
+        }
+        .topbar {
+          position: sticky;
+          top: 24px;
+          z-index: 10;
+          padding: 14px 18px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+        .topbar-left, .topbar-right {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
         }
         .btn {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          padding: 8px 16px;
-          border-radius: 12px;
-          font-weight: 600;
+          height: 42px;
+          padding: 0 14px;
+          border-radius: 14px;
+          font-weight: 700;
           font-size: 14px;
           border: 1px solid #cbd5e1;
-          background: #ffffff;
-          color: inherit;
+          background: #fff;
+          color: #0f172a;
           cursor: pointer;
-          transition: all 0.1s ease;
-          text-decoration: none;
+          transition: all 0.15s ease;
           line-height: 1;
         }
         .btn:hover:not(:disabled) {
-          background: #eef2ff;
-          border-color: #818cf8;
           transform: translateY(-1px);
+          border-color: #a5b4fc;
+          background: #eef2ff;
         }
-        .btn:disabled {
-          opacity: 0.4;
-          cursor: not-allowed;
-        }
-        .btn-primary {
-          background: #4f46e5;
-          border-color: #4338ca;
-          color: #ffffff;
-        }
-        .btn-primary:hover:not(:disabled) {
-          background: #4338ca;
-        }
-        .btn-success {
-          background: #059669;
-          border-color: #047857;
-          color: #ffffff;
-        }
-        .btn-success:hover:not(:disabled) {
-          background: #047857;
-        }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-primary { background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #fff; border-color: #4338ca; }
+        .btn-success { background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #fff; border-color: #047857; }
+
         .badge {
           display: inline-flex;
           align-items: center;
-          padding: 6px 10px;
+          justify-content: center;
+          min-height: 34px;
+          padding: 0 12px;
           border-radius: 999px;
           font-size: 12px;
-          font-weight: 950;
-          letter-spacing: 0.06em;
-          border: 1px solid #dbeafe;
+          font-weight: 900;
           background: #eff6ff;
+          border: 1px solid #bfdbfe;
+          color: #1d4ed8;
         }
-        .badge.ok {
-          border-color: #86efac;
-          background: #dcfce7;
-          color: #166534;
-        }
-        .badge.off {
-          border-color: #fca5a5;
-          background: #fee2e2;
-          color: #991b1b;
-        }
-        .badge.warn {
-          border-color: #fcd34d;
-          background: #fef3c7;
-          color: #92400e;
-        }
-
-        /* Toolbar controls */
-        .toolbar-controls {
-          padding: 16px 20px;
-          display: flex;
-          flex-wrap: wrap;
+        .badge.ok { background: #dcfce7; border-color: #86efac; color: #166534; }
+        .badge.warn { background: #fef3c7; border-color: #fde68a; color: #92400e; }
+        .badge.off { background: #e2e8f0; border-color: #cbd5e1; color: #475569; }
+        .dirty, .saved {
+          display: inline-flex;
           align-items: center;
-          gap: 24px;
-          border-bottom: 1px solid #e2e8f0;
-        }
-        .control-group {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .control-label {
+          margin-left: 10px;
           font-size: 12px;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          color: #64748b;
+          font-weight: 900;
+          padding: 6px 10px;
+          border-radius: 999px;
         }
-        .btn-group {
-          display: flex;
-          gap: 4px;
+        .dirty { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        .saved { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+        .hero {
+          display: grid;
+          grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.9fr);
+          gap: 16px;
+          padding: 20px;
         }
-        .btn-group .btn {
-          padding: 6px 12px;
-          font-size: 13px;
-        }
-
-        /* Sections tabs */
-        .sections-tabs {
-          flex: 1;
-          min-width: 200px;
-        }
-        .tabs-scroll {
-          display: flex;
-          gap: 4px;
-          overflow-x: auto;
-          padding-bottom: 2px;
-          scrollbar-width: thin;
-          scrollbar-color: rgba(148,163,184,0.3) transparent;
-        }
-        .tabs-scroll::-webkit-scrollbar {
-          height: 4px;
-        }
-        .tabs-scroll::-webkit-scrollbar-thumb {
-          background: rgba(100,116,139,0.3);
-          border-radius: 4px;
-        }
-        .tab {
-          flex-shrink: 0;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 14px;
-          border-radius: 12px;
-          font-size: 14px;
-          font-weight: 600;
-          border: 1px solid transparent;
-          background: #f8fafc;
-          color: #334155;
-          cursor: pointer;
-          transition: all 0.1s ease;
-          white-space: nowrap;
-        }
-        .tab:hover {
-          background: #eef2ff;
-          border-color: #c7d2fe;
-        }
-        .tab.active {
-          background: #e0e7ff;
-          border-color: #818cf8;
-          color: #3730a3;
-        }
-        .tab-order {
-          font-size: 11px;
-          opacity: 0.6;
-          font-weight: 500;
-        }
-
-        .actions-group {
-          display: flex;
-          gap: 4px;
-        }
-        .primary-actions {
-          display: flex;
-          gap: 8px;
-        }
-
-        /* Toolbar status row */
-        .toolbar-status {
-          padding: 12px 20px;
+        .hero-title {
           display: flex;
           flex-wrap: wrap;
-          gap: 20px;
-          font-size: 13px;
-          border-top: 1px solid #e2e8f0;
-          background: #f8fafc;
-        }
-        .toolbar-status div {
-          display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 8px;
+          font-size: 32px;
+          font-weight: 950;
+          color: #0f172a;
+          line-height: 1.08;
+          margin-bottom: 8px;
+          word-break: break-word;
         }
-
-        /* Editor panel */
-        .editor-panel {
-          margin-top: 20px;
+        .hero-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
         }
+        .hero-chip {
+          border: 1px solid #e2e8f0;
+          border-radius: 18px;
+          padding: 14px;
+          background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        }
+        .hero-chip span {
+          display: block;
+          font-size: 12px;
+          font-weight: 700;
+          color: #64748b;
+          margin-bottom: 8px;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+        }
+        .hero-chip strong {
+          display: block;
+          font-size: 14px;
+          color: #0f172a;
+          word-break: break-word;
+        }
+        .editor-panel { overflow: hidden; }
         .editor-header {
-          padding: 16px 20px;
+          padding: 18px 22px;
           display: flex;
           justify-content: space-between;
           align-items: center;
-          flex-wrap: wrap;
           gap: 12px;
+          flex-wrap: wrap;
           border-bottom: 1px solid #e2e8f0;
         }
-        .editor-badges {
+        .h2 {
+          font-size: 14px;
+          font-weight: 950;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: #0f172a;
+          margin-bottom: 6px;
+        }
+        .editor-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+        .editor-tip {
           display: flex;
           gap: 8px;
+          align-items: center;
+          padding: 12px 22px;
+          background: #f8fafc;
+          border-bottom: 1px solid #e2e8f0;
+          color: #475569;
+          font-size: 13px;
+          flex-wrap: wrap;
         }
-        .pad {
-          padding: 20px;
-        }
+        .editor-tip span { font-weight: 800; color: #0f172a; }
+        .pad { padding: 22px; }
 
-        /* Dynamic field styles (giữ nguyên từ file cũ) */
+        .dynamic-editor {
+          background: linear-gradient(180deg, rgba(248, 250, 252, 0.72) 0%, rgba(255,255,255,0.96) 100%);
+        }
         .dynamic-object {
           display: flex;
           flex-direction: column;
-          gap: 16px;
-          margin-left: 8px;
-          border-left: 1px dashed #cbd5e1;
-          padding-left: 12px;
+          gap: 14px;
         }
         .object-field {
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 10px;
+          padding: 14px;
+          border: 1px solid #e2e8f0;
+          border-radius: 18px;
+          background: #fff;
+          box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+        }
+        .field-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 10px;
+          flex-wrap: wrap;
         }
         .field-label {
           font-size: 12px;
-          font-weight: 950;
+          font-weight: 900;
           text-transform: uppercase;
-          letter-spacing: 0.05em;
-          opacity: 0.7;
-          margin-bottom: 4px;
+          letter-spacing: 0.08em;
+          color: #334155;
+        }
+        .field-path {
+          font-size: 11px;
+          color: #475569;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 999px;
+          padding: 5px 10px;
+          line-height: 1.2;
+          word-break: break-word;
         }
         .dynamic-array {
           border: 1px solid #dbeafe;
-          border-radius: 16px;
-          padding: 12px;
-          background: #f8fbff;
+          border-radius: 18px;
+          padding: 14px;
+          background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
         }
-        .array-header {
+        .array-header, .array-item-header, .array-item-meta {
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          margin-bottom: 8px;
+          justify-content: space-between;
+          gap: 10px;
+          flex-wrap: wrap;
         }
-        .array-label {
-          font-weight: 950;
-          font-size: 13px;
-          text-transform: uppercase;
-        }
-        .array-add {
+        .array-label, .array-item-index {
+          font-weight: 900;
           font-size: 12px;
-          padding: 4px 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          color: #0f172a;
         }
-        .array-items {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
+        .array-add { height: 34px; font-size: 12px; }
+        .array-items { display: flex; flex-direction: column; gap: 14px; margin-top: 10px; }
         .array-item {
           border: 1px solid #dbeafe;
-          border-radius: 14px;
+          border-radius: 16px;
           padding: 12px;
-          background: #ffffff;
-        }
-        .array-item-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 8px;
-        }
-        .array-item-index {
-          font-weight: 950;
-          font-size: 12px;
+          background: #fff;
         }
         .array-remove {
-          font-size: 12px;
-          padding: 2px 8px;
+          height: 32px;
+          padding: 0 10px;
           background: #fee2e2;
-          border-color: #fca5a5;
+          border-color: #fecaca;
           color: #991b1b;
         }
-        .array-empty {
-          padding: 8px;
-          text-align: center;
-        }
-        .dynamic-primitive {
-          width: 100%;
-        }
+        .array-empty { text-align: center; padding: 10px; }
+        .dynamic-primitive { width: 100%; }
         .input2, .textarea2 {
           width: 100%;
-          border-radius: 14px;
+          border-radius: 16px;
           border: 1px solid #cbd5e1;
-          background: #ffffff;
-          color: inherit;
+          background: #fff;
+          color: #0f172a;
           outline: none;
-          padding: 12px;
+          padding: 14px 16px;
+          font-size: 14px;
+          line-height: 1.55;
+          transition: 0.15s ease;
         }
         .input2:focus, .textarea2:focus {
           border-color: #818cf8;
-          box-shadow: 0 0 0 4px rgba(99,102,241,0.15);
+          box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
         }
-        .image-field {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
+        .textarea2 { min-height: 120px; resize: vertical; }
+        .image-field { display: flex; flex-direction: column; gap: 12px; }
         .image-preview img {
-          max-width: 100%;
-          max-height: 150px;
-          border-radius: 12px;
+          display: block;
+          width: 100%;
+          max-width: 360px;
+          max-height: 220px;
+          object-fit: cover;
+          border-radius: 16px;
           border: 1px solid #dbeafe;
           background: #f8fafc;
-          object-fit: cover;
         }
-        .image-actions {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          flex-wrap: wrap;
+        .image-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .empty-search {
+          border: 1px dashed #cbd5e1;
+          border-radius: 18px;
+          padding: 22px;
+          text-align: center;
+          background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        }
+        .empty-search-title {
+          font-size: 16px;
+          font-weight: 900;
+          margin-bottom: 6px;
+          color: #0f172a;
+        }
+
+        @media (max-width: 1180px) {
+          .aya-shell { grid-template-columns: 1fr; }
+          .sidebar { position: static; max-height: none; }
+          .topbar { position: static; }
+        }
+        @media (max-width: 860px) {
+          .aya-editor { padding: 14px; }
+          .hero { grid-template-columns: 1fr; }
+          .hero-grid, .sidebar-stats { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 640px) {
+          .page-title { font-size: 24px; }
+          .hero-title { font-size: 24px; }
+          .hero-grid, .sidebar-stats { grid-template-columns: 1fr; }
+          .pad, .editor-header, .editor-tip, .topbar, .sidebar { padding-left: 14px; padding-right: 14px; }
+          .image-actions, .topbar-right, .topbar-left { align-items: stretch; }
+          .btn { width: 100%; }
+          .topbar-left, .topbar-right { width: 100%; }
         }
       `}</style>
-    </div>
+      </div>
   );
 }

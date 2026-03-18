@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { http } from "../../api/http";
 
 export type ContactLead = {
   name: string;
@@ -39,6 +40,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ onSubmit, cmsDat
   const [lead, setLead] = useState<ContactLead>(initialLead);
   const [message, setMessage] = useState<string>("");
   const [error, setError] = useState<string>("");
+  const [submitting, setSubmitting] = useState(false);
 
   const {
     addressLine1 = "AYANAVITA Wellness Experience",
@@ -64,12 +66,20 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ onSubmit, cmsDat
     e.preventDefault();
     setError("");
     setMessage("");
+    setSubmitting(true);
     try {
-      if (onSubmit) await onSubmit(lead);
-      setMessage("Gửi liên hệ thành công. Nhân viên sẽ liên hệ sớm nhất cho quý khách.");
+      if (onSubmit) {
+        await onSubmit(lead);
+        setMessage("Gửi liên hệ thành công. Nhân viên sẽ liên hệ sớm nhất cho quý khách.");
+      } else {
+        const { data } = await http.post("/public/contact-inquiries", lead);
+        setMessage(data?.message || "Gửi liên hệ thành công. Nhân viên sẽ liên hệ sớm nhất cho quý khách.");
+      }
       setLead(initialLead);
     } catch (err: any) {
-      setError(err?.message ?? "Gửi yêu cầu thất bại");
+      setError(err?.response?.data?.message || err?.message || "Không thể gửi liên hệ. Vui lòng thử lại.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -103,7 +113,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ onSubmit, cmsDat
                 <textarea className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3" style={{ minHeight: 120 }} placeholder={notePlaceholder} value={lead.note} onChange={(e) => setLead((s) => ({ ...s, note: e.target.value }))} />
                 {message ? <div className="rounded-xl bg-emerald-50 p-2 text-sm text-emerald-700">{message}</div> : null}
                 {error ? <div className="rounded-xl bg-rose-50 p-2 text-sm text-rose-700">{error}</div> : null}
-                <button type="submit" className="rounded-2xl bg-gradient-to-r from-amber-300 to-yellow-300 px-6 py-3 font-extrabold text-slate-900 shadow hover:opacity-95">{submitButtonText}</button>
+                <button disabled={submitting} type="submit" className="rounded-2xl bg-gradient-to-r from-amber-300 to-yellow-300 px-6 py-3 font-extrabold text-slate-900 shadow hover:opacity-95 disabled:opacity-60">{submitting ? "Đang gửi..." : submitButtonText}</button>
               </form>
             </div>
           </div>

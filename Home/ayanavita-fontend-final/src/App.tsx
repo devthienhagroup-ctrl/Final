@@ -29,6 +29,9 @@ import PaymentCancelPage from "./pages/PaymentCancelPage";
 import Policy from "./pages/Policy";
 import PartnerLandingPage from "./pages/Partner";
 import AboutAyanavita from "./pages/AboutAyanavita";
+import AyanavitaExperiencePage from "./pages/Experience";
+import AyanavitaAcademyPage from "./pages/Academy";
+import MembershipPage from "./pages/Membership";
 
 
 export default function App() {
@@ -73,6 +76,9 @@ export default function App() {
                 <Route path="/account" element={<AccountCenter/>}/>
                 <Route path="/account-center" element={<AccountCenter/>}/>
                 <Route path="/contact" element={<ContactPage />} />
+                <Route path="/experience" element={<AyanavitaExperiencePage />} />
+                <Route path="/academy" element={<AyanavitaAcademyPage />} />
+                <Route path="/membership" element={<MembershipPage />} />
                 <Route path="*" element={<div className="p-6">Not found</div>}/>
             </Route>
         </Routes>

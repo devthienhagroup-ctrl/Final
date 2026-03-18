@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 
-const cmsData = {
+const cmsDataDefault = {
     hero: {
         badge: "About AYANAVITA",
         title: "About AYANAVITA",
@@ -52,13 +52,36 @@ const cmsData = {
     },
     vision: {
         badge: "Our Vision",
-        title: "Creating a trusted wellness ecosystem for modern life",
+        title: "Shaping a wellness platform for a healthier and more balanced future",
         paragraphs: [
-            "Tầm nhìn của AYANAVITA là xây dựng một hệ sinh thái wellness nơi con người có thể khám phá những cách chăm sóc sức khỏe tự nhiên, bền vững và phù hợp với cuộc sống hiện đại.",
-            "Chúng tôi tin rằng wellness không chỉ là một dịch vụ, mà là một hành trình lâu dài giúp mỗi người sống khỏe mạnh, cân bằng và trọn vẹn hơn.",
+            "Thế giới đang bước vào một thời đại mới, nơi con người quan tâm nhiều hơn đến sức khỏe, năng lượng, sự cân bằng và chất lượng sống lâu dài.",
+            "AYANAVITA được xây dựng với tầm nhìn trở thành một nền tảng wellness giúp hàng triệu người hiểu rõ cơ thể của mình, kết nối lại với nhu cầu thật sự bên trong và từng bước xây dựng một cuộc sống cân bằng hơn.",
+            "Chúng tôi tin rằng wellness không chỉ là một dịch vụ hay một trải nghiệm ngắn hạn, mà là một phần quan trọng của cuộc sống hiện đại — nơi con người chủ động chăm sóc bản thân, nuôi dưỡng sức khỏe và tái tạo năng lượng một cách bền vững.",
+            "Thông qua các trải nghiệm cá nhân hóa, hệ sinh thái đối tác và cộng đồng wellness toàn cầu, AYANAVITA hướng tới việc tạo ra một nền tảng có thể mang lại giá trị thực tế, cảm hứng sống khỏe và sự thay đổi tích cực cho hàng triệu người trên thế giới.",
         ],
         quote:
-            "Wellness is not only about feeling better today, but about building a more balanced life over time.",
+            "AYANAVITA hướng tới việc trở thành một trong những nền tảng wellness có ảnh hưởng lớn nhất trong kỷ nguyên mới của chăm sóc sức khỏe và phong cách sống.",
+        note:
+            "Không chỉ là một thương hiệu wellness, AYANAVITA định hướng trở thành một nền tảng kết nối trải nghiệm, đối tác và cộng đồng để tạo ra giá trị lâu dài cho cuộc sống hiện đại.",
+        pillars: [
+            {
+                title: "Personalized Experiences",
+                description: "Những trải nghiệm được xây dựng phù hợp hơn với cơ thể, nhu cầu và nhịp sống riêng của từng người.",
+            },
+            {
+                title: "Partner Ecosystem",
+                description: "Mở rộng giá trị thông qua hệ sinh thái đối tác chất lượng trong lĩnh vực sức khỏe, sắc đẹp và lifestyle.",
+            },
+            {
+                title: "Global Wellness Community",
+                description: "Kết nối cộng đồng wellness rộng mở để lan tỏa cảm hứng sống khỏe, cân bằng và bền vững hơn.",
+            },
+        ],
+        stats: [
+            { label: "Direction", value: "Global" },
+            { label: "Experience", value: "Personalized" },
+            { label: "Impact", value: "Long-term" },
+        ],
     },
     community: {
         badge: "Our Community",
@@ -81,18 +104,6 @@ const cmsData = {
             "AYANAVITA không chỉ là một địa điểm chăm sóc sức khỏe và sắc đẹp.",
             "Đó là một không gian nơi con người có thể dừng lại, lắng nghe cơ thể mình và bắt đầu một hành trình wellness bền vững.",
         ],
-    },
-    founder: {
-        badge: "Founder Message",
-        title: "A Message from the Founder",
-        paragraphs: [
-            "AYANAVITA được hình thành từ một niềm tin rất đơn giản: sức khỏe thật sự bắt đầu khi chúng ta biết lắng nghe cơ thể và chăm sóc bản thân một cách ý thức.",
-            "Trong một thế giới chuyển động rất nhanh, nhiều người dần mất kết nối với sức khỏe, sự cân bằng và năng lượng bên trong của mình.",
-            "Tầm nhìn của tôi khi xây dựng AYANAVITA là tạo ra một nơi giúp con người kết nối lại với chính mình — nơi wellness không chỉ là một dịch vụ, mà là một hành trình hướng tới cuộc sống cân bằng và trọn vẹn hơn.",
-            "Tôi hy vọng rằng mỗi người khi đến với AYANAVITA sẽ tìm thấy cảm hứng, sự hỗ trợ và một cảm giác khỏe mạnh mới.",
-        ],
-        signature: "— Nguyễn Thanh Vân",
-        role: "Founder, AYANAVITA",
     },
     logoPlaceholder: {
         title: "AYANAVITA Logo",
@@ -197,18 +208,18 @@ export default function AboutAYANAVITAPage() {
                                 className="max-w-2xl text-white"
                             >
                 <span className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-white/95 shadow-sm backdrop-blur-md">
-                  {cmsData.hero.badge}
+                  {cmsDataDefault.hero.badge}
                 </span>
 
                                 <h1 className="mt-6 text-5xl font-semibold leading-[0.94] tracking-[-0.045em] sm:text-6xl lg:text-[5.3rem]">
-                                    {cmsData.hero.title}
+                                    {cmsDataDefault.hero.title}
                                 </h1>
 
                                 <p className="mt-6 max-w-xl text-base leading-8 text-white/88 sm:text-lg">
-                                    {cmsData.hero.description}
+                                    {cmsDataDefault.hero.description}
                                 </p>
                                 <p className="mt-4 max-w-xl text-base leading-8 text-white/74 sm:text-lg">
-                                    {cmsData.hero.subdescription}
+                                    {cmsDataDefault.hero.subdescription}
                                 </p>
 
                                 <motion.div
@@ -217,7 +228,7 @@ export default function AboutAYANAVITAPage() {
                                     animate="show"
                                     className="mt-10 flex flex-wrap gap-3"
                                 >
-                                    {cmsData.hero.tags.map((tag) => (
+                                    {cmsDataDefault.hero.tags.map((tag) => (
                                         <motion.span
                                             key={tag}
                                             variants={fadeUp}
@@ -235,7 +246,7 @@ export default function AboutAYANAVITAPage() {
                                     animate="show"
                                     className="mt-10 grid gap-4 sm:grid-cols-3"
                                 >
-                                    {cmsData.hero.stats.map((item) => (
+                                    {cmsDataDefault.hero.stats.map((item) => (
                                         <motion.div
                                             key={item.label}
                                             variants={fadeUp}
@@ -272,7 +283,7 @@ export default function AboutAYANAVITAPage() {
                                         <div className="flex items-center justify-between">
                                             <div>
                                                 <div className="text-xs font-semibold uppercase tracking-[0.22em] text-indigo-700/80">Brand Presence</div>
-                                                <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-slate-950">{cmsData.logoPlaceholder.title}</div>
+                                                <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-slate-950">{cmsDataDefault.logoPlaceholder.title}</div>
                                             </div>
                                             <div className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-500 shadow-sm">
                                                 Reserved Area
@@ -289,10 +300,10 @@ export default function AboutAYANAVITAPage() {
                                                     className="mx-auto h-32 w-auto rounded-xl object-contain drop-shadow-[0_18px_40px_rgba(15,23,42,0.35)]"
                                                 />
                                                 <div className="mt-6 text-2xl font-semibold tracking-[-0.02em] text-slate-950">
-                                                    {cmsData.logoPlaceholder.title}
+                                                    {cmsDataDefault.logoPlaceholder.title}
                                                 </div>
                                                 <p className="mt-3 text-sm uppercase tracking-[0.24em] text-slate-500">
-                                                    {cmsData.logoPlaceholder.hint}
+                                                    {cmsDataDefault.logoPlaceholder.hint}
                                                 </p>
                                             </div>
                                         </div>
@@ -304,14 +315,14 @@ export default function AboutAYANAVITAPage() {
                 </div>
             </section>
 
-            <TextSection badge={cmsData.intro.badge} title={cmsData.intro.title} paragraphs={cmsData.intro.paragraphs} />
+            <TextSection badge={cmsDataDefault.intro.badge} title={cmsDataDefault.intro.title} paragraphs={cmsDataDefault.intro.paragraphs} />
 
             <section className="relative overflow-hidden px-4 py-20 sm:px-6 lg:px-8">
                 <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(221,235,221,0.42),rgba(241,237,255,0.48))]" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_22%,rgba(34,197,94,0.10),transparent_24%),radial-gradient(circle_at_82%_30%,rgba(245,158,11,0.10),transparent_18%),radial-gradient(circle_at_75%_78%,rgba(79,70,229,0.08),transparent_22%)] opacity-70" />
                 <div className="relative mx-auto max-w-7xl grid gap-10 lg:grid-cols-[1.02fr_0.98fr] lg:items-center">
                     <div>
-                        <SectionHeader badge={cmsData.approach.badge} title={cmsData.approach.title} />
+                        <SectionHeader badge={cmsDataDefault.approach.badge} title={cmsDataDefault.approach.title} />
                         <motion.div
                             variants={stagger}
                             initial="hidden"
@@ -319,7 +330,7 @@ export default function AboutAYANAVITAPage() {
                             viewport={{ once: true, amount: 0.25 }}
                             className="mt-8 max-w-3xl space-y-5"
                         >
-                            {cmsData.approach.paragraphs.map((paragraph) => (
+                            {cmsDataDefault.approach.paragraphs.map((paragraph) => (
                                 <motion.p
                                     key={paragraph}
                                     variants={fadeUp}
@@ -339,7 +350,7 @@ export default function AboutAYANAVITAPage() {
                         viewport={{ once: true, amount: 0.2 }}
                         className="grid gap-4 sm:grid-cols-2"
                     >
-                        {cmsData.approach.points.map((point) => (
+                        {cmsDataDefault.approach.points.map((point) => (
                             <motion.div key={point.title} variants={fadeUp} transition={{ duration: 0.55, ease: "easeOut" }}>
                                 <GlassCard className="h-full p-6 transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_60px_rgba(15,23,42,0.12)]">
                                     <div className="mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-lg font-semibold text-white shadow-lg">
@@ -354,48 +365,91 @@ export default function AboutAYANAVITAPage() {
                 </div>
             </section>
 
-            <section className="px-4 py-20 sm:px-6 lg:px-8">
-                <div className="mx-auto max-w-7xl">
-                    <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-stretch">
-                        <GlassCard className="p-8 sm:p-10">
-                            <SectionHeader badge={cmsData.vision.badge} title={cmsData.vision.title} />
-                            <motion.div
-                                variants={stagger}
-                                initial="hidden"
-                                whileInView="show"
-                                viewport={{ once: true, amount: 0.25 }}
-                                className="mt-8 space-y-5"
-                            >
-                                {cmsData.vision.paragraphs.map((paragraph) => (
-                                    <motion.p
-                                        key={paragraph}
-                                        variants={fadeUp}
-                                        transition={{ duration: 0.55, ease: "easeOut" }}
-                                        className="text-lg leading-8 text-slate-600"
-                                    >
-                                        {paragraph}
-                                    </motion.p>
-                                ))}
-                            </motion.div>
+            <section className="relative overflow-hidden px-4 py-20 sm:px-6 lg:px-8">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(79,70,229,0.08),transparent_24%),radial-gradient(circle_at_86%_24%,rgba(251,191,36,0.10),transparent_18%),linear-gradient(180deg,rgba(255,255,255,0.94),rgba(246,248,252,0.98))]" />
+                <div className="relative mx-auto max-w-7xl">
+                    <div className="grid gap-8 xl:grid-cols-[1.08fr_0.92fr] xl:items-start">
+                        <GlassCard className="relative overflow-hidden p-8 sm:p-10 lg:p-12">
+                            <div className="absolute -left-10 top-10 h-28 w-28 rounded-full bg-indigo-200/30 blur-3xl" />
+                            <div className="absolute right-6 top-6 h-24 w-24 rounded-full bg-emerald-200/30 blur-3xl" />
+                            <div className="relative">
+                                <SectionHeader badge={cmsDataDefault.vision.badge} title={cmsDataDefault.vision.title} />
+                                <motion.div
+                                    variants={stagger}
+                                    initial="hidden"
+                                    whileInView="show"
+                                    viewport={{ once: true, amount: 0.25 }}
+                                    className="mt-8 grid gap-5"
+                                >
+                                    {cmsDataDefault.vision.paragraphs.map((paragraph, index) => (
+                                        <motion.div
+                                            key={paragraph}
+                                            variants={fadeUp}
+                                            transition={{ duration: 0.55, ease: "easeOut" }}
+                                            className="flex gap-4 rounded-[1.4rem] border border-slate-200/70 bg-white/70 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)] backdrop-blur-sm"
+                                        >
+                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20">
+                                                {String(index + 1).padStart(2, "0")}
+                                            </div>
+                                            <p className="text-base leading-8 text-slate-600 sm:text-[1.05rem]">{paragraph}</p>
+                                        </motion.div>
+                                    ))}
+                                </motion.div>
+                            </div>
                         </GlassCard>
 
                         <motion.div
-                            initial={{ opacity: 0, x: 20 }}
-                            whileInView={{ opacity: 1, x: 0 }}
-                            viewport={{ once: true, amount: 0.3 }}
-                            transition={{ duration: 0.7, ease: "easeOut" }}
+                            variants={stagger}
+                            initial="hidden"
+                            whileInView="show"
+                            viewport={{ once: true, amount: 0.2 }}
+                            className="grid gap-6"
                         >
-                            <div className="relative h-full overflow-hidden rounded-[2rem] border border-indigo-100 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.10),transparent_30%),linear-gradient(180deg,#ffffff,#f7fafc)] p-8 shadow-[0_22px_60px_rgba(15,23,42,0.08)] sm:p-10">
-                                <div className="absolute right-6 top-6 h-24 w-24 rounded-full bg-amber-300/20 blur-2xl" />
-                                <div className="text-sm font-semibold uppercase tracking-[0.22em] text-indigo-700">Vision Note</div>
-                                <blockquote className="mt-8 max-w-xl text-3xl font-semibold leading-tight tracking-[-0.03em] text-slate-950 sm:text-4xl">
-                                    “{cmsData.vision.quote}”
-                                </blockquote>
-                                <div className="mt-10 h-px w-full bg-gradient-to-r from-indigo-200 via-slate-200 to-transparent" />
-                                <p className="mt-6 max-w-lg leading-8 text-slate-600">
-                                    AYANAVITA theo đuổi một định hướng wellness đáng tin cậy, lâu dài và phù hợp với nhịp sống hiện đại.
-                                </p>
-                            </div>
+                            <motion.div variants={fadeUp} transition={{ duration: 0.7, ease: "easeOut" }}>
+                                <div className="relative overflow-hidden rounded-[2rem] border border-indigo-100 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.12),transparent_30%),linear-gradient(180deg,#ffffff,#f8fafc)] p-8 shadow-[0_22px_60px_rgba(15,23,42,0.08)] sm:p-10">
+                                    <div className="absolute right-6 top-6 h-24 w-24 rounded-full bg-amber-300/20 blur-2xl" />
+                                    <div className="text-sm font-semibold uppercase tracking-[0.22em] text-indigo-700">Vision Statement</div>
+                                    <blockquote className="mt-6 text-3xl font-semibold leading-tight tracking-[-0.03em] text-slate-950 sm:text-[2.45rem]">
+                                        “{cmsDataDefault.vision.quote}”
+                                    </blockquote>
+                                    <p className="mt-6 max-w-xl leading-8 text-slate-600">
+                                        {cmsDataDefault.vision.note}
+                                    </p>
+                                </div>
+                            </motion.div>
+
+                            <motion.div variants={fadeUp} transition={{ duration: 0.65, ease: "easeOut" }}>
+                                <GlassCard className="p-6 sm:p-7">
+                                    <div className="grid gap-4 sm:grid-cols-3">
+                                        {cmsDataDefault.vision.stats.map((item) => (
+                                            <div key={item.label} className="rounded-[1.35rem] border border-slate-200 bg-slate-50/80 px-4 py-5">
+                                                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">{item.label}</div>
+                                                <div className="mt-2 text-lg font-semibold text-slate-950">{item.value}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </GlassCard>
+                            </motion.div>
+
+                            <motion.div
+                                variants={stagger}
+                                transition={{ staggerChildren: 0.08 }}
+                                className="grid gap-4"
+                            >
+                                {cmsDataDefault.vision.pillars.map((item) => (
+                                    <motion.div key={item.title} variants={fadeUp} transition={{ duration: 0.5, ease: "easeOut" }}>
+                                        <GlassCard className="group p-5 transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_48px_rgba(15,23,42,0.10)]">
+                                            <div className="flex items-start gap-4">
+                                                <div className="mt-1 h-3 w-3 shrink-0 rounded-full bg-gradient-to-r from-emerald-500 to-indigo-600 shadow-[0_0_0_6px_rgba(99,102,241,0.08)]" />
+                                                <div>
+                                                    <h3 className="text-lg font-semibold text-slate-950">{item.title}</h3>
+                                                    <p className="mt-2 leading-7 text-slate-600">{item.description}</p>
+                                                </div>
+                                            </div>
+                                        </GlassCard>
+                                    </motion.div>
+                                ))}
+                            </motion.div>
                         </motion.div>
                     </div>
                 </div>
@@ -404,7 +458,7 @@ export default function AboutAYANAVITAPage() {
             <section className="relative overflow-hidden px-4 py-20 sm:px-6 lg:px-8">
                 <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(221,235,221,0.35),rgba(241,237,255,0.42))]" />
                 <div className="relative mx-auto max-w-7xl">
-                    <SectionHeader badge={cmsData.community.badge} title={cmsData.community.title} />
+                    <SectionHeader badge={cmsDataDefault.community.badge} title={cmsDataDefault.community.title} />
                     <div className="mt-8 grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
                         <motion.div
                             variants={stagger}
@@ -413,7 +467,7 @@ export default function AboutAYANAVITAPage() {
                             viewport={{ once: true, amount: 0.25 }}
                             className="space-y-5"
                         >
-                            {cmsData.community.paragraphs.map((paragraph) => (
+                            {cmsDataDefault.community.paragraphs.map((paragraph) => (
                                 <motion.p
                                     key={paragraph}
                                     variants={fadeUp}
@@ -432,7 +486,7 @@ export default function AboutAYANAVITAPage() {
                             viewport={{ once: true, amount: 0.15 }}
                             className="grid gap-4 sm:grid-cols-2"
                         >
-                            {cmsData.community.highlights.map((item, index) => (
+                            {cmsDataDefault.community.highlights.map((item, index) => (
                                 <motion.div key={item} variants={fadeUp} transition={{ duration: 0.5, ease: "easeOut" }}>
                                     <GlassCard className="h-full px-5 py-6 transition duration-300 hover:-translate-y-1">
                                         <div className="flex items-start justify-between gap-3">
@@ -457,7 +511,7 @@ export default function AboutAYANAVITAPage() {
                     <GlassCard className="overflow-hidden p-8 sm:p-10 lg:p-12">
                         <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
                             <div>
-                                <SectionHeader badge={cmsData.closing.badge} title={cmsData.closing.title} />
+                                <SectionHeader badge={cmsDataDefault.closing.badge} title={cmsDataDefault.closing.title} />
                             </div>
                             <motion.div
                                 variants={stagger}
@@ -466,7 +520,7 @@ export default function AboutAYANAVITAPage() {
                                 viewport={{ once: true, amount: 0.25 }}
                                 className="space-y-5"
                             >
-                                {cmsData.closing.paragraphs.map((paragraph) => (
+                                {cmsDataDefault.closing.paragraphs.map((paragraph) => (
                                     <motion.p
                                         key={paragraph}
                                         variants={fadeUp}
@@ -479,56 +533,6 @@ export default function AboutAYANAVITAPage() {
                             </motion.div>
                         </div>
                     </GlassCard>
-                </div>
-            </section>
-
-            <section className="px-4 pb-24 sm:px-6 lg:px-8">
-                <div className="mx-auto max-w-7xl">
-                    <motion.div
-                        initial={{ opacity: 0, y: 30 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, amount: 0.25 }}
-                        transition={{ duration: 0.75, ease: "easeOut" }}
-                        className="relative overflow-hidden rounded-[2.3rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.18),transparent_24%),radial-gradient(circle_at_bottom_right,rgba(34,197,94,0.16),transparent_24%),linear-gradient(135deg,rgba(11,18,32,0.98),rgba(30,41,59,0.96))] px-6 py-12 shadow-[0_28px_80px_rgba(15,23,42,0.18)] sm:px-10 lg:px-14 lg:py-14"
-                    >
-                        <div className="absolute left-10 top-10 h-24 w-24 rounded-full bg-white/5 blur-2xl" />
-                        <div className="absolute right-10 bottom-10 h-32 w-32 rounded-full bg-emerald-400/10 blur-3xl" />
-
-                        <div className="relative z-10 grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-                            <div className="rounded-[1.9rem] border border-white/10 bg-white/5 p-6 backdrop-blur-md sm:p-8">
-                <span className="inline-flex rounded-full border border-white/10 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-white">
-                  {cmsData.founder.badge}
-                </span>
-                                <h2 className="mt-5 text-4xl font-semibold leading-tight tracking-[-0.03em] text-white sm:text-5xl lg:text-[3.3rem]">
-                                    {cmsData.founder.title}
-                                </h2>
-                            </div>
-
-                            <motion.div
-                                variants={stagger}
-                                initial="hidden"
-                                whileInView="show"
-                                viewport={{ once: true, amount: 0.2 }}
-                                className="space-y-5 text-white/80"
-                            >
-                                {cmsData.founder.paragraphs.map((paragraph) => (
-                                    <motion.p
-                                        key={paragraph}
-                                        variants={fadeUp}
-                                        transition={{ duration: 0.55, ease: "easeOut" }}
-                                        className="text-lg leading-8"
-                                    >
-                                        {paragraph}
-                                    </motion.p>
-                                ))}
-
-                                <motion.div variants={fadeUp} transition={{ duration: 0.55, ease: "easeOut" }} className="pt-4">
-                                    <div className="text-xl font-semibold text-white">{cmsData.founder.signature}</div>
-                                    <div className="mt-1 text-sm uppercase tracking-[0.18em] text-white/60">{cmsData.founder.role}</div>
-                                </motion.div>
-                            </motion.div>
-                        </div>
-                    </motion.div>
                 </div>
             </section>
         </main>

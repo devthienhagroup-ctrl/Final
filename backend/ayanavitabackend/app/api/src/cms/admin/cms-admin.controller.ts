@@ -84,6 +84,12 @@ export class CmsAdminController {
     return this.svc.listContactInquiries(query);
   }
 
+  @Permissions("cms.read")
+  @Get("contacts/stats")
+  contactInquiryStats(@Query() query: AdminListContactInquiriesDto) {
+    return this.svc.contactInquiryStats(query);
+  }
+
   @Permissions("cms.write")
   @Post("contacts/:id/reply")
   replyContactInquiry(

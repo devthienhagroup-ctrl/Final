@@ -30,9 +30,27 @@ export type ContactInquiryListResponse = {
   totalPages: number;
 };
 
+export type ContactInquiryStatsResponse = {
+  overview: {
+    total: number;
+    newCount: number;
+    repliedCount: number;
+    emailCount: number;
+    noteCount: number;
+    replyCount: number;
+  };
+  statusChart: Array<{ label: string; value: number }>;
+  trendChart: Array<{ label: string; value: number }>;
+};
+
 export async function adminListContactInquiries(token: string, params: Record<string, string>) {
   const qs = new URLSearchParams(params).toString();
   return apiFetch<ContactInquiryListResponse>(`/admin/cms/contacts${qs ? `?${qs}` : ""}`, { method: "GET", token });
+}
+
+export async function adminContactInquiryStats(token: string, params: Record<string, string>) {
+  const qs = new URLSearchParams(params).toString();
+  return apiFetch<ContactInquiryStatsResponse>(`/admin/cms/contacts/stats${qs ? `?${qs}` : ""}`, { method: "GET", token });
 }
 
 export async function adminReplyContactInquiry(token: string, id: number, payload: { subject: string; content: string; toEmail?: string }) {

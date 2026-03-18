@@ -1,103 +1,116 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
-// Định nghĩa kiểu dữ liệu cho CMS Data (chỉ chứa nội dung, không chứa màu sắc, kích thước)
 export type FooterCMSData = {
   brandName?: string;
-  description?: string;              // đoạn mô tả thương hiệu
+  description?: string;
   address?: string;
   phone?: string;
   email?: string;
   hours?: string;
-  socialLinks?: Array<{ icon: string; url: string; label?: string }>;  // icon là class Font Awesome (ví dụ: "fab fa-facebook-f")
-  aboutLinks?: Array<{ text: string; url: string }>;                   // menu "Về chúng tôi"
-  supportLinks?: Array<{ text: string; url: string }>;                 // menu "Hỗ trợ"
-  bottomLinks?: Array<{ text: string; url: string }>;                  // các link cuối trang (Điều khoản, Bảo mật, Cookie)
-  copyrightText?: string;              // ví dụ: "© 2025 AYANAVITA. All rights reserved."
-  sslText?: string;                    // ví dụ: "Website được bảo mật bởi SSL"
-
-  // Labels mới được thêm vào
-  brandLabel?: string;                 // label cho thương hiệu (ví dụ: "Nền tảng LMS hàng đầu")
-  aboutTitle?: string;                 // tiêu đề cột "Về chúng tôi"
-  supportTitle?: string;               // tiêu đề cột "Hỗ trợ"
-  contactTitle?: string;               // tiêu đề cột "Liên hệ"
+  socialLinks?: Array<{ icon: string; url: string; label?: string }>;
+  aboutLinks?: Array<{ text: string; url: string }>;
+  supportLinks?: Array<{ text: string; url: string }>;
+  bottomLinks?: Array<{ text: string; url: string }>;
+  copyrightText?: string;
+  sslText?: string;
+  brandLabel?: string;
+  aboutTitle?: string;
+  supportTitle?: string;
+  contactTitle?: string;
 };
 
 type FooterProps = {
-  cmsData?: FooterCMSData;             // dữ liệu từ CMS, sẽ ghi đè các props khác nếu có
+  cmsData?: FooterCMSData;
 };
+
+export const cmsDataDefault: Required<FooterCMSData> = {
+  brandName: "AYANAVITA",
+  description:
+      "AYANAVITA là nền tảng wellness kết nối dịch vụ, sản phẩm, khóa học và trải nghiệm sống cân bằng trong một hành trình chăm sóc cá nhân hóa.",
+  address: "Thông tin địa chỉ đang được cập nhật",
+  phone: "Đang cập nhật",
+  email: "contact@ayanavita.vn",
+  hours: "08:00 - 18:00 (T2 - T7)",
+  socialLinks: [
+    { icon: "fab fa-facebook-f", url: "#", label: "Facebook" },
+    { icon: "fab fa-youtube", url: "#", label: "YouTube" },
+    { icon: "fab fa-tiktok", url: "#", label: "TikTok" },
+    { icon: "fab fa-linkedin-in", url: "#", label: "LinkedIn" },
+  ],
+  aboutLinks: [
+    { text: "Về AYANAVITA", url: "/about" },
+    { text: "Trải nghiệm", url: "/experience" },
+    { text: "Dịch vụ", url: "/services" },
+    { text: "Khóa học", url: "/courses" },
+    { text: "Sản phẩm", url: "/products" },
+  ],
+  supportLinks: [
+    { text: "Đặt lịch", url: "/booking" },
+    { text: "Theo dõi đơn hàng", url: "/track-order" },
+    { text: "So sánh sản phẩm", url: "/compare" },
+    { text: "Đánh giá khách hàng", url: "/reviews" },
+    { text: "Liên hệ hỗ trợ", url: "/contact" },
+  ],
+  bottomLinks: [
+    { text: "Điều khoản", url: "/policies/terms" },
+    { text: "Bảo mật", url: "/policies/privacy" },
+    { text: "Cookie", url: "/policies/cookie" },
+  ],
+  copyrightText: "",
+  sslText: "Website được bảo mật bởi SSL",
+  brandLabel: "Wellness • Beauty • Lifestyle",
+  aboutTitle: "Khám phá",
+  supportTitle: "Hỗ trợ",
+  contactTitle: "Liên hệ",
+};
+
+const isInternalRoute = (url: string) => url.startsWith("/") && !url.startsWith("//");
+const isPlaceholderLink = (url: string) => url.trim() === "#";
 
 export function Footer({ cmsData }: FooterProps) {
   const year = new Date().getFullYear();
 
-  // Giá trị mặc định cho toàn bộ dữ liệu
-  const finalBrandName = cmsData?.brandName ?? "AYANAVITA";
-  const finalDescription =
-      cmsData?.description ??
-      "Hệ thống học tập trực tuyến chuyên nghiệp, tăng chuyển đổi bán khoá học và nâng cao trải nghiệm học viên.";
-  const finalAddress = cmsData?.address ?? "Số 123, Đường ABC, Quận 1, TP.HCM";
-  const finalPhone = cmsData?.phone ?? "(028) 1234 5678";
-  const finalEmail = cmsData?.email ?? "support@ayanavita.vn";
-  const finalHours = cmsData?.hours ?? "8:00 - 18:00 (T2 - T7)";
-  const finalSocialLinks = cmsData?.socialLinks ?? [
-    { icon: "fab fa-facebook-f", url: "#" },
-    { icon: "fab fa-youtube", url: "#" },
-    { icon: "fab fa-tiktok", url: "#" },
-    { icon: "fab fa-linkedin-in", url: "#" },
-  ];
-  const finalAboutLinks = cmsData?.aboutLinks ?? [
-    { text: "Giới thiệu", url: "#product" },
-    { text: "Khóa học", url: "#courseGallery" },
-    { text: "Đánh giá", url: "#reviews" },
-    { text: "Bảng giá", url: "#pricing" },
-    { text: "Hợp tác", url: "#contact" },
-  ];
-  const finalSupportLinks = cmsData?.supportLinks ?? [
-    { text: "Trung tâm trợ giúp", url: "/help" },
-    { text: "Câu hỏi thường gặp", url: "/faq" },
-    { text: "Liên hệ hỗ trợ", url: "#contact" },
-    { text: "Hướng dẫn thanh toán", url: "/payment-guide" },
-    { text: "Chính sách hoàn tiền", url: "/refund" },
-  ];
-  const finalBottomLinks = cmsData?.bottomLinks ?? [
-    { text: "Điều khoản", url: "/terms" },
-    { text: "Bảo mật", url: "/privacy" },
-    { text: "Cookie", url: "/cookie" },
-  ];
-  const finalCopyrightText =
-      cmsData?.copyrightText ?? `© ${year} ${finalBrandName}. All rights reserved.`;
-  const finalSslText = cmsData?.sslText ?? "Website được bảo mật bởi SSL";
+  const finalData: Required<FooterCMSData> = {
+    ...cmsDataDefault,
+    ...cmsData,
+    socialLinks: cmsData?.socialLinks ?? cmsDataDefault.socialLinks,
+    aboutLinks: cmsData?.aboutLinks ?? cmsDataDefault.aboutLinks,
+    supportLinks: cmsData?.supportLinks ?? cmsDataDefault.supportLinks,
+    bottomLinks: cmsData?.bottomLinks ?? cmsDataDefault.bottomLinks,
+    copyrightText:
+        cmsData?.copyrightText ??
+        `© ${year} ${(cmsData?.brandName ?? cmsDataDefault.brandName)}. All rights reserved.`,
+  };
 
-  // Labels mới
-  const finalBrandLabel = cmsData?.brandLabel ?? "Nền tảng LMS hàng đầu";
-  const finalAboutTitle = cmsData?.aboutTitle ?? "Về chúng tôi";
-  const finalSupportTitle = cmsData?.supportTitle ?? "Hỗ trợ";
-  const finalContactTitle = cmsData?.contactTitle ?? "Liên hệ";
+  const hasValidPhone = /\d/.test(finalData.phone);
+  const hasValidEmail = finalData.email.includes("@");
 
-  // Hàm render link: nếu url bắt đầu bằng '/' thì dùng Link của react-router, nếu không thì dùng thẻ a thông thường
   const renderLink = (text: string, url: string, className?: string) => {
-    if (url.startsWith("/")) {
+    if (isInternalRoute(url)) {
       return (
           <Link to={url} className={className}>
             {text}
           </Link>
       );
     }
+
     return (
-        <a href={url} className={className} onClick={(e) => e.preventDefault()}>
+        <a
+            href={url}
+            className={className}
+            onClick={isPlaceholderLink(url) ? (e) => e.preventDefault() : undefined}
+        >
           {text}
         </a>
     );
   };
 
   return (
-      <footer
-          className="mt-10 text-white z-10"
-      >
+      <footer className="mt-10 z-10 text-white">
         <div className="gradient-footer z-10">
           <div className="inner py-12">
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-5">
-              {/* Cột thương hiệu và mô tả */}
               <div className="lg:col-span-2">
                 <div className="mb-6 flex items-center gap-3">
                   <div
@@ -111,21 +124,20 @@ export function Footer({ cmsData }: FooterProps) {
                     A
                   </div>
                   <div>
-                    <div className="text-xl font-black">{finalBrandName}</div>
-                    <div className="text-sm text-slate-300">{finalBrandLabel}</div>
+                    <div className="text-xl font-black">{finalData.brandName}</div>
+                    <div className="text-sm text-slate-300">{finalData.brandLabel}</div>
                   </div>
                 </div>
 
-                <p className="mb-6 max-w-md text-slate-300">{finalDescription}</p>
+                <p className="mb-6 max-w-md text-slate-300">{finalData.description}</p>
 
-                {/* Social Links */}
                 <div className="flex gap-3">
-                  {finalSocialLinks.map((social, idx) => (
+                  {finalData.socialLinks.map((social, idx) => (
                       <a
                           key={idx}
-                          className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-amber-300 hover:bg-white/20"
+                          className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-amber-300 transition hover:bg-white/20"
                           href={social.url}
-                          onClick={(e) => e.preventDefault()}
+                          onClick={isPlaceholderLink(social.url) ? (e) => e.preventDefault() : undefined}
                           aria-label={social.label || social.icon}
                       >
                         <i className={social.icon}></i>
@@ -134,63 +146,65 @@ export function Footer({ cmsData }: FooterProps) {
                 </div>
               </div>
 
-              {/* Về chúng tôi */}
               <div>
-                <h3 className="mb-4 text-lg font-semibold">{finalAboutTitle}</h3>
+                <h3 className="mb-4 text-lg font-semibold">{finalData.aboutTitle}</h3>
                 <ul className="space-y-3 text-slate-300">
-                  {finalAboutLinks.map((link, idx) => (
-                      <li key={idx}>
-                        {renderLink(link.text, link.url, "hover:text-amber-200")}
-                      </li>
+                  {finalData.aboutLinks.map((link, idx) => (
+                      <li key={idx}>{renderLink(link.text, link.url, "hover:text-amber-200")}</li>
                   ))}
                 </ul>
               </div>
 
-              {/* Hỗ trợ */}
               <div>
-                <h3 className="mb-4 text-lg font-semibold">{finalSupportTitle}</h3>
+                <h3 className="mb-4 text-lg font-semibold">{finalData.supportTitle}</h3>
                 <ul className="space-y-3 text-slate-300">
-                  {finalSupportLinks.map((link, idx) => (
-                      <li key={idx}>
-                        {renderLink(link.text, link.url, "hover:text-amber-200")}
-                      </li>
+                  {finalData.supportLinks.map((link, idx) => (
+                      <li key={idx}>{renderLink(link.text, link.url, "hover:text-amber-200")}</li>
                   ))}
                 </ul>
               </div>
 
-              {/* Liên hệ */}
               <div>
-                <h3 className="mb-4 text-lg font-semibold">{finalContactTitle}</h3>
+                <h3 className="mb-4 text-lg font-semibold">{finalData.contactTitle}</h3>
                 <ul className="space-y-3 text-slate-300">
                   <li className="flex items-start gap-2">
                     <i className="fa-solid fa-location-dot mt-1 text-amber-300"></i>
-                    <span>{finalAddress}</span>
+                    <span>{finalData.address}</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <i className="fa-solid fa-phone text-amber-300"></i>
-                    <span>{finalPhone}</span>
+                    {hasValidPhone ? (
+                        <a href={`tel:${finalData.phone}`} className="hover:text-amber-200">
+                          {finalData.phone}
+                        </a>
+                    ) : (
+                        <span>{finalData.phone}</span>
+                    )}
                   </li>
                   <li className="flex items-center gap-2">
                     <i className="fa-solid fa-envelope text-amber-300"></i>
-                    <span>{finalEmail}</span>
+                    {hasValidEmail ? (
+                        <a href={`mailto:${finalData.email}`} className="hover:text-amber-200">
+                          {finalData.email}
+                        </a>
+                    ) : (
+                        <span>{finalData.email}</span>
+                    )}
                   </li>
                   <li className="flex items-center gap-2">
                     <i className="fa-solid fa-clock text-amber-300"></i>
-                    <span>{finalHours}</span>
+                    <span>{finalData.hours}</span>
                   </li>
                 </ul>
               </div>
             </div>
 
-            {/* Bottom */}
             <div className="mt-10 border-t border-white/10 pt-8">
               <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-                <div className="text-sm text-slate-400">{finalCopyrightText}</div>
+                <div className="text-sm text-slate-400">{finalData.copyrightText}</div>
                 <div className="flex gap-6 text-sm text-slate-400">
-                  {finalBottomLinks.map((link, idx) => (
-                      <span key={idx}>
-                    {renderLink(link.text, link.url, "hover:text-amber-200")}
-                  </span>
+                  {finalData.bottomLinks.map((link, idx) => (
+                      <span key={idx}>{renderLink(link.text, link.url, "hover:text-amber-200")}</span>
                   ))}
                 </div>
               </div>
@@ -198,7 +212,7 @@ export function Footer({ cmsData }: FooterProps) {
               <div className="mt-6 text-center">
                 <div className="inline-flex items-center gap-2 rounded-full bg-white/5 px-4 py-2 ring-1 ring-white/10">
                   <i className="fa-solid fa-shield-halved text-amber-300"></i>
-                  <span className="text-sm text-slate-300">{finalSslText}</span>
+                  <span className="text-sm text-slate-300">{finalData.sslText}</span>
                 </div>
               </div>
             </div>

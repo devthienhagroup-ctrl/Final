@@ -20,7 +20,7 @@ export const Outcomes: React.FC<OutcomesProps> = ({ cmsData }) => {
   const defaultData: OutcomesCMSData = {
     heading: "Bạn sẽ nhận được gì sau trải nghiệm?",
     subheading:
-        "Những giá trị bạn có thể nhận được sau khi trải nghiệm wellness tại AYANAVITA.",
+                            'AYANAVITA cam kết giúp bạn hiểu rõ cơ thể của mình, khôi phục sự cân bằng, và xây dựng một cuộc sống khỏe mạnh, trọn vẹn — một cách tự nhiên và bền vững.',
     cards: [
       {
         title: "Hiểu rõ cơ thể của mình",
@@ -68,7 +68,7 @@ export const Outcomes: React.FC<OutcomesProps> = ({ cmsData }) => {
                 <h2 className="text-2xl font-extrabold text-slate-900">
                   {data.heading}
                 </h2>
-                <p className="mt-2 text-slate-600">{data.subheading}</p>
+                <p className="mt-2 bg-gradient-to-r from-lime-700 via-green-700 to-emerald-700 bg-clip-text text-transparent">{data.subheading}</p>
               </div>
 
               <div className="grid gap-4 md:col-span-2 md:grid-cols-2">

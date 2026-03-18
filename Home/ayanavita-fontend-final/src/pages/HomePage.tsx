@@ -19,6 +19,13 @@ import { bannerSlides, partners } from "../data/home";
 import { BannerSlider } from "../components/home/BannerSlider";
 
 import {http} from "../api/http"
+import Philosophy from "../components/home/Philosophy";
+import AyanavitaValue from "../components/home/AyanavitaValue";
+import WhyAyanavitaIsDifferent from "../components/home/WhyAyanavitaIsDifferent";
+import AyanavitaMethodSection from "../components/home/Method";
+import AyanavitaJourneySection from "../components/home/Journey";
+import AyanavitaExperienceSection from "../components/home/Experience";
+import FounderMessageSection from "../components/home/MessageFromFounder";
 
 export default function HomePage() {
   const [homeData, setHomeData] = useState<any>(null);
@@ -70,32 +77,49 @@ export default function HomePage() {
         <div className="page-content">
 
           <TopBanner cmsData={homeData?.sections[0]?.data}
-                     onConsult={() =>
-                         document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })
-                     }
           />
 
           <BannerSlider slides={homeData?.sections[1]?.data.bannerSlides} onAction={onSlideAction} />
+
+          <Philosophy />
+
+          <AyanavitaValue />
+
+          <WhyAyanavitaIsDifferent />
+
+          <AyanavitaMethodSection />
+
+          <ProductSection
+              cmsData={homeData?.sections[6]?.data}
+          />
+
+          <AyanavitaJourneySection />
+
+          <AyanavitaExperienceSection/>
+
+          <CourseGallery cmsData={homeData?.sections[4]?.data}
+                         onGetDeal={() => {}} />
+
+          <Outcomes
+              cmsData={homeData?.sections[7]?.data}
+          />
+
+          <FounderMessageSection />
 
           <Stats cmsData={homeData?.sections[2]?.data}/>
 
           <Partners cmsData={homeData?.sections[3]?.data}/>
 
-          <CourseGallery cmsData={homeData?.sections[4]?.data}
-                         onGetDeal={() => {}} />
+
 
           <RegisterSection
               cmsData={homeData?.sections[5]?.data}
               onRegisterSuccess={() => {}}
           />
 
-          <ProductSection
-              cmsData={homeData?.sections[6]?.data}
-          />
 
-          <Outcomes
-              cmsData={homeData?.sections[7]?.data}
-          />
+
+
 
           <Reviews
               cmsData={homeData?.sections[9]?.data}
@@ -107,7 +131,7 @@ export default function HomePage() {
 
           <ContactSection
               cmsData={homeData?.sections[8]?.data}
-              onSubmit={() => {}} />
+          />
         </div>
       </div>
   );

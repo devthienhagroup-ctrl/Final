@@ -68,6 +68,15 @@ const cardStyles = [
     border: "group-hover:border-emerald-200",
     dot: "bg-emerald-500",
   },
+  {
+    icon: "fa-solid fa-scale-balanced",
+    badge: "Lifestyle & Balance Guidance",
+    glow: "from-rose-400/20 via-pink-400/10 to-fuchsia-400/20",
+    iconWrap:
+        "from-rose-500 via-pink-500 to-fuchsia-500 text-white shadow-rose-400/30",
+    border: "group-hover:border-rose-200",
+    dot: "bg-rose-500",
+  },
 ] as const;
 
 export const CourseGallery: React.FC<CourseGalleryProps> = ({ cmsData }) => {
@@ -99,7 +108,7 @@ export const CourseGallery: React.FC<CourseGalleryProps> = ({ cmsData }) => {
             </p>
           </div>
 
-          <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-10 grid gap-5 md:grid-cols-1 xl:grid-cols-2">
             {mergedCmsData.items.map((item, index) => {
               const style = cardStyles[index % cardStyles.length];
 

@@ -1,60 +1,69 @@
-// src/components/home/TopBanner.tsx
 import React from "react";
 
 type CmsData = {
-  newBadge?: string;        // nội dung nhãn "NEW"
-  brand?: string;           // tên thương hiệu "AYANAVITA"
-  promotion?: string;       // nội dung khuyến mãi
-  viewPlanText?: string;    // chữ trên nút "Xem gói"
-  viewPlanHref?: string;    // đường dẫn của nút "Xem gói"
-  consultText?: string;     // chữ trên nút "Nhận tư vấn"
+  title?: string;
+  description?: string;
+  primaryCtaText?: string;
+  primaryCtaHref?: string;
+  secondaryCtaText?: string;
+  secondaryCtaHref?: string;
+  backgroundImageUrl?: string;
 };
 
 type TopBannerProps = {
-  onConsult?: () => void;
   cmsData?: CmsData;
 };
 
 const defaultCmsData: Required<CmsData> = {
-  newBadge: "NEW",
-  brand: "AYANAVITA",
-  promotion: "Ưu đãi thành viên mới: giảm 20% + miễn phí 3 khóa cơ bản.",
-  viewPlanText: "Xem gói",
-  viewPlanHref: "#pricing",
-  consultText: "Nhận tư vấn",
+  title: "Chào mừng bạn đến với AYANAVITA",
+  description: "Một nơi nơi sức khỏe, sắc đẹp và sự cân bằng hòa quyện.\n" +
+      "AYANAVITA đồng hành cùng bạn hiểu cơ thể mình, chăm sóc bản thân và xây dựng một cuộc sống khỏe mạnh, trọn vẹn hơn.",
+  primaryCtaText: "Khám phá trải nghiệm",
+  primaryCtaHref: "#experience",
+  secondaryCtaText: "Nhận tư vấn",
+  secondaryCtaHref: "#contact",
+  backgroundImageUrl:
+      "https://images.unsplash.com/photo-1506260408121-e353d10b87c7?q=80&w=1228&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
 };
 
-export const TopBanner: React.FC<TopBannerProps> = ({ onConsult, cmsData }) => {
+export const TopBanner: React.FC<TopBannerProps> = ({ cmsData }) => {
   const data = { ...defaultCmsData, ...cmsData };
 
   return (
-      <section className="w-full pt-6" id="top">
+      <section className="w-full pt-5" id="top">
         <div className="mx-auto max-w-6xl px-4">
-          <div className="rounded-3xl bg-white p-4 ring-1 ring-slate-200 shadow-sm md:p-5">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 ring-1 ring-slate-200">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                <span className="text-xs font-semibold text-slate-700">{data.newBadge}</span>
-              </span>
-                <span className="text-sm font-semibold text-slate-900">{data.brand}</span>
-                <span className="text-sm text-slate-600">{data.promotion}</span>
+          <div className="relative overflow-hidden rounded-[28px] border border-white/60 shadow-[0_20px_50px_-28px_rgba(15,23,42,0.32)]">
+            <div
+                className="absolute inset-0 bg-cover bg-center"
+                style={{ backgroundImage: `url(${data.backgroundImageUrl})` }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/82 via-slate-900/68 to-amber-900/45" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/35 via-transparent to-black/10" />
+
+            <div className="relative flex min-h-[128px] flex-col justify-center gap-4 px-4 py-4 sm:px-6 md:min-h-[136px] md:flex-row md:items-center md:justify-between md:px-8">
+              <div className="max-w-2xl">
+                <h2 className="text-xl font-semibold leading-snug tracking-tight text-white sm:text-2xl md:text-[28px]">
+                  {data.title}
+                </h2>
+
+                <p className="mt-2 text-sm leading-5 text-white/90 md:text-[14px]">
+                  {data.description}a
+                </p>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2.5">
                 <a
-                    href={data.viewPlanHref}
-                    className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-95"
+                    href={data.primaryCtaHref}
+                    className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 px-4 py-2 text-sm font-semibold text-slate-900 shadow-lg shadow-amber-500/20 transition hover:-translate-y-0.5 hover:shadow-xl"
                 >
-                  {data.viewPlanText}
+                  {data.primaryCtaText}
                 </a>
-                <button
-                    type="button"
-                    onClick={onConsult}
-                    className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50"
+                <a
+                    href={data.secondaryCtaHref}
+                    className="inline-flex items-center justify-center rounded-xl border border-white/30 bg-white/12 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/18"
                 >
-                  {data.consultText}
-                </button>
+                  {data.secondaryCtaText}
+                </a>
               </div>
             </div>
           </div>
@@ -62,3 +71,5 @@ export const TopBanner: React.FC<TopBannerProps> = ({ onConsult, cmsData }) => {
       </section>
   );
 };
+
+export default TopBanner;

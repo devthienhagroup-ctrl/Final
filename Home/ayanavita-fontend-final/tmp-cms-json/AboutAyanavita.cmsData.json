@@ -1,0 +1,132 @@
+{
+  "hero": {
+    "badge": "About AYANAVITA",
+    "title": "About AYANAVITA",
+    "description": "AYANAVITA là một thương hiệu wellness được xây dựng với mong muốn giúp con người hiểu rõ cơ thể của mình và tìm lại sự cân bằng trong cuộc sống.",
+    "subdescription": "Khi cuộc sống ngày càng bận rộn và nhiều áp lực, việc chăm sóc sức khỏe và tinh thần trở nên quan trọng hơn bao giờ hết. AYANAVITA được tạo ra để mang đến những trải nghiệm wellness giúp con người tái tạo năng lượng, chăm sóc bản thân và xây dựng một lối sống lành mạnh hơn.",
+    "tags": [
+      "Trusted Wellness",
+      "Personalized Care",
+      "Balanced Living"
+    ],
+    "stats": [
+      {
+        "label": "Approach",
+        "value": "Holistic"
+      },
+      {
+        "label": "Experience",
+        "value": "Personalized"
+      },
+      {
+        "label": "Focus",
+        "value": "Sustainable"
+      }
+    ]
+  },
+  "intro": {
+    "badge": "Introduction",
+    "title": "A wellness brand built for deeper care and lasting balance",
+    "paragraphs": [
+      "AYANAVITA là một thương hiệu wellness được xây dựng với mong muốn giúp con người hiểu rõ cơ thể của mình và tìm lại sự cân bằng trong cuộc sống.",
+      "Khi cuộc sống ngày càng bận rộn và nhiều áp lực, việc chăm sóc sức khỏe và tinh thần trở nên quan trọng hơn bao giờ hết. AYANAVITA được tạo ra để mang đến những trải nghiệm wellness giúp con người tái tạo năng lượng, chăm sóc bản thân và xây dựng một lối sống lành mạnh hơn."
+    ]
+  },
+  "approach": {
+    "badge": "Our Approach",
+    "title": "Professional, thoughtful, and centered around each individual",
+    "paragraphs": [
+      "AYANAVITA tin rằng mỗi người đều có nhu cầu và hành trình sức khỏe riêng. Vì vậy, thay vì áp dụng một phương pháp chung cho tất cả, chúng tôi hướng tới việc tạo ra những trải nghiệm wellness được thiết kế phù hợp với từng cá nhân.",
+      "Thông qua sự kết hợp giữa các phương pháp chăm sóc hiện đại và một góc nhìn toàn diện về sức khỏe và lối sống, AYANAVITA mang đến những trải nghiệm giúp khách hàng cảm thấy thư giãn, cân bằng và được tiếp thêm năng lượng."
+    ],
+    "points": [
+      {
+        "title": "Personalized Wellness",
+        "description": "Mỗi trải nghiệm được định hướng để phù hợp hơn với nhu cầu và trạng thái riêng của từng người."
+      },
+      {
+        "title": "Modern Care Methods",
+        "description": "Kết hợp cách tiếp cận hiện đại với tiêu chuẩn trải nghiệm chỉn chu và chuyên nghiệp."
+      },
+      {
+        "title": "Holistic Perspective",
+        "description": "Không chỉ nhìn vào một nhu cầu đơn lẻ mà xem xét tổng thể sức khỏe, tinh thần và lối sống."
+      },
+      {
+        "title": "Restorative Experience",
+        "description": "Hướng tới cảm giác thư giãn, tái tạo năng lượng và cân bằng bền vững hơn mỗi ngày."
+      }
+    ]
+  },
+  "vision": {
+    "badge": "Our Vision",
+    "title": "Shaping a wellness platform for a healthier and more balanced future",
+    "paragraphs": [
+      "Thế giới đang bước vào một thời đại mới, nơi con người quan tâm nhiều hơn đến sức khỏe, năng lượng, sự cân bằng và chất lượng sống lâu dài.",
+      "AYANAVITA được xây dựng với tầm nhìn trở thành một nền tảng wellness giúp hàng triệu người hiểu rõ cơ thể của mình, kết nối lại với nhu cầu thật sự bên trong và từng bước xây dựng một cuộc sống cân bằng hơn.",
+      "Chúng tôi tin rằng wellness không chỉ là một dịch vụ hay một trải nghiệm ngắn hạn, mà là một phần quan trọng của cuộc sống hiện đại — nơi con người chủ động chăm sóc bản thân, nuôi dưỡng sức khỏe và tái tạo năng lượng một cách bền vững.",
+      "Thông qua các trải nghiệm cá nhân hóa, hệ sinh thái đối tác và cộng đồng wellness toàn cầu, AYANAVITA hướng tới việc tạo ra một nền tảng có thể mang lại giá trị thực tế, cảm hứng sống khỏe và sự thay đổi tích cực cho hàng triệu người trên thế giới."
+    ],
+    "quote": "AYANAVITA hướng tới việc trở thành một trong những nền tảng wellness có ảnh hưởng lớn nhất trong kỷ nguyên mới của chăm sóc sức khỏe và phong cách sống.",
+    "note": "Không chỉ là một thương hiệu wellness, AYANAVITA định hướng trở thành một nền tảng kết nối trải nghiệm, đối tác và cộng đồng để tạo ra giá trị lâu dài cho cuộc sống hiện đại.",
+    "statementLabel": "Vision Statement",
+    "pillars": [
+      {
+        "title": "Personalized Experiences",
+        "description": "Những trải nghiệm được xây dựng phù hợp hơn với cơ thể, nhu cầu và nhịp sống riêng của từng người."
+      },
+      {
+        "title": "Partner Ecosystem",
+        "description": "Mở rộng giá trị thông qua hệ sinh thái đối tác chất lượng trong lĩnh vực sức khỏe, sắc đẹp và lifestyle."
+      },
+      {
+        "title": "Global Wellness Community",
+        "description": "Kết nối cộng đồng wellness rộng mở để lan tỏa cảm hứng sống khỏe, cân bằng và bền vững hơn."
+      }
+    ],
+    "stats": [
+      {
+        "label": "Direction",
+        "value": "Global"
+      },
+      {
+        "label": "Experience",
+        "value": "Personalized"
+      },
+      {
+        "label": "Impact",
+        "value": "Long-term"
+      }
+    ]
+  },
+  "community": {
+    "badge": "Our Community",
+    "title": "A community connected by care, wellbeing, and healthy living",
+    "paragraphs": [
+      "AYANAVITA hướng tới việc kết nối những con người cùng quan tâm đến sức khỏe và phong cách sống lành mạnh.",
+      "Thông qua các trải nghiệm wellness, các chương trình chăm sóc cá nhân hóa và sự hợp tác với các chuyên gia và đối tác trong lĩnh vực wellness, AYANAVITA mong muốn tạo ra một cộng đồng nơi mọi người có thể cùng nhau khám phá và nuôi dưỡng sức khỏe toàn diện."
+    ],
+    "highlightLabel": "AYANAVITA",
+    "highlights": [
+      "Wellness experiences",
+      "Personalized care programs",
+      "Expert collaboration",
+      "Healthy lifestyle connection"
+    ]
+  },
+  "closing": {
+    "badge": "Closing",
+    "title": "More than a place for beauty and wellness care",
+    "paragraphs": [
+      "AYANAVITA không chỉ là một địa điểm chăm sóc sức khỏe và sắc đẹp.",
+      "Đó là một không gian nơi con người có thể dừng lại, lắng nghe cơ thể mình và bắt đầu một hành trình wellness bền vững."
+    ]
+  },
+  "logoPlaceholder": {
+    "badge": "Brand Presence",
+    "title": "AYANAVITA Logo",
+    "reservedLabel": "Reserved Area",
+    "logoAlt": "AYANAVITA logo",
+    "hint": ""
+  }
+}

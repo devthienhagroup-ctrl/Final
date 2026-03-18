@@ -1,0 +1,177 @@
+{
+  "hero": {
+    "badge": "AYANAVITA Membership",
+    "title": "A membership experience that stays with you longer",
+    "highlight": "stays with you longer",
+    "description": "Membership tại AYANAVITA được thiết kế như một lớp trải nghiệm sâu hơn dành cho những ai muốn duy trì wellness theo cách đều đặn, tinh tế và có định hướng hơn. Đây không chỉ là quyền lợi thành viên, mà là một cách để bạn được chăm sóc gắn kết hơn với cơ thể, lối sống và cộng đồng wellness xung quanh mình.",
+    "chips": [
+      {
+        "text": "Benefits"
+      },
+      {
+        "text": "Personal Wellness Journey"
+      },
+      {
+        "text": "Member Community"
+      }
+    ],
+    "actions": [
+      {
+        "label": "Explore Membership",
+        "href": "#membership-benefits",
+        "variant": "primary"
+      },
+      {
+        "label": "See Community",
+        "href": "#membership-community",
+        "variant": "secondary"
+      }
+    ],
+    "previewBadge": "Membership Overview",
+    "previewTitle": "Designed for continuity, connection and care",
+    "previewNote": "Một membership tốt không chỉ mang lại quyền lợi, mà còn tạo ra cảm giác được đồng hành đều đặn hơn trong hành trình wellness.",
+    "previewItems": [
+      {
+        "key": "preview-benefits",
+        "title": "Thoughtful Benefits",
+        "description": "Những quyền lợi được thiết kế để hỗ trợ trải nghiệm wellness lâu dài hơn.",
+        "icon": "fa-solid fa-gem"
+      },
+      {
+        "key": "preview-journey",
+        "title": "Personal Journey",
+        "description": "Một hành trình được nuôi dưỡng theo nhịp sống và nhu cầu riêng của từng người.",
+        "icon": "fa-solid fa-seedling"
+      },
+      {
+        "key": "preview-community",
+        "title": "Member Community",
+        "description": "Sự kết nối giúp wellness trở nên có cảm hứng và bền vững hơn mỗi ngày.",
+        "icon": "fa-solid fa-people-group"
+      }
+    ]
+  },
+  "benefits": {
+    "badge": "Membership Benefits",
+    "title": "Quyền lợi được thiết kế để nâng trải nghiệm wellness mỗi ngày",
+    "description": "Thay vì chỉ là ưu đãi đơn lẻ, quyền lợi thành viên tại AYANAVITA được xây dựng như những lớp giá trị bổ sung giúp trải nghiệm trở nên thuận tiện hơn, cá nhân hơn và đáng duy trì hơn.",
+    "items": [
+      {
+        "key": "priority-access",
+        "label": "01 · Priority Access",
+        "title": "Tiếp cận thuận tiện hơn với các trải nghiệm nổi bật",
+        "description": "Membership mang lại sự chủ động hơn trong việc tiếp cận các trải nghiệm, chương trình mới và những dịch vụ phù hợp với nhịp chăm sóc của riêng bạn.",
+        "icon": "fa-solid fa-crown",
+        "points": [
+          "Tiếp cận sớm hơn với chương trình nổi bật",
+          "Đặt lịch chủ động và thuận tiện hơn",
+          "Dễ duy trì nhịp chăm sóc đều đặn hơn"
+        ]
+      },
+      {
+        "key": "exclusive-value",
+        "label": "02 · Exclusive Value",
+        "title": "Giá trị dành riêng cho thành viên",
+        "description": "Những quyền lợi riêng giúp hành trình wellness không chỉ dễ tiếp cận hơn, mà còn tạo cảm giác xứng đáng để duy trì lâu dài.",
+        "icon": "fa-solid fa-star",
+        "points": [
+          "Ưu đãi theo từng nhóm thành viên",
+          "Giá trị cộng thêm theo từng giai đoạn",
+          "Khuyến khích duy trì chăm sóc bền vững"
+        ]
+      },
+      {
+        "key": "personal-guidance",
+        "label": "03 · Personal Guidance",
+        "title": "Sự đồng hành mang tính cá nhân hóa hơn",
+        "description": "Membership gắn quyền lợi với định hướng phù hợp hơn cho từng cá nhân, để mỗi trải nghiệm không chỉ đẹp mà còn đúng hơn với nhu cầu thực tế.",
+        "icon": "fa-solid fa-heart-circle-check",
+        "points": [
+          "Gắn quyền lợi với hành trình thực tế",
+          "Tạo cảm giác được chăm sóc có định hướng",
+          "Hỗ trợ wellness theo cách gần gũi hơn"
+        ]
+      }
+    ]
+  },
+  "journey": {
+    "badge": "Personal Wellness Journey",
+    "title": "Membership được xây dựng như một hành trình tiến triển theo thời gian",
+    "description": "AYANAVITA Membership không dừng ở việc nhận quyền lợi. Nó được thiết kế như một hành trình dài hơn, nơi mỗi giai đoạn đều giúp bạn hiểu bản thân rõ hơn, chăm sóc đều hơn và kết nối sâu hơn với một lối sống wellness phù hợp.",
+    "steps": [
+      {
+        "key": "join",
+        "number": "01",
+        "title": "Join",
+        "description": "Bắt đầu với một lựa chọn rõ ràng hơn cho hành trình chăm sóc bản thân lâu dài.",
+        "icon": "fa-solid fa-user-plus"
+      },
+      {
+        "key": "discover",
+        "number": "02",
+        "title": "Discover",
+        "description": "Từng trải nghiệm giúp bạn hiểu rõ hơn cơ thể, lối sống và nhu cầu hiện tại của mình.",
+        "icon": "fa-solid fa-compass"
+      },
+      {
+        "key": "grow",
+        "number": "03",
+        "title": "Grow",
+        "description": "Từ quyền lợi và định hướng phù hợp, wellness dần trở thành một thói quen có chiều sâu hơn.",
+        "icon": "fa-solid fa-arrow-trend-up"
+      },
+      {
+        "key": "belong",
+        "number": "04",
+        "title": "Belong",
+        "description": "Bạn trở thành một phần của cộng đồng cùng hướng đến sự cân bằng và chất lượng sống bền vững.",
+        "icon": "fa-solid fa-hand-holding-heart"
+      }
+    ],
+    "endingNote": "Một membership có ý nghĩa không chỉ hỗ trợ bạn hôm nay, mà còn giúp bạn duy trì wellness theo cách tự nhiên hơn về lâu dài."
+  },
+  "community": {
+    "badge": "Member Community",
+    "title": "Một cộng đồng giúp hành trình wellness có cảm hứng hơn",
+    "description": "Membership tại AYANAVITA cũng là cánh cửa dẫn tới một không gian kết nối — nơi những người cùng quan tâm đến sức khỏe, sự cân bằng và chất lượng sống có thể tìm thấy cảm hứng, sự đồng hành và nhịp điệu tích cực hơn cho hành trình của mình.",
+    "spotlight": {
+      "badge": "Community Philosophy",
+      "title": "Belonging makes wellness more sustainable",
+      "paragraphs": [
+        "Wellness thường trở nên dễ duy trì hơn khi bạn không phải đi một mình.",
+        "Một cộng đồng đúng không làm thay hành trình của bạn, nhưng giúp hành trình đó trở nên có động lực, có cảm hứng và giàu kết nối hơn."
+      ],
+      "quote": "Membership is not only about benefits. It is about belonging, continuity and growing within a more mindful wellness journey.",
+      "quoteLabel": "AYANAVITA Membership",
+      "note": "Khi cảm giác được kết nối xuất hiện, việc chăm sóc bản thân thường trở nên tự nhiên và bền vững hơn."
+    },
+    "items": [
+      {
+        "key": "connection",
+        "title": "Meaningful Connection",
+        "description": "Kết nối với những người cùng chia sẻ sự quan tâm đến wellness và lối sống cân bằng hơn.",
+        "icon": "fa-solid fa-link"
+      },
+      {
+        "key": "shared-inspiration",
+        "title": "Shared Inspiration",
+        "description": "Cộng đồng giúp tạo ra cảm hứng để bạn tiếp tục hành trình chăm sóc bản thân với nhiều động lực hơn.",
+        "icon": "fa-solid fa-sparkles"
+      },
+      {
+        "key": "wellness-culture",
+        "title": "Wellness Culture",
+        "description": "Membership góp phần tạo nên một văn hóa wellness tích cực, tinh tế và gần gũi hơn mỗi ngày.",
+        "icon": "fa-solid fa-spa"
+      }
+    ]
+  },
+  "closing": {
+    "title": "Become part of the AYANAVITA Membership",
+    "description": "Nếu bạn đang tìm kiếm nhiều hơn một gói quyền lợi thông thường — một hành trình wellness đều đặn hơn, mang tính cá nhân hơn và có cảm giác kết nối lâu dài hơn — AYANAVITA Membership được tạo ra để đồng hành cùng bạn theo cách đó.",
+    "primaryButtonLabel": "Start Membership",
+    "primaryButtonHref": "#",
+    "secondaryButtonLabel": "Contact AYANAVITA",
+    "secondaryButtonHref": "#"
+  }
+}

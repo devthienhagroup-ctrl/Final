@@ -1,0 +1,496 @@
+{
+  "page": {
+    "title": "Qu\u1ea3n l\u00fd t\u00e0i kho\u1ea3n",
+    "subtitle": "C\u1eadp nh\u1eadt th\u00f4ng tin c\u00e1 nh\u00e2n v\u00e0 b\u1ea3o m\u1eadt t\u00e0i kho\u1ea3n",
+    "icons": {
+      "page": "fa-solid fa-user-gear"
+    }
+  },
+  "sidebar": {
+    "header": {
+      "title": "Account Center",
+      "subtitle": "Thi\u1ebft l\u1eadp t\u00e0i kho\u1ea3n"
+    },
+    "items": [
+      {
+        "key": "profile",
+        "label": "Th\u00f4ng tin c\u00e1 nh\u00e2n",
+        "desc": "H\u1ecd t\u00ean, li\u00ean h\u1ec7, \u0111\u1ecba ch\u1ec9",
+        "iconClass": "fa-regular fa-id-card"
+      },
+      {
+        "key": "changePassword",
+        "label": "\u0110\u1ed5i m\u1eadt kh\u1ea9u",
+        "desc": "T\u0103ng c\u01b0\u1eddng b\u1ea3o m\u1eadt",
+        "iconClass": "fa-solid fa-key"
+      },
+      {
+        "key": "forgotPassword",
+        "label": "Qu\u00ean m\u1eadt kh\u1ea9u",
+        "desc": "OTP qua email",
+        "iconClass": "fa-solid fa-shield-halved"
+      },
+      {
+        "key": "myOrders",
+        "label": "\u0110\u01a1n h\u00e0ng c\u1ee7a t\u00f4i",
+        "desc": "Xem v\u00e0 l\u1ecdc c\u00e1c \u0111\u01a1n \u0111\u00e3 \u0111\u1eb7t",
+        "iconClass": "fa-solid fa-box-open"
+      },
+      {
+        "key": "subscriptions",
+        "label": "G\u00f3i \u0111\u0103ng k\u00fd",
+        "desc": "Qu\u1ea3n l\u00fd quota v\u00e0 l\u1ecbch s\u1eed gia h\u1ea1n",
+        "iconClass": "fa-solid fa-layer-group"
+      }
+    ],
+    "footerHint": "M\u1eb9o: H\u00e3y \u0111\u1eb7t m\u1eadt kh\u1ea9u m\u1ea1nh v\u00e0 kh\u00f4ng chia s\u1ebb OTP."
+  },
+  "common": {
+    "loadingText": "\u0110ang x\u1eed l\u00fd...",
+    "emptyValue": "\u2014",
+    "validationTitle": "D\u1eef li\u1ec7u ch\u01b0a h\u1ee3p l\u1ec7",
+    "labels": {
+      "noEmail": "(ch\u01b0a c\u00f3)"
+    },
+    "aria": {
+      "closeToast": "\u0110\u00f3ng th\u00f4ng b\u00e1o"
+    },
+    "actions": {
+      "back": "Quay l\u1ea1i",
+      "save": "L\u01b0u thay \u0111\u1ed5i",
+      "sendOtp": "G\u1eedi OTP",
+      "verifyOtp": "X\u00e1c nh\u1eadn OTP",
+      "resetPassword": "\u0110\u1eb7t l\u1ea1i m\u1eadt kh\u1ea9u",
+      "updatePassword": "C\u1eadp nh\u1eadt m\u1eadt kh\u1ea9u",
+      "close": "\u0110\u00f3ng"
+    }
+  },
+  "profile": {
+    "cardTitle": "Ch\u1ec9nh s\u1eeda th\u00f4ng tin c\u00e1 nh\u00e2n",
+    "cardDesc": "Th\u00f4ng tin n\u00e0y gi\u00fap c\u00e1 nh\u00e2n ho\u00e1 tr\u1ea3i nghi\u1ec7m v\u00e0 h\u1ed7 tr\u1ee3 ch\u0103m s\u00f3c t\u1ed1t h\u01a1n.",
+    "fields": {
+      "fullName": {
+        "label": "H\u1ecd v\u00e0 t\u00ean",
+        "placeholder": "Nh\u1eadp h\u1ecd v\u00e0 t\u00ean",
+        "iconClass": "fa-regular fa-user"
+      },
+      "phone": {
+        "label": "S\u1ed1 \u0111i\u1ec7n tho\u1ea1i",
+        "placeholder": "Nh\u1eadp s\u1ed1 \u0111i\u1ec7n tho\u1ea1i",
+        "iconClass": "fa-solid fa-phone"
+      },
+      "email": {
+        "label": "Email",
+        "placeholder": "Email",
+        "iconClass": "fa-regular fa-envelope",
+        "helper": "Email kh\u00f4ng th\u1ec3 thay \u0111\u1ed5i t\u1ea1i \u0111\u00e2y."
+      },
+      "birthDate": {
+        "label": "Ng\u00e0y sinh",
+        "iconClass": "fa-regular fa-calendar"
+      },
+      "gender": {
+        "label": "Gi\u1edbi t\u00ednh",
+        "iconClass": "fa-solid fa-venus-mars",
+        "options": {
+          "male": "Nam",
+          "female": "N\u1eef",
+          "other": "Kh\u00e1c"
+        }
+      },
+      "address": {
+        "label": "\u0110\u1ecba ch\u1ec9",
+        "placeholder": "Nh\u1eadp \u0111\u1ecba ch\u1ec9",
+        "iconClass": "fa-solid fa-location-dot"
+      }
+    },
+    "toasts": {
+      "saveSuccess": {
+        "title": "Th\u00e0nh c\u00f4ng",
+        "message": "\u0110\u00e3 l\u01b0u th\u00f4ng tin c\u00e1 nh\u00e2n."
+      },
+      "saveFailed": {
+        "title": "Th\u1ea5t b\u1ea1i",
+        "message": "C\u1eadp nh\u1eadt th\u00f4ng tin th\u1ea5t b\u1ea1i."
+      },
+      "loadFailed": {
+        "title": "Kh\u00f4ng t\u1ea3i \u0111\u01b0\u1ee3c",
+        "message": "Kh\u00f4ng t\u1ea3i \u0111\u01b0\u1ee3c th\u00f4ng tin t\u00e0i kho\u1ea3n."
+      }
+    }
+  },
+  "changePassword": {
+    "cardTitle": "\u0110\u1ed5i m\u1eadt kh\u1ea9u",
+    "cardDesc": "X\u00e1c th\u1ef1c m\u1eadt kh\u1ea9u hi\u1ec7n t\u1ea1i tr\u01b0\u1edbc khi \u0111\u1eb7t m\u1eadt kh\u1ea9u m\u1edbi.",
+    "steps": {
+      "verifyCurrent": {
+        "currentPassword": {
+          "label": "M\u1eadt kh\u1ea9u hi\u1ec7n t\u1ea1i",
+          "placeholder": "Nh\u1eadp m\u1eadt kh\u1ea9u hi\u1ec7n t\u1ea1i",
+          "iconClass": "fa-solid fa-lock"
+        },
+        "buttonText": "Ki\u1ec3m tra m\u1eadt kh\u1ea9u"
+      },
+      "setNew": {
+        "newPassword": {
+          "label": "M\u1eadt kh\u1ea9u m\u1edbi",
+          "placeholder": "Nh\u1eadp m\u1eadt kh\u1ea9u m\u1edbi",
+          "iconClass": "fa-solid fa-lock"
+        },
+        "confirmPassword": {
+          "label": "X\u00e1c nh\u1eadn m\u1eadt kh\u1ea9u",
+          "placeholder": "Nh\u1eadp l\u1ea1i m\u1eadt kh\u1ea9u m\u1edbi",
+          "iconClass": "fa-solid fa-lock"
+        }
+      }
+    },
+    "validates": {
+      "currentRequired": "Vui l\u00f2ng nh\u1eadp m\u1eadt kh\u1ea9u hi\u1ec7n t\u1ea1i.",
+      "confirmMismatch": "M\u1eadt kh\u1ea9u x\u00e1c nh\u1eadn ch\u01b0a kh\u1edbp."
+    },
+    "toasts": {
+      "verifiedOk": {
+        "title": "OK",
+        "message": "M\u1eadt kh\u1ea9u hi\u1ec7n t\u1ea1i ch\u00ednh x\u00e1c. H\u00e3y nh\u1eadp m\u1eadt kh\u1ea9u m\u1edbi."
+      },
+      "verifyFailed": {
+        "title": "Sai m\u1eadt kh\u1ea9u",
+        "message": "M\u1eadt kh\u1ea9u hi\u1ec7n t\u1ea1i kh\u00f4ng ch\u00ednh x\u00e1c."
+      },
+      "changeOk": {
+        "title": "Th\u00e0nh c\u00f4ng",
+        "message": "\u0110\u1ed5i m\u1eadt kh\u1ea9u th\u00e0nh c\u00f4ng."
+      },
+      "changeFailed": {
+        "title": "Th\u1ea5t b\u1ea1i",
+        "message": "\u0110\u1ed5i m\u1eadt kh\u1ea9u th\u1ea5t b\u1ea1i."
+      }
+    }
+  },
+  "forgotPassword": {
+    "cardTitle": "Qu\u00ean m\u1eadt kh\u1ea9u",
+    "cardDesc": "X\u00e1c minh OTP qua email \u0111\u1ec3 \u0111\u1eb7t l\u1ea1i m\u1eadt kh\u1ea9u.",
+    "noteRegisteredEmail": "Email \u0111\u00e3 \u0111\u0103ng k\u00fd",
+    "steps": {
+      "email": {
+        "email": {
+          "label": "Email",
+          "placeholder": "Nh\u1eadp \u0111\u00fang email t\u00e0i kho\u1ea3n",
+          "iconClass": "fa-regular fa-envelope"
+        }
+      },
+      "otp": {
+        "otp": {
+          "label": "OTP",
+          "placeholder": "Nh\u1eadp m\u00e3 OTP",
+          "iconClass": "fa-solid fa-hashtag"
+        }
+      },
+      "newPassword": {
+        "newPassword": {
+          "label": "M\u1eadt kh\u1ea9u m\u1edbi",
+          "placeholder": "Nh\u1eadp m\u1eadt kh\u1ea9u m\u1edbi",
+          "iconClass": "fa-solid fa-lock"
+        },
+        "confirmPassword": {
+          "label": "X\u00e1c nh\u1eadn m\u1eadt kh\u1ea9u",
+          "placeholder": "Nh\u1eadp l\u1ea1i m\u1eadt kh\u1ea9u m\u1edbi",
+          "iconClass": "fa-solid fa-lock"
+        }
+      }
+    },
+    "validates": {
+      "emailRequired": "Vui l\u00f2ng nh\u1eadp email t\u00e0i kho\u1ea3n.",
+      "emailMismatch": "Email kh\u00f4ng kh\u1edbp v\u1edbi email t\u00e0i kho\u1ea3n c\u1ee7a b\u1ea1n.",
+      "otpRequired": "Vui l\u00f2ng nh\u1eadp OTP.",
+      "confirmMismatch": "M\u1eadt kh\u1ea9u x\u00e1c nh\u1eadn ch\u01b0a kh\u1edbp."
+    },
+    "toasts": {
+      "otpSent": {
+        "title": "\u0110\u00e3 g\u1eedi OTP",
+        "message": "OTP \u0111\u00e3 \u0111\u01b0\u1ee3c g\u1eedi t\u1edbi email c\u1ee7a b\u1ea1n."
+      },
+      "otpSendFailed": {
+        "title": "Kh\u00f4ng g\u1eedi \u0111\u01b0\u1ee3c",
+        "message": "Kh\u00f4ng g\u1eedi \u0111\u01b0\u1ee3c OTP."
+      },
+      "otpVerified": {
+        "title": "OTP h\u1ee3p l\u1ec7",
+        "message": "OTP h\u1ee3p l\u1ec7. Vui l\u00f2ng nh\u1eadp m\u1eadt kh\u1ea9u m\u1edbi."
+      },
+      "otpVerifyFailed": {
+        "title": "OTP kh\u00f4ng h\u1ee3p l\u1ec7",
+        "message": "OTP kh\u00f4ng h\u1ee3p l\u1ec7 ho\u1eb7c \u0111\u00e3 h\u1ebft h\u1ea1n."
+      },
+      "resetOk": {
+        "title": "Th\u00e0nh c\u00f4ng",
+        "message": "\u0110\u1eb7t l\u1ea1i m\u1eadt kh\u1ea9u th\u00e0nh c\u00f4ng."
+      },
+      "resetFailed": {
+        "title": "Th\u1ea5t b\u1ea1i",
+        "message": "Kh\u00f4ng th\u1ec3 \u0111\u1eb7t l\u1ea1i m\u1eadt kh\u1ea9u."
+      }
+    }
+  },
+  "myOrders": {
+    "cardTitle": "\u0110\u01a1n h\u00e0ng c\u1ee7a t\u00f4i",
+    "cardDesc": "Xem l\u1ecbch s\u1eed \u0111\u1eb7t h\u00e0ng v\u00e0 ki\u1ec3m tra th\u00f4ng tin thanh to\u00e1n, giao h\u00e0ng.",
+    "branchOnline": "Online",
+    "paymentMethods": {
+      "sepay": "Chuy\u1ec3n kho\u1ea3n",
+      "cod": "COD",
+      "unknown": "Kh\u00f4ng x\u00e1c \u0111\u1ecbnh"
+    },
+    "filters": {
+      "keyword": {
+        "label": "T\u00ecm \u0111\u01a1n",
+        "placeholder": "M\u00e3 \u0111\u01a1n, m\u00e3 giao v\u1eadn, ghi ch\u00fa...",
+        "iconClass": "fa-solid fa-magnifying-glass"
+      },
+      "status": {
+        "label": "Tr\u1ea1ng th\u00e1i",
+        "iconClass": "fa-solid fa-filter",
+        "all": "T\u1ea5t c\u1ea3"
+      }
+    },
+    "list": {
+      "title": "Danh s\u00e1ch \u0111\u01a1n h\u00e0ng",
+      "seeDetail": "Xem chi ti\u1ebft \u0111\u01a1n h\u00e0ng",
+      "pay": "Thanh to\u00e1n",
+      "generatingQr": "\u0110ang t\u1ea1o QR..."
+    },
+    "statuses": {
+      "PENDING": "Ch\u1edd x\u00e1c nh\u1eadn",
+      "PENDING_PAYMENT": "Ch\u1edd thanh to\u00e1n",
+      "CANCEL_REQUESTED": "Y\u00eau c\u1ea7u h\u1ee7y",
+      "PAID": "\u0110\u00e3 thanh to\u00e1n",
+      "SHIPPING": "\u0110ang giao h\u00e0ng",
+      "SUCCESS": "Ho\u00e0n th\u00e0nh",
+      "CANCELLED": "\u0110\u00e3 h\u1ee7y",
+      "EXPIRED": "H\u1ebft h\u1ea1n"
+    },
+    "emptyText": "Kh\u00f4ng c\u00f3 \u0111\u01a1n h\u00e0ng ph\u00f9 h\u1ee3p b\u1ed9 l\u1ecdc.",
+    "detailTitle": "Chi ti\u1ebft \u0111\u01a1n h\u00e0ng",
+    "productsTitle": "S\u1ea3n ph\u1ea9m \u0111\u00e3 \u0111\u1eb7t",
+    "sections": {
+      "general": "Th\u00f4ng tin chung",
+      "payment": "Thanh to\u00e1n",
+      "shipping": "Giao h\u00e0ng",
+      "summary": "T\u1ed5ng k\u1ebft thanh to\u00e1n"
+    },
+    "fields": {
+      "createdAt": "Ng\u00e0y t\u1ea1o",
+      "branch": "Chi nh\u00e1nh",
+      "status": "Tr\u1ea1ng th\u00e1i",
+      "paymentMethod": "Ph\u01b0\u01a1ng th\u1ee9c thanh to\u00e1n",
+      "paymentRef": "M\u00e3 giao d\u1ecbch",
+      "paidAt": "Ng\u00e0y thanh to\u00e1n",
+      "receiver": "Ng\u01b0\u1eddi nh\u1eadn",
+      "phone": "S\u0110T nh\u1eadn h\u00e0ng",
+      "address": "\u0110\u1ecba ch\u1ec9 giao h\u00e0ng",
+      "carrier": "\u0110\u01a1n v\u1ecb v\u1eadn chuy\u1ec3n",
+      "trackingCode": "M\u00e3 v\u1eadn \u0111\u01a1n",
+      "expectedDelivery": "D\u1ef1 ki\u1ebfn giao",
+      "orderNote": "Ghi ch\u00fa \u0111\u01a1n h\u00e0ng",
+      "shippingNote": "Ghi ch\u00fa giao v\u1eadn",
+      "subtotal": "T\u1ea1m t\u00ednh",
+      "shipping": "Ph\u00ed v\u1eadn chuy\u1ec3n",
+      "discount": "Gi\u1ea3m gi\u00e1",
+      "total": "T\u1ed5ng thanh to\u00e1n",
+      "quantity": "S\u1ed1 l\u01b0\u1ee3ng",
+      "sku": "SKU",
+      "amount": "S\u1ed1 ti\u1ec1n",
+      "transferContent": "N\u1ed9i dung CK",
+      "expiresAt": "H\u1ea1n thanh to\u00e1n",
+      "timeLeft": "C\u00f2n l\u1ea1i",
+      "orderCode": "\u0110\u01a1n h\u00e0ng"
+    },
+    "actions": {
+      "requestCancel": "Y\u00eau c\u1ea7u h\u1ee7y \u0111\u01a1n",
+      "requestingCancel": "\u0110ang g\u1eedi y\u00eau c\u1ea7u h\u1ee7y...",
+      "payThisOrder": "Thanh to\u00e1n \u0111\u01a1n h\u00e0ng n\u00e0y"
+    },
+    "qrModal": {
+      "title": "Qu\u00e9t m\u00e3 QR \u0111\u1ec3 thanh to\u00e1n",
+      "qrAlt": "QR thanh to\u00e1n",
+      "expiredTitle": "H\u1ebft h\u1ea1n thanh to\u00e1n",
+      "expiredSubtitle": "\u0110\u01a1n h\u00e0ng c\u1ee7a b\u1ea1n \u0111\u00e3 chuy\u1ec3n sang tr\u1ea1ng th\u00e1i h\u1ebft h\u1ea1n.",
+      "activeHint": "Vui l\u00f2ng ho\u00e0n t\u1ea5t thanh to\u00e1n trong 15 ph\u00fat k\u1ec3 t\u1eeb l\u00fac t\u1ea1o \u0111\u01a1n.",
+      "expiredBoxTitle": "H\u1ebft h\u1ea1n thanh to\u00e1n",
+      "expiredBoxSubtitle": "\u0110\u01a1n h\u00e0ng c\u1ee7a b\u1ea1n \u0111\u00e3 chuy\u1ec3n sang tr\u1ea1ng th\u00e1i h\u1ebft h\u1ea1n.",
+      "autoUpdateNote": "Sau khi thanh to\u00e1n th\u00e0nh c\u00f4ng, h\u1ec7 th\u1ed1ng s\u1ebd t\u1ef1 \u0111\u1ed9ng c\u1eadp nh\u1eadt tr\u1ea1ng th\u00e1i \u0111\u01a1n h\u00e0ng.",
+      "expiresAtTitle": "H\u1ea1n"
+    },
+    "toasts": {
+      "loadFailed": {
+        "title": "\u0110\u01a1n h\u00e0ng",
+        "message": "Kh\u00f4ng t\u1ea3i \u0111\u01b0\u1ee3c danh s\u00e1ch \u0111\u01a1n h\u00e0ng."
+      },
+      "qrFailed": {
+        "title": "Thanh to\u00e1n",
+        "message": "Kh\u00f4ng l\u1ea5y \u0111\u01b0\u1ee3c m\u00e3 QR thanh to\u00e1n."
+      },
+      "cancelRequestSuccess": {
+        "title": "\u0110\u01a1n h\u00e0ng",
+        "message": "\u0110\u00e3 g\u1eedi y\u00eau c\u1ea7u h\u1ee7y \u0111\u01a1n th\u00e0nh c\u00f4ng."
+      },
+      "cancelRequestFailed": {
+        "title": "\u0110\u01a1n h\u00e0ng",
+        "message": "Kh\u00f4ng th\u1ec3 g\u1eedi y\u00eau c\u1ea7u h\u1ee7y \u0111\u01a1n."
+      },
+      "paymentSuccess": {
+        "title": "Thanh to\u00e1n",
+        "message": "\u0110\u00e3 thanh to\u00e1n th\u00e0nh c\u00f4ng. \u0110\u01a1n h\u00e0ng \u0111\u00e3 \u0111\u01b0\u1ee3c c\u1eadp nh\u1eadt."
+      },
+      "paymentExpired": {
+        "title": "Thanh to\u00e1n",
+        "message": "Phi\u00ean thanh to\u00e1n \u0111\u00e3 h\u1ebft h\u1ea1n ho\u1eb7c b\u1ecb hu\u1ef7. Vui l\u00f2ng t\u1ea1o l\u1ea1i m\u00e3 QR n\u1ebfu c\u1ea7n."
+      }
+    }
+  },
+  "subscriptions": {
+    "cardTitle": "G\u00f3i \u0111\u0103ng k\u00fd",
+    "cardDesc": "\u0110\u0103ng k\u00fd g\u00f3i, theo d\u00f5i quota v\u00e0 l\u1ecbch s\u1eed gia h\u1ea1n.",
+    "summary": {
+      "currentPlanTitle": "G\u00f3i hi\u1ec7n t\u1ea1i",
+      "cycleLabel": "Chu k\u1ef3",
+      "graceUntilLabel": "Grace \u0111\u1ebfn",
+      "remainingQuota": "Quota c\u00f2n l\u1ea1i",
+      "unlockedCount": "\u0110\u00e3 m\u1edf kh\u00f3a",
+      "unlockNew": "M\u1edf kh\u00f3a m\u1edbi",
+      "canUnlockYes": "C\u00f3",
+      "canUnlockNo": "Kh\u00f4ng",
+      "noActivePass": "B\u1ea1n ch\u01b0a c\u00f3 g\u00f3i \u0111ang ho\u1ea1t \u0111\u1ed9ng. H\u00e3y ch\u1ecdn m\u1ed9t g\u00f3i b\u00ean d\u01b0\u1edbi \u0111\u1ec3 \u0111\u0103ng k\u00fd."
+    },
+    "planList": {
+      "title": "Danh s\u00e1ch g\u00f3i hi\u1ec7n c\u00f3",
+      "emptyText": "Ch\u01b0a c\u00f3 g\u00f3i n\u00e0o \u0111ang m\u1edf."
+    },
+    "planCard": {
+      "quotaLabel": "Quota",
+      "perCycleLabel": "kh\u00f3a h\u1ecdc / chu k\u1ef3",
+      "durationLabel": "Th\u1eddi h\u1ea1n",
+      "graceLabel": "grace",
+      "maxCoursePriceLabel": "Gi\u1edbi h\u1ea1n gi\u00e1 kh\u00f3a h\u1ecdc",
+      "unlimited": "Kh\u00f4ng gi\u1edbi h\u1ea1n",
+      "blockedTagsLabel": "Tag b\u1ecb ch\u1eb7n",
+      "noBlockedTags": "Kh\u00f4ng c\u00f3",
+      "durationUnits": {
+        "month": "th\u00e1ng",
+        "day": "ng\u00e0y"
+      }
+    },
+    "history": {
+      "passTitle": "L\u1ecbch s\u1eed pass / gia h\u1ea1n",
+      "passEmptyText": "Ch\u01b0a c\u00f3 l\u1ecbch s\u1eed \u0111\u0103ng k\u00fd g\u00f3i.",
+      "paymentTitle": "L\u1ecbch s\u1eed thanh to\u00e1n g\u00f3i",
+      "paymentEmptyText": "Ch\u01b0a c\u00f3 l\u1ecbch s\u1eed thanh to\u00e1n.",
+      "remainingQuota": "Quota c\u00f2n l\u1ea1i",
+      "unlockCount": "S\u1ed1 l\u1ea7n m\u1edf kh\u00f3a",
+      "paymentCode": "M\u00e3 thanh to\u00e1n",
+      "amount": "S\u1ed1 ti\u1ec1n",
+      "createdAt": "T\u1ea1o l\u00fac",
+      "transferContent": "N\u1ed9i dung CK",
+      "paidAt": "Thanh to\u00e1n l\u00fac"
+    },
+    "actions": {
+      "processing": "\u0110ang x\u1eed l\u00fd...",
+      "openPaymentQr": "M\u1edf QR thanh to\u00e1n",
+      "renewNow": "Gia h\u1ea1n",
+      "registerAutoRenewal": "\u0110\u0103ng k\u00fd t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n",
+      "cancelAutoRenewal": "H\u1ee7y t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n"
+    },
+    "statuses": {
+      "pass": {
+        "SCHEDULED": "Scheduled",
+        "ACTIVE": "\u0110ang ho\u1ea1t \u0111\u1ed9ng",
+        "GRACE": "Grace",
+        "EXPIRED": "H\u1ebft h\u1ea1n",
+        "CANCELED": "\u0110\u00e3 h\u1ee7y"
+      },
+      "payment": {
+        "PENDING": "Ch\u1edd thanh to\u00e1n",
+        "PAID": "\u0110\u00e3 thanh to\u00e1n",
+        "FAILED": "Th\u1ea5t b\u1ea1i",
+        "EXPIRED": "H\u1ebft h\u1ea1n"
+      }
+    },
+    "qrModal": {
+      "title": "Thanh to\u00e1n g\u00f3i b\u1eb1ng Sepay",
+      "planLabel": "G\u00f3i",
+      "qrAlt": "QR thanh to\u00e1n g\u00f3i",
+      "amount": "S\u1ed1 ti\u1ec1n",
+      "transferContent": "N\u1ed9i dung CK",
+      "timeLeft": "C\u00f2n l\u1ea1i",
+      "expiresAt": "H\u1ebft h\u1ea1n",
+      "expiredMessage": "QR \u0111\u00e3 h\u1ebft h\u1ea1n. Vui l\u00f2ng t\u1ea1o l\u1ea1i thanh to\u00e1n.",
+      "waitingMessage": "Sau khi chuy\u1ec3n kho\u1ea3n \u0111\u00fang n\u1ed9i dung, h\u1ec7 th\u1ed1ng s\u1ebd t\u1ef1 \u0111\u1ed9ng c\u1eadp nh\u1eadt pass v\u00e0 quota."
+    },
+    "toasts": {
+      "loadFailed": {
+        "title": "G\u00f3i \u0111\u0103ng k\u00fd",
+        "message": "Kh\u00f4ng t\u1ea3i \u0111\u01b0\u1ee3c d\u1eef li\u1ec7u g\u00f3i \u0111\u0103ng k\u00fd."
+      },
+      "registerSuccess": {
+        "title": "G\u00f3i \u0111\u0103ng k\u00fd",
+        "message": "\u0110\u0103ng k\u00fd g\u00f3i th\u00e0nh c\u00f4ng."
+      },
+      "qrCreated": {
+        "title": "G\u00f3i \u0111\u0103ng k\u00fd",
+        "message": "\u0110\u00e3 t\u1ea1o QR thanh to\u00e1n cho g\u00f3i h\u1ecdc."
+      },
+      "checkoutFailed": {
+        "title": "G\u00f3i \u0111\u0103ng k\u00fd",
+        "message": "Kh\u00f4ng th\u1ec3 t\u1ea1o thanh to\u00e1n cho g\u00f3i n\u00e0y."
+      },
+      "paymentSuccess": {
+        "title": "G\u00f3i \u0111\u0103ng k\u00fd",
+        "message": "Thanh to\u00e1n g\u00f3i th\u00e0nh c\u00f4ng. Quota \u0111\u00e3 \u0111\u01b0\u1ee3c c\u1eadp nh\u1eadt."
+      },
+      "paymentExpired": {
+        "title": "G\u00f3i \u0111\u0103ng k\u00fd",
+        "message": "Phi\u00ean thanh to\u00e1n g\u00f3i \u0111\u00e3 h\u1ebft h\u1ea1n ho\u1eb7c th\u1ea5t b\u1ea1i."
+      },
+      "cancelAutoRenewalSuccess": {
+        "title": "G\u00f3i \u0111\u0103ng k\u00fd",
+        "message": "\u0110\u00e3 h\u1ee7y t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n th\u00e0nh c\u00f4ng."
+      },
+      "cancelAutoRenewalAlready": {
+        "title": "G\u00f3i \u0111\u0103ng k\u00fd",
+        "message": "G\u00f3i n\u00e0y \u0111\u00e3 \u1edf tr\u1ea1ng th\u00e1i kh\u00f4ng t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n."
+      },
+      "cancelAutoRenewalFailed": {
+        "title": "G\u00f3i \u0111\u0103ng k\u00fd",
+        "message": "Kh\u00f4ng th\u1ec3 h\u1ee7y t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n."
+      },
+      "resumeAutoRenewalSuccess": {
+        "title": "G\u00f3i \u0111\u0103ng k\u00fd",
+        "message": "\u0110\u00e3 b\u1eadt l\u1ea1i t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n th\u00e0nh c\u00f4ng."
+      },
+      "resumeAutoRenewalAlready": {
+        "title": "G\u00f3i \u0111\u0103ng k\u00fd",
+        "message": "G\u00f3i n\u00e0y \u0111\u00e3 b\u1eadt t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n."
+      },
+      "resumeAutoRenewalFailed": {
+        "title": "G\u00f3i \u0111\u0103ng k\u00fd",
+        "message": "Kh\u00f4ng th\u1ec3 b\u1eadt l\u1ea1i t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n."
+      },
+      "scheduledPassExists": {
+        "title": "G\u00f3i \u0111\u0103ng k\u00fd",
+        "message": "B\u1ea1n \u0111\u00e3 c\u00f3 g\u00f3i ch\u1edd cho chu k\u1ef3 ti\u1ebfp theo."
+      },
+      "missingStripeCheckoutUrl": {
+        "title": "G\u00f3i \u0111\u0103ng k\u00fd",
+        "message": "Kh\u00f4ng nh\u1eadn \u0111\u01b0\u1ee3c li\u00ean k\u1ebft thanh to\u00e1n Stripe."
+      }
+    }
+  },
+  "ui": {
+    "badges": {
+      "secure": {
+        "text": "B\u1ea3o m\u1eadt",
+        "iconClass": "fa-solid fa-shield"
+      }
+    }
+  }
+}

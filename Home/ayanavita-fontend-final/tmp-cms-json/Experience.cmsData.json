@@ -1,0 +1,163 @@
+{
+  "hero": {
+    "badge": "The AYANAVITA Experience",
+    "title": "A wellness experience designed around you",
+    "highlight": "designed around you",
+    "paragraphs": [
+      "Mỗi trải nghiệm tại AYANAVITA bắt đầu từ một ý định rất đơn giản: giúp bạn kết nối lại với cơ thể và tìm lại sự cân bằng trong cuộc sống.",
+      "Ngay từ khi bạn bước vào, không gian được thiết kế để mang lại cảm giác bình yên, rõ ràng và tái tạo năng lượng.",
+      "Thông qua những trải nghiệm wellness cá nhân hóa, sự hướng dẫn nhẹ nhàng và các chương trình được thiết kế cẩn thận, AYANAVITA giúp bạn khám phá một nhịp sống khỏe mạnh hơn cho cơ thể và cuộc sống hàng ngày.",
+      "Bởi vì wellness thật sự không chỉ là vẻ ngoài — mà là cảm giác bên trong, cách bạn sống và cách bạn chăm sóc bản thân theo thời gian."
+    ],
+    "chips": [
+      {
+        "text": "Wellness Check-in"
+      },
+      {
+        "text": "Personalized Wellness Programs"
+      },
+      {
+        "text": "Lifestyle Guidance"
+      }
+    ],
+    "actions": [
+      {
+        "label": "Explore The Journey",
+        "href": "#experience-journey",
+        "variant": "primary"
+      },
+      {
+        "label": "Discover Programs",
+        "href": "#experience-pillars",
+        "variant": "secondary"
+      }
+    ],
+    "previewBadge": "AYANAVITA",
+    "previewTitle": "The AYANAVITA Experience",
+    "previewItems": [
+      "Wellness Check-in",
+      "Personalized Wellness Programs",
+      "Lifestyle Guidance"
+    ],
+    "previewQuote": "Wellness không chỉ là vẻ ngoài. Đó là cảm giác bên trong, cách bạn sống và cách bạn quay về trạng thái cân bằng của riêng mình."
+  },
+  "intro": {
+    "badge": "A CALM BEGINNING",
+    "title": "Một hành trình wellness được bắt đầu bằng sự thấu hiểu",
+    "description": "AYANAVITA không bắt đầu từ việc áp dụng một công thức chung cho tất cả mọi người. Chúng tôi bắt đầu từ việc lắng nghe cơ thể, quan sát lối sống và hiểu rõ hơn trạng thái hiện tại của từng cá nhân. Chính từ sự thấu hiểu đó, trải nghiệm wellness mới có thể trở nên tinh tế hơn, phù hợp hơn và có giá trị lâu dài hơn theo thời gian.",
+    "sideCardTitle": "What shapes the experience",
+    "sideCardDescription": "Trải nghiệm tại AYANAVITA được xây dựng như một hành trình nhẹ nhàng nhưng có chiều sâu, nơi sự thấu hiểu, cá nhân hóa và cân bằng cùng kết nối với nhau.",
+    "sidePoints": [
+      "Bắt đầu từ việc hiểu cơ thể và lối sống hiện tại",
+      "Định hướng chăm sóc theo nhu cầu riêng thay vì công thức chung",
+      "Từng bước đưa wellness vào đời sống theo cách tự nhiên hơn"
+    ]
+  },
+  "pillars": {
+    "badge": "EXPERIENCE PILLARS",
+    "title": "Ba phần cốt lõi tạo nên The AYANAVITA Experience",
+    "description": "Mỗi phần đều giữ một vai trò riêng trong hành trình wellness, nhưng khi kết hợp lại, chúng tạo nên một trải nghiệm hài hòa hơn, sâu hơn và phù hợp hơn với từng cá nhân.",
+    "items": [
+      {
+        "key": "check-in",
+        "label": "01 · Wellness Check-in",
+        "title": "Wellness Check-in",
+        "description": "Đây là bước khởi đầu để bạn nhìn lại cơ thể, làn da, mức năng lượng và nhịp sống hiện tại của mình. Thay vì chăm sóc theo cảm tính, AYANAVITA giúp bạn có một điểm bắt đầu rõ ràng hơn — nơi bạn hiểu mình đang ở đâu và điều gì nên được ưu tiên trước.",
+        "iconClass": "fa-solid fa-heart-pulse",
+        "points": [
+          "Hiểu rõ hơn về thể trạng và nhu cầu hiện tại",
+          "Nhìn lại các yếu tố đang ảnh hưởng đến sức khỏe và năng lượng",
+          "Tạo nền tảng cho một hành trình wellness có định hướng rõ ràng"
+        ]
+      },
+      {
+        "key": "programs",
+        "label": "02 · Personalized Programs",
+        "title": "Personalized Wellness Programs",
+        "description": "Từ những thông tin đã được quan sát và tổng hợp, AYANAVITA định hướng những chương trình phù hợp hơn với cơ thể, mục tiêu và nhịp sống riêng của từng người. Mỗi lựa chọn đều hướng tới tính thực tế, khả năng duy trì và sự cân bằng lâu dài.",
+        "iconClass": "fa-solid fa-spa",
+        "points": [
+          "Định hướng chương trình theo nhu cầu thực tế của từng cá nhân",
+          "Kết nối trải nghiệm chăm sóc thành một hành trình có chiều sâu",
+          "Giúp wellness trở nên rõ ràng, gần gũi và dễ duy trì hơn"
+        ]
+      },
+      {
+        "key": "guidance",
+        "label": "03 · Lifestyle Guidance",
+        "title": "Lifestyle Guidance",
+        "description": "Wellness thật sự không dừng lại ở một trải nghiệm đẹp trong không gian đẹp. Nó tiếp tục trong cách bạn nghỉ ngơi, ăn uống, phục hồi và chăm sóc bản thân mỗi ngày. AYANAVITA đưa ra những định hướng nhẹ nhàng để bạn xây dựng một phong cách sống cân bằng hơn theo cách tự nhiên và bền vững.",
+        "iconClass": "fa-solid fa-leaf",
+        "points": [
+          "Gợi ý thói quen sống lành mạnh theo cách thực tế hơn",
+          "Nuôi dưỡng sự cân bằng lâu dài thay vì thay đổi cực đoan",
+          "Hỗ trợ bạn đưa wellness vào đời sống hằng ngày"
+        ]
+      }
+    ]
+  },
+  "journey": {
+    "badge": "THE JOURNEY",
+    "title": "Một timeline rõ ràng, nhẹ nhàng và đi theo từng bước",
+    "description": "Mỗi người đến với AYANAVITA ở một trạng thái khác nhau, vì vậy trải nghiệm được dẫn dắt theo một hành trình rõ ràng để bạn không bị choáng ngợp. Từng bước đều được xây dựng để giúp bạn dễ hiểu hơn, dễ kết nối hơn và dễ tiếp tục hơn.",
+    "steps": [
+      {
+        "number": "01",
+        "title": "Discover",
+        "description": "Bắt đầu bằng việc quan sát cơ thể, làn da, năng lượng và nhịp sống hiện tại của bạn.",
+        "iconClass": "fa-solid fa-compass"
+      },
+      {
+        "number": "02",
+        "title": "Understand",
+        "description": "Làm rõ những yếu tố đang ảnh hưởng đến trạng thái cân bằng, sức khỏe và chất lượng sống mỗi ngày.",
+        "iconClass": "fa-solid fa-brain"
+      },
+      {
+        "number": "03",
+        "title": "Personalize",
+        "description": "Định hướng chương trình và trải nghiệm phù hợp hơn với nhu cầu, mục tiêu và thói quen cá nhân.",
+        "iconClass": "fa-solid fa-sparkles"
+      },
+      {
+        "number": "04",
+        "title": "Support",
+        "description": "Đồng hành để wellness không chỉ là một khoảnh khắc đẹp mà trở thành một phần tự nhiên của cuộc sống lâu dài.",
+        "iconClass": "fa-solid fa-hand-holding-heart"
+      }
+    ]
+  },
+  "philosophy": {
+    "badge": "THE FEELING OF AYANAVITA",
+    "title": "Không chỉ là dịch vụ, mà là cảm giác bạn mang theo sau đó",
+    "description": "Điều tạo nên trải nghiệm AYANAVITA không chỉ nằm ở các dịch vụ riêng lẻ, mà còn nằm ở cảm giác được lắng nghe, được dẫn dắt một cách tinh tế và được chăm sóc theo cách phù hợp hơn với chính mình. Wellness thật sự không chỉ là vẻ ngoài — mà là cảm giác bên trong, cách bạn sống và cách bạn quay về trạng thái cân bằng theo thời gian.",
+    "quoteLabel": "Experience Philosophy",
+    "quote": "Wellness is not only about how you look. It is about how you feel, how you live, and how gently you return to balance over time.",
+    "bottomNote": "Một hành trình wellness tinh tế bắt đầu từ sự thấu hiểu, thay vì áp dụng cùng một cách chăm sóc cho mọi người.",
+    "cards": [
+      {
+        "title": "Clarity",
+        "description": "Giúp bạn hiểu cơ thể và nhu cầu của mình theo cách rõ ràng hơn.",
+        "iconClass": "fa-solid fa-sun"
+      },
+      {
+        "title": "Personal Care",
+        "description": "Trải nghiệm được thiết kế để phù hợp với từng người, không đại trà.",
+        "iconClass": "fa-solid fa-seedling"
+      },
+      {
+        "title": "Long-term Balance",
+        "description": "Hướng đến sự cân bằng bền vững thay vì những thay đổi ngắn hạn.",
+        "iconClass": "fa-solid fa-infinity"
+      }
+    ]
+  },
+  "closing": {
+    "title": "Begin your AYANAVITA experience",
+    "description": "Dù bạn đang tìm kiếm một điểm bắt đầu để hiểu cơ thể hơn, một chương trình phù hợp hơn với bản thân hay một nhịp sống cân bằng hơn mỗi ngày, AYANAVITA luôn mong muốn trở thành nơi đồng hành nhẹ nhàng nhưng có ý nghĩa trên hành trình đó.",
+    "primaryButtonLabel": "Book Your Experience",
+    "primaryButtonHref": "#",
+    "secondaryButtonLabel": "Contact AYANAVITA",
+    "secondaryButtonHref": "#"
+  }
+}

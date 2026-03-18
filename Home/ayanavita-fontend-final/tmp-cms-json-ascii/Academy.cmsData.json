@@ -1,0 +1,212 @@
+{
+  "hero": {
+    "badge": "AYANAVITA Academy",
+    "title": "A modern wellness academy built for learning, practice and long-term growth",
+    "highlight": "learning, practice and long-term growth",
+    "description": "AYANAVITA Academy l\u00e0 kh\u00f4ng gian h\u1ecdc t\u1eadp tr\u1ef1c tuy\u1ebfn d\u00e0nh cho nh\u1eefng ai mu\u1ed1n ti\u1ebfp c\u1eadn wellness theo c\u00e1ch r\u00f5 r\u00e0ng h\u01a1n, b\u00e0i b\u1ea3n h\u01a1n v\u00e0 d\u1ec5 \u1ee9ng d\u1ee5ng h\u01a1n. T\u1ea1i \u0111\u00e2y, ng\u01b0\u1eddi h\u1ecdc c\u00f3 th\u1ec3 kh\u00e1m ph\u00e1 kh\u00f3a h\u1ecdc, mua ch\u01b0\u01a1ng tr\u00ecnh ph\u00f9 h\u1ee3p, h\u1ecdc tr\u1ef1c tuy\u1ebfn ngay tr\u00ean website v\u00e0 t\u1eebng b\u01b0\u1edbc x\u00e2y d\u1ef1ng ki\u1ebfn th\u1ee9c c\u00f9ng k\u1ef9 n\u0103ng theo m\u1ed9t l\u1ed9 tr\u00ecnh tinh g\u1ecdn h\u01a1n.",
+    "pills": [
+      "Professional Training",
+      "Wellness Education",
+      "Certification Programs"
+    ],
+    "actions": [
+      {
+        "label": "Browse Courses",
+        "href": "/courses",
+        "variant": "btn-primary"
+      },
+      {
+        "label": "How It Works",
+        "href": "#academy-flow",
+        "variant": "secondary"
+      }
+    ],
+    "previewBadge": "Online Academy Experience",
+    "previewTitle": "A simpler way to explore and study on the platform",
+    "previewItems": [
+      {
+        "key": "discover",
+        "title": "Discover a course",
+        "subtitle": "T\u00ecm ch\u01b0\u01a1ng tr\u00ecnh ph\u00f9 h\u1ee3p v\u1edbi nhu c\u1ea7u h\u1ecdc t\u1eadp ho\u1eb7c \u0111\u1ecbnh h\u01b0\u1edbng ph\u00e1t tri\u1ec3n.",
+        "iconClass": "fa-solid fa-magnifying-glass"
+      },
+      {
+        "key": "purchase",
+        "title": "Purchase & unlock access",
+        "subtitle": "Mua kh\u00f3a h\u1ecdc tr\u1ef1c tuy\u1ebfn v\u00e0 truy c\u1eadp n\u1ed9i dung h\u1ecdc t\u1eadp ngay tr\u00ean website.",
+        "iconClass": "fa-solid fa-cart-shopping"
+      },
+      {
+        "key": "learn",
+        "title": "Learn at your own pace",
+        "subtitle": "Theo d\u00f5i ti\u1ebfn \u0111\u1ed9, quay l\u1ea1i b\u00e0i h\u1ecdc v\u00e0 h\u1ecdc theo nh\u1ecbp \u0111\u1ed9 ph\u00f9 h\u1ee3p v\u1edbi b\u1ea3n th\u00e2n.",
+        "iconClass": "fa-solid fa-laptop-file"
+      }
+    ],
+    "previewNote": "AYANAVITA Academy kh\u00f4ng ch\u1ec9 l\u00e0 n\u01a1i \u0111\u1eb7t b\u00e0i gi\u1ea3ng, m\u00e0 l\u00e0 m\u1ed9t tr\u1ea3i nghi\u1ec7m h\u1ecdc t\u1eadp \u0111\u01b0\u1ee3c thi\u1ebft k\u1ebf \u0111\u1ec3 r\u00f5 r\u00e0ng, tinh t\u1ebf v\u00e0 d\u1ec5 ti\u1ebfp t\u1ee5c h\u01a1n."
+  },
+  "audience": {
+    "badge": "WHO ACADEMY IS FOR",
+    "title": "M\u1ed9t n\u1ec1n t\u1ea3ng d\u00e0nh cho nhi\u1ec1u giai \u0111o\u1ea1n h\u1ecdc t\u1eadp kh\u00e1c nhau",
+    "description": "AYANAVITA Academy \u0111\u01b0\u1ee3c x\u00e2y d\u1ef1ng cho nh\u1eefng ng\u01b0\u1eddi mu\u1ed1n ti\u1ebfp c\u1eadn wellness m\u1ed9t c\u00e1ch nghi\u00eam t\u00fac h\u01a1n \u2014 d\u00f9 l\u00e0 \u0111\u1ec3 hi\u1ec3u b\u1ea3n th\u00e2n t\u1ed1t h\u01a1n, n\u00e2ng cao k\u1ef9 n\u0103ng chuy\u00ean m\u00f4n hay ho\u00e0n thi\u1ec7n m\u1ed9t l\u1ed9 tr\u00ecnh \u0111\u00e0o t\u1ea1o c\u00f3 chi\u1ec1u s\u00e2u.",
+    "items": [
+      {
+        "key": "self-learners",
+        "label": "01 \u00b7 Self Learners",
+        "title": "Ng\u01b0\u1eddi mu\u1ed1n hi\u1ec3u wellness cho ch\u00ednh m\u00ecnh",
+        "description": "Ph\u00f9 h\u1ee3p v\u1edbi ng\u01b0\u1eddi mu\u1ed1n h\u1ecdc \u0111\u1ec3 ch\u0103m s\u00f3c b\u1ea3n th\u00e2n t\u1ed1t h\u01a1n, hi\u1ec3u h\u01a1n v\u1ec1 c\u01a1 th\u1ec3, l\u1ed1i s\u1ed1ng v\u00e0 s\u1ef1 c\u00e2n b\u1eb1ng d\u00e0i h\u1ea1n.",
+        "iconClass": "fa-solid fa-heart-pulse"
+      },
+      {
+        "key": "professionals",
+        "label": "02 \u00b7 Professionals",
+        "title": "Ng\u01b0\u1eddi mu\u1ed1n n\u00e2ng cao chuy\u00ean m\u00f4n",
+        "description": "D\u00e0nh cho c\u00e1 nh\u00e2n mu\u1ed1n ti\u1ebfp c\u1eadn c\u00e1c ch\u01b0\u01a1ng tr\u00ecnh \u0111\u00e0o t\u1ea1o th\u1ef1c t\u1ebf h\u01a1n \u0111\u1ec3 \u1ee9ng d\u1ee5ng v\u00e0o c\u00f4ng vi\u1ec7c, d\u1ecbch v\u1ee5 ho\u1eb7c ho\u1ea1t \u0111\u1ed9ng t\u01b0 v\u1ea5n.",
+        "iconClass": "fa-solid fa-user-graduate"
+      },
+      {
+        "key": "future-builders",
+        "label": "03 \u00b7 Future Builders",
+        "title": "Ng\u01b0\u1eddi mu\u1ed1n x\u00e2y d\u1ef1ng \u0111\u1ecbnh h\u01b0\u1edbng l\u00e2u d\u00e0i",
+        "description": "Ph\u00f9 h\u1ee3p v\u1edbi ng\u01b0\u1eddi h\u1ecdc mu\u1ed1n \u0111i xa h\u01a1n t\u1eeb ki\u1ebfn th\u1ee9c n\u1ec1n t\u1ea3ng \u0111\u1ebfn nh\u1eefng c\u1ed9t m\u1ed1c ch\u1ee9ng nh\u1eadn v\u00e0 ph\u00e1t tri\u1ec3n chuy\u00ean m\u00f4n b\u1ec1n v\u1eefng.",
+        "iconClass": "fa-solid fa-seedling"
+      }
+    ]
+  },
+  "shelves": {
+    "badge": "FEATURED LEARNING SHELVES",
+    "title": "C\u00e1c nh\u00f3m kh\u00f3a h\u1ecdc \u0111\u01b0\u1ee3c t\u1ed5 ch\u1ee9c nh\u01b0 m\u1ed9t learning library",
+    "description": "Thay v\u00ec tr\u00ecnh b\u00e0y m\u1ecdi th\u1ee9 nh\u01b0 m\u1ed9t timeline gi\u1ed1ng trang tr\u01b0\u1edbc, Academy \u0111\u01b0\u1ee3c chia th\u00e0nh nh\u1eefng c\u1ee5m n\u1ed9i dung r\u00f5 r\u00e0ng h\u01a1n \u0111\u1ec3 ng\u01b0\u1eddi h\u1ecdc d\u1ec5 kh\u00e1m ph\u00e1 kh\u00f3a h\u1ecdc ph\u00f9 h\u1ee3p v\u1edbi m\u00ecnh.",
+    "featuredCourse": {
+      "key": "professional-training",
+      "label": "Professional Training",
+      "title": "Professional Training",
+      "description": "Nh\u1eefng ch\u01b0\u01a1ng tr\u00ecnh \u0111\u00e0o t\u1ea1o chuy\u00ean s\u00e2u d\u00e0nh cho ng\u01b0\u1eddi mu\u1ed1n x\u00e2y d\u1ef1ng n\u1ec1n t\u1ea3ng l\u00e0m vi\u1ec7c b\u00e0i b\u1ea3n h\u01a1n trong l\u0129nh v\u1ef1c wellness, tr\u1ea3i nghi\u1ec7m d\u1ecbch v\u1ee5 ho\u1eb7c v\u1eadn h\u00e0nh ch\u01b0\u01a1ng tr\u00ecnh.",
+      "iconClass": "fa-solid fa-briefcase",
+      "meta": "Structured \u2022 Applied \u2022 Career-Oriented",
+      "bullets": [
+        "\u0110\u00e0o t\u1ea1o theo h\u01b0\u1edbng th\u1ef1c t\u1ebf v\u00e0 c\u00f3 t\u00ednh \u1ee9ng d\u1ee5ng cao",
+        "H\u1ed7 tr\u1ee3 x\u00e2y d\u1ef1ng t\u01b0 duy chuy\u00ean m\u00f4n v\u00e0 quy tr\u00ecnh l\u00e0m vi\u1ec7c r\u00f5 r\u00e0ng",
+        "Ph\u00f9 h\u1ee3p cho ng\u01b0\u1eddi mu\u1ed1n \u0111i s\u00e2u h\u01a1n v\u00e0o l\u0129nh v\u1ef1c wellness"
+      ]
+    },
+    "sideCourses": [
+      {
+        "key": "wellness-education",
+        "label": "Wellness Education",
+        "title": "Wellness Education",
+        "description": "Nh\u1eefng kh\u00f3a h\u1ecdc gi\u00fap ng\u01b0\u1eddi h\u1ecdc ti\u1ebfp c\u1eadn ki\u1ebfn th\u1ee9c wellness theo c\u00e1ch d\u1ec5 hi\u1ec3u, g\u1ea7n g\u0169i v\u00e0 c\u00f3 th\u1ec3 \u00e1p d\u1ee5ng v\u00e0o \u0111\u1eddi s\u1ed1ng h\u1eb1ng ng\u00e0y.",
+        "iconClass": "fa-solid fa-spa",
+        "meta": "Accessible \u2022 Insightful \u2022 Practical",
+        "bullets": [
+          "Ph\u00f9 h\u1ee3p cho ng\u01b0\u1eddi m\u1edbi b\u1eaft \u0111\u1ea7u",
+          "T\u1eadp trung v\u00e0o hi\u1ec3u bi\u1ebft n\u1ec1n t\u1ea3ng v\u00e0 \u1ee9ng d\u1ee5ng th\u1ef1c t\u1ebf"
+        ]
+      },
+      {
+        "key": "certification-programs",
+        "label": "Certification Programs",
+        "title": "Certification Programs",
+        "description": "C\u00e1c ch\u01b0\u01a1ng tr\u00ecnh ch\u1ee9ng nh\u1eadn gi\u00fap ng\u01b0\u1eddi h\u1ecdc ho\u00e0n thi\u1ec7n h\u00e0nh tr\u00ecnh h\u1ecdc t\u1eadp r\u00f5 r\u00e0ng h\u01a1n v\u00e0 \u0111\u00e1nh d\u1ea5u nh\u1eefng c\u1ed9t m\u1ed1c ph\u00e1t tri\u1ec3n chuy\u00ean m\u00f4n.",
+        "iconClass": "fa-solid fa-certificate",
+        "meta": "Milestones \u2022 Credibility \u2022 Progress",
+        "bullets": [
+          "Ho\u00e0n thi\u1ec7n l\u1ed9 tr\u00ecnh h\u1ecdc t\u1eadp c\u00f3 m\u1ee5c ti\u00eau",
+          "T\u1ea1o d\u1ea5u m\u1ed1c ph\u00e1t tri\u1ec3n chuy\u00ean m\u00f4n d\u00e0i h\u1ea1n"
+        ]
+      }
+    ]
+  },
+  "flow": {
+    "badge": "THE LEARNING FLOW",
+    "title": "M\u1ed9t flow h\u1ecdc t\u1eadp ngang, \u0111\u01a1n gi\u1ea3n v\u00e0 li\u1ec1n m\u1ea1ch",
+    "description": "Thay v\u00ec d\u1ef1ng center timeline nh\u01b0 trang tr\u01b0\u1edbc, ph\u1ea7n n\u00e0y chuy\u1ec3n sang d\u1ea1ng flow ngang \u0111\u1ec3 nh\u1ea5n m\u1ea1nh tr\u1ea3i nghi\u1ec7m li\u1ec1n m\u1ea1ch c\u1ee7a n\u1ec1n t\u1ea3ng h\u1ecdc tr\u1ef1c tuy\u1ebfn.",
+    "steps": [
+      {
+        "key": "discover",
+        "number": "01",
+        "title": "Explore",
+        "description": "Kh\u00e1m ph\u00e1 c\u00e1c nh\u00f3m kh\u00f3a h\u1ecdc v\u00e0 ch\u01b0\u01a1ng tr\u00ecnh ph\u00f9 h\u1ee3p v\u1edbi nhu c\u1ea7u ho\u1eb7c m\u1ee5c ti\u00eau h\u1ecdc t\u1eadp.",
+        "iconClass": "fa-solid fa-compass"
+      },
+      {
+        "key": "enroll",
+        "number": "02",
+        "title": "Enroll",
+        "description": "Mua kh\u00f3a h\u1ecdc tr\u1ef1c tuy\u1ebfn v\u00e0 m\u1edf quy\u1ec1n truy c\u1eadp n\u1ed9i dung h\u1ecdc t\u1eadp ngay tr\u00ean website.",
+        "iconClass": "fa-solid fa-credit-card"
+      },
+      {
+        "key": "study",
+        "number": "03",
+        "title": "Study",
+        "description": "H\u1ecdc theo t\u1eebng b\u00e0i, theo d\u00f5i ti\u1ebfn \u0111\u1ed9 v\u00e0 quay l\u1ea1i n\u1ed9i dung b\u1ea5t c\u1ee9 khi n\u00e0o c\u1ea7n.",
+        "iconClass": "fa-solid fa-book-open-reader"
+      },
+      {
+        "key": "grow",
+        "number": "04",
+        "title": "Grow",
+        "description": "Ti\u1ebfp t\u1ee5c ph\u00e1t tri\u1ec3n sang c\u00e1c c\u1ea5p \u0111\u1ed9 h\u1ecdc t\u1eadp ho\u1eb7c ch\u01b0\u01a1ng tr\u00ecnh ch\u1ee9ng nh\u1eadn ti\u1ebfp theo.",
+        "iconClass": "fa-solid fa-arrow-trend-up"
+      }
+    ]
+  },
+  "ecosystem": {
+    "badge": "THE ACADEMY ECOSYSTEM",
+    "title": "M\u1ed9t h\u1ec7 h\u1ecdc t\u1eadp \u0111\u01b0\u1ee3c thi\u1ebft k\u1ebf \u0111\u1ec3 ng\u01b0\u1eddi h\u1ecdc c\u1ea3m th\u1ea5y d\u1ec5 ti\u1ebfp c\u1eadn h\u01a1n",
+    "description": "AYANAVITA Academy \u0111\u01b0\u1ee3c x\u00e2y d\u1ef1ng nh\u01b0 m\u1ed9t learning ecosystem, n\u01a1i n\u1ed9i dung, tr\u1ea3i nghi\u1ec7m n\u1ec1n t\u1ea3ng v\u00e0 \u0111\u1ecbnh h\u01b0\u1edbng ph\u00e1t tri\u1ec3n l\u00e2u d\u00e0i \u0111\u01b0\u1ee3c k\u1ebft n\u1ed1i v\u1edbi nhau thay v\u00ec ho\u1ea1t \u0111\u1ed9ng r\u1eddi r\u1ea1c.",
+    "quoteLabel": "Academy Philosophy",
+    "quote": "Learn with clarity \u2022 Practice with purpose \u2022 Keep growing with long-term value",
+    "features": [
+      {
+        "key": "structured-content",
+        "label": "Structured Content",
+        "title": "N\u1ed9i dung \u0111\u01b0\u1ee3c t\u1ed5 ch\u1ee9c r\u00f5 r\u00e0ng",
+        "description": "B\u00e0i h\u1ecdc, c\u1ee5m kh\u00f3a h\u1ecdc v\u00e0 l\u1ed9 tr\u00ecnh \u0111\u01b0\u1ee3c s\u1eafp x\u1ebfp \u0111\u1ec3 ng\u01b0\u1eddi h\u1ecdc d\u1ec5 theo d\u00f5i v\u00e0 \u00edt b\u1ecb cho\u00e1ng ng\u1ee3p h\u01a1n.",
+        "iconClass": "fa-solid fa-layer-group"
+      },
+      {
+        "key": "online-flexibility",
+        "label": "Flexible Access",
+        "title": "H\u1ecdc tr\u1ef1c tuy\u1ebfn theo nh\u1ecbp \u0111\u1ed9 ri\u00eang",
+        "description": "Ng\u01b0\u1eddi h\u1ecdc c\u00f3 th\u1ec3 truy c\u1eadp n\u1ed9i dung tr\u00ean website v\u00e0 h\u1ecdc v\u00e0o th\u1eddi gian ph\u00f9 h\u1ee3p h\u01a1n v\u1edbi m\u00ecnh.",
+        "iconClass": "fa-solid fa-globe"
+      },
+      {
+        "key": "ongoing-growth",
+        "label": "Long-term Growth",
+        "title": "Ti\u1ebfp t\u1ee5c ph\u00e1t tri\u1ec3n sau m\u1ed7i kh\u00f3a h\u1ecdc",
+        "description": "M\u1ed7i kh\u00f3a h\u1ecdc kh\u00f4ng ch\u1ec9 l\u00e0 m\u1ed9t \u0111i\u1ec3m k\u1ebft th\u00fac, m\u00e0 l\u00e0 b\u01b0\u1edbc m\u1edf sang nh\u1eefng c\u1ea5p \u0111\u1ed9 h\u1ecdc t\u1eadp s\u00e2u h\u01a1n.",
+        "iconClass": "fa-solid fa-seedling"
+      },
+      {
+        "key": "guided-experience",
+        "label": "Guided Experience",
+        "title": "Tr\u1ea3i nghi\u1ec7m h\u1ecdc t\u1eadp c\u00f3 \u0111\u1ecbnh h\u01b0\u1edbng",
+        "description": "M\u1ecdi ph\u1ea7n trong Academy \u0111\u1ec1u h\u01b0\u1edbng t\u1edbi vi\u1ec7c gi\u00fap ng\u01b0\u1eddi h\u1ecdc c\u1ea3m th\u1ea5y r\u00f5 r\u00e0ng h\u01a1n v\u1ec1 b\u01b0\u1edbc ti\u1ebfp theo c\u1ee7a m\u00ecnh.",
+        "iconClass": "fa-solid fa-route"
+      }
+    ]
+  },
+  "certification": {
+    "badge": "CERTIFICATION SPOTLIGHT",
+    "title": "Ch\u1ee9ng nh\u1eadn nh\u01b0 m\u1ed9t c\u1ed9t m\u1ed1c ph\u00e1t tri\u1ec3n thay v\u00ec ch\u1ec9 l\u00e0 ph\u1ea7n th\u01b0\u1edfng cu\u1ed1i kh\u00f3a",
+    "description": "C\u00e1c ch\u01b0\u01a1ng tr\u00ecnh Certification c\u1ee7a AYANAVITA Academy h\u01b0\u1edbng t\u1edbi vi\u1ec7c ghi nh\u1eadn qu\u00e1 tr\u00ecnh h\u1ecdc t\u1eadp nghi\u00eam t\u00fac, \u0111\u1ed3ng th\u1eddi t\u1ea1o th\u00eam \u0111\u1ed9ng l\u1ef1c \u0111\u1ec3 ng\u01b0\u1eddi h\u1ecdc ti\u1ebfp t\u1ee5c ph\u00e1t tri\u1ec3n ki\u1ebfn th\u1ee9c v\u00e0 k\u1ef9 n\u0103ng theo \u0111\u1ecbnh h\u01b0\u1edbng d\u00e0i h\u1ea1n h\u01a1n.",
+    "points": [
+      "\u0110\u00e1nh d\u1ea5u nh\u1eefng c\u1ed9t m\u1ed1c h\u1ecdc t\u1eadp r\u00f5 r\u00e0ng h\u01a1n",
+      "T\u0103ng s\u1ef1 t\u1ef1 tin v\u00e0 t\u00ednh chuy\u00ean nghi\u1ec7p cho h\u00e0nh tr\u00ecnh ph\u00e1t tri\u1ec3n",
+      "M\u1edf ra b\u01b0\u1edbc ti\u1ebfp theo cho vi\u1ec7c h\u1ecdc s\u00e2u h\u01a1n ho\u1eb7c m\u1edf r\u1ed9ng \u0111\u1ecbnh h\u01b0\u1edbng ngh\u1ec1 nghi\u1ec7p"
+    ],
+    "primaryActionLabel": "View Certification Paths",
+    "primaryActionHref": "#"
+  },
+  "closing": {
+    "title": "Begin your learning journey with AYANAVITA Academy",
+    "description": "D\u00f9 b\u1ea1n \u0111ang t\u00ecm ki\u1ebfm m\u1ed9t kh\u00f3a h\u1ecdc \u0111\u1ec3 hi\u1ec3u r\u00f5 h\u01a1n v\u1ec1 wellness, m\u1ed9t ch\u01b0\u01a1ng tr\u00ecnh \u0111\u00e0o t\u1ea1o \u0111\u1ec3 n\u00e2ng cao chuy\u00ean m\u00f4n hay m\u1ed9t h\u00e0nh tr\u00ecnh ch\u1ee9ng nh\u1eadn \u0111\u1ec3 ph\u00e1t tri\u1ec3n d\u00e0i h\u1ea1n, AYANAVITA Academy lu\u00f4n h\u01b0\u1edbng t\u1edbi m\u1ed9t tr\u1ea3i nghi\u1ec7m h\u1ecdc t\u1eadp tr\u1ef1c tuy\u1ebfn r\u00f5 r\u00e0ng, hi\u1ec7n \u0111\u1ea1i v\u00e0 c\u00f3 gi\u00e1 tr\u1ecb th\u1ef1c t\u1ebf h\u01a1n.",
+    "primaryButtonLabel": "Browse All Courses",
+    "primaryButtonHref": "#",
+    "secondaryButtonLabel": "Contact Academy",
+    "secondaryButtonHref": "#"
+  }
+}

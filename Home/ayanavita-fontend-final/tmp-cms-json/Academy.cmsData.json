@@ -1,0 +1,212 @@
+{
+  "hero": {
+    "badge": "AYANAVITA Academy",
+    "title": "A modern wellness academy built for learning, practice and long-term growth",
+    "highlight": "learning, practice and long-term growth",
+    "description": "AYANAVITA Academy là không gian học tập trực tuyến dành cho những ai muốn tiếp cận wellness theo cách rõ ràng hơn, bài bản hơn và dễ ứng dụng hơn. Tại đây, người học có thể khám phá khóa học, mua chương trình phù hợp, học trực tuyến ngay trên website và từng bước xây dựng kiến thức cùng kỹ năng theo một lộ trình tinh gọn hơn.",
+    "pills": [
+      "Professional Training",
+      "Wellness Education",
+      "Certification Programs"
+    ],
+    "actions": [
+      {
+        "label": "Browse Courses",
+        "href": "/courses",
+        "variant": "btn-primary"
+      },
+      {
+        "label": "How It Works",
+        "href": "#academy-flow",
+        "variant": "secondary"
+      }
+    ],
+    "previewBadge": "Online Academy Experience",
+    "previewTitle": "A simpler way to explore and study on the platform",
+    "previewItems": [
+      {
+        "key": "discover",
+        "title": "Discover a course",
+        "subtitle": "Tìm chương trình phù hợp với nhu cầu học tập hoặc định hướng phát triển.",
+        "iconClass": "fa-solid fa-magnifying-glass"
+      },
+      {
+        "key": "purchase",
+        "title": "Purchase & unlock access",
+        "subtitle": "Mua khóa học trực tuyến và truy cập nội dung học tập ngay trên website.",
+        "iconClass": "fa-solid fa-cart-shopping"
+      },
+      {
+        "key": "learn",
+        "title": "Learn at your own pace",
+        "subtitle": "Theo dõi tiến độ, quay lại bài học và học theo nhịp độ phù hợp với bản thân.",
+        "iconClass": "fa-solid fa-laptop-file"
+      }
+    ],
+    "previewNote": "AYANAVITA Academy không chỉ là nơi đặt bài giảng, mà là một trải nghiệm học tập được thiết kế để rõ ràng, tinh tế và dễ tiếp tục hơn."
+  },
+  "audience": {
+    "badge": "WHO ACADEMY IS FOR",
+    "title": "Một nền tảng dành cho nhiều giai đoạn học tập khác nhau",
+    "description": "AYANAVITA Academy được xây dựng cho những người muốn tiếp cận wellness một cách nghiêm túc hơn — dù là để hiểu bản thân tốt hơn, nâng cao kỹ năng chuyên môn hay hoàn thiện một lộ trình đào tạo có chiều sâu.",
+    "items": [
+      {
+        "key": "self-learners",
+        "label": "01 · Self Learners",
+        "title": "Người muốn hiểu wellness cho chính mình",
+        "description": "Phù hợp với người muốn học để chăm sóc bản thân tốt hơn, hiểu hơn về cơ thể, lối sống và sự cân bằng dài hạn.",
+        "iconClass": "fa-solid fa-heart-pulse"
+      },
+      {
+        "key": "professionals",
+        "label": "02 · Professionals",
+        "title": "Người muốn nâng cao chuyên môn",
+        "description": "Dành cho cá nhân muốn tiếp cận các chương trình đào tạo thực tế hơn để ứng dụng vào công việc, dịch vụ hoặc hoạt động tư vấn.",
+        "iconClass": "fa-solid fa-user-graduate"
+      },
+      {
+        "key": "future-builders",
+        "label": "03 · Future Builders",
+        "title": "Người muốn xây dựng định hướng lâu dài",
+        "description": "Phù hợp với người học muốn đi xa hơn từ kiến thức nền tảng đến những cột mốc chứng nhận và phát triển chuyên môn bền vững.",
+        "iconClass": "fa-solid fa-seedling"
+      }
+    ]
+  },
+  "shelves": {
+    "badge": "FEATURED LEARNING SHELVES",
+    "title": "Các nhóm khóa học được tổ chức như một learning library",
+    "description": "Thay vì trình bày mọi thứ như một timeline giống trang trước, Academy được chia thành những cụm nội dung rõ ràng hơn để người học dễ khám phá khóa học phù hợp với mình.",
+    "featuredCourse": {
+      "key": "professional-training",
+      "label": "Professional Training",
+      "title": "Professional Training",
+      "description": "Những chương trình đào tạo chuyên sâu dành cho người muốn xây dựng nền tảng làm việc bài bản hơn trong lĩnh vực wellness, trải nghiệm dịch vụ hoặc vận hành chương trình.",
+      "iconClass": "fa-solid fa-briefcase",
+      "meta": "Structured • Applied • Career-Oriented",
+      "bullets": [
+        "Đào tạo theo hướng thực tế và có tính ứng dụng cao",
+        "Hỗ trợ xây dựng tư duy chuyên môn và quy trình làm việc rõ ràng",
+        "Phù hợp cho người muốn đi sâu hơn vào lĩnh vực wellness"
+      ]
+    },
+    "sideCourses": [
+      {
+        "key": "wellness-education",
+        "label": "Wellness Education",
+        "title": "Wellness Education",
+        "description": "Những khóa học giúp người học tiếp cận kiến thức wellness theo cách dễ hiểu, gần gũi và có thể áp dụng vào đời sống hằng ngày.",
+        "iconClass": "fa-solid fa-spa",
+        "meta": "Accessible • Insightful • Practical",
+        "bullets": [
+          "Phù hợp cho người mới bắt đầu",
+          "Tập trung vào hiểu biết nền tảng và ứng dụng thực tế"
+        ]
+      },
+      {
+        "key": "certification-programs",
+        "label": "Certification Programs",
+        "title": "Certification Programs",
+        "description": "Các chương trình chứng nhận giúp người học hoàn thiện hành trình học tập rõ ràng hơn và đánh dấu những cột mốc phát triển chuyên môn.",
+        "iconClass": "fa-solid fa-certificate",
+        "meta": "Milestones • Credibility • Progress",
+        "bullets": [
+          "Hoàn thiện lộ trình học tập có mục tiêu",
+          "Tạo dấu mốc phát triển chuyên môn dài hạn"
+        ]
+      }
+    ]
+  },
+  "flow": {
+    "badge": "THE LEARNING FLOW",
+    "title": "Một flow học tập ngang, đơn giản và liền mạch",
+    "description": "Thay vì dựng center timeline như trang trước, phần này chuyển sang dạng flow ngang để nhấn mạnh trải nghiệm liền mạch của nền tảng học trực tuyến.",
+    "steps": [
+      {
+        "key": "discover",
+        "number": "01",
+        "title": "Explore",
+        "description": "Khám phá các nhóm khóa học và chương trình phù hợp với nhu cầu hoặc mục tiêu học tập.",
+        "iconClass": "fa-solid fa-compass"
+      },
+      {
+        "key": "enroll",
+        "number": "02",
+        "title": "Enroll",
+        "description": "Mua khóa học trực tuyến và mở quyền truy cập nội dung học tập ngay trên website.",
+        "iconClass": "fa-solid fa-credit-card"
+      },
+      {
+        "key": "study",
+        "number": "03",
+        "title": "Study",
+        "description": "Học theo từng bài, theo dõi tiến độ và quay lại nội dung bất cứ khi nào cần.",
+        "iconClass": "fa-solid fa-book-open-reader"
+      },
+      {
+        "key": "grow",
+        "number": "04",
+        "title": "Grow",
+        "description": "Tiếp tục phát triển sang các cấp độ học tập hoặc chương trình chứng nhận tiếp theo.",
+        "iconClass": "fa-solid fa-arrow-trend-up"
+      }
+    ]
+  },
+  "ecosystem": {
+    "badge": "THE ACADEMY ECOSYSTEM",
+    "title": "Một hệ học tập được thiết kế để người học cảm thấy dễ tiếp cận hơn",
+    "description": "AYANAVITA Academy được xây dựng như một learning ecosystem, nơi nội dung, trải nghiệm nền tảng và định hướng phát triển lâu dài được kết nối với nhau thay vì hoạt động rời rạc.",
+    "quoteLabel": "Academy Philosophy",
+    "quote": "Learn with clarity • Practice with purpose • Keep growing with long-term value",
+    "features": [
+      {
+        "key": "structured-content",
+        "label": "Structured Content",
+        "title": "Nội dung được tổ chức rõ ràng",
+        "description": "Bài học, cụm khóa học và lộ trình được sắp xếp để người học dễ theo dõi và ít bị choáng ngợp hơn.",
+        "iconClass": "fa-solid fa-layer-group"
+      },
+      {
+        "key": "online-flexibility",
+        "label": "Flexible Access",
+        "title": "Học trực tuyến theo nhịp độ riêng",
+        "description": "Người học có thể truy cập nội dung trên website và học vào thời gian phù hợp hơn với mình.",
+        "iconClass": "fa-solid fa-globe"
+      },
+      {
+        "key": "ongoing-growth",
+        "label": "Long-term Growth",
+        "title": "Tiếp tục phát triển sau mỗi khóa học",
+        "description": "Mỗi khóa học không chỉ là một điểm kết thúc, mà là bước mở sang những cấp độ học tập sâu hơn.",
+        "iconClass": "fa-solid fa-seedling"
+      },
+      {
+        "key": "guided-experience",
+        "label": "Guided Experience",
+        "title": "Trải nghiệm học tập có định hướng",
+        "description": "Mọi phần trong Academy đều hướng tới việc giúp người học cảm thấy rõ ràng hơn về bước tiếp theo của mình.",
+        "iconClass": "fa-solid fa-route"
+      }
+    ]
+  },
+  "certification": {
+    "badge": "CERTIFICATION SPOTLIGHT",
+    "title": "Chứng nhận như một cột mốc phát triển thay vì chỉ là phần thưởng cuối khóa",
+    "description": "Các chương trình Certification của AYANAVITA Academy hướng tới việc ghi nhận quá trình học tập nghiêm túc, đồng thời tạo thêm động lực để người học tiếp tục phát triển kiến thức và kỹ năng theo định hướng dài hạn hơn.",
+    "points": [
+      "Đánh dấu những cột mốc học tập rõ ràng hơn",
+      "Tăng sự tự tin và tính chuyên nghiệp cho hành trình phát triển",
+      "Mở ra bước tiếp theo cho việc học sâu hơn hoặc mở rộng định hướng nghề nghiệp"
+    ],
+    "primaryActionLabel": "View Certification Paths",
+    "primaryActionHref": "#"
+  },
+  "closing": {
+    "title": "Begin your learning journey with AYANAVITA Academy",
+    "description": "Dù bạn đang tìm kiếm một khóa học để hiểu rõ hơn về wellness, một chương trình đào tạo để nâng cao chuyên môn hay một hành trình chứng nhận để phát triển dài hạn, AYANAVITA Academy luôn hướng tới một trải nghiệm học tập trực tuyến rõ ràng, hiện đại và có giá trị thực tế hơn.",
+    "primaryButtonLabel": "Browse All Courses",
+    "primaryButtonHref": "#",
+    "secondaryButtonLabel": "Contact Academy",
+    "secondaryButtonHref": "#"
+  }
+}

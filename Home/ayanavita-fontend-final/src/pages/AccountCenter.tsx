@@ -130,7 +130,6 @@ type CmsData = {
 
   common: {
     loadingText: string;
-    requiredMark: string;
     emptyValue: string;
     validationTitle: string;
     labels: {
@@ -142,7 +141,6 @@ type CmsData = {
     actions: {
       back: string;
       save: string;
-      verify: string;
       sendOtp: string;
       verifyOtp: string;
       resetPassword: string;
@@ -158,7 +156,7 @@ type CmsData = {
       fullName: { label: string; placeholder: string; iconClass: string };
       phone: { label: string; placeholder: string; iconClass: string };
       email: { label: string; placeholder: string; iconClass: string; helper?: string };
-      birthDate: { label: string; placeholder: string; iconClass: string };
+      birthDate: { label: string; iconClass: string };
       gender: {
         label: string;
         iconClass: string;
@@ -182,15 +180,12 @@ type CmsData = {
     cardDesc?: string;
     steps: {
       verifyCurrent: {
-        title: string;
         currentPassword: { label: string; placeholder: string; iconClass: string };
         buttonText: string;
       };
       setNew: {
-        title: string;
         newPassword: { label: string; placeholder: string; iconClass: string };
         confirmPassword: { label: string; placeholder: string; iconClass: string };
-        buttonText: string;
       };
     };
     validates: {
@@ -211,15 +206,12 @@ type CmsData = {
     noteRegisteredEmail: string;
     steps: {
       email: {
-        title: string;
         email: { label: string; placeholder: string; iconClass: string };
       };
       otp: {
-        title: string;
         otp: { label: string; placeholder: string; iconClass: string };
       };
       newPassword: {
-        title: string;
         newPassword: { label: string; placeholder: string; iconClass: string };
         confirmPassword: { label: string; placeholder: string; iconClass: string };
       };
@@ -259,7 +251,7 @@ type CmsData = {
       pay: string;
       generatingQr: string;
     };
-    statuses: Record<"all" | OrderStatus, string>;
+    statuses: Record<OrderStatus, string>;
     emptyText: string;
     detailTitle: string;
     productsTitle: string;
@@ -289,7 +281,6 @@ type CmsData = {
       discount: string;
       total: string;
       quantity: string;
-      product: string;
       sku: string;
       amount: string;
       transferContent: string;
@@ -370,13 +361,10 @@ type CmsData = {
     };
     actions: {
       processing: string;
-      renewOrBuyMore: string;
-      subscribe: string;
       openPaymentQr: string;
       renewNow: string;
       registerAutoRenewal: string;
       cancelAutoRenewal: string;
-      cancelAutoRenewalConfirmMessage: string;
     };
     statuses: {
       pass: Record<CoursePassStatus, string>;
@@ -406,6 +394,8 @@ type CmsData = {
       resumeAutoRenewalSuccess: { title: string; message: string };
       resumeAutoRenewalAlready: { title: string; message: string };
       resumeAutoRenewalFailed: { title: string; message: string };
+      scheduledPassExists: { title: string; message: string };
+      missingStripeCheckoutUrl: { title: string; message: string };
     };
   };
 
@@ -466,7 +456,6 @@ const defaultCmsData: CmsData = {
 
   common: {
     loadingText: "Đang xử lý...",
-    requiredMark: "*",
     emptyValue: "—",
     validationTitle: "Dữ liệu chưa hợp lệ",
     labels: {
@@ -478,7 +467,6 @@ const defaultCmsData: CmsData = {
     actions: {
       back: "Quay lại",
       save: "Lưu thay đổi",
-      verify: "Kiểm tra",
       sendOtp: "Gửi OTP",
       verifyOtp: "Xác nhận OTP",
       resetPassword: "Đặt lại mật khẩu",
@@ -499,7 +487,7 @@ const defaultCmsData: CmsData = {
         iconClass: "fa-regular fa-envelope",
         helper: "Email không thể thay đổi tại đây.",
       },
-      birthDate: { label: "Ngày sinh", placeholder: "Chọn ngày sinh", iconClass: "fa-regular fa-calendar" },
+      birthDate: { label: "Ngày sinh", iconClass: "fa-regular fa-calendar" },
       gender: {
         label: "Giới tính",
         iconClass: "fa-solid fa-venus-mars",
@@ -519,16 +507,13 @@ const defaultCmsData: CmsData = {
     cardDesc: "Xác thực mật khẩu hiện tại trước khi đặt mật khẩu mới.",
     steps: {
       verifyCurrent: {
-        title: "Xác thực mật khẩu hiện tại",
         currentPassword: { label: "Mật khẩu hiện tại", placeholder: "Nhập mật khẩu hiện tại", iconClass: "fa-solid fa-lock" },
         buttonText: "Kiểm tra mật khẩu",
       },
       setNew: {
-        title: "Thiết lập mật khẩu mới",
         newPassword: { label: "Mật khẩu mới", placeholder: "Nhập mật khẩu mới", iconClass: "fa-solid fa-lock" },
         confirmPassword: { label: "Xác nhận mật khẩu", placeholder: "Nhập lại mật khẩu mới", iconClass: "fa-solid fa-lock" },
-        buttonText: "Cập nhật mật khẩu",
-      },
+        },
     },
     validates: {
       currentRequired: "Vui lòng nhập mật khẩu hiện tại.",
@@ -548,15 +533,12 @@ const defaultCmsData: CmsData = {
     noteRegisteredEmail: "Email đã đăng ký",
     steps: {
       email: {
-        title: "Nhập email tài khoản",
         email: { label: "Email", placeholder: "Nhập đúng email tài khoản", iconClass: "fa-regular fa-envelope" },
       },
       otp: {
-        title: "Nhập OTP",
         otp: { label: "OTP", placeholder: "Nhập mã OTP", iconClass: "fa-solid fa-hashtag" },
       },
       newPassword: {
-        title: "Đặt mật khẩu mới",
         newPassword: { label: "Mật khẩu mới", placeholder: "Nhập mật khẩu mới", iconClass: "fa-solid fa-lock" },
         confirmPassword: { label: "Xác nhận mật khẩu", placeholder: "Nhập lại mật khẩu mới", iconClass: "fa-solid fa-lock" },
       },
@@ -597,7 +579,6 @@ const defaultCmsData: CmsData = {
       generatingQr: "Đang tạo QR...",
     },
     statuses: {
-      all: "Tất cả",
       PENDING: "Chờ xác nhận",
       PENDING_PAYMENT: "Chờ thanh toán",
       CANCEL_REQUESTED: "Yêu cầu hủy",
@@ -636,7 +617,6 @@ const defaultCmsData: CmsData = {
       discount: "Giảm giá",
       total: "Tổng thanh toán",
       quantity: "Số lượng",
-      product: "Sản phẩm",
       sku: "SKU",
       amount: "Số tiền",
       transferContent: "Nội dung CK",
@@ -671,103 +651,268 @@ const defaultCmsData: CmsData = {
   },
 
   subscriptions: {
-    cardTitle: "Gói đăng ký",
-    cardDesc: "Đăng ký gói, theo dõi quota và lịch sử gia hạn.",
-    summary: {
-      currentPlanTitle: "Gói hiện tại",
-      cycleLabel: "Chu kỳ",
-      graceUntilLabel: "Grace đến",
-      remainingQuota: "Quota còn lại",
-      unlockedCount: "Đã mở khóa",
-      unlockNew: "Mở khóa mới",
-      canUnlockYes: "Có",
-      canUnlockNo: "Không",
-      noActivePass: "Bạn chưa có gói đang hoạt động. Hãy chọn một gói bên dưới để đăng ký.",
+    "header": {
+      "eyebrow": "Membership",
+      "title": "Gói thành viên",
+      "description": "",
+      "historyButton": "Xem lịch sử",
+      "historyButtonIcon": "fa-solid fa-clock-rotate-left",
+      "nextCycleIcon": "fa-solid fa-calendar-days",
+      "activityIcon": "fa-solid fa-chart-line",
+      "closeIcon": "fa-solid fa-xmark",
+      "metrics": {
+        "plans": "Gói khả dụng",
+        "histories": "Bản ghi lịch sử",
+        "renewal": "Chế độ gia hạn"
+      }
     },
-    planList: {
-      title: "Danh sách gói hiện có",
-      emptyText: "Chưa có gói nào đang mở.",
+    "summary": {
+      "currentPlanTitle": "Gói hiện tại",
+      "currentPlanFallback": "Chưa có gói hoạt động",
+      "cycleLabel": "Chu kỳ",
+      "graceUntilLabel": "Grace đến",
+      "remainingQuota": "Quota còn lại",
+      "unlockedCount": "Đã mở khóa",
+      "unlockNew": "Mở khóa mới",
+      "canUnlockYes": "Có",
+      "canUnlockNo": "Không",
+      "noActivePass": "Bạn chưa có gói đang hoạt động. Hãy chọn một gói bên dưới để đăng ký.",
+      "statusCardTitle": "Trạng thái hiện tại",
+      "statusCardDescription": "",
+      "renewalModeLabel": "Chế độ gia hạn"
     },
-    planCard: {
-      quotaLabel: "Quota",
-      perCycleLabel: "khóa học / chu kỳ",
-      durationLabel: "Thời hạn",
-      graceLabel: "grace",
-      maxCoursePriceLabel: "Giới hạn giá khóa học",
-      unlimited: "Không giới hạn",
-      blockedTagsLabel: "Tag bị chặn",
-      noBlockedTags: "Không có",
-      durationUnits: {
-        month: "tháng",
-        day: "ngày",
+    "insights": {
+      "nextCycleTitle": "Kỳ tiếp theo",
+      "nextCycleEmpty": "Chưa có kỳ tiếp theo được lên lịch.",
+      "nextCycleConfirmedLabel": "Đã xác nhận",
+      "nextCyclePendingLabel": "Đang chờ thanh toán",
+      "nextCycleDateLabel": "Bắt đầu",
+      "activityTitle": "Tổng quan nhanh",
+      "activityDescription": "",
+      "paymentTitle": "Thanh toán gần nhất",
+      "paymentEmpty": "Chưa có thanh toán nào.",
+      "paymentAmount": "Số tiền",
+      "paymentCreatedAt": "Tạo lúc",
+      "renewalModes": {
+        "none": "Không tự động gia hạn",
+        "scheduled_cancel": "Đã lên lịch hủy tự động gia hạn",
+        "auto_renew_on": "Tự động gia hạn đang bật"
+      }
+    },
+    "planList": {
+      "title": "Danh sách gói hiện có",
+      "description": "",
+      "emptyText": "Chưa có gói nào đang mở."
+    },
+    "planCard": {
+      "priceLabel": "Giá",
+      "quotaLabel": "Quota",
+      "perCycleLabel": "khóa học / chu kỳ",
+      "durationLabel": "Thời hạn",
+      "durationUnits": {
+        "day": "ngày",
+        "week": "tuần",
+        "month": "tháng",
+        "year": "năm"
       },
+      "graceLabel": "grace",
+      "maxCoursePriceLabel": "Giới hạn giá khóa học",
+      "blockedTagsLabel": "Tag bị chặn",
+      "noBlockedTags": "Không có",
+      "unlimited": "Không giới hạn",
+      "currentPlanBadge": "Đang dùng",
+      "featuredBadge": "Nổi bật",
+      "lowerPlanHint": "Gói này thấp hơn gói bạn đang dùng."
     },
-    history: {
-      passTitle: "Lịch sử pass / gia hạn",
-      passEmptyText: "Chưa có lịch sử đăng ký gói.",
-      paymentTitle: "Lịch sử thanh toán gói",
-      paymentEmptyText: "Chưa có lịch sử thanh toán.",
-      remainingQuota: "Quota còn lại",
-      unlockCount: "Số lần mở khóa",
-      paymentCode: "Mã thanh toán",
-      amount: "Số tiền",
-      createdAt: "Tạo lúc",
-      transferContent: "Nội dung CK",
-      paidAt: "Thanh toán lúc",
+    "history": {
+      "modalTitle": "Lịch sử sử dụng",
+      "modalDescription": "",
+      "passTitle": "Lịch sử pass / gia hạn",
+      "paymentTitle": "Lịch sử thanh toán gói",
+      "passEmptyText": "Chưa có lịch sử đăng ký gói.",
+      "paymentEmptyText": "Chưa có lịch sử thanh toán.",
+      "remainingQuota": "Quota còn lại",
+      "unlockCount": "Số lần mở khóa",
+      "paymentCode": "Mã thanh toán",
+      "amount": "Số tiền",
+      "createdAt": "Tạo lúc",
+      "transferContent": "Nội dung CK",
+      "paidAt": "Thanh toán lúc",
+      "paymentSource": "Nguồn thanh toán",
+      "passesTab": "Pass",
+      "paymentsTab": "Thanh toán",
+      "historyCountLabel": "bản ghi"
     },
-    actions: {
-      processing: "Đang xử lý...",
-      renewOrBuyMore: "Gia hạn / mua tiếp",
-      subscribe: "Đăng ký gói",
-      openPaymentQr: "Mở QR thanh toán",
-      renewNow: "Gia h\u1ea1n",
-      registerAutoRenewal: "\u0110\u0103ng k\u00fd t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n",
-      cancelAutoRenewal: "H\u1ee7y t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n",
-      cancelAutoRenewalConfirmMessage:
-        "G\u00f3i hi\u1ec7n t\u1ea1i v\u1eabn d\u00f9ng \u0111\u1ebfn h\u1ebft chu k\u1ef3, nh\u01b0ng s\u1ebd kh\u00f4ng t\u1ef1 \u0111\u1ed9ng gia h\u1ea1n k\u1ef3 ti\u1ebfp theo. B\u1ea1n c\u00f3 ch\u1eafc ch\u1eafn h\u1ee7y kh\u00f4ng?",
-    },
-    statuses: {
-      pass: {
-        SCHEDULED: "Scheduled",
-        ACTIVE: "Đang hoạt động",
-        GRACE: "Grace",
-        EXPIRED: "Hết hạn",
-        CANCELED: "Đã hủy",
+    "statuses": {
+      "pass": {
+        "SCHEDULED": "Scheduled",
+        "ACTIVE": "Đang hoạt động",
+        "GRACE": "Grace",
+        "EXPIRED": "Hết hạn",
+        "CANCELED": "Đã hủy"
       },
-      payment: {
-        PENDING: "Chờ thanh toán",
-        PAID: "Đã thanh toán",
-        FAILED: "Thất bại",
-        EXPIRED: "Hết hạn",
+      "payment": {
+        "PENDING": "Chờ thanh toán",
+        "PAID": "Đã thanh toán",
+        "FAILED": "Thất bại",
+        "EXPIRED": "Hết hạn"
+      }
+    },
+    "actions": {
+      "processing": "Đang xử lý...",
+      "upgrade": "Nâng cấp",
+      "continue": "Tiếp tục",
+      "renewNow": "Gia hạn",
+      "registerAutoRenewal": "Đăng ký tự động gia hạn",
+      "cancelAutoRenewal": "Hủy tự động gia hạn",
+      "cancelAutoRenewalConfirmTitle": "Hủy tự động gia hạn",
+      "cancelAutoRenewalConfirmButton": "Xác nhận hủy",
+      "choosePaymentMethodTitle": "Chọn phương thức thanh toán",
+      "oneTimeLabel": "Thanh toán 1 lần",
+      "recurringLabel": "Tự động gia hạn",
+      "chooseQr": "QR code",
+      "chooseStripeOneTime": "Thẻ / Stripe",
+      "payNow": "Thanh toán ngay",
+      "openPaymentQr": "Mở QR thanh toán",
+      "stripeRecurringUnavailableTitle": "Gói này chưa hỗ trợ Stripe recurring.",
+      "recurringInfoTitle": "Tiếp tục trải nghiệm liền mạch",
+      "recurringInfoItems": [
+        "Thanh toán định kỳ qua Stripe cho chu kỳ tiếp theo.",
+        "Giảm thao tác lặp lại mỗi lần hết hạn.",
+        "Dễ tạm dừng hoặc hủy khi không còn nhu cầu.",
+        "Phù hợp khi bạn muốn duy trì sử dụng liên tục."
+      ]
+    },
+    "dialogs": {
+      "icons": {
+        "crown": "fa-solid fa-crown",
+        "oneTime": "fa-regular fa-credit-card",
+        "recurring": "fa-solid fa-arrows-rotate",
+        "qr": "fa-solid fa-qrcode",
+        "card": "fa-solid fa-credit-card",
+        "wallet": "fa-solid fa-wallet",
+        "heartShield": "fa-solid fa-shield-heart",
+        "warning": "fa-solid fa-triangle-exclamation",
+        "info": "fa-solid fa-circle-info",
+        "ban": "fa-solid fa-ban",
+        "renew": "fa-solid fa-rotate-right"
       },
+      "checkout": {
+        "oneTimeDescription": "Thanh toán cho một chu kỳ duy nhất. Hình thức này phù hợp khi bạn muốn tự quyết định mỗi lần gia hạn.",
+        "recurringDescription": "Hệ thống tự gia hạn theo chu kỳ để trải nghiệm không bị gián đoạn và giảm thao tác thanh toán lặp lại.",
+        "oneTimePanelTitle": "Chọn phương thức thanh toán 1 lần",
+        "qrDescription": "Quét mã QR để chuyển khoản nhanh qua ngân hàng ngay tại thời điểm này.",
+        "cardDescription": "Thanh toán một lần bằng thẻ qua Stripe, nhanh gọn và bảo mật.",
+        "oneTimeNote": "Bạn chỉ thanh toán cho chu kỳ này. Khi hết hạn, bạn có thể chủ động gia hạn lại.",
+        "recurringNote": "Thanh toán định kỳ được xử lý qua Stripe subscription và sẽ tự động thu tiền ở đầu chu kỳ mới."
+      },
+      "renew": {
+        "panelTitle": "Chọn phương thức gia hạn 1 lần",
+        "qrDescription": "Quét mã QR để gia hạn nhanh cho chu kỳ kế tiếp.",
+        "cardDescription": "Thanh toán một lần bằng thẻ qua Stripe, thao tác nhanh và bảo mật.",
+        "note": "Đây là gia hạn cho một chu kỳ sử dụng. Hệ thống sẽ không tự gia hạn các kỳ sau."
+      },
+      "upgrade": {
+        "title": "Nâng cấp gói",
+        "warningTitle": "Lưu ý trước khi nâng cấp",
+        "warningDescription": "Sau khi thanh toán thành công, gói mới sẽ được kích hoạt ngay và gói hiện tại sẽ dừng hiệu lực.",
+        "confirmTitle": "Xác nhận tiếp tục",
+        "confirmDescription": "Chỉ tiếp tục khi bạn đồng ý chuyển sang gói mới ngay lúc này."
+      },
+      "subscribeRecurring": {
+        "title": "Đăng ký tự động gia hạn",
+        "confirmButton": "Tiếp tục",
+        "infoTitle": "Tự động gia hạn cho các kỳ tiếp theo",
+        "infoDescription": "Bạn sẽ thanh toán trước cho kỳ kế tiếp. Từ các kỳ sau, hệ thống sẽ tự động gia hạn qua Stripe để tránh gián đoạn dịch vụ.",
+        "fitTitle": "Phù hợp khi",
+        "fitDescription": "Bạn muốn tiếp tục sử dụng ổn định và không muốn thao tác thanh toán lại mỗi tháng."
+      },
+      "cancelAutoRenew": {
+        "warningTitle": "Sau khi hủy tự động gia hạn",
+        "warningDescription": "Gói vẫn tiếp tục dùng đến hết chu kỳ hiện tại, sau đó hệ thống sẽ không tạo kỳ mới tự động nữa.",
+        "infoTitle": "Bạn vẫn có thể bật lại sau",
+        "infoDescription": "Khi cần, bạn vẫn có thể bật lại tự động gia hạn hoặc gia hạn thủ công cho các kỳ tiếp theo."
+      },
+      "messages": {
+        "alreadyScheduledTitle": "Đã có gói chờ kỳ sau",
+        "alreadyScheduledRenewText": "Bạn đã có gói cho kỳ tiếp theo nên chưa thể gia hạn thêm.",
+        "alreadyScheduledRecurringText": "Bạn đã có gói cho kỳ tiếp theo nên chưa thể bật tự động gia hạn thêm.",
+        "scheduledConfirmedHint": "Đã có gói cho kỳ tiếp theo từ {date}.",
+        "scheduledPendingHint": "Đã có yêu cầu cho kỳ tiếp theo từ {date}, đang chờ thanh toán."
+      }
     },
-    qrModal: {
-      title: "Thanh toán gói bằng Sepay",
-      planLabel: "Gói",
-      qrAlt: "QR thanh toán gói",
-      amount: "Số tiền",
-      transferContent: "Nội dung CK",
-      timeLeft: "Còn lại",
-      expiresAt: "Hết hạn",
-      expiredMessage: "QR đã hết hạn. Vui lòng tạo lại thanh toán.",
-      waitingMessage: "Sau khi chuyển khoản đúng nội dung, hệ thống sẽ tự động cập nhật pass và quota.",
+    "qrModal": {
+      "title": "Thanh toán gói bằng Sepay",
+      "planLabel": "Gói",
+      "qrAlt": "QR thanh toán gói",
+      "amount": "Số tiền",
+      "transferContent": "Nội dung CK",
+      "timeLeft": "Còn lại",
+      "expiresAt": "Hết hạn",
+      "expiredMessage": "QR đã hết hạn. Vui lòng tạo lại thanh toán.",
+      "waitingMessage": "Sau khi chuyển khoản đúng nội dung, hệ thống sẽ tự động cập nhật pass và quota."
     },
-    toasts: {
-      loadFailed: { title: "Gói đăng ký", message: "Không tải được dữ liệu gói đăng ký." },
-      registerSuccess: { title: "Gói đăng ký", message: "Đăng ký gói thành công." },
-      qrCreated: { title: "Gói đăng ký", message: "Đã tạo QR thanh toán cho gói học." },
-      checkoutFailed: { title: "Gói đăng ký", message: "Không thể tạo thanh toán cho gói này." },
-      paymentSuccess: { title: "Gói đăng ký", message: "Thanh toán gói thành công. Quota đã được cập nhật." },
-      paymentExpired: { title: "Gói đăng ký", message: "Phiên thanh toán gói đã hết hạn hoặc thất bại." },
-      cancelAutoRenewalSuccess: { title: "Gói đăng ký", message: "Đã hủy tự động gia hạn thành công." },
-      cancelAutoRenewalAlready: { title: "Gói đăng ký", message: "Gói này đã ở trạng thái không tự động gia hạn." },
-      cancelAutoRenewalFailed: { title: "Gói đăng ký", message: "Không thể hủy tự động gia hạn." },
-
-      resumeAutoRenewalSuccess: { title: "Gói đăng ký", message: "Đã bật lại tự động gia hạn thành công." },
-      resumeAutoRenewalAlready: { title: "Gói đăng ký", message: "Gói này đã bật tự động gia hạn." },
-      resumeAutoRenewalFailed: { title: "Gói đăng ký", message: "Không thể bật lại tự động gia hạn." },
-    },
-  },
+    "cardTitle": "Gói đăng ký",
+    "cardDesc": "Đăng ký gói, theo dõi quota và lịch sử gia hạn.",
+    "toasts": {
+      "loadFailed": {
+        "title": "Gói đăng ký",
+        "message": "Không tải được dữ liệu gói đăng ký."
+      },
+      "registerSuccess": {
+        "title": "Gói đăng ký",
+        "message": "Đăng ký gói thành công."
+      },
+      "qrCreated": {
+        "title": "Gói đăng ký",
+        "message": "Đã tạo QR thanh toán cho gói học."
+      },
+      "checkoutFailed": {
+        "title": "Gói đăng ký",
+        "message": "Không thể tạo thanh toán cho gói này."
+      },
+      "paymentSuccess": {
+        "title": "Gói đăng ký",
+        "message": "Thanh toán gói thành công. Quota đã được cập nhật."
+      },
+      "paymentExpired": {
+        "title": "Gói đăng ký",
+        "message": "Phiên thanh toán gói đã hết hạn hoặc thất bại."
+      },
+      "cancelAutoRenewalSuccess": {
+        "title": "Gói đăng ký",
+        "message": "Đã hủy tự động gia hạn thành công."
+      },
+      "cancelAutoRenewalAlready": {
+        "title": "Gói đăng ký",
+        "message": "Gói này đã ở trạng thái không tự động gia hạn."
+      },
+      "cancelAutoRenewalFailed": {
+        "title": "Gói đăng ký",
+        "message": "Không thể hủy tự động gia hạn."
+      },
+      "resumeAutoRenewalSuccess": {
+        "title": "Gói đăng ký",
+        "message": "Đã bật lại tự động gia hạn thành công."
+      },
+      "resumeAutoRenewalAlready": {
+        "title": "Gói đăng ký",
+        "message": "Gói này đã bật tự động gia hạn."
+      },
+      "resumeAutoRenewalFailed": {
+        "title": "Gói đăng ký",
+        "message": "Không thể bật lại tự động gia hạn."
+      },
+      "scheduledPassExists": {
+        "title": "Gói đăng ký",
+        "message": "Bạn đã có gói chờ cho chu kỳ tiếp theo."
+      },
+      "missingStripeCheckoutUrl": {
+        "title": "Gói đăng ký",
+        "message": "Không nhận được liên kết thanh toán Stripe."
+      }
+    }
+  } as any,
 
   ui: {
     badges: {
@@ -1388,7 +1533,11 @@ export default function AccountCenter() {
         });
 
         if (hasScheduledPass) {
-          pushToast("info", cms.subscriptions.toasts.checkoutFailed.title, "You already have a scheduled pass for the next cycle");
+          pushToast(
+            "info",
+            cms.subscriptions.toasts.scheduledPassExists.title,
+            cms.subscriptions.toasts.scheduledPassExists.message,
+          );
           return;
         }
       }
@@ -1407,7 +1556,12 @@ export default function AccountCenter() {
 
       if (res.mode === "STRIPE") {
         if (!res.checkoutUrl) {
-          throw new Error("Kh\u00f4ng nh\u1eadn \u0111\u01b0\u1ee3c li\u00ean k\u1ebft thanh to\u00e1n Stripe.");
+          pushToast(
+            "error",
+            cms.subscriptions.toasts.missingStripeCheckoutUrl.title,
+            cms.subscriptions.toasts.missingStripeCheckoutUrl.message,
+          );
+          return;
         }
         window.location.href = res.checkoutUrl;
         return;
@@ -1441,12 +1595,6 @@ export default function AccountCenter() {
   }, [fetchSubscriptionData, cms]);
 
   const onCancelAutoRenewal = useCallback(async (pass: CoursePass) => {
-    const confirmMessage = cms.subscriptions.actions.cancelAutoRenewalConfirmMessage;
-
-    // if (!window.confirm(confirmMessage)) {
-    //   return;
-    // }
-
     try {
       setSubscriptionActionPlanId(pass.plan.id);
       const result = await coursePlansApi.cancelAutoRenewal({ passId: pass.id, planId: pass.plan.id });
@@ -2123,4 +2271,5 @@ export default function AccountCenter() {
 
 // Export CMS mặc định (để update DB / tái sử dụng)
 export { defaultCmsData as cmsData, defaultCmsData, deepMerge };
+
 

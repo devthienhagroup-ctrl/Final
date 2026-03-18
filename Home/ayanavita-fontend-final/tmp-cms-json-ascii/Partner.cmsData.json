@@ -1,0 +1,200 @@
+{
+  "brand": {
+    "short": "AYA",
+    "name": "AYANAVITA",
+    "tagline": "Partner Landing Demo"
+  },
+  "hero": {
+    "badge": "Partnership Opportunities",
+    "title": "Partner with AYANAVITA",
+    "description": "Bring a new level of wellness experience to your spa, salon, or studio. AYANAVITA helps wellness professionals create personalized experiences that combine beauty, wellbeing, and lifestyle guidance in a way that feels modern, holistic, and meaningful.",
+    "primaryCta": "Apply to Become a Partner",
+    "secondaryCta": "Explore Partnership Models",
+    "tags": [
+      "Licensed Partner",
+      "Professional Training",
+      "Distribution Partner"
+    ],
+    "mainImage": "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=1400&q=80",
+    "sideImage": "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?auto=format&fit=crop&w=1000&q=80"
+  },
+  "whyPartner": {
+    "badge": "Why Partner",
+    "title": "Why Partner with AYANAVITA?",
+    "description": "Today\u2019s clients are looking for more than traditional beauty or spa services. They want experiences that feel thoughtful, personalized, calming, and connected to their overall wellbeing.",
+    "items": [
+      {
+        "icon": "\u2726",
+        "iconClass": "bg-indigo-100 text-indigo-600",
+        "title": "Personalized Wellness Experience",
+        "description": "Offer services that feel more tailored, intentional, and meaningful for each client."
+      },
+      {
+        "icon": "\u274b",
+        "iconClass": "bg-emerald-100 text-emerald-600",
+        "title": "Modern Wellness Positioning",
+        "description": "Elevate your brand with a concept that connects beauty, wellbeing, and lifestyle."
+      },
+      {
+        "icon": "\u2727",
+        "iconClass": "bg-amber-100 text-amber-500",
+        "title": "Simple to Integrate",
+        "description": "Bring the AYANAVITA concept into your service environment with guided support."
+      }
+    ]
+  },
+  "partnerValue": {
+    "badge": "Partner Value",
+    "title": "What You Receive as a Partner",
+    "description": "As an AYANAVITA partner, you receive a structured foundation to introduce a more elevated wellness experience to your clients.",
+    "items": [
+      {
+        "icon": "\u25ce",
+        "iconClass": "bg-indigo-100 text-indigo-600",
+        "title": "Brand Use",
+        "description": "The right to use the AYANAVITA brand within the scope of the partnership model."
+      },
+      {
+        "icon": "\u25cc",
+        "iconClass": "bg-cyan-100 text-cyan-600",
+        "title": "Standardized Programs",
+        "description": "Access to curated wellness concepts and structured service frameworks."
+      },
+      {
+        "icon": "\u25b3",
+        "iconClass": "bg-emerald-100 text-emerald-600",
+        "title": "Operational Guidance",
+        "description": "Support for onboarding, implementation, and service delivery."
+      },
+      {
+        "icon": "\u2737",
+        "iconClass": "bg-amber-100 text-amber-500",
+        "title": "Service Development Support",
+        "description": "Guidance to help you shape and expand your wellness offering with confidence."
+      }
+    ]
+  },
+  "audience": {
+    "badge": "Who It Is For",
+    "title": "Who Can Become an AYANAVITA Partner?",
+    "description": "AYANAVITA welcomes partners who want to offer more meaningful and personalized wellness experiences to their clients.",
+    "items": [
+      "Spa",
+      "Beauty Salon",
+      "Wellness Studio",
+      "Hotel Spa",
+      "Health Club"
+    ]
+  },
+  "models": {
+    "items": [
+      {
+        "badge": "Licensed Partner",
+        "title": "Become an AYANAVITA Licensed Partner",
+        "description": [
+          "AYANAVITA partners with spas, salons, and wellness studios that want to bring more personalized care experiences to their clients.",
+          "Through the Licensed Partner model, partners can work with the AYANAVITA brand, concept, and wellness programs to strengthen and expand their service offering."
+        ],
+        "bullets": [
+          "The right to use the AYANAVITA brand",
+          "Standardized wellness programs",
+          "Service implementation guidance",
+          "Training and operational support"
+        ],
+        "cta": "Apply to Become a Partner",
+        "image": "https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&w=1400&q=80",
+        "imageLabel": "Personalized care \u2022 Premium wellness"
+      },
+      {
+        "badge": "Professional Training",
+        "title": "Professional Training",
+        "description": [
+          "AYANAVITA also offers training programs for wellness professionals and partners who want to better understand and correctly apply the methods behind the system."
+        ],
+        "bullets": [
+          "Understand the AYANAVITA wellness philosophy",
+          "Apply standardized care protocols",
+          "Elevate the overall client experience"
+        ],
+        "image": "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&w=1400&q=80",
+        "imageLabel": "For professionals & teams",
+        "reverse": true
+      },
+      {
+        "badge": "Distribution Partner",
+        "title": "Distribution Partner",
+        "description": [
+          "AYANAVITA welcomes distribution partners who want to bring wellness products from the ecosystem to a wider audience.",
+          "Distribution partners may collaborate in the development and distribution of products such as:"
+        ],
+        "bullets": [
+          "Collagen",
+          "Herbal Products",
+          "Wellness Products"
+        ],
+        "image": "https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=1400&q=80",
+        "imageLabel": "Herbal \u2022 Collagen \u2022 Wellness products"
+      }
+    ]
+  },
+  "process": {
+    "badge": "Process",
+    "title": "How the Partnership Works",
+    "description": "Our partnership process is designed to be clear, supportive, and easy to follow.",
+    "items": [
+      {
+        "step": "01",
+        "title": "Apply",
+        "description": "Submit your partnership interest and tell us about your business."
+      },
+      {
+        "step": "02",
+        "title": "Consultation",
+        "description": "Receive an introduction to the AYANAVITA concept and partnership model."
+      },
+      {
+        "step": "03",
+        "title": "Training & Onboarding",
+        "description": "Get guidance, training, and a structured setup process for launch."
+      },
+      {
+        "step": "04",
+        "title": "Start Offering",
+        "description": "Bring AYANAVITA experiences to your clients with confidence and clarity."
+      }
+    ]
+  },
+  "cta": {
+    "badge": "Apply Now",
+    "title": "Start Your AYANAVITA Partnership Journey",
+    "description": "Join a growing wellness ecosystem and bring personalized wellness experiences to your clients.",
+    "primaryCta": "Become an AYANAVITA Partner",
+    "secondaryCta": "Contact Our Team"
+  },
+  "inquiry": {
+    "addressLabel": "Address",
+    "centerName": "AYANAVITA Partner Center",
+    "address": "123 Wellness Avenue, District 1, Ho Chi Minh City",
+    "contactItems": [
+      "\u260e +84 28 1234 5678",
+      "\u2709 partner@ayanavita.com",
+      "\ud83d\udd58 8:00 \u2013 18:00 (Mon \u2013 Sat)"
+    ],
+    "title": "Send a Partnership Inquiry",
+    "description": "Prototype UI \u2014 later this section can connect to API and save leads into DB/CRM.",
+    "fields": {
+      "fullName": "Full name",
+      "phone": "Phone number",
+      "email": "Email",
+      "partnershipInterest": "Partnership interest",
+      "message": "Tell us more about your business or partnership goals...",
+      "submit": "Send Inquiry",
+      "options": [
+        "Partnership interest",
+        "Licensed Partner",
+        "Professional Training",
+        "Distribution Partner"
+      ]
+    }
+  }
+}

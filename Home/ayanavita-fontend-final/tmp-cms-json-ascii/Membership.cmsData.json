@@ -1,0 +1,177 @@
+{
+  "hero": {
+    "badge": "AYANAVITA Membership",
+    "title": "A membership experience that stays with you longer",
+    "highlight": "stays with you longer",
+    "description": "Membership t\u1ea1i AYANAVITA \u0111\u01b0\u1ee3c thi\u1ebft k\u1ebf nh\u01b0 m\u1ed9t l\u1edbp tr\u1ea3i nghi\u1ec7m s\u00e2u h\u01a1n d\u00e0nh cho nh\u1eefng ai mu\u1ed1n duy tr\u00ec wellness theo c\u00e1ch \u0111\u1ec1u \u0111\u1eb7n, tinh t\u1ebf v\u00e0 c\u00f3 \u0111\u1ecbnh h\u01b0\u1edbng h\u01a1n. \u0110\u00e2y kh\u00f4ng ch\u1ec9 l\u00e0 quy\u1ec1n l\u1ee3i th\u00e0nh vi\u00ean, m\u00e0 l\u00e0 m\u1ed9t c\u00e1ch \u0111\u1ec3 b\u1ea1n \u0111\u01b0\u1ee3c ch\u0103m s\u00f3c g\u1eafn k\u1ebft h\u01a1n v\u1edbi c\u01a1 th\u1ec3, l\u1ed1i s\u1ed1ng v\u00e0 c\u1ed9ng \u0111\u1ed3ng wellness xung quanh m\u00ecnh.",
+    "chips": [
+      {
+        "text": "Benefits"
+      },
+      {
+        "text": "Personal Wellness Journey"
+      },
+      {
+        "text": "Member Community"
+      }
+    ],
+    "actions": [
+      {
+        "label": "Explore Membership",
+        "href": "#membership-benefits",
+        "variant": "primary"
+      },
+      {
+        "label": "See Community",
+        "href": "#membership-community",
+        "variant": "secondary"
+      }
+    ],
+    "previewBadge": "Membership Overview",
+    "previewTitle": "Designed for continuity, connection and care",
+    "previewNote": "M\u1ed9t membership t\u1ed1t kh\u00f4ng ch\u1ec9 mang l\u1ea1i quy\u1ec1n l\u1ee3i, m\u00e0 c\u00f2n t\u1ea1o ra c\u1ea3m gi\u00e1c \u0111\u01b0\u1ee3c \u0111\u1ed3ng h\u00e0nh \u0111\u1ec1u \u0111\u1eb7n h\u01a1n trong h\u00e0nh tr\u00ecnh wellness.",
+    "previewItems": [
+      {
+        "key": "preview-benefits",
+        "title": "Thoughtful Benefits",
+        "description": "Nh\u1eefng quy\u1ec1n l\u1ee3i \u0111\u01b0\u1ee3c thi\u1ebft k\u1ebf \u0111\u1ec3 h\u1ed7 tr\u1ee3 tr\u1ea3i nghi\u1ec7m wellness l\u00e2u d\u00e0i h\u01a1n.",
+        "icon": "fa-solid fa-gem"
+      },
+      {
+        "key": "preview-journey",
+        "title": "Personal Journey",
+        "description": "M\u1ed9t h\u00e0nh tr\u00ecnh \u0111\u01b0\u1ee3c nu\u00f4i d\u01b0\u1ee1ng theo nh\u1ecbp s\u1ed1ng v\u00e0 nhu c\u1ea7u ri\u00eang c\u1ee7a t\u1eebng ng\u01b0\u1eddi.",
+        "icon": "fa-solid fa-seedling"
+      },
+      {
+        "key": "preview-community",
+        "title": "Member Community",
+        "description": "S\u1ef1 k\u1ebft n\u1ed1i gi\u00fap wellness tr\u1edf n\u00ean c\u00f3 c\u1ea3m h\u1ee9ng v\u00e0 b\u1ec1n v\u1eefng h\u01a1n m\u1ed7i ng\u00e0y.",
+        "icon": "fa-solid fa-people-group"
+      }
+    ]
+  },
+  "benefits": {
+    "badge": "Membership Benefits",
+    "title": "Quy\u1ec1n l\u1ee3i \u0111\u01b0\u1ee3c thi\u1ebft k\u1ebf \u0111\u1ec3 n\u00e2ng tr\u1ea3i nghi\u1ec7m wellness m\u1ed7i ng\u00e0y",
+    "description": "Thay v\u00ec ch\u1ec9 l\u00e0 \u01b0u \u0111\u00e3i \u0111\u01a1n l\u1ebb, quy\u1ec1n l\u1ee3i th\u00e0nh vi\u00ean t\u1ea1i AYANAVITA \u0111\u01b0\u1ee3c x\u00e2y d\u1ef1ng nh\u01b0 nh\u1eefng l\u1edbp gi\u00e1 tr\u1ecb b\u1ed5 sung gi\u00fap tr\u1ea3i nghi\u1ec7m tr\u1edf n\u00ean thu\u1eadn ti\u1ec7n h\u01a1n, c\u00e1 nh\u00e2n h\u01a1n v\u00e0 \u0111\u00e1ng duy tr\u00ec h\u01a1n.",
+    "items": [
+      {
+        "key": "priority-access",
+        "label": "01 \u00b7 Priority Access",
+        "title": "Ti\u1ebfp c\u1eadn thu\u1eadn ti\u1ec7n h\u01a1n v\u1edbi c\u00e1c tr\u1ea3i nghi\u1ec7m n\u1ed5i b\u1eadt",
+        "description": "Membership mang l\u1ea1i s\u1ef1 ch\u1ee7 \u0111\u1ed9ng h\u01a1n trong vi\u1ec7c ti\u1ebfp c\u1eadn c\u00e1c tr\u1ea3i nghi\u1ec7m, ch\u01b0\u01a1ng tr\u00ecnh m\u1edbi v\u00e0 nh\u1eefng d\u1ecbch v\u1ee5 ph\u00f9 h\u1ee3p v\u1edbi nh\u1ecbp ch\u0103m s\u00f3c c\u1ee7a ri\u00eang b\u1ea1n.",
+        "icon": "fa-solid fa-crown",
+        "points": [
+          "Ti\u1ebfp c\u1eadn s\u1edbm h\u01a1n v\u1edbi ch\u01b0\u01a1ng tr\u00ecnh n\u1ed5i b\u1eadt",
+          "\u0110\u1eb7t l\u1ecbch ch\u1ee7 \u0111\u1ed9ng v\u00e0 thu\u1eadn ti\u1ec7n h\u01a1n",
+          "D\u1ec5 duy tr\u00ec nh\u1ecbp ch\u0103m s\u00f3c \u0111\u1ec1u \u0111\u1eb7n h\u01a1n"
+        ]
+      },
+      {
+        "key": "exclusive-value",
+        "label": "02 \u00b7 Exclusive Value",
+        "title": "Gi\u00e1 tr\u1ecb d\u00e0nh ri\u00eang cho th\u00e0nh vi\u00ean",
+        "description": "Nh\u1eefng quy\u1ec1n l\u1ee3i ri\u00eang gi\u00fap h\u00e0nh tr\u00ecnh wellness kh\u00f4ng ch\u1ec9 d\u1ec5 ti\u1ebfp c\u1eadn h\u01a1n, m\u00e0 c\u00f2n t\u1ea1o c\u1ea3m gi\u00e1c x\u1ee9ng \u0111\u00e1ng \u0111\u1ec3 duy tr\u00ec l\u00e2u d\u00e0i.",
+        "icon": "fa-solid fa-star",
+        "points": [
+          "\u01afu \u0111\u00e3i theo t\u1eebng nh\u00f3m th\u00e0nh vi\u00ean",
+          "Gi\u00e1 tr\u1ecb c\u1ed9ng th\u00eam theo t\u1eebng giai \u0111o\u1ea1n",
+          "Khuy\u1ebfn kh\u00edch duy tr\u00ec ch\u0103m s\u00f3c b\u1ec1n v\u1eefng"
+        ]
+      },
+      {
+        "key": "personal-guidance",
+        "label": "03 \u00b7 Personal Guidance",
+        "title": "S\u1ef1 \u0111\u1ed3ng h\u00e0nh mang t\u00ednh c\u00e1 nh\u00e2n h\u00f3a h\u01a1n",
+        "description": "Membership g\u1eafn quy\u1ec1n l\u1ee3i v\u1edbi \u0111\u1ecbnh h\u01b0\u1edbng ph\u00f9 h\u1ee3p h\u01a1n cho t\u1eebng c\u00e1 nh\u00e2n, \u0111\u1ec3 m\u1ed7i tr\u1ea3i nghi\u1ec7m kh\u00f4ng ch\u1ec9 \u0111\u1eb9p m\u00e0 c\u00f2n \u0111\u00fang h\u01a1n v\u1edbi nhu c\u1ea7u th\u1ef1c t\u1ebf.",
+        "icon": "fa-solid fa-heart-circle-check",
+        "points": [
+          "G\u1eafn quy\u1ec1n l\u1ee3i v\u1edbi h\u00e0nh tr\u00ecnh th\u1ef1c t\u1ebf",
+          "T\u1ea1o c\u1ea3m gi\u00e1c \u0111\u01b0\u1ee3c ch\u0103m s\u00f3c c\u00f3 \u0111\u1ecbnh h\u01b0\u1edbng",
+          "H\u1ed7 tr\u1ee3 wellness theo c\u00e1ch g\u1ea7n g\u0169i h\u01a1n"
+        ]
+      }
+    ]
+  },
+  "journey": {
+    "badge": "Personal Wellness Journey",
+    "title": "Membership \u0111\u01b0\u1ee3c x\u00e2y d\u1ef1ng nh\u01b0 m\u1ed9t h\u00e0nh tr\u00ecnh ti\u1ebfn tri\u1ec3n theo th\u1eddi gian",
+    "description": "AYANAVITA Membership kh\u00f4ng d\u1eebng \u1edf vi\u1ec7c nh\u1eadn quy\u1ec1n l\u1ee3i. N\u00f3 \u0111\u01b0\u1ee3c thi\u1ebft k\u1ebf nh\u01b0 m\u1ed9t h\u00e0nh tr\u00ecnh d\u00e0i h\u01a1n, n\u01a1i m\u1ed7i giai \u0111o\u1ea1n \u0111\u1ec1u gi\u00fap b\u1ea1n hi\u1ec3u b\u1ea3n th\u00e2n r\u00f5 h\u01a1n, ch\u0103m s\u00f3c \u0111\u1ec1u h\u01a1n v\u00e0 k\u1ebft n\u1ed1i s\u00e2u h\u01a1n v\u1edbi m\u1ed9t l\u1ed1i s\u1ed1ng wellness ph\u00f9 h\u1ee3p.",
+    "steps": [
+      {
+        "key": "join",
+        "number": "01",
+        "title": "Join",
+        "description": "B\u1eaft \u0111\u1ea7u v\u1edbi m\u1ed9t l\u1ef1a ch\u1ecdn r\u00f5 r\u00e0ng h\u01a1n cho h\u00e0nh tr\u00ecnh ch\u0103m s\u00f3c b\u1ea3n th\u00e2n l\u00e2u d\u00e0i.",
+        "icon": "fa-solid fa-user-plus"
+      },
+      {
+        "key": "discover",
+        "number": "02",
+        "title": "Discover",
+        "description": "T\u1eebng tr\u1ea3i nghi\u1ec7m gi\u00fap b\u1ea1n hi\u1ec3u r\u00f5 h\u01a1n c\u01a1 th\u1ec3, l\u1ed1i s\u1ed1ng v\u00e0 nhu c\u1ea7u hi\u1ec7n t\u1ea1i c\u1ee7a m\u00ecnh.",
+        "icon": "fa-solid fa-compass"
+      },
+      {
+        "key": "grow",
+        "number": "03",
+        "title": "Grow",
+        "description": "T\u1eeb quy\u1ec1n l\u1ee3i v\u00e0 \u0111\u1ecbnh h\u01b0\u1edbng ph\u00f9 h\u1ee3p, wellness d\u1ea7n tr\u1edf th\u00e0nh m\u1ed9t th\u00f3i quen c\u00f3 chi\u1ec1u s\u00e2u h\u01a1n.",
+        "icon": "fa-solid fa-arrow-trend-up"
+      },
+      {
+        "key": "belong",
+        "number": "04",
+        "title": "Belong",
+        "description": "B\u1ea1n tr\u1edf th\u00e0nh m\u1ed9t ph\u1ea7n c\u1ee7a c\u1ed9ng \u0111\u1ed3ng c\u00f9ng h\u01b0\u1edbng \u0111\u1ebfn s\u1ef1 c\u00e2n b\u1eb1ng v\u00e0 ch\u1ea5t l\u01b0\u1ee3ng s\u1ed1ng b\u1ec1n v\u1eefng.",
+        "icon": "fa-solid fa-hand-holding-heart"
+      }
+    ],
+    "endingNote": "M\u1ed9t membership c\u00f3 \u00fd ngh\u0129a kh\u00f4ng ch\u1ec9 h\u1ed7 tr\u1ee3 b\u1ea1n h\u00f4m nay, m\u00e0 c\u00f2n gi\u00fap b\u1ea1n duy tr\u00ec wellness theo c\u00e1ch t\u1ef1 nhi\u00ean h\u01a1n v\u1ec1 l\u00e2u d\u00e0i."
+  },
+  "community": {
+    "badge": "Member Community",
+    "title": "M\u1ed9t c\u1ed9ng \u0111\u1ed3ng gi\u00fap h\u00e0nh tr\u00ecnh wellness c\u00f3 c\u1ea3m h\u1ee9ng h\u01a1n",
+    "description": "Membership t\u1ea1i AYANAVITA c\u0169ng l\u00e0 c\u00e1nh c\u1eeda d\u1eabn t\u1edbi m\u1ed9t kh\u00f4ng gian k\u1ebft n\u1ed1i \u2014 n\u01a1i nh\u1eefng ng\u01b0\u1eddi c\u00f9ng quan t\u00e2m \u0111\u1ebfn s\u1ee9c kh\u1ecfe, s\u1ef1 c\u00e2n b\u1eb1ng v\u00e0 ch\u1ea5t l\u01b0\u1ee3ng s\u1ed1ng c\u00f3 th\u1ec3 t\u00ecm th\u1ea5y c\u1ea3m h\u1ee9ng, s\u1ef1 \u0111\u1ed3ng h\u00e0nh v\u00e0 nh\u1ecbp \u0111i\u1ec7u t\u00edch c\u1ef1c h\u01a1n cho h\u00e0nh tr\u00ecnh c\u1ee7a m\u00ecnh.",
+    "spotlight": {
+      "badge": "Community Philosophy",
+      "title": "Belonging makes wellness more sustainable",
+      "paragraphs": [
+        "Wellness th\u01b0\u1eddng tr\u1edf n\u00ean d\u1ec5 duy tr\u00ec h\u01a1n khi b\u1ea1n kh\u00f4ng ph\u1ea3i \u0111i m\u1ed9t m\u00ecnh.",
+        "M\u1ed9t c\u1ed9ng \u0111\u1ed3ng \u0111\u00fang kh\u00f4ng l\u00e0m thay h\u00e0nh tr\u00ecnh c\u1ee7a b\u1ea1n, nh\u01b0ng gi\u00fap h\u00e0nh tr\u00ecnh \u0111\u00f3 tr\u1edf n\u00ean c\u00f3 \u0111\u1ed9ng l\u1ef1c, c\u00f3 c\u1ea3m h\u1ee9ng v\u00e0 gi\u00e0u k\u1ebft n\u1ed1i h\u01a1n."
+      ],
+      "quote": "Membership is not only about benefits. It is about belonging, continuity and growing within a more mindful wellness journey.",
+      "quoteLabel": "AYANAVITA Membership",
+      "note": "Khi c\u1ea3m gi\u00e1c \u0111\u01b0\u1ee3c k\u1ebft n\u1ed1i xu\u1ea5t hi\u1ec7n, vi\u1ec7c ch\u0103m s\u00f3c b\u1ea3n th\u00e2n th\u01b0\u1eddng tr\u1edf n\u00ean t\u1ef1 nhi\u00ean v\u00e0 b\u1ec1n v\u1eefng h\u01a1n."
+    },
+    "items": [
+      {
+        "key": "connection",
+        "title": "Meaningful Connection",
+        "description": "K\u1ebft n\u1ed1i v\u1edbi nh\u1eefng ng\u01b0\u1eddi c\u00f9ng chia s\u1ebb s\u1ef1 quan t\u00e2m \u0111\u1ebfn wellness v\u00e0 l\u1ed1i s\u1ed1ng c\u00e2n b\u1eb1ng h\u01a1n.",
+        "icon": "fa-solid fa-link"
+      },
+      {
+        "key": "shared-inspiration",
+        "title": "Shared Inspiration",
+        "description": "C\u1ed9ng \u0111\u1ed3ng gi\u00fap t\u1ea1o ra c\u1ea3m h\u1ee9ng \u0111\u1ec3 b\u1ea1n ti\u1ebfp t\u1ee5c h\u00e0nh tr\u00ecnh ch\u0103m s\u00f3c b\u1ea3n th\u00e2n v\u1edbi nhi\u1ec1u \u0111\u1ed9ng l\u1ef1c h\u01a1n.",
+        "icon": "fa-solid fa-sparkles"
+      },
+      {
+        "key": "wellness-culture",
+        "title": "Wellness Culture",
+        "description": "Membership g\u00f3p ph\u1ea7n t\u1ea1o n\u00ean m\u1ed9t v\u0103n h\u00f3a wellness t\u00edch c\u1ef1c, tinh t\u1ebf v\u00e0 g\u1ea7n g\u0169i h\u01a1n m\u1ed7i ng\u00e0y.",
+        "icon": "fa-solid fa-spa"
+      }
+    ]
+  },
+  "closing": {
+    "title": "Become part of the AYANAVITA Membership",
+    "description": "N\u1ebfu b\u1ea1n \u0111ang t\u00ecm ki\u1ebfm nhi\u1ec1u h\u01a1n m\u1ed9t g\u00f3i quy\u1ec1n l\u1ee3i th\u00f4ng th\u01b0\u1eddng \u2014 m\u1ed9t h\u00e0nh tr\u00ecnh wellness \u0111\u1ec1u \u0111\u1eb7n h\u01a1n, mang t\u00ednh c\u00e1 nh\u00e2n h\u01a1n v\u00e0 c\u00f3 c\u1ea3m gi\u00e1c k\u1ebft n\u1ed1i l\u00e2u d\u00e0i h\u01a1n \u2014 AYANAVITA Membership \u0111\u01b0\u1ee3c t\u1ea1o ra \u0111\u1ec3 \u0111\u1ed3ng h\u00e0nh c\u00f9ng b\u1ea1n theo c\u00e1ch \u0111\u00f3.",
+    "primaryButtonLabel": "Start Membership",
+    "primaryButtonHref": "#",
+    "secondaryButtonLabel": "Contact AYANAVITA",
+    "secondaryButtonHref": "#"
+  }
+}

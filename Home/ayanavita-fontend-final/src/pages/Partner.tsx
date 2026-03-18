@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { http } from "../api/http";
 
-const cmsData = {
+const cmsDataDefault = {
     brand: {
         short: "AYA",
         name: "AYANAVITA",
@@ -210,6 +211,44 @@ const cmsData = {
     },
 };
 
+const PAGE_SLUG = "partner";
+const PAGE_SLUG_FALLBACK = "Partner";
+
+function isPlainObject(value: unknown): value is Record<string, any> {
+    return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function deepMerge<T>(base: T, override: any): T {
+    if (Array.isArray(base)) {
+        return (Array.isArray(override) ? override : base) as T;
+    }
+
+    if (!isPlainObject(base) || !isPlainObject(override)) {
+        return (override ?? base) as T;
+    }
+
+    const output: Record<string, any> = { ...(base as Record<string, any>) };
+
+    Object.keys(override).forEach((key) => {
+        const baseValue = (base as Record<string, any>)[key];
+        const overrideValue = override[key];
+
+        if (Array.isArray(baseValue)) {
+            output[key] = Array.isArray(overrideValue) ? overrideValue : baseValue;
+            return;
+        }
+
+        if (isPlainObject(baseValue) && isPlainObject(overrideValue)) {
+            output[key] = deepMerge(baseValue, overrideValue);
+            return;
+        }
+
+        output[key] = overrideValue ?? baseValue;
+    });
+
+    return output as T;
+}
+
 function SectionHeader({ badge, title, description }: { badge: string; title: string; description: string }) {
     return (
         <div className="max-w-3xl">
@@ -224,7 +263,7 @@ function SectionHeader({ badge, title, description }: { badge: string; title: st
     );
 }
 
-function ModelCard({ item }: { item: (typeof cmsData.models.items)[number] }) {
+function ModelCard({ item }: { item: (typeof cmsDataDefault.models.items)[number] }) {
     const content = (
         <div className="relative overflow-hidden rounded-[2rem] border border-black/5 bg-white/90 p-8 shadow-[0_12px_30px_rgba(11,18,32,0.07)] sm:p-10">
       <span className="inline-flex rounded-full bg-indigo-100 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-indigo-600">
@@ -295,6 +334,53 @@ function ModelCard({ item }: { item: (typeof cmsData.models.items)[number] }) {
 }
 
 export default function PartnerLandingPage() {
+    const [currentLanguage, setCurrentLanguage] = useState<string>(() => {
+        return localStorage.getItem("preferred-language") || "vi";
+    });
+    const [cmsDataFromApi, setCmsDataFromApi] = useState<Partial<typeof cmsDataDefault> | null>(null);
+
+    useEffect(() => {
+        const handleLanguageChange = (event: Event) => {
+            const e = event as CustomEvent<{ language?: string }>;
+            if (e?.detail?.language) {
+                setCurrentLanguage(e.detail.language);
+            }
+        };
+
+        window.addEventListener("languageChange", handleLanguageChange as EventListener);
+        return () => window.removeEventListener("languageChange", handleLanguageChange as EventListener);
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const fetchCms = async () => {
+            const slugCandidates = [PAGE_SLUG, PAGE_SLUG_FALLBACK];
+            for (const slug of slugCandidates) {
+                try {
+                    const res = await http.get(`/public/pages/${slug}?lang=${currentLanguage}`);
+                    if (!cancelled) {
+                        setCmsDataFromApi(res?.data?.sections?.[0]?.data ?? null);
+                    }
+                    return;
+                } catch {
+                    // Try next slug candidate.
+                }
+            }
+
+            if (!cancelled) {
+                setCmsDataFromApi(null);
+            }
+        };
+
+        void fetchCms();
+        return () => {
+            cancelled = true;
+        };
+    }, [currentLanguage]);
+
+    const cmsData = useMemo(() => deepMerge(cmsDataDefault, cmsDataFromApi || {}), [cmsDataFromApi]);
+
     return (
         <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(124,58,237,0.08),transparent_25%),radial-gradient(circle_at_top_left,rgba(34,197,94,0.08),transparent_22%),linear-gradient(180deg,#fbfdfc_0%,#f7faf8_100%)] text-slate-900">
             <section className="relative overflow-hidden px-4 pb-10 pt-8 sm:px-6 lg:px-8">
@@ -567,3 +653,5 @@ export default function PartnerLandingPage() {
         </main>
     );
 }
+
+export { cmsDataDefault as cmsData };

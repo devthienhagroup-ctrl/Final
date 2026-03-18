@@ -1,6 +1,7 @@
 // src/pages/academy/AyanavitaAcademyPage.tsx
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import { http } from "../api/http";
 
 type IconTextItem = {
     key?: string;
@@ -117,6 +118,9 @@ type AyanavitaAcademyPageProps = {
     cmsData?: Partial<AyanavitaAcademyPageCmsData>;
     className?: string;
 };
+
+const PAGE_SLUG = "academy";
+const PAGE_SLUG_FALLBACK = "Academy";
 
 export const cmsDataDefault: AyanavitaAcademyPageCmsData = {
     hero: {
@@ -482,7 +486,56 @@ export default function AyanavitaAcademyPage({
                                                  cmsData,
                                                  className = "",
                                              }: AyanavitaAcademyPageProps) {
-    const data = mergeCmsData(cmsData);
+    const [currentLanguage, setCurrentLanguage] = useState<string>(() => {
+        return localStorage.getItem("preferred-language") || "vi";
+    });
+    const [cmsDataFromApi, setCmsDataFromApi] = useState<Partial<AyanavitaAcademyPageCmsData> | null>(null);
+
+    useEffect(() => {
+        const handleLanguageChange = (event: Event) => {
+            const e = event as CustomEvent<{ language?: string }>;
+            if (e?.detail?.language) {
+                setCurrentLanguage(e.detail.language);
+            }
+        };
+
+        window.addEventListener("languageChange", handleLanguageChange as EventListener);
+        return () => window.removeEventListener("languageChange", handleLanguageChange as EventListener);
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const fetchCms = async () => {
+            const slugCandidates = [PAGE_SLUG, PAGE_SLUG_FALLBACK];
+            for (const slug of slugCandidates) {
+                try {
+                    const res = await http.get(`/public/pages/${slug}?lang=${currentLanguage}`);
+                    if (!cancelled) {
+                        setCmsDataFromApi(res?.data?.sections?.[0]?.data ?? null);
+                    }
+                    return;
+                } catch {
+                    // Try next slug candidate.
+                }
+            }
+
+            if (!cancelled) {
+                setCmsDataFromApi(null);
+            }
+        };
+
+        void fetchCms();
+        return () => {
+            cancelled = true;
+        };
+    }, [currentLanguage]);
+
+    const mergedCmsInput = useMemo(
+        () => ({ ...(cmsDataFromApi || {}), ...(cmsData || {}) }),
+        [cmsDataFromApi, cmsData],
+    );
+    const data = useMemo(() => mergeCmsData(mergedCmsInput), [mergedCmsInput]);
 
     return (
         <main
@@ -1000,3 +1053,5 @@ export default function AyanavitaAcademyPage({
         </main>
     );
 }
+
+export { cmsDataDefault as cmsData };

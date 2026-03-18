@@ -1,0 +1,622 @@
+{
+  "page": {
+    "title": "Quản lý tài khoản",
+    "subtitle": "Cập nhật thông tin cá nhân và bảo mật tài khoản",
+    "icons": {
+      "page": "fa-solid fa-user-gear"
+    }
+  },
+  "sidebar": {
+    "header": {
+      "title": "Account Center",
+      "subtitle": "Thiết lập tài khoản"
+    },
+    "items": [
+      {
+        "key": "profile",
+        "label": "Thông tin cá nhân",
+        "desc": "Họ tên, liên hệ, địa chỉ",
+        "iconClass": "fa-regular fa-id-card"
+      },
+      {
+        "key": "changePassword",
+        "label": "Đổi mật khẩu",
+        "desc": "Tăng cường bảo mật",
+        "iconClass": "fa-solid fa-key"
+      },
+      {
+        "key": "forgotPassword",
+        "label": "Quên mật khẩu",
+        "desc": "OTP qua email",
+        "iconClass": "fa-solid fa-shield-halved"
+      },
+      {
+        "key": "myOrders",
+        "label": "Đơn hàng của tôi",
+        "desc": "Xem và lọc các đơn đã đặt",
+        "iconClass": "fa-solid fa-box-open"
+      },
+      {
+        "key": "subscriptions",
+        "label": "Gói đăng ký",
+        "desc": "Quản lý quota và lịch sử gia hạn",
+        "iconClass": "fa-solid fa-layer-group"
+      }
+    ],
+    "footerHint": "Mẹo: Hãy đặt mật khẩu mạnh và không chia sẻ OTP."
+  },
+  "common": {
+    "loadingText": "Đang xử lý...",
+    "emptyValue": "—",
+    "validationTitle": "Dữ liệu chưa hợp lệ",
+    "labels": {
+      "noEmail": "(chưa có)"
+    },
+    "aria": {
+      "closeToast": "Đóng thông báo"
+    },
+    "actions": {
+      "back": "Quay lại",
+      "save": "Lưu thay đổi",
+      "sendOtp": "Gửi OTP",
+      "verifyOtp": "Xác nhận OTP",
+      "resetPassword": "Đặt lại mật khẩu",
+      "updatePassword": "Cập nhật mật khẩu",
+      "close": "Đóng"
+    }
+  },
+  "profile": {
+    "cardTitle": "Chỉnh sửa thông tin cá nhân",
+    "cardDesc": "Thông tin này giúp cá nhân hoá trải nghiệm và hỗ trợ chăm sóc tốt hơn.",
+    "fields": {
+      "fullName": {
+        "label": "Họ và tên",
+        "placeholder": "Nhập họ và tên",
+        "iconClass": "fa-regular fa-user"
+      },
+      "phone": {
+        "label": "Số điện thoại",
+        "placeholder": "Nhập số điện thoại",
+        "iconClass": "fa-solid fa-phone"
+      },
+      "email": {
+        "label": "Email",
+        "placeholder": "Email",
+        "iconClass": "fa-regular fa-envelope",
+        "helper": "Email không thể thay đổi tại đây."
+      },
+      "birthDate": {
+        "label": "Ngày sinh",
+        "iconClass": "fa-regular fa-calendar"
+      },
+      "gender": {
+        "label": "Giới tính",
+        "iconClass": "fa-solid fa-venus-mars",
+        "options": {
+          "male": "Nam",
+          "female": "Nữ",
+          "other": "Khác"
+        }
+      },
+      "address": {
+        "label": "Địa chỉ",
+        "placeholder": "Nhập địa chỉ",
+        "iconClass": "fa-solid fa-location-dot"
+      }
+    },
+    "toasts": {
+      "saveSuccess": {
+        "title": "Thành công",
+        "message": "Đã lưu thông tin cá nhân."
+      },
+      "saveFailed": {
+        "title": "Thất bại",
+        "message": "Cập nhật thông tin thất bại."
+      },
+      "loadFailed": {
+        "title": "Không tải được",
+        "message": "Không tải được thông tin tài khoản."
+      }
+    }
+  },
+  "changePassword": {
+    "cardTitle": "Đổi mật khẩu",
+    "cardDesc": "Xác thực mật khẩu hiện tại trước khi đặt mật khẩu mới.",
+    "steps": {
+      "verifyCurrent": {
+        "currentPassword": {
+          "label": "Mật khẩu hiện tại",
+          "placeholder": "Nhập mật khẩu hiện tại",
+          "iconClass": "fa-solid fa-lock"
+        },
+        "buttonText": "Kiểm tra mật khẩu"
+      },
+      "setNew": {
+        "newPassword": {
+          "label": "Mật khẩu mới",
+          "placeholder": "Nhập mật khẩu mới",
+          "iconClass": "fa-solid fa-lock"
+        },
+        "confirmPassword": {
+          "label": "Xác nhận mật khẩu",
+          "placeholder": "Nhập lại mật khẩu mới",
+          "iconClass": "fa-solid fa-lock"
+        }
+      }
+    },
+    "validates": {
+      "currentRequired": "Vui lòng nhập mật khẩu hiện tại.",
+      "confirmMismatch": "Mật khẩu xác nhận chưa khớp."
+    },
+    "toasts": {
+      "verifiedOk": {
+        "title": "OK",
+        "message": "Mật khẩu hiện tại chính xác. Hãy nhập mật khẩu mới."
+      },
+      "verifyFailed": {
+        "title": "Sai mật khẩu",
+        "message": "Mật khẩu hiện tại không chính xác."
+      },
+      "changeOk": {
+        "title": "Thành công",
+        "message": "Đổi mật khẩu thành công."
+      },
+      "changeFailed": {
+        "title": "Thất bại",
+        "message": "Đổi mật khẩu thất bại."
+      }
+    }
+  },
+  "forgotPassword": {
+    "cardTitle": "Quên mật khẩu",
+    "cardDesc": "Xác minh OTP qua email để đặt lại mật khẩu.",
+    "noteRegisteredEmail": "Email đã đăng ký",
+    "steps": {
+      "email": {
+        "email": {
+          "label": "Email",
+          "placeholder": "Nhập đúng email tài khoản",
+          "iconClass": "fa-regular fa-envelope"
+        }
+      },
+      "otp": {
+        "otp": {
+          "label": "OTP",
+          "placeholder": "Nhập mã OTP",
+          "iconClass": "fa-solid fa-hashtag"
+        }
+      },
+      "newPassword": {
+        "newPassword": {
+          "label": "Mật khẩu mới",
+          "placeholder": "Nhập mật khẩu mới",
+          "iconClass": "fa-solid fa-lock"
+        },
+        "confirmPassword": {
+          "label": "Xác nhận mật khẩu",
+          "placeholder": "Nhập lại mật khẩu mới",
+          "iconClass": "fa-solid fa-lock"
+        }
+      }
+    },
+    "validates": {
+      "emailRequired": "Vui lòng nhập email tài khoản.",
+      "emailMismatch": "Email không khớp với email tài khoản của bạn.",
+      "otpRequired": "Vui lòng nhập OTP.",
+      "confirmMismatch": "Mật khẩu xác nhận chưa khớp."
+    },
+    "toasts": {
+      "otpSent": {
+        "title": "Đã gửi OTP",
+        "message": "OTP đã được gửi tới email của bạn."
+      },
+      "otpSendFailed": {
+        "title": "Không gửi được",
+        "message": "Không gửi được OTP."
+      },
+      "otpVerified": {
+        "title": "OTP hợp lệ",
+        "message": "OTP hợp lệ. Vui lòng nhập mật khẩu mới."
+      },
+      "otpVerifyFailed": {
+        "title": "OTP không hợp lệ",
+        "message": "OTP không hợp lệ hoặc đã hết hạn."
+      },
+      "resetOk": {
+        "title": "Thành công",
+        "message": "Đặt lại mật khẩu thành công."
+      },
+      "resetFailed": {
+        "title": "Thất bại",
+        "message": "Không thể đặt lại mật khẩu."
+      }
+    }
+  },
+  "myOrders": {
+    "cardTitle": "Đơn hàng của tôi",
+    "cardDesc": "Xem lịch sử đặt hàng và kiểm tra thông tin thanh toán, giao hàng.",
+    "branchOnline": "Online",
+    "paymentMethods": {
+      "sepay": "Chuyển khoản",
+      "cod": "COD",
+      "unknown": "Không xác định"
+    },
+    "filters": {
+      "keyword": {
+        "label": "Tìm đơn",
+        "placeholder": "Mã đơn, mã giao vận, ghi chú...",
+        "iconClass": "fa-solid fa-magnifying-glass"
+      },
+      "status": {
+        "label": "Trạng thái",
+        "iconClass": "fa-solid fa-filter",
+        "all": "Tất cả"
+      }
+    },
+    "list": {
+      "title": "Danh sách đơn hàng",
+      "seeDetail": "Xem chi tiết đơn hàng",
+      "pay": "Thanh toán",
+      "generatingQr": "Đang tạo QR..."
+    },
+    "statuses": {
+      "PENDING": "Chờ xác nhận",
+      "PENDING_PAYMENT": "Chờ thanh toán",
+      "CANCEL_REQUESTED": "Yêu cầu hủy",
+      "PAID": "Đã thanh toán",
+      "SHIPPING": "Đang giao hàng",
+      "SUCCESS": "Hoàn thành",
+      "CANCELLED": "Đã hủy",
+      "EXPIRED": "Hết hạn"
+    },
+    "emptyText": "Không có đơn hàng phù hợp bộ lọc.",
+    "detailTitle": "Chi tiết đơn hàng",
+    "productsTitle": "Sản phẩm đã đặt",
+    "sections": {
+      "general": "Thông tin chung",
+      "payment": "Thanh toán",
+      "shipping": "Giao hàng",
+      "summary": "Tổng kết thanh toán"
+    },
+    "fields": {
+      "createdAt": "Ngày tạo",
+      "branch": "Chi nhánh",
+      "status": "Trạng thái",
+      "paymentMethod": "Phương thức thanh toán",
+      "paymentRef": "Mã giao dịch",
+      "paidAt": "Ngày thanh toán",
+      "receiver": "Người nhận",
+      "phone": "SĐT nhận hàng",
+      "address": "Địa chỉ giao hàng",
+      "carrier": "Đơn vị vận chuyển",
+      "trackingCode": "Mã vận đơn",
+      "expectedDelivery": "Dự kiến giao",
+      "orderNote": "Ghi chú đơn hàng",
+      "shippingNote": "Ghi chú giao vận",
+      "subtotal": "Tạm tính",
+      "shipping": "Phí vận chuyển",
+      "discount": "Giảm giá",
+      "total": "Tổng thanh toán",
+      "quantity": "Số lượng",
+      "sku": "SKU",
+      "amount": "Số tiền",
+      "transferContent": "Nội dung CK",
+      "expiresAt": "Hạn thanh toán",
+      "timeLeft": "Còn lại",
+      "orderCode": "Đơn hàng"
+    },
+    "actions": {
+      "requestCancel": "Yêu cầu hủy đơn",
+      "requestingCancel": "Đang gửi yêu cầu hủy...",
+      "payThisOrder": "Thanh toán đơn hàng này"
+    },
+    "qrModal": {
+      "title": "Quét mã QR để thanh toán",
+      "qrAlt": "QR thanh toán",
+      "expiredTitle": "Hết hạn thanh toán",
+      "expiredSubtitle": "Đơn hàng của bạn đã chuyển sang trạng thái hết hạn.",
+      "activeHint": "Vui lòng hoàn tất thanh toán trong 15 phút kể từ lúc tạo đơn.",
+      "expiredBoxTitle": "Hết hạn thanh toán",
+      "expiredBoxSubtitle": "Đơn hàng của bạn đã chuyển sang trạng thái hết hạn.",
+      "autoUpdateNote": "Sau khi thanh toán thành công, hệ thống sẽ tự động cập nhật trạng thái đơn hàng.",
+      "expiresAtTitle": "Hạn"
+    },
+    "toasts": {
+      "loadFailed": {
+        "title": "Đơn hàng",
+        "message": "Không tải được danh sách đơn hàng."
+      },
+      "qrFailed": {
+        "title": "Thanh toán",
+        "message": "Không lấy được mã QR thanh toán."
+      },
+      "cancelRequestSuccess": {
+        "title": "Đơn hàng",
+        "message": "Đã gửi yêu cầu hủy đơn thành công."
+      },
+      "cancelRequestFailed": {
+        "title": "Đơn hàng",
+        "message": "Không thể gửi yêu cầu hủy đơn."
+      },
+      "paymentSuccess": {
+        "title": "Thanh toán",
+        "message": "Đã thanh toán thành công. Đơn hàng đã được cập nhật."
+      },
+      "paymentExpired": {
+        "title": "Thanh toán",
+        "message": "Phiên thanh toán đã hết hạn hoặc bị huỷ. Vui lòng tạo lại mã QR nếu cần."
+      }
+    }
+  },
+  "subscriptions": {
+    "header": {
+      "eyebrow": "Membership",
+      "title": "Gói thành viên",
+      "description": "",
+      "historyButton": "Xem lịch sử",
+      "historyButtonIcon": "fa-solid fa-clock-rotate-left",
+      "nextCycleIcon": "fa-solid fa-calendar-days",
+      "activityIcon": "fa-solid fa-chart-line",
+      "closeIcon": "fa-solid fa-xmark",
+      "metrics": {
+        "plans": "Gói khả dụng",
+        "histories": "Bản ghi lịch sử",
+        "renewal": "Chế độ gia hạn"
+      }
+    },
+    "summary": {
+      "currentPlanTitle": "Gói hiện tại",
+      "currentPlanFallback": "Chưa có gói hoạt động",
+      "cycleLabel": "Chu kỳ",
+      "graceUntilLabel": "Grace đến",
+      "remainingQuota": "Quota còn lại",
+      "unlockedCount": "Đã mở khóa",
+      "unlockNew": "Mở khóa mới",
+      "canUnlockYes": "Có",
+      "canUnlockNo": "Không",
+      "noActivePass": "Bạn chưa có gói đang hoạt động. Hãy chọn một gói bên dưới để đăng ký.",
+      "statusCardTitle": "Trạng thái hiện tại",
+      "statusCardDescription": "",
+      "renewalModeLabel": "Chế độ gia hạn"
+    },
+    "insights": {
+      "nextCycleTitle": "Kỳ tiếp theo",
+      "nextCycleEmpty": "Chưa có kỳ tiếp theo được lên lịch.",
+      "nextCycleConfirmedLabel": "Đã xác nhận",
+      "nextCyclePendingLabel": "Đang chờ thanh toán",
+      "nextCycleDateLabel": "Bắt đầu",
+      "activityTitle": "Tổng quan nhanh",
+      "activityDescription": "",
+      "paymentTitle": "Thanh toán gần nhất",
+      "paymentEmpty": "Chưa có thanh toán nào.",
+      "paymentAmount": "Số tiền",
+      "paymentCreatedAt": "Tạo lúc",
+      "renewalModes": {
+        "none": "Không tự động gia hạn",
+        "scheduled_cancel": "Đã lên lịch hủy tự động gia hạn",
+        "auto_renew_on": "Tự động gia hạn đang bật"
+      }
+    },
+    "planList": {
+      "title": "Danh sách gói hiện có",
+      "description": "",
+      "emptyText": "Chưa có gói nào đang mở."
+    },
+    "planCard": {
+      "priceLabel": "Giá",
+      "quotaLabel": "Quota",
+      "perCycleLabel": "khóa học / chu kỳ",
+      "durationLabel": "Thời hạn",
+      "durationUnits": {
+        "day": "ngày",
+        "week": "tuần",
+        "month": "tháng",
+        "year": "năm"
+      },
+      "graceLabel": "grace",
+      "maxCoursePriceLabel": "Giới hạn giá khóa học",
+      "blockedTagsLabel": "Tag bị chặn",
+      "noBlockedTags": "Không có",
+      "unlimited": "Không giới hạn",
+      "currentPlanBadge": "Đang dùng",
+      "featuredBadge": "Nổi bật",
+      "lowerPlanHint": "Gói này thấp hơn gói bạn đang dùng."
+    },
+    "history": {
+      "modalTitle": "Lịch sử sử dụng",
+      "modalDescription": "",
+      "passTitle": "Lịch sử pass / gia hạn",
+      "paymentTitle": "Lịch sử thanh toán gói",
+      "passEmptyText": "Chưa có lịch sử đăng ký gói.",
+      "paymentEmptyText": "Chưa có lịch sử thanh toán.",
+      "remainingQuota": "Quota còn lại",
+      "unlockCount": "Số lần mở khóa",
+      "paymentCode": "Mã thanh toán",
+      "amount": "Số tiền",
+      "createdAt": "Tạo lúc",
+      "transferContent": "Nội dung CK",
+      "paidAt": "Thanh toán lúc",
+      "paymentSource": "Nguồn thanh toán",
+      "passesTab": "Pass",
+      "paymentsTab": "Thanh toán",
+      "historyCountLabel": "bản ghi"
+    },
+    "statuses": {
+      "pass": {
+        "SCHEDULED": "Scheduled",
+        "ACTIVE": "Đang hoạt động",
+        "GRACE": "Grace",
+        "EXPIRED": "Hết hạn",
+        "CANCELED": "Đã hủy"
+      },
+      "payment": {
+        "PENDING": "Chờ thanh toán",
+        "PAID": "Đã thanh toán",
+        "FAILED": "Thất bại",
+        "EXPIRED": "Hết hạn"
+      }
+    },
+    "actions": {
+      "processing": "Đang xử lý...",
+      "upgrade": "Nâng cấp",
+      "continue": "Tiếp tục",
+      "renewNow": "Gia hạn",
+      "registerAutoRenewal": "Đăng ký tự động gia hạn",
+      "cancelAutoRenewal": "Hủy tự động gia hạn",
+      "cancelAutoRenewalConfirmTitle": "Hủy tự động gia hạn",
+      "cancelAutoRenewalConfirmButton": "Xác nhận hủy",
+      "choosePaymentMethodTitle": "Chọn phương thức thanh toán",
+      "oneTimeLabel": "Thanh toán 1 lần",
+      "recurringLabel": "Tự động gia hạn",
+      "chooseQr": "QR code",
+      "chooseStripeOneTime": "Thẻ / Stripe",
+      "payNow": "Thanh toán ngay",
+      "openPaymentQr": "Mở QR thanh toán",
+      "stripeRecurringUnavailableTitle": "Gói này chưa hỗ trợ Stripe recurring.",
+      "recurringInfoTitle": "Tiếp tục trải nghiệm liền mạch",
+      "recurringInfoItems": [
+        "Thanh toán định kỳ qua Stripe cho chu kỳ tiếp theo.",
+        "Giảm thao tác lặp lại mỗi lần hết hạn.",
+        "Dễ tạm dừng hoặc hủy khi không còn nhu cầu.",
+        "Phù hợp khi bạn muốn duy trì sử dụng liên tục."
+      ]
+    },
+    "dialogs": {
+      "icons": {
+        "crown": "fa-solid fa-crown",
+        "oneTime": "fa-regular fa-credit-card",
+        "recurring": "fa-solid fa-arrows-rotate",
+        "qr": "fa-solid fa-qrcode",
+        "card": "fa-solid fa-credit-card",
+        "wallet": "fa-solid fa-wallet",
+        "heartShield": "fa-solid fa-shield-heart",
+        "warning": "fa-solid fa-triangle-exclamation",
+        "info": "fa-solid fa-circle-info",
+        "ban": "fa-solid fa-ban",
+        "renew": "fa-solid fa-rotate-right"
+      },
+      "checkout": {
+        "oneTimeDescription": "Thanh toán cho một chu kỳ duy nhất. Hình thức này phù hợp khi bạn muốn tự quyết định mỗi lần gia hạn.",
+        "recurringDescription": "Hệ thống tự gia hạn theo chu kỳ để trải nghiệm không bị gián đoạn và giảm thao tác thanh toán lặp lại.",
+        "oneTimePanelTitle": "Chọn phương thức thanh toán 1 lần",
+        "qrDescription": "Quét mã QR để chuyển khoản nhanh qua ngân hàng ngay tại thời điểm này.",
+        "cardDescription": "Thanh toán một lần bằng thẻ qua Stripe, nhanh gọn và bảo mật.",
+        "oneTimeNote": "Bạn chỉ thanh toán cho chu kỳ này. Khi hết hạn, bạn có thể chủ động gia hạn lại.",
+        "recurringNote": "Thanh toán định kỳ được xử lý qua Stripe subscription và sẽ tự động thu tiền ở đầu chu kỳ mới."
+      },
+      "renew": {
+        "panelTitle": "Chọn phương thức gia hạn 1 lần",
+        "qrDescription": "Quét mã QR để gia hạn nhanh cho chu kỳ kế tiếp.",
+        "cardDescription": "Thanh toán một lần bằng thẻ qua Stripe, thao tác nhanh và bảo mật.",
+        "note": "Đây là gia hạn cho một chu kỳ sử dụng. Hệ thống sẽ không tự gia hạn các kỳ sau."
+      },
+      "upgrade": {
+        "title": "Nâng cấp gói",
+        "warningTitle": "Lưu ý trước khi nâng cấp",
+        "warningDescription": "Sau khi thanh toán thành công, gói mới sẽ được kích hoạt ngay và gói hiện tại sẽ dừng hiệu lực.",
+        "confirmTitle": "Xác nhận tiếp tục",
+        "confirmDescription": "Chỉ tiếp tục khi bạn đồng ý chuyển sang gói mới ngay lúc này."
+      },
+      "subscribeRecurring": {
+        "title": "Đăng ký tự động gia hạn",
+        "confirmButton": "Tiếp tục",
+        "infoTitle": "Tự động gia hạn cho các kỳ tiếp theo",
+        "infoDescription": "Bạn sẽ thanh toán trước cho kỳ kế tiếp. Từ các kỳ sau, hệ thống sẽ tự động gia hạn qua Stripe để tránh gián đoạn dịch vụ.",
+        "fitTitle": "Phù hợp khi",
+        "fitDescription": "Bạn muốn tiếp tục sử dụng ổn định và không muốn thao tác thanh toán lại mỗi tháng."
+      },
+      "cancelAutoRenew": {
+        "warningTitle": "Sau khi hủy tự động gia hạn",
+        "warningDescription": "Gói vẫn tiếp tục dùng đến hết chu kỳ hiện tại, sau đó hệ thống sẽ không tạo kỳ mới tự động nữa.",
+        "infoTitle": "Bạn vẫn có thể bật lại sau",
+        "infoDescription": "Khi cần, bạn vẫn có thể bật lại tự động gia hạn hoặc gia hạn thủ công cho các kỳ tiếp theo."
+      },
+      "messages": {
+        "alreadyScheduledTitle": "Đã có gói chờ kỳ sau",
+        "alreadyScheduledRenewText": "Bạn đã có gói cho kỳ tiếp theo nên chưa thể gia hạn thêm.",
+        "alreadyScheduledRecurringText": "Bạn đã có gói cho kỳ tiếp theo nên chưa thể bật tự động gia hạn thêm.",
+        "scheduledConfirmedHint": "Đã có gói cho kỳ tiếp theo từ {date}.",
+        "scheduledPendingHint": "Đã có yêu cầu cho kỳ tiếp theo từ {date}, đang chờ thanh toán."
+      }
+    },
+    "qrModal": {
+      "title": "Thanh toán gói bằng Sepay",
+      "planLabel": "Gói",
+      "qrAlt": "QR thanh toán gói",
+      "amount": "Số tiền",
+      "transferContent": "Nội dung CK",
+      "timeLeft": "Còn lại",
+      "expiresAt": "Hết hạn",
+      "expiredMessage": "QR đã hết hạn. Vui lòng tạo lại thanh toán.",
+      "waitingMessage": "Sau khi chuyển khoản đúng nội dung, hệ thống sẽ tự động cập nhật pass và quota."
+    },
+    "cardTitle": "Gói đăng ký",
+    "cardDesc": "Đăng ký gói, theo dõi quota và lịch sử gia hạn.",
+    "toasts": {
+      "loadFailed": {
+        "title": "Gói đăng ký",
+        "message": "Không tải được dữ liệu gói đăng ký."
+      },
+      "registerSuccess": {
+        "title": "Gói đăng ký",
+        "message": "Đăng ký gói thành công."
+      },
+      "qrCreated": {
+        "title": "Gói đăng ký",
+        "message": "Đã tạo QR thanh toán cho gói học."
+      },
+      "checkoutFailed": {
+        "title": "Gói đăng ký",
+        "message": "Không thể tạo thanh toán cho gói này."
+      },
+      "paymentSuccess": {
+        "title": "Gói đăng ký",
+        "message": "Thanh toán gói thành công. Quota đã được cập nhật."
+      },
+      "paymentExpired": {
+        "title": "Gói đăng ký",
+        "message": "Phiên thanh toán gói đã hết hạn hoặc thất bại."
+      },
+      "cancelAutoRenewalSuccess": {
+        "title": "Gói đăng ký",
+        "message": "Đã hủy tự động gia hạn thành công."
+      },
+      "cancelAutoRenewalAlready": {
+        "title": "Gói đăng ký",
+        "message": "Gói này đã ở trạng thái không tự động gia hạn."
+      },
+      "cancelAutoRenewalFailed": {
+        "title": "Gói đăng ký",
+        "message": "Không thể hủy tự động gia hạn."
+      },
+      "resumeAutoRenewalSuccess": {
+        "title": "Gói đăng ký",
+        "message": "Đã bật lại tự động gia hạn thành công."
+      },
+      "resumeAutoRenewalAlready": {
+        "title": "Gói đăng ký",
+        "message": "Gói này đã bật tự động gia hạn."
+      },
+      "resumeAutoRenewalFailed": {
+        "title": "Gói đăng ký",
+        "message": "Không thể bật lại tự động gia hạn."
+      },
+      "scheduledPassExists": {
+        "title": "Gói đăng ký",
+        "message": "Bạn đã có gói chờ cho chu kỳ tiếp theo."
+      },
+      "missingStripeCheckoutUrl": {
+        "title": "Gói đăng ký",
+        "message": "Không nhận được liên kết thanh toán Stripe."
+      }
+    }
+  },
+  "ui": {
+    "badges": {
+      "secure": {
+        "text": "Bảo mật",
+        "iconClass": "fa-solid fa-shield"
+      }
+    }
+  }
+}

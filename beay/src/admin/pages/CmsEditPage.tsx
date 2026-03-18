@@ -15,11 +15,51 @@ import { useAuth } from "../../app/auth";
 import { useToast } from "../components/Toast";
 
 // =====================
+// TYPES
+// =====================
+type PathSegment = string | number;
+type FieldPath = PathSegment[];
+type CmsPrimitive = string | number | boolean | null;
+type CmsFormValue = CmsPrimitive | CmsFormObject | CmsFormValue[];
+type CmsFormData = CmsFormValue | undefined;
+
+interface CmsFormObject {
+  [key: string]: CmsFormData;
+}
+
+interface StatusAwareError {
+  status?: number;
+  response?: {
+    status?: number;
+  };
+  cause?: {
+    status?: number;
+  };
+  message?: string;
+}
+
+interface ImportMetaEnv {
+  readonly VITE_CMS_AUTOSAVE?: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
+// =====================
 // HARD SWITCH: AUTOSAVE
 // =====================
-const AUTOSAVE = (import.meta as any)?.env?.VITE_CMS_AUTOSAVE === "1";
+const AUTOSAVE = (import.meta as ImportMeta & { env?: ImportMetaEnv }).env?.VITE_CMS_AUTOSAVE === "1";
 
-// ===== helpers (giữ nguyên) =====
+// ===== helpers =====
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function asCmsFormData(value: unknown): CmsFormData {
+  return value as CmsFormData;
+}
+
 function pickLocale(sec: CmsSection, locale: CmsLocale): CmsSectionLocale | undefined {
   return sec.locales?.find((x) => x.locale === locale);
 }
@@ -31,10 +71,26 @@ function fmtDate(s?: string | null) {
   return d.toLocaleString();
 }
 
-function is401(e: any) {
-  const status = e?.status ?? e?.response?.status ?? e?.cause?.status;
+function getLocaleStringValue(localeInfo: CmsSectionLocale | null, key: string): string | null | undefined {
+  if (!localeInfo) return undefined;
+  const rawValue = (localeInfo as Record<string, unknown>)[key];
+  if (typeof rawValue === "string" || rawValue === null || rawValue === undefined) {
+    return rawValue as string | null | undefined;
+  }
+  return String(rawValue);
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return String(error ?? "Unknown error");
+}
+
+function is401(error: unknown) {
+  const candidate = error as StatusAwareError;
+  const status = candidate?.status ?? candidate?.response?.status ?? candidate?.cause?.status;
   if (status === 401) return true;
-  const msg = String(e?.message || e || "");
+  const msg = String(candidate?.message || error || "");
   return msg.includes("401") || msg.toLowerCase().includes("unauthorized");
 }
 
@@ -42,54 +98,99 @@ function deepClone<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj));
 }
 
-function setIn(obj: any, path: (string | number)[], value: any): any {
-  if (path.length === 0) return value;
-  const [head, ...rest] = path;
-  if (Array.isArray(obj)) {
-    const index = head as number;
-    const newArr = [...obj];
-    newArr[index] = setIn(obj[index], rest, value);
-    return newArr;
-  } else {
-    return { ...obj, [head]: setIn(obj[head] ?? {}, rest, value) };
+function createArrayItemTemplate(template: CmsFormData): CmsFormValue {
+  if (Array.isArray(template)) {
+    return template.map((item) => createArrayItemTemplate(item));
   }
+
+  if (isRecord(template)) {
+    const next: CmsFormObject = {};
+    Object.entries(template).forEach(([key, value]) => {
+      next[key] = createArrayItemTemplate(asCmsFormData(value));
+    });
+    return next;
+  }
+
+  if (typeof template === "string") return "";
+  if (template === undefined) return "";
+  return template;
 }
 
-function cleanData(data: any): any {
+function setIn(obj: CmsFormData, path: FieldPath, value: CmsFormData): CmsFormData {
+  if (path.length === 0) return value;
+
+  const [head, ...rest] = path;
+
+  if (typeof head === "number") {
+    const nextArray = Array.isArray(obj) ? [...obj] : [];
+    nextArray[head] = setIn(nextArray[head], rest, value) as CmsFormValue;
+    return nextArray;
+  }
+
+  const nextObject: CmsFormObject = isRecord(obj) ? { ...(obj as CmsFormObject) } : {};
+  nextObject[head] = setIn(nextObject[head], rest, value);
+  return nextObject;
+}
+
+function cleanData(data: CmsFormData): CmsFormData {
   if (Array.isArray(data)) {
-    return data.map(cleanData).filter((v) => v !== undefined);
-  } else if (data && typeof data === "object") {
-    const cleaned: any = {};
-    for (const [k, v] of Object.entries(data)) {
-      const cleanedVal = cleanData(v);
-      if (cleanedVal !== undefined && cleanedVal !== null && cleanedVal !== "") {
-        cleaned[k] = cleanedVal;
+    return data
+        .map((item) => cleanData(item))
+        .filter((item): item is CmsFormValue => item !== undefined);
+  }
+
+  if (isRecord(data)) {
+    const cleaned: CmsFormObject = {};
+    for (const [key, value] of Object.entries(data)) {
+      const cleanedValue = cleanData(asCmsFormData(value));
+      if (cleanedValue !== undefined && cleanedValue !== null && cleanedValue !== "") {
+        cleaned[key] = cleanedValue;
       }
     }
     return Object.keys(cleaned).length ? cleaned : undefined;
-  } else if (typeof data === "string") {
+  }
+
+  if (typeof data === "string") {
     const trimmed = data.trim();
     return trimmed === "" ? undefined : trimmed;
-  } else {
-    return data;
   }
+
+  return data;
 }
 
-function isDescriptionKey(key: string | number): boolean {
+function isDescriptionKey(key: PathSegment): boolean {
   if (typeof key !== "string") return false;
   const descKeys = ["description", "desc", "body", "subtitle", "paragraphs", "content", "template"];
   return descKeys.some((dk) => key.toLowerCase().includes(dk));
 }
 
-function isImageKey(key: string | number): boolean {
+function isImageKey(key: PathSegment): boolean {
   if (typeof key !== "string") return false;
   const imageKeys = ["img", "image", "bgurl", "logourl", "logosrc"];
   return imageKeys.some((ik) => key.toLowerCase().includes(ik));
 }
 
-function stableStringify(v: any) {
+function sortDeep(value: CmsFormData): CmsFormData {
+  if (Array.isArray(value)) {
+    return value.map((item) => sortDeep(item)) as CmsFormValue[];
+  }
+
+  if (isRecord(value)) {
+    const next: CmsFormObject = {};
+    Object.keys(value)
+        .sort()
+        .forEach((key) => {
+          next[key] = sortDeep(asCmsFormData(value[key]));
+        });
+    return next;
+  }
+
+  return value;
+}
+
+function stableStringify(v: CmsFormData) {
   try {
-    return JSON.stringify(v ?? {}, Object.keys(v ?? {}).sort(), 2);
+    return JSON.stringify(sortDeep(v ?? {}), null, 2);
   } catch {
     try {
       return JSON.stringify(v ?? {});
@@ -99,15 +200,15 @@ function stableStringify(v: any) {
   }
 }
 
-function normalizeSearch(value: any) {
+function normalizeSearch(value: unknown) {
   return String(value ?? "").toLowerCase().trim();
 }
 
-function pathLabel(path: (string | number)[]) {
+function pathLabel(path: FieldPath) {
   return path.length ? path.join(".") : "root";
 }
 
-function valueMatchesSearch(value: any, keyword: string): boolean {
+function valueMatchesSearch(value: unknown, keyword: string): boolean {
   const q = normalizeSearch(keyword);
   if (!q) return true;
   if (value === null || value === undefined) return false;
@@ -116,14 +217,14 @@ function valueMatchesSearch(value: any, keyword: string): boolean {
     return value.some((item) => valueMatchesSearch(item, q));
   }
 
-  if (typeof value === "object") {
+  if (isRecord(value)) {
     return Object.entries(value).some(([k, v]) => normalizeSearch(k).includes(q) || valueMatchesSearch(v, q));
   }
 
   return normalizeSearch(value).includes(q);
 }
 
-function fieldMatchesSearch(data: any, form: any, path: (string | number)[], keyword: string): boolean {
+function fieldMatchesSearch(data: unknown, form: unknown, path: FieldPath, keyword: string): boolean {
   const q = normalizeSearch(keyword);
   if (!q) return true;
 
@@ -147,12 +248,20 @@ function sectionMatchesSearch(section: CmsSection, keyword: string): boolean {
   );
 }
 
-
-function countLeafFields(value: any): number {
+function countLeafFields(value: unknown): number {
   if (value === null || value === undefined) return 0;
   if (Array.isArray(value)) return value.reduce((sum, item) => sum + countLeafFields(item), 0);
-  if (typeof value === "object") return Object.values(value).reduce((sum, item) => sum + countLeafFields(item), 0);
+  if (isRecord(value)) return Object.values(value).reduce<number>((sum, item) => sum + countLeafFields(item), 0);
   return 1;
+}
+
+function moveArrayItem(items: CmsFormValue[], fromIndex: number, toIndex: number): CmsFormValue[] {
+  if (toIndex < 0 || toIndex >= items.length || fromIndex === toIndex) return items;
+  const next = [...items];
+  const [moved] = next.splice(fromIndex, 1);
+  if (moved === undefined) return items;
+  next.splice(toIndex, 0, moved);
+  return next;
 }
 
 // =====================
@@ -198,13 +307,7 @@ function ImageField({
             </div>
         )}
         <div className="image-actions">
-          <input
-              type="text"
-              className="input2"
-              value={value}
-              readOnly
-              placeholder="URL hình ảnh"
-          />
+          <input type="text" className="input2" value={value} readOnly placeholder="URL hình ảnh" />
           <input
               ref={fileInputRef}
               type="file"
@@ -226,16 +329,18 @@ function ImageField({
 }
 
 // =====================
-// Dynamic Field Renderer (giữ nguyên, dùng CSS class)
+// Dynamic Field Renderer
 // =====================
 interface DynamicFieldProps {
-  data: any;
-  form: any;
-  path: (string | number)[];
-  onFormChange: (path: (string | number)[], value: any) => void;
-  onImageUpload: (path: (string | number)[], file: File, prevUrl: string) => Promise<void>;
-  onImageRemove: (path: (string | number)[], url: string) => Promise<void>;
-  isImageBusy: (path: (string | number)[]) => boolean;
+  data: CmsFormData;
+  form: CmsFormData;
+  path: FieldPath;
+  onFormChange: (path: FieldPath, value: CmsFormData) => void;
+  onImageUpload: (path: FieldPath, file: File, prevUrl: string) => Promise<void>;
+  onImageRemove: (path: FieldPath, url: string) => Promise<void>;
+  isImageBusy: (path: FieldPath) => boolean;
+  isArrayCollapsed: (path: FieldPath) => boolean;
+  setArrayCollapsed: (path: FieldPath, collapsed: boolean) => void;
   searchTerm?: string;
 }
 
@@ -247,6 +352,8 @@ function DynamicField({
                         onImageUpload,
                         onImageRemove,
                         isImageBusy,
+                        isArrayCollapsed,
+                        setArrayCollapsed,
                         searchTerm = "",
                       }: DynamicFieldProps) {
   if (data === null || data === undefined) {
@@ -259,72 +366,136 @@ function DynamicField({
 
   // ARRAY
   if (Array.isArray(data)) {
-    const arrayForm = Array.isArray(form) ? form : [];
+    const arrayTemplate = data;
+    const arrayForm = Array.isArray(form) ? form : arrayTemplate;
+    const collapsedByDefault = isArrayCollapsed(path);
+    const collapsed = !searchTerm && collapsedByDefault;
+    const visibleItems = arrayForm
+        .map((item, idx) => ({
+          idx,
+          item,
+          itemData: arrayTemplate[idx] ?? arrayTemplate[0] ?? {},
+        }))
+        .filter(({ item, itemData, idx }) => fieldMatchesSearch(itemData, item, [...path, idx], searchTerm));
 
     const addItem = () => {
-      const template = data.length > 0 ? data[0] : {};
-      const newItem = deepClone(template);
-      if (typeof newItem === "object" && newItem !== null) {
-        Object.keys(newItem).forEach((k) => {
-          if (typeof newItem[k] === "string") newItem[k] = "";
-        });
-      }
-      onFormChange(path, [...arrayForm, newItem]);
+      const template = arrayTemplate.length > 0 ? arrayTemplate[0] : {};
+      const newItem = createArrayItemTemplate(template) ?? {};
+      onFormChange(path, [...arrayForm, newItem as CmsFormValue]);
+      setArrayCollapsed(path, false);
     };
 
     const removeItem = (index: number) => {
-      onFormChange(path, arrayForm.filter((_, i) => i !== index));
+      onFormChange(
+          path,
+          arrayForm.filter((_, i) => i !== index)
+      );
+    };
+
+    const moveItem = (index: number, direction: -1 | 1) => {
+      onFormChange(path, moveArrayItem(arrayForm, index, index + direction));
     };
 
     return (
         <div className="dynamic-array">
           <div className="array-header">
-            <span className="array-label">{path[path.length - 1]?.toString() || "Array"}</span>
+            <div className="array-header-left">
+              <button
+                  className="btn array-toggle"
+                  onClick={() => setArrayCollapsed(path, !collapsedByDefault)}
+                  type="button"
+                  aria-expanded={!collapsed}
+                  title={collapsed ? "Mở rộng mảng" : "Thu gọn mảng"}
+              >
+                <span className="array-toggle-icon">{collapsed ? "▸" : "▾"}</span>
+                <span>{collapsed ? "Expand" : "Collapse"}</span>
+              </button>
+              <span className="array-label">{path[path.length - 1]?.toString() || "Array"}</span>
+              <span className="array-count">
+                {searchTerm ? `${visibleItems.length}/${arrayForm.length} items` : `${arrayForm.length} items`}
+              </span>
+            </div>
             <button className="btn array-add" onClick={addItem} type="button">
               + Add
             </button>
           </div>
-          <div className="array-items">
-            {arrayForm.map((item, idx) => (
-                <div key={idx} className="array-item">
-                  <div className="array-item-header">
-                    <div className="array-item-meta">
-                      <span className="array-item-index">#{idx + 1}</span>
-                      <span className="field-path">{pathLabel([...path, idx])}</span>
+
+          {collapsed ? (
+              <div className="array-collapsed-note">
+                {arrayForm.length ? `Đang thu gọn • ${arrayForm.length} phần tử` : "(empty)"}
+              </div>
+          ) : (
+              <div className="array-items">
+                {visibleItems.map(({ item, idx, itemData }) => (
+                    <div key={`${pathToKey(path)}-${idx}`} className="array-item">
+                      <div className="array-item-header">
+                        <div className="array-item-meta">
+                          <span className="array-item-index">#{idx + 1}</span>
+                          <span className="field-path">{pathLabel([...path, idx])}</span>
+                        </div>
+                        <div className="array-item-actions">
+                          <button
+                              className="btn array-move"
+                              onClick={() => moveItem(idx, -1)}
+                              type="button"
+                              disabled={idx === 0}
+                              title="Di chuyển lên"
+                          >
+                            ↑
+                          </button>
+                          <button
+                              className="btn array-move"
+                              onClick={() => moveItem(idx, 1)}
+                              type="button"
+                              disabled={idx === arrayForm.length - 1}
+                              title="Di chuyển xuống"
+                          >
+                            ↓
+                          </button>
+                          <button className="btn array-remove" onClick={() => removeItem(idx)} type="button">
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                      <DynamicField
+                          data={itemData}
+                          form={item}
+                          path={[...path, idx]}
+                          onFormChange={onFormChange}
+                          onImageUpload={onImageUpload}
+                          onImageRemove={onImageRemove}
+                          isImageBusy={isImageBusy}
+                          isArrayCollapsed={isArrayCollapsed}
+                          setArrayCollapsed={setArrayCollapsed}
+                          searchTerm={searchTerm}
+                      />
                     </div>
-                    <button className="btn array-remove" onClick={() => removeItem(idx)} type="button">
-                      ✕
-                    </button>
-                  </div>
-                  <DynamicField
-                      data={data[idx] ?? data[0] ?? {}}
-                      form={item}
-                      path={[...path, idx]}
-                      onFormChange={onFormChange}
-                      onImageUpload={onImageUpload}
-                      onImageRemove={onImageRemove}
-                      isImageBusy={isImageBusy}
-                      searchTerm={searchTerm}
-                  />
-                </div>
-            ))}
-            {arrayForm.length === 0 && (
-                <div className="muted array-empty">(empty)</div>
-            )}
-          </div>
+                ))}
+                {visibleItems.length === 0 && <div className="muted array-empty">Không có phần tử khớp</div>}
+              </div>
+          )}
         </div>
     );
   }
 
   // OBJECT
-  if (typeof data === "object" && data !== null) {
-    const objectForm = (form && typeof form === "object") ? form : {};
+  if (isRecord(data)) {
+    const objectForm = isRecord(form) ? form : {};
+    const visibleKeys = Object.keys(data).filter((key) => {
+      const childData = asCmsFormData(data[key]);
+      const childForm = asCmsFormData(objectForm[key]);
+      return fieldMatchesSearch(childData, childForm, [...path, key], searchTerm);
+    });
+
+    if (visibleKeys.length === 0) {
+      return null;
+    }
 
     return (
         <div className="dynamic-object">
-          {Object.keys(data).map((key) => {
-            const childData = data[key];
-            const childForm = objectForm[key];
+          {visibleKeys.map((key) => {
+            const childData = asCmsFormData(data[key]);
+            const childForm = asCmsFormData(objectForm[key]);
             return (
                 <div key={key} className="object-field">
                   <div className="field-head">
@@ -339,6 +510,8 @@ function DynamicField({
                       onImageUpload={onImageUpload}
                       onImageRemove={onImageRemove}
                       isImageBusy={isImageBusy}
+                      isArrayCollapsed={isArrayCollapsed}
+                      setArrayCollapsed={setArrayCollapsed}
                       searchTerm={searchTerm}
                   />
                 </div>
@@ -354,7 +527,11 @@ function DynamicField({
   };
 
   const lastKey = path[path.length - 1];
-  const inputValue = form ?? data ?? "";
+  const inputValue = typeof form === "string" || typeof form === "number" || typeof form === "boolean"
+      ? String(form)
+      : typeof data === "string" || typeof data === "number" || typeof data === "boolean"
+          ? String(data)
+          : "";
 
   if (isImageKey(lastKey) && typeof data === "string") {
     return (
@@ -374,19 +551,9 @@ function DynamicField({
   return (
       <div className="dynamic-primitive">
         {useTextArea ? (
-            <textarea
-                className="textarea2"
-                value={inputValue}
-                onChange={handleChange}
-                rows={5}
-            />
+            <textarea className="textarea2" value={inputValue} onChange={handleChange} rows={5} />
         ) : (
-            <input
-                type="text"
-                className="input2"
-                value={inputValue}
-                onChange={handleChange}
-            />
+            <input type="text" className="input2" value={inputValue} onChange={handleChange} />
         )}
       </div>
   );
@@ -397,7 +564,7 @@ function isManagedCloudImageUrl(url?: string | null): boolean {
   return url.includes(".s3.cloudfly.vn/") || url.includes("/ayanavita-dev/");
 }
 
-function pathToKey(path: (string | number)[]) {
+function pathToKey(path: FieldPath) {
   return path.join(".");
 }
 
@@ -416,18 +583,24 @@ export function CmsEditPage() {
   const [sectionId, setSectionId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  const [form, setForm] = useState<any>({});
+  const [form, setForm] = useState<CmsFormData>({});
   const [imageBusyMap, setImageBusyMap] = useState<Record<string, boolean>>({});
+  const [collapsedArrays, setCollapsedArrays] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState("");
-
 
   const section = useMemo(() => page?.sections?.find((s) => s.id === sectionId) || null, [page, sectionId]);
   const key = section?.key || "unknown";
 
   const locInfo = useMemo(() => (section ? pickLocale(section, locale) || null : null), [section, locale]);
-  const effectiveData = useMemo(() => locInfo?.draftData ?? locInfo?.publishedData ?? {}, [locInfo]);
+  const effectiveData = useMemo<CmsFormData>(
+      () => asCmsFormData(locInfo?.draftData) ?? asCmsFormData(locInfo?.publishedData) ?? {},
+      [locInfo]
+  );
 
-  const sectionsSorted = useMemo(() => (page?.sections || []).slice().sort((a, b) => a.sortOrder - b.sortOrder), [page]);
+  const sectionsSorted = useMemo(
+      () => (page?.sections || []).slice().sort((a, b) => a.sortOrder - b.sortOrder),
+      [page]
+  );
   const filteredSections = useMemo(
       () => sectionsSorted.filter((s) => sectionMatchesSearch(s, searchTerm)),
       [sectionsSorted, searchTerm]
@@ -453,31 +626,32 @@ export function CmsEditPage() {
       const data = await adminGetPage(token, slug);
       setPage(data);
       if (data.sections?.length) setSectionId((prev) => prev ?? data.sections[0].id);
-    } catch (e: any) {
-      if (is401(e)) {
+    } catch (error) {
+      if (is401(error)) {
         toast.push({ kind: "err", title: "Phiên đăng nhập hết hạn", detail: "401 Unauthorized. Vui lòng đăng nhập lại." });
         nav("/login", { replace: true });
         return;
       }
-      toast.push({ kind: "err", title: "Load page failed", detail: e?.message || String(e) });
+      toast.push({ kind: "err", title: "Load page failed", detail: getErrorMessage(error) });
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    load();
+    void load();
   }, [slug]);
 
   const dataSig = useMemo(() => `${sectionId ?? ""}|${locale}`, [sectionId, locale]);
   useEffect(() => {
     if (!section) return;
+    setCollapsedArrays({});
     setForm(() => {
       const newForm = deepClone(effectiveData);
       baselineRef.current = stableStringify(cleanData(newForm));
       return newForm;
     });
-  }, [dataSig, section?.id]);
+  }, [dataSig, section?.id, effectiveData]);
 
   // Auto-save effect
   useEffect(() => {
@@ -494,13 +668,13 @@ export function CmsEditPage() {
         setSaving(true);
         await adminSaveDraft(token, section.id, locale, cleanedForm);
         baselineRef.current = stableStringify(cleanedForm);
-      } catch (e: any) {
-        if (is401(e)) {
+      } catch (error) {
+        if (is401(error)) {
           toast.push({ kind: "err", title: "Phiên đăng nhập hết hạn", detail: "401 Unauthorized. Vui lòng đăng nhập lại." });
           nav("/login", { replace: true });
           return;
         }
-        console.warn("[AUTOSAVE] failed:", e);
+        console.warn("[AUTOSAVE] failed:", error);
       } finally {
         setSaving(false);
       }
@@ -534,13 +708,13 @@ export function CmsEditPage() {
       baselineRef.current = stableStringify(cleanedForm);
       toast.push({ kind: "ok", title: "Saved draft", detail: `section=${section.key} locale=${locale}` });
       await load();
-    } catch (e: any) {
-      if (is401(e)) {
+    } catch (error) {
+      if (is401(error)) {
         toast.push({ kind: "err", title: "Phiên đăng nhập hết hạn", detail: "401 Unauthorized. Vui lòng đăng nhập lại." });
         nav("/login", { replace: true });
         return;
       }
-      toast.push({ kind: "err", title: "Save draft failed", detail: e?.message || String(e) });
+      toast.push({ kind: "err", title: "Save draft failed", detail: getErrorMessage(error) });
     } finally {
       setSaving(false);
     }
@@ -564,13 +738,13 @@ export function CmsEditPage() {
       await adminPublish(token, section.id, locale);
       toast.push({ kind: "ok", title: "Published", detail: `section=${section.key} locale=${locale}` });
       await load();
-    } catch (e: any) {
-      if (is401(e)) {
+    } catch (error) {
+      if (is401(error)) {
         toast.push({ kind: "err", title: "Phiên đăng nhập hết hạn", detail: "401 Unauthorized. Vui lòng đăng nhập lại." });
         nav("/login", { replace: true });
         return;
       }
-      toast.push({ kind: "err", title: "Publish failed", detail: e?.message || String(e) });
+      toast.push({ kind: "err", title: "Publish failed", detail: getErrorMessage(error) });
     } finally {
       setPublishing(false);
     }
@@ -580,12 +754,12 @@ export function CmsEditPage() {
     if (!dirty) return;
     const ok = window.confirm("Reset về dữ liệu đang load (draft/published) và bỏ thay đổi?");
     if (!ok) return;
-    load();
+    void load();
   }
 
   function onCopyPublishedToDraft() {
     if (!section) return;
-    const pub = locInfo?.publishedData;
+    const pub = asCmsFormData(locInfo?.publishedData);
     if (!pub) {
       toast.push({ kind: "err", title: "No published data", detail: "Chưa có publishedData." });
       return;
@@ -595,11 +769,21 @@ export function CmsEditPage() {
     setForm(deepClone(pub));
   }
 
-  const handleFormChange = (path: (string | number)[], value: any) => {
-    setForm((prev: any) => setIn(prev, path, value));
+  const handleFormChange = (path: FieldPath, value: CmsFormData) => {
+    setForm((prev) => setIn(prev, path, value));
   };
 
-  const withImageBusy = async (path: (string | number)[], work: () => Promise<void>) => {
+  const setArrayCollapsed = (path: FieldPath, collapsed: boolean) => {
+    const keyForPath = pathToKey(path);
+    setCollapsedArrays((prev) => ({ ...prev, [keyForPath]: collapsed }));
+  };
+
+  const isArrayCollapsed = (path: FieldPath) => {
+    const keyForPath = pathToKey(path);
+    return collapsedArrays[keyForPath] ?? true;
+  };
+
+  const withImageBusy = async (path: FieldPath, work: () => Promise<void>) => {
     const k = pathToKey(path);
     setImageBusyMap((prev) => ({ ...prev, [k]: true }));
     try {
@@ -609,7 +793,7 @@ export function CmsEditPage() {
     }
   };
 
-  const handleImageUpload = async (path: (string | number)[], file: File, prevUrl: string) => {
+  const handleImageUpload = async (path: FieldPath, file: File, prevUrl: string) => {
     if (!token) {
       toast.push({ kind: "err", title: "Chưa có token", detail: "Vui lòng đăng nhập lại." });
       nav("/login", { replace: true });
@@ -618,19 +802,19 @@ export function CmsEditPage() {
 
     await withImageBusy(path, async () => {
       const uploaded = await adminUploadCmsImage(token, file);
-      setForm((prev: any) => setIn(prev, path, uploaded.url));
+      setForm((prev) => setIn(prev, path, uploaded.url));
 
       if (prevUrl && prevUrl !== uploaded.url && isManagedCloudImageUrl(prevUrl)) {
         try {
           await adminDeleteCmsImage(token, prevUrl);
-        } catch (e) {
-          console.warn("delete old cms image failed", e);
+        } catch (error) {
+          console.warn("delete old cms image failed", error);
         }
       }
     });
   };
 
-  const handleImageRemove = async (path: (string | number)[], url: string) => {
+  const handleImageRemove = async (path: FieldPath, url: string) => {
     if (!token) {
       toast.push({ kind: "err", title: "Chưa có token", detail: "Vui lòng đăng nhập lại." });
       nav("/login", { replace: true });
@@ -641,11 +825,11 @@ export function CmsEditPage() {
       if (url && isManagedCloudImageUrl(url)) {
         await adminDeleteCmsImage(token, url);
       }
-      setForm((prev: any) => setIn(prev, path, ""));
+      setForm((prev) => setIn(prev, path, ""));
     });
   };
 
-  const isImageBusy = (path: (string | number)[]) => Boolean(imageBusyMap[pathToKey(path)]);
+  const isImageBusy = (path: FieldPath) => Boolean(imageBusyMap[pathToKey(path)]);
 
   const statusBadge = useMemo(() => {
     const st = (locInfo?.status || "").toUpperCase();
@@ -659,6 +843,8 @@ export function CmsEditPage() {
   const totalFieldCount = useMemo(() => countLeafFields(effectiveData), [effectiveData]);
   const matchedSectionCount = filteredSections.length;
   const pageTitle = slug ? String(slug).replace(/[-_]/g, " ") : "CMS";
+  const publishedAt = getLocaleStringValue(locInfo, "publishedAt");
+  const updatedAt = getLocaleStringValue(locInfo, "updatedAt");
 
   return (
       <div className="aya-editor">
@@ -696,25 +882,6 @@ export function CmsEditPage() {
               </div>
             </div>
 
-            {/*<div className="sidebar-stats">*/}
-            {/*  <div className="stat-card">*/}
-            {/*    <div className="stat-label">Sections</div>*/}
-            {/*    <div className="stat-value">{sectionsSorted.length}</div>*/}
-            {/*  </div>*/}
-            {/*  <div className="stat-card">*/}
-            {/*    <div className="stat-label">Kết quả</div>*/}
-            {/*    <div className="stat-value">{matchedSectionCount}</div>*/}
-            {/*  </div>*/}
-            {/*  <div className="stat-card">*/}
-            {/*    <div className="stat-label">Field</div>*/}
-            {/*    <div className="stat-value">{totalFieldCount}</div>*/}
-            {/*  </div>*/}
-            {/*  <div className="stat-card">*/}
-            {/*    <div className="stat-label">Trạng thái</div>*/}
-            {/*    <div className={`stat-pill ${dirty ? "warn" : "ok"}`}>{dirty ? "Unsaved" : "Saved"}</div>*/}
-            {/*  </div>*/}
-            {/*</div>*/}
-
             <div className="locale-switcher">
               {(["vi", "en", "de"] as CmsLocale[]).map((l) => {
                 const active = locale === l;
@@ -751,14 +918,21 @@ export function CmsEditPage() {
                         >
                           <div className="section-item-top">
                             <span className="section-index">{String(idx + 1).padStart(2, "0")}</span>
-                            <span className={`mini-status ${secStatus.includes("PUBLISH") ? "ok" : secStatus.includes("DRAFT") ? "warn" : "off"}`}>
+                            <span
+                                className={`mini-status ${secStatus.includes("PUBLISH") ? "ok" : secStatus.includes("DRAFT") ? "warn" : "off"}`}
+                            >
                         {secStatus.replace("_", " ")}
                       </span>
                           </div>
                           <div className="section-key">{s.key}</div>
                           <div className="section-meta-row">
                             <span>#{s.sortOrder}</span>
-                            <span>{countLeafFields((pickLocale(s, locale)?.draftData ?? pickLocale(s, locale)?.publishedData ?? {}))} field</span>
+                            <span>
+                        {countLeafFields(
+                            asCmsFormData(pickLocale(s, locale)?.draftData) ?? asCmsFormData(pickLocale(s, locale)?.publishedData) ?? {}
+                        )}{" "}
+                              field
+                      </span>
                           </div>
                         </button>
                     );
@@ -778,7 +952,7 @@ export function CmsEditPage() {
                 <button className="btn" onClick={() => nav(-1)} type="button">
                   Quay lại
                 </button>
-                <button className="btn" onClick={load} disabled={loading}>
+                <button className="btn" onClick={() => void load()} disabled={loading}>
                   {loading ? "Loading…" : "Refresh"}
                 </button>
                 {statusBadge}
@@ -791,10 +965,10 @@ export function CmsEditPage() {
                 <button className="btn" onClick={onReset} disabled={!dirty}>
                   Reset
                 </button>
-                <button className="btn btn-primary" onClick={onSaveDraft} disabled={!section || saving}>
+                <button className="btn btn-primary" onClick={() => void onSaveDraft()} disabled={!section || saving}>
                   {saving ? "Saving…" : "Save Draft"}
                 </button>
-                <button className="btn btn-success" onClick={onPublish} disabled={!section || publishing}>
+                <button className="btn btn-success" onClick={() => void onPublish()} disabled={!section || publishing}>
                   {publishing ? "Publishing…" : "Publish"}
                 </button>
               </div>
@@ -824,11 +998,11 @@ export function CmsEditPage() {
                 </div>
                 <div className="hero-chip">
                   <span>Published</span>
-                  <strong>{fmtDate((locInfo as any)?.publishedAt)}</strong>
+                  <strong>{fmtDate(publishedAt)}</strong>
                 </div>
                 <div className="hero-chip">
                   <span>Updated</span>
-                  <strong>{fmtDate((locInfo as any)?.updatedAt)}</strong>
+                  <strong>{fmtDate(updatedAt)}</strong>
                 </div>
                 <div className="hero-chip">
                   <span>Status</span>
@@ -853,9 +1027,7 @@ export function CmsEditPage() {
                       <div className="editor-badges">
                         <span className="badge">{totalFieldCount} fields</span>
                         {saving && <span className="badge warn">SAVING…</span>}
-                        <span className={`badge ${dirty ? "warn" : "ok"}`}>
-                      {dirty ? "UNSAVED" : "SAVED"}
-                    </span>
+                        <span className={`badge ${dirty ? "warn" : "ok"}`}>{dirty ? "UNSAVED" : "SAVED"}</span>
                       </div>
                     </div>
                     <div className="editor-tip">
@@ -871,6 +1043,8 @@ export function CmsEditPage() {
                               onImageUpload={handleImageUpload}
                               onImageRemove={handleImageRemove}
                               isImageBusy={isImageBusy}
+                              isArrayCollapsed={isArrayCollapsed}
+                              setArrayCollapsed={setArrayCollapsed}
                               searchTerm={searchTerm}
                           />
                       ) : (
@@ -1000,40 +1174,6 @@ export function CmsEditPage() {
           font-size: 13px;
           line-height: 1.5;
         }
-        .sidebar-stats {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 10px;
-        }
-        .stat-card {
-          border: 1px solid #e2e8f0;
-          border-radius: 18px;
-          padding: 14px;
-          background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-        }
-        .stat-label {
-          font-size: 12px;
-          font-weight: 700;
-          color: #64748b;
-          margin-bottom: 8px;
-        }
-        .stat-value {
-          font-size: 24px;
-          font-weight: 900;
-          color: #0f172a;
-        }
-        .stat-pill {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-height: 34px;
-          border-radius: 999px;
-          padding: 0 12px;
-          font-size: 12px;
-          font-weight: 900;
-        }
-        .stat-pill.ok { background: #dcfce7; color: #166534; }
-        .stat-pill.warn { background: #fef3c7; color: #92400e; }
         .locale-switcher {
           display: flex;
           gap: 8px;
@@ -1322,27 +1462,72 @@ export function CmsEditPage() {
           padding: 14px;
           background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
         }
-        .array-header, .array-item-header, .array-item-meta {
+        .array-header,
+        .array-item-header,
+        .array-item-meta,
+        .array-header-left,
+        .array-item-actions {
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 10px;
           flex-wrap: wrap;
         }
-        .array-label, .array-item-index {
+        .array-header-left {
+          justify-content: flex-start;
+          min-width: 0;
+          flex: 1;
+        }
+        .array-label,
+        .array-item-index {
           font-weight: 900;
           font-size: 12px;
           text-transform: uppercase;
           letter-spacing: 0.06em;
           color: #0f172a;
         }
-        .array-add { height: 34px; font-size: 12px; }
-        .array-items { display: flex; flex-direction: column; gap: 14px; margin-top: 10px; }
+        .array-count {
+          font-size: 12px;
+          color: #64748b;
+          padding: 6px 10px;
+          border-radius: 999px;
+          background: #eff6ff;
+          border: 1px solid #dbeafe;
+        }
+        .array-toggle,
+        .array-add,
+        .array-move {
+          height: 34px;
+          font-size: 12px;
+        }
+        .array-toggle {
+          gap: 8px;
+          min-width: 96px;
+        }
+        .array-toggle-icon {
+          font-size: 12px;
+          line-height: 1;
+        }
+        .array-items {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          margin-top: 10px;
+        }
         .array-item {
           border: 1px solid #dbeafe;
           border-radius: 16px;
           padding: 12px;
           background: #fff;
+        }
+        .array-collapsed-note {
+          margin-top: 10px;
+          border: 1px dashed #cbd5e1;
+          border-radius: 14px;
+          padding: 12px 14px;
+          font-size: 13px;
+          color: #64748b;
+          background: rgba(255, 255, 255, 0.72);
         }
         .array-remove {
           height: 32px;
@@ -1350,6 +1535,10 @@ export function CmsEditPage() {
           background: #fee2e2;
           border-color: #fecaca;
           color: #991b1b;
+        }
+        .array-move {
+          min-width: 36px;
+          padding: 0 10px;
         }
         .array-empty { text-align: center; padding: 10px; }
         .dynamic-primitive { width: 100%; }
@@ -1404,16 +1593,20 @@ export function CmsEditPage() {
         @media (max-width: 860px) {
           .aya-editor { padding: 14px; }
           .hero { grid-template-columns: 1fr; }
-          .hero-grid, .sidebar-stats { grid-template-columns: 1fr 1fr; }
+          .hero-grid { grid-template-columns: 1fr 1fr; }
         }
         @media (max-width: 640px) {
           .page-title { font-size: 24px; }
           .hero-title { font-size: 24px; }
-          .hero-grid, .sidebar-stats { grid-template-columns: 1fr; }
+          .hero-grid { grid-template-columns: 1fr; }
           .pad, .editor-header, .editor-tip, .topbar, .sidebar { padding-left: 14px; padding-right: 14px; }
-          .image-actions, .topbar-right, .topbar-left { align-items: stretch; }
+          .image-actions, .topbar-right, .topbar-left, .array-item-actions, .array-header {
+            align-items: stretch;
+          }
           .btn { width: 100%; }
           .topbar-left, .topbar-right { width: 100%; }
+          .array-header-left { width: 100%; }
+          .array-toggle, .array-add, .array-move, .array-remove { width: auto; }
         }
       `}</style>
       </div>

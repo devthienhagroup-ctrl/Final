@@ -1391,8 +1391,8 @@ export function CoursePlansAdminPage() {
                           <td>{item.passCount}</td>
                           <td>
                             <div className="course-plans-muted">ĐANG DÙNG: {item.activePassCount}</div>
-                            <div className="course-plans-muted">GIA Háº N: {item.gracePassCount}</div>
-                            <div className="course-plans-muted">Háº¾T Háº N: {item.expiredPassCount}</div>
+                            <div className="course-plans-muted">GIA HẠN: {item.gracePassCount}</div>
+                            <div className="course-plans-muted">HẾT HẠN: {item.expiredPassCount}</div>
                             <div className="course-plans-muted">ĐÃ HỦY: {item.canceledPassCount}</div>
                           </td>
                           <td>

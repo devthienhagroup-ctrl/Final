@@ -107,14 +107,14 @@ export function Footer({ cmsData }: FooterProps) {
   };
 
   return (
-      <footer className="mt-10 z-10 text-white">
+      <footer className="z-10 mt-10 text-white">
         <div className="gradient-footer z-10">
-          <div className="inner py-12">
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-5">
+          <div className="inner py-10 sm:py-12">
+            <div className="grid gap-8 sm:gap-10 md:grid-cols-2 lg:grid-cols-5">
               <div className="lg:col-span-2">
-                <div className="mb-6 flex items-center gap-3">
+                <div className="mb-5 flex items-center gap-3 sm:mb-6">
                   <div
-                      className="flex h-12 w-12 items-center justify-center rounded-xl text-xl font-black text-white ring-1 ring-white/15"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg font-black text-white ring-1 ring-white/15 sm:h-12 sm:w-12 sm:text-xl"
                       style={{
                         background:
                             "linear-gradient(135deg,var(--aya-primary-1),var(--aya-primary-2))",
@@ -123,19 +123,21 @@ export function Footer({ cmsData }: FooterProps) {
                   >
                     A
                   </div>
-                  <div>
-                    <div className="text-xl font-black">{finalData.brandName}</div>
-                    <div className="text-sm text-slate-300">{finalData.brandLabel}</div>
+                  <div className="min-w-0">
+                    <div className="text-lg font-black sm:text-xl">{finalData.brandName}</div>
+                    <div className="text-sm text-slate-300 sm:text-[15px]">{finalData.brandLabel}</div>
                   </div>
                 </div>
 
-                <p className="mb-6 max-w-md text-slate-300">{finalData.description}</p>
+                <p className="mb-5 max-w-md text-sm leading-6 text-slate-300 sm:mb-6 sm:text-[15px]">
+                  {finalData.description}
+                </p>
 
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3">
                   {finalData.socialLinks.map((social, idx) => (
                       <a
                           key={idx}
-                          className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-amber-300 transition hover:bg-white/20"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-sm text-amber-300 transition hover:bg-white/20 sm:h-11 sm:w-11"
                           href={social.url}
                           onClick={isPlaceholderLink(social.url) ? (e) => e.preventDefault() : undefined}
                           aria-label={social.label || social.icon}
@@ -147,72 +149,85 @@ export function Footer({ cmsData }: FooterProps) {
               </div>
 
               <div>
-                <h3 className="mb-4 text-lg font-semibold">{finalData.aboutTitle}</h3>
-                <ul className="space-y-3 text-slate-300">
+                <h3 className="mb-4 text-base font-semibold sm:text-lg">{finalData.aboutTitle}</h3>
+                <ul className="space-y-3 text-sm text-slate-300 sm:text-[15px]">
                   {finalData.aboutLinks.map((link, idx) => (
-                      <li key={idx}>{renderLink(link.text, link.url, "hover:text-amber-200")}</li>
+                      <li key={idx}>{renderLink(link.text, link.url, "transition hover:text-amber-200")}</li>
                   ))}
                 </ul>
               </div>
 
               <div>
-                <h3 className="mb-4 text-lg font-semibold">{finalData.supportTitle}</h3>
-                <ul className="space-y-3 text-slate-300">
+                <h3 className="mb-4 text-base font-semibold sm:text-lg">{finalData.supportTitle}</h3>
+                <ul className="space-y-3 text-sm text-slate-300 sm:text-[15px]">
                   {finalData.supportLinks.map((link, idx) => (
-                      <li key={idx}>{renderLink(link.text, link.url, "hover:text-amber-200")}</li>
+                      <li key={idx}>{renderLink(link.text, link.url, "transition hover:text-amber-200")}</li>
                   ))}
                 </ul>
               </div>
 
               <div>
-                <h3 className="mb-4 text-lg font-semibold">{finalData.contactTitle}</h3>
-                <ul className="space-y-3 text-slate-300">
-                  <li className="flex items-start gap-2">
-                    <i className="fa-solid fa-location-dot mt-1 text-amber-300"></i>
-                    <span>{finalData.address}</span>
+                <h3 className="mb-4 text-base font-semibold sm:text-lg">{finalData.contactTitle}</h3>
+                <ul className="space-y-3 text-sm text-slate-300 sm:text-[15px]">
+                  <li className="flex items-start gap-3">
+                    <i className="fa-solid fa-location-dot mt-1 shrink-0 text-amber-300"></i>
+                    <span className="min-w-0 leading-6">{finalData.address}</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <i className="fa-solid fa-phone text-amber-300"></i>
+                  <li className="flex items-center gap-3">
+                    <i className="fa-solid fa-phone shrink-0 text-amber-300"></i>
+                    <span className="min-w-0 break-words">
                     {hasValidPhone ? (
-                        <a href={`tel:${finalData.phone}`} className="hover:text-amber-200">
+                        <a href={`tel:${finalData.phone}`} className="transition hover:text-amber-200">
                           {finalData.phone}
                         </a>
                     ) : (
                         <span>{finalData.phone}</span>
                     )}
+                  </span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <i className="fa-solid fa-envelope text-amber-300"></i>
+                  <li className="flex items-center gap-3">
+                    <i className="fa-solid fa-envelope shrink-0 text-amber-300"></i>
+                    <span className="min-w-0 break-all">
                     {hasValidEmail ? (
-                        <a href={`mailto:${finalData.email}`} className="hover:text-amber-200">
+                        <a href={`mailto:${finalData.email}`} className="transition hover:text-amber-200">
                           {finalData.email}
                         </a>
                     ) : (
                         <span>{finalData.email}</span>
                     )}
+                  </span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <i className="fa-solid fa-clock text-amber-300"></i>
-                    <span>{finalData.hours}</span>
+                  <li className="flex items-center gap-3">
+                    <i className="fa-solid fa-clock shrink-0 text-amber-300"></i>
+                    <span className="min-w-0">{finalData.hours}</span>
                   </li>
                 </ul>
               </div>
             </div>
 
-            <div className="mt-10 border-t border-white/10 pt-8">
-              <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-                <div className="text-sm text-slate-400">{finalData.copyrightText}</div>
-                <div className="flex gap-6 text-sm text-slate-400">
+            <div className="mt-10 border-t border-white/10 pt-6 sm:pt-8">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="text-center text-xs leading-5 text-slate-400 sm:text-sm lg:text-left">
+                  {finalData.copyrightText}
+                </div>
+
+                <div className="flex w-full flex-wrap items-center justify-center gap-2 sm:gap-3 lg:w-auto lg:justify-end">
                   {finalData.bottomLinks.map((link, idx) => (
-                      <span key={idx}>{renderLink(link.text, link.url, "hover:text-amber-200")}</span>
+                      <span key={idx} className="w-full sm:w-auto">
+                    {renderLink(
+                        link.text,
+                        link.url,
+                        "flex w-full items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-center text-xs text-slate-300 transition hover:border-white/20 hover:bg-white/10 hover:text-amber-200 sm:inline-flex sm:w-auto sm:text-sm"
+                    )}
+                  </span>
                   ))}
                 </div>
               </div>
 
-              <div className="mt-6 text-center">
-                <div className="inline-flex items-center gap-2 rounded-full bg-white/5 px-4 py-2 ring-1 ring-white/10">
+              <div className="mt-5 text-center sm:mt-6">
+                <div className="inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full bg-white/5 px-4 py-2 ring-1 ring-white/10">
                   <i className="fa-solid fa-shield-halved text-amber-300"></i>
-                  <span className="text-sm text-slate-300">{finalData.sslText}</span>
+                  <span className="text-center text-xs text-slate-300 sm:text-sm">{finalData.sslText}</span>
                 </div>
               </div>
             </div>
